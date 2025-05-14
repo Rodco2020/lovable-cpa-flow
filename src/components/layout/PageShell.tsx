@@ -7,7 +7,8 @@ import {
   FileText, 
   Users, 
   BarChart2,
-  User
+  User,
+  UserCog
 } from 'lucide-react';
 
 interface PageShellProps {
@@ -62,6 +63,19 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
           >
             <FileText className="h-5 w-5" />
             <span>Tasks</span>
+          </NavLink>
+          
+          <NavLink 
+            to="/staff" 
+            className={({ isActive }) => cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+              isActive 
+                ? "bg-slate-800 text-white" 
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            )}
+          >
+            <UserCog className="h-5 w-5" />
+            <span>Staff</span>
           </NavLink>
           
           <NavLink 

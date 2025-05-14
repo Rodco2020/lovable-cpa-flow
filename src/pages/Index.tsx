@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Users, Calendar, BarChart2 } from 'lucide-react';
+import { FileText, Users, Calendar, BarChart2, UserCog } from 'lucide-react';
 
 const Index: React.FC = () => {
   return (
@@ -62,6 +62,32 @@ const Index: React.FC = () => {
               <div className="mt-4">
                 <Button variant="secondary" size="sm" className="w-full">
                   Open Task Module
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link to="/staff">
+          <Card className="h-full hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center mb-2">
+                <UserCog className="h-6 w-6 text-teal-700" />
+              </div>
+              <CardTitle>Staff Module</CardTitle>
+              <CardDescription>
+                Manage staff, skills, and schedule allocations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• Staff profiles</li>
+                <li>• Daily planner</li>
+                <li>• Weekly availability</li>
+              </ul>
+              <div className="mt-4">
+                <Button variant="secondary" size="sm" className="w-full">
+                  Open Staff Module
                 </Button>
               </div>
             </CardContent>
