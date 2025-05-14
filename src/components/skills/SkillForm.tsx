@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 
+// Define the schema with required name field
 const skillSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().optional(),
@@ -68,14 +69,22 @@ const SkillForm: React.FC = () => {
 
   const onSubmit = async (data: FormValues) => {
     try {
+      // Ensure we have a name (the schema validation should guarantee this)
+      const skillData = {
+        name: data.name, // This is required by the schema
+        description: data.description,
+        proficiencyLevel: data.proficiencyLevel,
+        category: data.category,
+      };
+      
       if (isEditMode && id) {
-        await updateSkill(id, data);
+        await updateSkill(id, skillData);
         toast({
           title: "Skill updated",
           description: "The skill has been updated successfully.",
         });
       } else {
-        await createSkill(data);
+        await createSkill(skillData);
         toast({
           title: "Skill created",
           description: "The new skill has been created successfully.",
