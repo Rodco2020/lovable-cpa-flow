@@ -97,9 +97,9 @@ const StaffDetail: React.FC = () => {
                 <dd>
                   <div className="flex flex-wrap gap-2">
                     {staff.skills.map((skillId) => (
-                      <Badge key={skillId} variant="outline" className="bg-slate-100">
+                      <CustomBadge key={skillId} variant="outline" className="bg-slate-100">
                         {skillId}
-                      </Badge>
+                      </CustomBadge>
                     ))}
                   </div>
                 </dd>
