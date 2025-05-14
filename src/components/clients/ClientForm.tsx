@@ -119,14 +119,23 @@ const ClientForm: React.FC = () => {
   });
   
   const onSubmit = (data: ClientFormValues) => {
-    // Since we've properly typed the form values with Zod, these type assertions ensure
-    // the data matches the required types for the Client interface
+    // Create a properly typed client data object that meets the required interfaces
     const clientData = {
-      ...data,
+      legalName: data.legalName,
+      primaryContact: data.primaryContact,
+      email: data.email,
+      phone: data.phone,
+      billingAddress: data.billingAddress, 
       industry: data.industry as IndustryType,
       status: data.status as ClientStatus,
+      expectedMonthlyRevenue: data.expectedMonthlyRevenue,
       paymentTerms: data.paymentTerms as PaymentTerms,
       billingFrequency: data.billingFrequency as BillingFrequency,
+      defaultTaskPriority: data.defaultTaskPriority,
+      notificationPreferences: {
+        emailReminders: data.notificationPreferences.emailReminders,
+        taskNotifications: data.notificationPreferences.taskNotifications,
+      },
     };
 
     if (isEditMode && client) {
