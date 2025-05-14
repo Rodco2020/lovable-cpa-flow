@@ -5,7 +5,7 @@ import { useParams, Link } from "react-router-dom";
 import { getStaffById } from "@/services/staffService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { CustomBadge } from "@/components/ui/custom-badge"; // Updated import
 import { CalendarDays, Edit, Mail, Phone } from "lucide-react";
 
 const StaffDetail: React.FC = () => {
@@ -60,9 +60,9 @@ const StaffDetail: React.FC = () => {
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Status</dt>
                 <dd>
-                  <Badge variant={staff.status === "active" ? "success" : "destructive"} className="capitalize">
+                  <CustomBadge variant={staff.status === "active" ? "success" : "destructive"} className="capitalize">
                     {staff.status}
-                  </Badge>
+                  </CustomBadge>
                 </dd>
               </div>
               <div className="flex items-center">

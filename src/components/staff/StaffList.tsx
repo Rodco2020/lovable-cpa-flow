@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { CustomBadge } from "@/components/ui/custom-badge"; // Updated import
 
 const StaffList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -89,9 +89,9 @@ const StaffList: React.FC = () => {
                   <TableCell>{staff.email}</TableCell>
                   <TableCell>${staff.costPerHour.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge variant={staff.status === "active" ? "success" : "destructive"} className="capitalize">
+                    <CustomBadge variant={staff.status === "active" ? "success" : "destructive"} className="capitalize">
                       {staff.status}
-                    </Badge>
+                    </CustomBadge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
