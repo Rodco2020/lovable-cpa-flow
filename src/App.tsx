@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import TaskModule from "./pages/TaskModule";
 import ClientModule from "./pages/ClientModule";
 import StaffModule from "./pages/StaffModule";
+import SkillsModule from "./pages/SkillsModule";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/tasks/*" element={<TaskModule />} />
             <Route path="/clients/*" element={<ClientModule />} />
             <Route path="/staff/*" element={<StaffModule />} />
+            <Route path="/skills/*" element={<SkillsModule />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
