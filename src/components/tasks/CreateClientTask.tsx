@@ -8,11 +8,13 @@ import {
   RecurrencePattern,
   RecurringTask
 } from '@/types/task';
+import { Client } from '@/types/client';
 import { 
   getTaskTemplates,
   createRecurringTask,
   createAdHocTask
 } from '@/services/taskService';
+import { getClients } from '@/services/clientService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,11 +33,19 @@ import {
   DialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Calendar, Clock } from 'lucide-react';
+import { Plus, Calendar, Clock, Users } from 'lucide-react';
 
 const CreateClientTask: React.FC = () => {
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -64,6 +74,10 @@ const CreateClientTask: React.FC = () => {
     // Load task templates
     const templates = getTaskTemplates();
     setTaskTemplates(templates);
+    
+    // Load clients
+    const activeClients = getClients({ status: ['Active'] });
+    setClients(activeClients);
   }, []);
   
   const handleTemplateSelect = (templateId: string) => {
@@ -91,6 +105,10 @@ const CreateClientTask: React.FC = () => {
     } else {
       setTaskForm({ ...taskForm, [name]: value });
     }
+  };
+
+  const handleClientChange = (clientId: string) => {
+    setTaskForm({ ...taskForm, clientId });
   };
   
   const handleWeekdayChange = (day: number, checked: boolean) => {
@@ -144,7 +162,7 @@ const CreateClientTask: React.FC = () => {
     if (!taskForm.clientId) {
       toast({
         title: "Missing Client",
-        description: "Please specify a client ID.",
+        description: "Please select a client.",
         variant: "destructive"
       });
       return;
@@ -285,16 +303,21 @@ const CreateClientTask: React.FC = () => {
                 <>
                   <div className="space-y-2">
                     <label htmlFor="clientId" className="text-sm font-medium">
-                      Client ID
+                      Client
                     </label>
-                    <Input
-                      id="clientId"
-                      name="clientId"
-                      value={taskForm.clientId}
-                      onChange={handleInputChange}
-                      placeholder="Enter client identifier"
-                      required
-                    />
+                    <Select value={taskForm.clientId} onValueChange={handleClientChange}>
+                      <SelectTrigger className="w-full">
+                        <Users className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Select a client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.legalName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
