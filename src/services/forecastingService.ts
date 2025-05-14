@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
 
@@ -99,7 +98,7 @@ const calculateDemand = async (
   mode: ForecastMode,
   includeSkills: SkillType[] | "all"
 ): Promise<SkillHours[]> => {
-  const skillHoursMap: Record<SkillType, number> = {};
+  const skillHoursMap = {} as Record<SkillType, number>;
   
   if (mode === 'virtual') {
     // Virtual demand is based on recurring tasks
@@ -160,7 +159,7 @@ const calculateCapacity = async (
 ): Promise<SkillHours[]> => {
   // Get all staff members
   const allStaff = await getAllStaff();
-  const skillHoursMap: Record<SkillType, number> = {};
+  const skillHoursMap = {} as Record<SkillType, number>;
   
   // For each staff member
   for (const staff of allStaff) {
@@ -468,12 +467,12 @@ const getPeriodDateRange = (period: string, granularity: GranularityType): DateR
       
     case 'weekly':
       // Parse 'yyyy-'W'ww' format
-      const [yearStr, weekStr] = period.split('-W');
-      const year = parseInt(yearStr);
+      const [yearStrWeekly, weekStr] = period.split('-W');
+      const yearWeekly = parseInt(yearStrWeekly);
       const week = parseInt(weekStr);
       
       // Calculate the first day of the week (Monday)
-      startDate = new Date(year, 0, 1);
+      startDate = new Date(yearWeekly, 0, 1);
       startDate.setDate(startDate.getDate() + (week - 1) * 7);
       while (startDate.getDay() !== 1) {
         startDate.setDate(startDate.getDate() - 1);
@@ -487,9 +486,9 @@ const getPeriodDateRange = (period: string, granularity: GranularityType): DateR
       
     case 'monthly':
       // Parse 'yyyy-MM' format
-      const [year, month] = period.split('-').map(Number);
-      startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month, 0, 23, 59, 59, 999);
+      const [yearMonthly, month] = period.split('-').map(Number);
+      startDate = new Date(yearMonthly, month - 1, 1);
+      endDate = new Date(yearMonthly, month, 0, 23, 59, 59, 999);
       break;
       
     default:

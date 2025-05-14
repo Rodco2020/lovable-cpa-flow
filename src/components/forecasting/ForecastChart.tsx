@@ -67,6 +67,15 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     ? Array.from(uniqueSkills)
     : Array.from(uniqueSkills).filter(skill => skills.includes(skill));
   
+  // Format tooltip and legend labels
+  const formatName = (name: string | number) => {
+    const nameStr = String(name);
+    if (nameStr.startsWith('demand_')) {
+      return `Demand: ${nameStr.replace('demand_', '')}`;
+    }
+    return `Capacity: ${nameStr.replace('capacity_', '')}`;
+  };
+  
   return (
     <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
@@ -79,17 +88,9 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
             <XAxis dataKey="period" />
             <YAxis />
             <Tooltip formatter={(value, name) => {
-              const formattedName = name.startsWith('demand_') 
-                ? `Demand: ${name.replace('demand_', '')}`
-                : `Capacity: ${name.replace('capacity_', '')}`;
-              return [`${value} hours`, formattedName];
+              return [`${value} hours`, formatName(name)];
             }} />
-            <Legend formatter={(value) => {
-              if (value.startsWith('demand_')) {
-                return `Demand: ${value.replace('demand_', '')}`;
-              }
-              return `Capacity: ${value.replace('capacity_', '')}`;
-            }} />
+            <Legend formatter={(value) => formatName(value)} />
             
             {/* Render bars for demand */}
             {showDemand && filteredSkills.map(skill => (
@@ -110,7 +111,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
                 name={`capacity_${skill}`}
                 stackId="capacity"
                 fill={skillColors[skill] ? `${skillColors[skill]}80` : '#82ca9d'}
-                pattern={<defs><pattern id={`pattern-${skill}`} x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" style={{ stroke: skillColors[skill] || '#8884d8', strokeWidth: 1 }} /></pattern></defs>}
               />
             ))}
           </BarChart>
@@ -123,17 +123,9 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
             <XAxis dataKey="period" />
             <YAxis />
             <Tooltip formatter={(value, name) => {
-              const formattedName = name.startsWith('demand_') 
-                ? `Demand: ${name.replace('demand_', '')}`
-                : `Capacity: ${name.replace('capacity_', '')}`;
-              return [`${value} hours`, formattedName];
+              return [`${value} hours`, formatName(name)];
             }} />
-            <Legend formatter={(value) => {
-              if (value.startsWith('demand_')) {
-                return `Demand: ${value.replace('demand_', '')}`;
-              }
-              return `Capacity: ${value.replace('capacity_', '')}`;
-            }} />
+            <Legend formatter={(value) => formatName(value)} />
             
             {/* Render lines for demand */}
             {showDemand && filteredSkills.map(skill => (
