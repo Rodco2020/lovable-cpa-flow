@@ -51,5 +51,5 @@ export interface ForecastResult {
   generatedAt: Date;
 }
 
-// Re-export SkillType to make it available to components that import from this file
-export { SkillType };
+// Re-export SkillType using 'export type' for TypeScript with isolatedModules
+export type { SkillType };
