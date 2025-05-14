@@ -45,11 +45,23 @@ const clientFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number is required"),
   billingAddress: z.string().min(1, "Billing address is required"),
-  industry: z.string().min(1, "Industry is required"),
-  status: z.string().min(1, "Status is required"),
+  industry: z.enum([
+    "Retail", 
+    "Healthcare", 
+    "Manufacturing", 
+    "Technology", 
+    "Financial Services", 
+    "Professional Services", 
+    "Construction", 
+    "Hospitality", 
+    "Education", 
+    "Non-Profit",
+    "Other"
+  ] as const),
+  status: z.enum(["Active", "Inactive", "Pending", "Archived"] as const),
   expectedMonthlyRevenue: z.coerce.number().positive("Revenue must be positive"),
-  paymentTerms: z.string().min(1, "Payment terms are required"),
-  billingFrequency: z.string().min(1, "Billing frequency is required"),
+  paymentTerms: z.enum(["Net15", "Net30", "Net45", "Net60"] as const),
+  billingFrequency: z.enum(["Monthly", "Quarterly", "Annually", "Project-Based"] as const),
   defaultTaskPriority: z.string().min(1, "Default task priority is required"),
   notificationPreferences: z.object({
     emailReminders: z.boolean().default(true),
@@ -93,11 +105,11 @@ const ClientForm: React.FC = () => {
       email: "",
       phone: "",
       billingAddress: "",
-      industry: "Other",
-      status: "Active",
+      industry: "Other" as IndustryType,
+      status: "Active" as ClientStatus,
       expectedMonthlyRevenue: 0,
-      paymentTerms: "Net30",
-      billingFrequency: "Monthly",
+      paymentTerms: "Net30" as PaymentTerms,
+      billingFrequency: "Monthly" as BillingFrequency,
       defaultTaskPriority: "Medium",
       notificationPreferences: {
         emailReminders: true,
@@ -107,14 +119,24 @@ const ClientForm: React.FC = () => {
   });
   
   const onSubmit = (data: ClientFormValues) => {
+    // Since we've properly typed the form values with Zod, these type assertions ensure
+    // the data matches the required types for the Client interface
+    const clientData = {
+      ...data,
+      industry: data.industry as IndustryType,
+      status: data.status as ClientStatus,
+      paymentTerms: data.paymentTerms as PaymentTerms,
+      billingFrequency: data.billingFrequency as BillingFrequency,
+    };
+
     if (isEditMode && client) {
-      updateClient(client.id, data);
+      updateClient(client.id, clientData);
       toast({
         title: "Client updated",
         description: `${data.legalName} has been updated successfully.`,
       });
     } else {
-      createClient(data);
+      createClient(clientData);
       toast({
         title: "Client created",
         description: `${data.legalName} has been added successfully.`,
