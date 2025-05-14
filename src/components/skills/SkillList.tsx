@@ -27,8 +27,8 @@ import { Plus, Search, Filter } from "lucide-react";
 const SkillList: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<SkillCategory | "">("");
-  const [proficiencyFilter, setProficiencyFilter] = useState<ProficiencyLevel | "">("");
+  const [categoryFilter, setCategoryFilter] = useState<SkillCategory | "all">("all");
+  const [proficiencyFilter, setProficiencyFilter] = useState<ProficiencyLevel | "all">("all");
 
   const { data: skills = [], isLoading, error } = useQuery({
     queryKey: ["skills", searchQuery, categoryFilter, proficiencyFilter],
@@ -39,8 +39,8 @@ const SkillList: React.FC = () => {
       const allSkills = await getAllSkills();
       
       return allSkills.filter(skill => 
-        (!categoryFilter || skill.category === categoryFilter) &&
-        (!proficiencyFilter || skill.proficiencyLevel === proficiencyFilter)
+        (categoryFilter === "all" || skill.category === categoryFilter) &&
+        (proficiencyFilter === "all" || skill.proficiencyLevel === proficiencyFilter)
       );
     }
   });
@@ -52,8 +52,8 @@ const SkillList: React.FC = () => {
 
   const resetFilters = () => {
     setSearchQuery("");
-    setCategoryFilter("");
-    setProficiencyFilter("");
+    setCategoryFilter("all");
+    setProficiencyFilter("all");
   };
 
   const categories: SkillCategory[] = ["Tax", "Audit", "Advisory", "Bookkeeping", "Compliance", "Administrative", "Other"];
@@ -91,33 +91,33 @@ const SkillList: React.FC = () => {
           </form>
           
           <div className="flex gap-3">
-            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as SkillCategory | "")}>
+            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as SkillCategory | "all")}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="mr-2 h-4 w-4" /> 
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories.map(category => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             
-            <Select value={proficiencyFilter} onValueChange={(value) => setProficiencyFilter(value as ProficiencyLevel | "")}>
+            <Select value={proficiencyFilter} onValueChange={(value) => setProficiencyFilter(value as ProficiencyLevel | "all")}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="mr-2 h-4 w-4" /> 
                 <SelectValue placeholder="Proficiency" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Proficiency Levels</SelectItem>
+                <SelectItem value="all">All Proficiency Levels</SelectItem>
                 {proficiencyLevels.map(level => (
                   <SelectItem key={level} value={level}>{level}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             
-            {(categoryFilter || proficiencyFilter) && (
+            {(categoryFilter !== "all" || proficiencyFilter !== "all") && (
               <Button variant="ghost" onClick={resetFilters}>Clear Filters</Button>
             )}
           </div>
