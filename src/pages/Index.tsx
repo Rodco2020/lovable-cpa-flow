@@ -1,74 +1,124 @@
 
 import React from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "react-router-dom";
-import { ListCheck } from "lucide-react";
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, Users, Calendar, BarChart2 } from 'lucide-react';
 
-const Index = () => {
+const Index: React.FC = () => {
   return (
-    <div className="container mx-auto py-12">
-      <div className="flex flex-col items-center text-center space-y-4 mb-12">
-        <h1 className="text-4xl font-bold">CPA Practice Management Software</h1>
-        <p className="text-xl text-gray-600 max-w-2xl">
-          A modular, efficient system for managing your CPA practice workflows
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="text-center space-y-2 mb-12">
+        <h1 className="text-3xl font-bold">CPA Practice Management</h1>
+        <p className="text-muted-foreground max-w-xl mx-auto">
+          A minimalist, modular, and efficient system for managing your accounting practice.
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <ListCheck className="mr-2 h-5 w-5" />
-              Task Module
-            </CardTitle>
-            <CardDescription>
-              Define, manage and track work items across your practice
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <p className="mb-4 text-sm text-gray-600">
-              Create task templates, generate recurring tasks, and manage your unscheduled task queue
-            </p>
-            <Button asChild>
-              <Link to="/tasks">Open Task Module</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Link to="/clients">
+          <Card className="h-full hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center mb-2">
+                <Users className="h-6 w-6 text-blue-700" />
+              </div>
+              <CardTitle>Client Module</CardTitle>
+              <CardDescription>
+                Manage your client relationships and billing expectations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• Client profile management</li>
+                <li>• Revenue tracking</li>
+                <li>• Client engagements</li>
+              </ul>
+              <div className="mt-4">
+                <Button variant="secondary" size="sm" className="w-full">
+                  Open Client Module
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
         
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle>Client Module</CardTitle>
-            <CardDescription>
-              Maintain client relationships and track client work
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <p className="mb-4 text-sm text-gray-600">
-              Manage client profiles, revenue tracking, and client-specific task history
-            </p>
-            <Button variant="outline" disabled>
-              Coming Soon
-            </Button>
-          </CardContent>
-        </Card>
+        <Link to="/tasks">
+          <Card className="h-full hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center mb-2">
+                <FileText className="h-6 w-6 text-purple-700" />
+              </div>
+              <CardTitle>Task Module</CardTitle>
+              <CardDescription>
+                Define and manage all work items within your firm
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• Task templates</li>
+                <li>• Recurring assignments</li>
+                <li>• Task queue management</li>
+              </ul>
+              <div className="mt-4">
+                <Button variant="secondary" size="sm" className="w-full">
+                  Open Task Module
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
         
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle>Scheduler Module</CardTitle>
-            <CardDescription>
-              Efficiently allocate staff time to tasks
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <p className="mb-4 text-sm text-gray-600">
-              Schedule tasks, manage staff availability, and optimize workload distribution
-            </p>
-            <Button variant="outline" disabled>
-              Coming Soon
-            </Button>
-          </CardContent>
-        </Card>
+        <Link to="/schedule">
+          <Card className="h-full hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center mb-2">
+                <Calendar className="h-6 w-6 text-green-700" />
+              </div>
+              <CardTitle>Scheduler Module</CardTitle>
+              <CardDescription>
+                Allocate resources and manage staff workloads
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• Workload scheduling</li>
+                <li>• Staff availability</li>
+                <li>• Resource allocation</li>
+              </ul>
+              <div className="mt-4">
+                <Button variant="secondary" size="sm" className="w-full">
+                  Coming Soon
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link to="/forecast">
+          <Card className="h-full hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center mb-2">
+                <BarChart2 className="h-6 w-6 text-amber-700" />
+              </div>
+              <CardTitle>Forecasting Module</CardTitle>
+              <CardDescription>
+                Project capacity, demand, and financial performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• Capacity planning</li>
+                <li>• Revenue forecasting</li>
+                <li>• Gap analysis</li>
+              </ul>
+              <div className="mt-4">
+                <Button variant="secondary" size="sm" className="w-full">
+                  Coming Soon
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );
