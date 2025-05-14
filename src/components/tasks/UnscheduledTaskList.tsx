@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   TaskInstance, 
@@ -169,11 +168,11 @@ const UnscheduledTaskList: React.FC = () => {
           </div>
           
           <select
-            value={filterSkill || ''}
-            onChange={(e) => setFilterSkill(e.target.value || null)}
+            value={filterSkill || 'all'}
+            onChange={(e) => setFilterSkill(e.target.value === 'all' ? null : e.target.value)}
             className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
-            <option value="">All Skills</option>
+            <option value="all">All Skills</option>
             {availableSkills.map(skill => (
               <option key={skill} value={skill}>{skill}</option>
             ))}
