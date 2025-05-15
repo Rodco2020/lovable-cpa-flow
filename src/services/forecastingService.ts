@@ -882,3 +882,70 @@ export const validateForecastSystem = async (): Promise<string[]> => {
   
   return issues;
 };
+
+/**
+ * Gets task breakdown data for the forecast period
+ * Used to provide detailed hover information in the UI
+ */
+export const getTaskBreakdown = async (params: ForecastParameters): Promise<TaskBreakdownItem[]> => {
+  try {
+    // This is a mock implementation - in a real system, this would query
+    // the database for actual task instances within the date range
+    const mockTasks: TaskBreakdownItem[] = [
+      {
+        id: "task1",
+        name: "Quarterly Tax Filing",
+        clientName: "Acme Corp",
+        clientId: "client1",
+        skill: "tax-prep",
+        hours: 8,
+        dueDate: "2025-07-15",
+        status: "scheduled"
+      },
+      {
+        id: "task2",
+        name: "Financial Statement Review",
+        clientName: "Globex Industries",
+        clientId: "client2",
+        skill: "audit",
+        hours: 12,
+        dueDate: "2025-07-10",
+        status: "scheduled"
+      },
+      {
+        id: "task3",
+        name: "Bookkeeping",
+        clientName: "Sterling LLC",
+        clientId: "client3",
+        skill: "bookkeeping",
+        hours: 6,
+        dueDate: "2025-07-05",
+        status: "scheduled"
+      },
+      {
+        id: "task4",
+        name: "Strategic Planning Session",
+        clientName: "Tech Innovations",
+        clientId: "client4",
+        skill: "advisory",
+        hours: 4,
+        dueDate: "2025-07-20",
+        status: "scheduled"
+      }
+    ];
+    
+    // In a real implementation, you would filter tasks based on the date range
+    // and other parameters from the forecast parameters
+    // This is just a placeholder for demonstration
+    
+    // Log for debug mode
+    if (debugMode) {
+      console.log(`[Forecast Debug] Retrieved ${mockTasks.length} tasks for breakdown`);
+    }
+    
+    return mockTasks;
+  } catch (error) {
+    console.error("Error getting task breakdown:", error);
+    return [];
+  }
+};

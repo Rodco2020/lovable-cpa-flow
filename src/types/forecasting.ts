@@ -72,5 +72,17 @@ export interface ForecastResult {
   generatedAt: Date;
 }
 
+// Task breakdown interface for hover details
+export interface TaskBreakdownItem {
+  id: string;
+  name: string;
+  clientName: string;
+  clientId: string;
+  skill: SkillType;
+  hours: number;
+  dueDate?: string;
+  status?: string;
+}
+
 // Re-export SkillType using 'export type' for TypeScript with isolatedModules
 export type { SkillType };

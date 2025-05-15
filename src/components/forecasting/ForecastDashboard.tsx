@@ -7,17 +7,21 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, InfoCircle, ChartBar, Calendar } from 'lucide-react';
 import ForecastSummary from './ForecastSummary';
 import ForecastChart from './ForecastChart';
 import GapAnalysisTable from './GapAnalysisTable';
 import FinancialProjections from './FinancialProjections';
+import ForecastCalculationBadge from './ForecastCalculationBadge';
+import ForecastInfoTooltip from './ForecastInfoTooltip';
+import TaskBreakdownHoverCard from './TaskBreakdownHoverCard';
 import { 
   getForecast, 
   clearForecastCache, 
   isForecastDebugModeEnabled, 
   setForecastDebugMode,
-  validateForecastSystem
+  validateForecastSystem,
+  getTaskBreakdown
 } from '@/services/forecastingService';
 import { runRecurrenceTests } from '@/utils/forecastTestingUtils';
 import useAppEvent from '@/hooks/useAppEvent';
@@ -39,6 +43,7 @@ const ForecastDashboard: React.FC = () => {
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<SkillType[]>([]);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const [taskBreakdown, setTaskBreakdown] = useState<any[]>([]);
   const { toast } = useToast();
   
   const availableSkills: SkillData[] = [
@@ -51,18 +56,34 @@ const ForecastDashboard: React.FC = () => {
   // Add debug mode state
   const [debugMode, setDebugMode] = useState<boolean>(isForecastDebugModeEnabled());
   
+  // Time window options
+  const timeWindowOptions = [
+    { value: 'next-7-days', label: 'Next 7 Days', days: 7 },
+    { value: 'next-30-days', label: 'Next 30 Days', days: 30 },
+    { value: 'next-90-days', label: 'Next 90 Days', days: 90 },
+    { value: 'custom', label: 'Custom Range', days: 30 }
+  ];
+  
+  // Get selected window days
+  const getSelectedWindowDays = () => {
+    const option = timeWindowOptions.find(opt => opt.value === forecastWindow);
+    return option ? option.days : 30;
+  };
+  
   // Load forecast data
   useEffect(() => {
     const loadForecast = async () => {
       setIsLoading(true);
       try {
+        const days = getSelectedWindowDays();
+        
         // Create forecast parameters
         const params: ForecastParameters = {
           mode: forecastType as any,
-          timeframe: 'month',
+          timeframe: 'custom',
           dateRange: {
             startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000)
           },
           granularity: 'weekly',
           includeSkills: 'all'
@@ -93,6 +114,14 @@ const ForecastDashboard: React.FC = () => {
         };
         
         setForecastData(processedData);
+        
+        // Get task breakdown for tooltips
+        if (forecastType === 'actual') {
+          const breakdown = await getTaskBreakdown(params);
+          setTaskBreakdown(breakdown);
+        } else {
+          setTaskBreakdown([]);
+        }
       } catch (error) {
         console.error("Error loading forecast:", error);
         toast({
@@ -176,17 +205,19 @@ const ForecastDashboard: React.FC = () => {
       description: "Recalculating forecast data..."
     });
     
-    // Reload forecast data
+    // Reload forecast data - reusing code from useEffect
     const loadForecast = async () => {
       setIsLoading(true);
       try {
+        const days = getSelectedWindowDays();
+        
         // Create forecast parameters
         const params: ForecastParameters = {
           mode: forecastType as any,
-          timeframe: 'month',
+          timeframe: 'custom',
           dateRange: {
             startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000)
           },
           granularity: 'weekly',
           includeSkills: 'all'
@@ -195,19 +226,15 @@ const ForecastDashboard: React.FC = () => {
         // Get forecast data
         const result = await getForecast(params);
         
-        // Process the result into the format expected by components
+        // Process result (same as in useEffect)
         const processedData: ForecastData = {
           period: 'current',
           demand: result.data.flatMap(d => d.demand),
           capacity: result.data.flatMap(d => d.capacity),
-          
-          // Additional data for charts and tables
           timeSeriesData: result.data,
           skillDistribution: result.data,
           gapAnalysis: result.data,
           financialProjections: result.financials,
-          
-          // Summary data
           demandHours: result.summary.totalDemand,
           capacityHours: result.summary.totalCapacity,
           gapHours: result.summary.gap,
@@ -217,6 +244,14 @@ const ForecastDashboard: React.FC = () => {
         };
         
         setForecastData(processedData);
+        
+        // Get task breakdown
+        if (forecastType === 'actual') {
+          const breakdown = await getTaskBreakdown(params);
+          setTaskBreakdown(breakdown);
+        } else {
+          setTaskBreakdown([]);
+        }
       } catch (error) {
         console.error("Error reloading forecast:", error);
       } finally {
@@ -234,38 +269,33 @@ const ForecastDashboard: React.FC = () => {
       description: `Trigger: ${event.payload.trigger}`,
     });
     
-    // Reload forecast data
+    // Reload forecast data (same as handleRecalculate)
     const loadForecast = async () => {
       setIsLoading(true);
       try {
-        // Create forecast parameters
+        const days = getSelectedWindowDays();
+        
         const params: ForecastParameters = {
           mode: forecastType as any,
-          timeframe: 'month',
+          timeframe: 'custom',
           dateRange: {
             startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000)
           },
           granularity: 'weekly',
           includeSkills: 'all'
         };
         
-        // Get forecast data
         const result = await getForecast(params);
         
-        // Process the result into the format expected by components
         const processedData: ForecastData = {
           period: 'current',
           demand: result.data.flatMap(d => d.demand),
           capacity: result.data.flatMap(d => d.capacity),
-          
-          // Additional data for charts and tables
           timeSeriesData: result.data,
           skillDistribution: result.data,
           gapAnalysis: result.data,
           financialProjections: result.financials,
-          
-          // Summary data
           demandHours: result.summary.totalDemand,
           capacityHours: result.summary.totalCapacity,
           gapHours: result.summary.gap,
@@ -275,6 +305,14 @@ const ForecastDashboard: React.FC = () => {
         };
         
         setForecastData(processedData);
+        
+        // Get task breakdown
+        if (forecastType === 'actual') {
+          const breakdown = await getTaskBreakdown(params);
+          setTaskBreakdown(breakdown);
+        } else {
+          setTaskBreakdown([]);
+        }
       } catch (error) {
         console.error("Error reloading forecast:", error);
       } finally {
@@ -284,6 +322,23 @@ const ForecastDashboard: React.FC = () => {
     
     loadForecast();
   }, [forecastWindow, forecastType]);
+  
+  // Render explanation based on forecast type
+  const renderForecastExplanation = () => {
+    if (forecastType === 'virtual') {
+      return (
+        <p className="text-sm text-muted-foreground">
+          Virtual forecast projects workload based on recurring task templates and staff availability patterns
+        </p>
+      );
+    } else {
+      return (
+        <p className="text-sm text-muted-foreground">
+          Actual forecast reflects scheduled tasks and accounts for staff availability exceptions
+        </p>
+      );
+    }
+  };
   
   if (!forecastData && !isLoading) {
     return (
@@ -296,7 +351,14 @@ const ForecastDashboard: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Capacity Forecasting</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold">Capacity Forecasting</h1>
+          {forecastData && (
+            <div className="flex items-center gap-2">
+              <ForecastCalculationBadge mode={forecastType as any} />
+            </div>
+          )}
+        </div>
         
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
@@ -309,6 +371,15 @@ const ForecastDashboard: React.FC = () => {
                 <SelectItem value="actual">Actual Forecast</SelectItem>
               </SelectContent>
             </Select>
+            <ForecastInfoTooltip
+              title="Forecast Type"
+              content={
+                <div className="space-y-2">
+                  <p><strong>Virtual Forecast:</strong> Projection based on recurring task templates and standard staff availability.</p>
+                  <p><strong>Actual Forecast:</strong> Based on scheduled tasks and actual staff availability including exceptions.</p>
+                </div>
+              }
+            />
           </div>
           
           <div className="flex items-center gap-2">
@@ -317,12 +388,15 @@ const ForecastDashboard: React.FC = () => {
                 <SelectValue placeholder="Time Window" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="next-7-days">Next 7 Days</SelectItem>
-                <SelectItem value="next-30-days">Next 30 Days</SelectItem>
-                <SelectItem value="next-90-days">Next 90 Days</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
+                {timeWindowOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            <ForecastInfoTooltip
+              title="Forecast Window"
+              content="Select the time period for your forecast. This determines how far into the future the forecast will project."
+            />
           </div>
           
           <Button variant="outline" size="sm" onClick={handleRecalculate}>
@@ -330,6 +404,8 @@ const ForecastDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
+      
+      {renderForecastExplanation()}
       
       {isLoading ? (
         <div className="flex items-center justify-center h-[400px]">
@@ -347,14 +423,41 @@ const ForecastDashboard: React.FC = () => {
           
           <TabsContent value="summary">
             {forecastData && (
-              <ForecastSummary 
-                totalDemand={forecastData.demandHours || 0}
-                totalCapacity={forecastData.capacityHours || 0}
-                gap={forecastData.gapHours || 0}
-                totalRevenue={forecastData.projectedRevenue || 0}
-                totalCost={forecastData.projectedCost || 0}
-                totalProfit={forecastData.projectedProfit || 0}
-              />
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      Forecast Summary
+                      <ForecastInfoTooltip
+                        title="Forecast Summary"
+                        content="This summary shows the total demand, capacity, and gap for the selected time period, along with projected financial metrics."
+                      />
+                    </CardTitle>
+                    <CardDescription>
+                      {forecastType === 'virtual' 
+                        ? 'Based on recurring task templates and standard availability' 
+                        : 'Based on scheduled tasks and actual availability'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ForecastSummary 
+                      totalDemand={
+                        <TaskBreakdownHoverCard
+                          tasks={taskBreakdown}
+                          title="Tasks Contributing to Demand"
+                        >
+                          {forecastData.demandHours || 0}
+                        </TaskBreakdownHoverCard>
+                      }
+                      totalCapacity={forecastData.capacityHours || 0}
+                      gap={forecastData.gapHours || 0}
+                      totalRevenue={forecastData.projectedRevenue || 0}
+                      totalCost={forecastData.projectedCost || 0}
+                      totalProfit={forecastData.projectedProfit || 0}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </TabsContent>
           
@@ -362,7 +465,21 @@ const ForecastDashboard: React.FC = () => {
             <div className="space-y-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-md font-medium">Capacity vs. Demand</CardTitle>
+                  <div>
+                    <CardTitle className="text-md font-medium flex items-center gap-2">
+                      Capacity vs. Demand
+                      <ForecastInfoTooltip
+                        title="Capacity vs. Demand"
+                        content="This chart compares staff capacity (available hours) against demand (required hours) over time. Toggle to show or hide capacity and demand lines."
+                        icon={<ChartBar className="h-4 w-4" />}
+                      />
+                    </CardTitle>
+                    <CardDescription>
+                      {forecastType === 'virtual' 
+                        ? 'Projection based on templates' 
+                        : 'Based on scheduled instances'}
+                    </CardDescription>
+                  </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Switch id="show-demand" checked={showDemand} onCheckedChange={setShowDemand} />
@@ -389,7 +506,17 @@ const ForecastDashboard: React.FC = () => {
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-md font-medium">Skill Distribution</CardTitle>
+                  <CardTitle className="text-md font-medium flex items-center gap-2">
+                    Skill Distribution
+                    <ForecastInfoTooltip
+                      title="Skill Distribution"
+                      content="This chart shows how different skills contribute to overall capacity and demand. Use this to identify skill-specific gaps or surpluses."
+                      icon={<ChartBar className="h-4 w-4" />}
+                    />
+                  </CardTitle>
+                  <CardDescription>
+                    Breakdown by skill type for the selected period
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {forecastData && forecastData.skillDistribution && (
@@ -409,7 +536,16 @@ const ForecastDashboard: React.FC = () => {
           <TabsContent value="gaps">
             <Card>
               <CardHeader>
-                <CardTitle>Gap Analysis</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Gap Analysis
+                  <ForecastInfoTooltip
+                    title="Gap Analysis"
+                    content="This table shows the difference between capacity and demand for each skill. Negative values (highlighted) indicate potential resource shortages."
+                  />
+                </CardTitle>
+                <CardDescription>
+                  Identifying potential resource shortages or surpluses
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {forecastData && forecastData.gapAnalysis && (
@@ -425,7 +561,16 @@ const ForecastDashboard: React.FC = () => {
           <TabsContent value="financial">
             <Card>
               <CardHeader>
-                <CardTitle>Financial Projections</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Financial Projections
+                  <ForecastInfoTooltip
+                    title="Financial Projections"
+                    content="These projections are calculated by multiplying forecasted hours by billing/cost rates, showing estimated revenue, cost, and profit over time."
+                  />
+                </CardTitle>
+                <CardDescription>
+                  Estimated revenue, cost, and profit based on forecasted hours
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {forecastData && forecastData.financialProjections && (
@@ -443,6 +588,9 @@ const ForecastDashboard: React.FC = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Forecast Calculation Debug</CardTitle>
+                  <CardDescription>
+                    Tools to help diagnose and validate forecast calculations
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center space-x-2">
@@ -452,6 +600,10 @@ const ForecastDashboard: React.FC = () => {
                       onCheckedChange={handleToggleDebugMode} 
                     />
                     <Label htmlFor="debug-mode">Enable Debug Mode</Label>
+                    <ForecastInfoTooltip
+                      title="Debug Mode"
+                      content="When enabled, detailed calculation logs will be printed to the browser console, showing each step of the forecast calculation process."
+                    />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     When debug mode is enabled, detailed calculation logs will be shown in the browser console.

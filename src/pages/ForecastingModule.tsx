@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ForecastDashboard from "@/components/forecasting/ForecastDashboard";
 import ForecastTestPage from "@/components/forecasting/ForecastTestPage";
 
@@ -9,6 +9,7 @@ const ForecastingModule: React.FC = () => {
     <Routes>
       <Route index element={<ForecastDashboard />} />
       <Route path="test" element={<ForecastTestPage />} />
+      <Route path="*" element={<Navigate to="/forecasting" replace />} />
     </Routes>
   );
 };
