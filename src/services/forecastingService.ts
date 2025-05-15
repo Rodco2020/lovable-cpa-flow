@@ -1,5 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
-import { format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
+import { 
+  format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, 
+  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, 
+  endOfQuarter, startOfYear, endOfYear, differenceInDays, differenceInWeeks,
+  differenceInMonths, differenceInYears, isWithinInterval, getDay,
+  isSameMonth, getDaysInMonth, isLeapYear
+} from 'date-fns';
 
 import { 
   ForecastParameters, 
@@ -19,6 +25,9 @@ import { getClientById } from '@/services/clientService';
 
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
+
+// Debug mode flag
+const DEBUG_MODE = false;
 
 /**
  * Generate a forecast based on the provided parameters
@@ -104,6 +113,10 @@ const calculateDemand = async (
     // Virtual demand is based on recurring tasks
     const recurringTasks = getRecurringTasks();
     
+    if (DEBUG_MODE) {
+      console.log(`[Forecast Debug] Calculating virtual demand for ${recurringTasks.length} tasks`);
+    }
+    
     // For each recurring task, calculate expected hours in the period
     recurringTasks.forEach(task => {
       // Skip tasks with skills not in the filter if specific skills are requested
@@ -114,6 +127,10 @@ const calculateDemand = async (
       
       // Estimate how many instances would fall in the date range
       const instanceCount = estimateRecurringTaskInstances(task, dateRange);
+      
+      if (DEBUG_MODE) {
+        console.log(`[Forecast Debug] Task: ${task.name}, Estimated instances: ${instanceCount}, Hours per instance: ${task.estimatedHours}`);
+      }
       
       // Allocate hours to all required skills
       task.requiredSkills.forEach(skill => {
@@ -323,56 +340,145 @@ const calculateSummary = (
 
 /**
  * Helper function to estimate how many instances of a recurring task would occur in a date range
+ * Enhanced with more accurate date calculations and validation
  */
-const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: DateRange): number => {
+export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: DateRange): number => {
   const pattern = task.recurrencePattern;
   let instanceCount = 0;
   
+  // Validate inputs
+  if (!pattern || !pattern.type) {
+    if (DEBUG_MODE) console.log(`[Forecast Debug] Invalid recurrence pattern for task: ${task.name}`);
+    return 0;
+  }
+  
+  // Get start and end dates for calculation
+  const startDate = new Date(Math.max(
+    dateRange.startDate.getTime(),
+    task.createdAt.getTime()
+  ));
+  
+  const endDate = pattern.endDate && pattern.endDate < dateRange.endDate 
+    ? pattern.endDate 
+    : dateRange.endDate;
+  
+  // If end date is before start date, no instances will occur
+  if (endDate < startDate) {
+    return 0;
+  }
+  
+  if (DEBUG_MODE) {
+    console.log(`[Forecast Debug] Calculating instances for ${task.name}, pattern: ${pattern.type}, interval: ${pattern.interval || 1}`);
+    console.log(`[Forecast Debug] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  }
+  
   switch (pattern.type) {
     case 'Daily':
-      // Number of days in the range
-      instanceCount = Math.floor((dateRange.endDate.getTime() - dateRange.startDate.getTime()) 
-                       / (1000 * 60 * 60 * 24)) / (pattern.interval || 1);
+      // Accurate count of days in the range considering the interval
+      const daysDiff = differenceInDays(endDate, startDate) + 1; // +1 to include both start and end days
+      instanceCount = Math.ceil(daysDiff / (pattern.interval || 1));
       break;
       
     case 'Weekly':
-      // Number of weeks in the range
-      instanceCount = Math.floor((dateRange.endDate.getTime() - dateRange.startDate.getTime()) 
-                       / (1000 * 60 * 60 * 24 * 7)) / (pattern.interval || 1);
-      
-      // If specific weekdays are defined, adjust the count
-      if (pattern.weekdays) {
-        instanceCount *= pattern.weekdays.length / 7;
+      if (pattern.weekdays && pattern.weekdays.length > 0) {
+        // Count specific weekdays within the period
+        instanceCount = 0;
+        
+        // Calculate full weeks in the range
+        const fullWeeks = Math.floor(differenceInDays(endDate, startDate) / 7);
+        const remainingDays = differenceInDays(endDate, addDays(startDate, fullWeeks * 7));
+        
+        // Count instances for full weeks
+        instanceCount += fullWeeks * pattern.weekdays.length / (pattern.interval || 1);
+        
+        // Count instances for remaining days
+        let currentDay = addDays(startDate, fullWeeks * 7);
+        for (let i = 0; i <= remainingDays; i++) {
+          const dayOfWeek = getDay(currentDay); // 0 = Sunday, 1 = Monday, etc.
+          if (pattern.weekdays.includes(dayOfWeek)) {
+            instanceCount++;
+          }
+          currentDay = addDays(currentDay, 1);
+        }
+        
+        // Apply interval
+        instanceCount = instanceCount / (pattern.interval || 1);
+      } else {
+        // Simple weekly recurrence (every X weeks)
+        instanceCount = (differenceInDays(endDate, startDate) + 1) / 7 / (pattern.interval || 1);
       }
       break;
       
     case 'Monthly':
-      // Number of months (approximate)
-      instanceCount = (dateRange.endDate.getFullYear() * 12 + dateRange.endDate.getMonth()) - 
-                      (dateRange.startDate.getFullYear() * 12 + dateRange.startDate.getMonth())
-                      / (pattern.interval || 1);
+      // Calculate months between start and end, considering day of month
+      const monthsDiff = differenceInMonths(endDate, startDate);
+      
+      if (pattern.dayOfMonth) {
+        // If specific day of month is specified
+        instanceCount = 0;
+        
+        // For each month in the range
+        for (let i = 0; i <= monthsDiff; i++) {
+          const currentMonth = addDays(startDate, i * 30); // Approximation
+          const daysInCurrentMonth = getDaysInMonth(currentMonth);
+          
+          // Check if the day exists in this month and falls within our range
+          if (pattern.dayOfMonth <= daysInCurrentMonth) {
+            const instanceDate = new Date(
+              currentMonth.getFullYear(),
+              currentMonth.getMonth(),
+              pattern.dayOfMonth
+            );
+            
+            if (instanceDate >= startDate && instanceDate <= endDate) {
+              instanceCount++;
+            }
+          }
+        }
+      } else {
+        // Simple monthly recurrence (same day each month)
+        instanceCount = monthsDiff + 1; // +1 to include both start and end months
+      }
+      
+      // Apply interval
+      instanceCount = instanceCount / (pattern.interval || 1);
       break;
       
     case 'Quarterly':
-      // Number of quarters (approximate)
-      instanceCount = Math.floor(((dateRange.endDate.getFullYear() * 12 + dateRange.endDate.getMonth()) - 
-                      (dateRange.startDate.getFullYear() * 12 + dateRange.startDate.getMonth())) / 3)
-                      / (pattern.interval || 1);
+      // Each quarter is 3 months
+      instanceCount = Math.ceil(differenceInMonths(endDate, startDate) / 3 / (pattern.interval || 1));
       break;
       
     case 'Annually':
-      // Number of years
-      instanceCount = (dateRange.endDate.getFullYear() - dateRange.startDate.getFullYear())
-                      / (pattern.interval || 1);
+      // Count years, handling partial years
+      const yearsDiff = differenceInYears(endDate, startDate);
+      const extraMonths = differenceInMonths(endDate, addDays(startDate, yearsDiff * 365)) > 0 ? 1 : 0;
+      instanceCount = (yearsDiff + extraMonths) / (pattern.interval || 1);
+      break;
+      
+    case 'Custom':
+      // For custom patterns, estimate based on custom offset days
+      if (pattern.customOffsetDays && pattern.customOffsetDays > 0) {
+        instanceCount = Math.ceil(differenceInDays(endDate, startDate) / pattern.customOffsetDays);
+      } else {
+        instanceCount = 1; // Default to one instance if no custom logic applies
+      }
       break;
       
     default:
-      // For custom patterns, use a default estimate
+      // For unknown patterns, use a default estimate of one instance
       instanceCount = 1;
       break;
   }
   
-  return Math.max(0, Math.round(instanceCount));
+  // Ensure we always return a non-negative integer
+  instanceCount = Math.max(0, Math.round(instanceCount));
+  
+  if (DEBUG_MODE) {
+    console.log(`[Forecast Debug] Final instance count for ${task.name}: ${instanceCount}`);
+  }
+  
+  return instanceCount;
 };
 
 /**
@@ -513,4 +619,18 @@ export const clearForecastCache = () => {
  */
 export const getForecast = async (parameters: ForecastParameters): Promise<ForecastResult> => {
   return generateForecast(parameters);
+};
+
+/**
+ * Enable or disable debug mode for forecast calculations
+ */
+export const setForecastDebugMode = (enabled: boolean): void => {
+  window.localStorage.setItem('forecast_debug_mode', enabled ? 'true' : 'false');
+};
+
+/**
+ * Check if forecast debug mode is enabled
+ */
+export const isForecastDebugModeEnabled = (): boolean => {
+  return window.localStorage.getItem('forecast_debug_mode') === 'true';
 };
