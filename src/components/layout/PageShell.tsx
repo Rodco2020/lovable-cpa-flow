@@ -9,14 +9,19 @@ import {
   BarChart2,
   User,
   UserCog,
-  Database
+  Database,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface PageShellProps {
   children: React.ReactNode;
 }
 
 const PageShell: React.FC<PageShellProps> = ({ children }) => {
+  const { user, signOut } = useAuth();
+
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
@@ -93,7 +98,7 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
           </NavLink>
           
           <NavLink 
-            to="/schedule" 
+            to="/scheduler" 
             className={({ isActive }) => cn(
               "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
               isActive 
@@ -104,18 +109,56 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
             <Calendar className="h-5 w-5" />
             <span>Schedule</span>
           </NavLink>
+
+          <NavLink 
+            to="/forecasting" 
+            className={({ isActive }) => cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+              isActive 
+                ? "bg-slate-800 text-white" 
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            )}
+          >
+            <BarChart2 className="h-5 w-5" />
+            <span>Forecasting</span>
+          </NavLink>
         </nav>
         
         <div className="mt-auto pt-4 border-t border-slate-700">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center">
-              <User className="h-4 w-4" />
+          {user ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center">
+                  <User className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">{user.email}</div>
+                  <div className="text-xs text-slate-400">Staff</div>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={signOut}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign out
+              </Button>
             </div>
-            <div>
-              <div className="text-sm font-medium">Admin User</div>
-              <div className="text-xs text-slate-400">admin@example.com</div>
-            </div>
-          </div>
+          ) : (
+            <NavLink 
+              to="/auth/login" 
+              className={({ isActive }) => cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                isActive 
+                  ? "bg-slate-800 text-white" 
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              )}
+            >
+              <User className="h-5 w-5" />
+              <span>Sign In</span>
+            </NavLink>
+          )}
         </div>
       </div>
       
