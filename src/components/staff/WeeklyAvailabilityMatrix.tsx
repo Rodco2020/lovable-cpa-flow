@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
@@ -18,10 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock, Copy, Check, AlertCircle } from "lucide-react";
 import AvailabilitySummaryPanel from "./AvailabilitySummaryPanel";
+import eventService from "@/services/eventService";
+import { useEventPublisher } from "@/hooks/useAppEvent";
 
 const WeeklyAvailabilityMatrix: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { publishEvent } = useEventPublisher();
   
   // Enhanced state for selected cells
   const [selectedCells, setSelectedCells] = useState<Record<string, boolean>>({});
@@ -67,6 +69,18 @@ const WeeklyAvailabilityMatrix: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["weeklyAvailability", id] });
       queryClient.invalidateQueries({ queryKey: ["availabilitySummary", id] });
+      
+      // Emit event for the availability change
+      publishEvent({
+        type: "availability.template.changed",
+        payload: {
+          staffId: id,
+          changeType: "template_updated",
+          timestamp: new Date().toISOString(),
+        },
+        source: "WeeklyAvailabilityMatrix"
+      });
+      
       toast({
         title: "Availability updated",
         description: "Weekly availability has been saved successfully.",

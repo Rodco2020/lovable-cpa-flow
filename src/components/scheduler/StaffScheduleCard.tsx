@@ -7,12 +7,15 @@ import { cn } from "@/lib/utils";
 import { Staff } from "@/types/staff";
 import { TimeSlot } from "@/types/staff";
 import { TaskInstance } from "@/types/task";
+import { AvailabilityMask } from "@/services/integrations/schedulerIntegration";
+import { CalendarClock } from "lucide-react";
 
 interface StaffScheduleCardProps {
   staff: Staff;
   date: Date;
   timeSlots: TimeSlot[];
   selectedTask: TaskInstance | null;
+  availabilityMask?: AvailabilityMask;
   onScheduleTask: (staffId: string, timeSlotId: string, startTime: string) => void;
 }
 
@@ -21,6 +24,7 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
   date, 
   timeSlots, 
   selectedTask,
+  availabilityMask,
   onScheduleTask 
 }) => {
   // Generate time slots for display (8:00 AM to 5:00 PM in 30-minute increments)
@@ -29,6 +33,16 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
     const minutes = i % 2 === 0 ? "00" : "30";
     return `${hour < 10 ? '0' + hour : hour}:${minutes}`;
   });
+  
+  // Check if a time is within any availability mask slot
+  const isInAvailabilityMask = (time: string): boolean => {
+    if (!availabilityMask) return false;
+    
+    // Check if this time is within any mask slot's range
+    return availabilityMask.availableSlots.some(slot => {
+      return slot.startTime <= time && slot.endTime > time;
+    });
+  };
   
   return (
     <Card>
@@ -40,9 +54,17 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
               {staff.roleTitle}
             </span>
           </div>
-          <span className="text-sm font-normal text-muted-foreground">
-            ${staff.costPerHour}/hour
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-normal text-muted-foreground">
+              ${staff.costPerHour}/hour
+            </span>
+            {availabilityMask && (
+              <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                <CalendarClock className="h-3 w-3 mr-1" />
+                <span>Template Available</span>
+              </div>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -68,6 +90,7 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
               // Find time slot for this time
               const timeStart = time;
               const slot = timeSlots.find(s => s.startTime === timeStart);
+              const isInTemplateMask = isInAvailabilityMask(time);
               
               return (
                 <div 
@@ -75,7 +98,8 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
                   className={cn(
                     "h-12 p-1 border-b",
                     index % 2 === 0 ? "bg-white" : "bg-slate-50",
-                    !slot?.isAvailable && "bg-gray-100"
+                    !slot?.isAvailable && "bg-gray-100",
+                    isInTemplateMask && "bg-green-50/30" // Subtle highlight for template availability
                   )}
                 >
                   {slot?.isAvailable && !slot.taskId && (
@@ -84,10 +108,13 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="h-8 w-full text-xs text-green-700 border-green-300 bg-green-50 hover:bg-green-100 hover:text-green-800"
+                          className={cn(
+                            "h-8 w-full text-xs text-green-700 border-green-300 bg-green-50 hover:bg-green-100 hover:text-green-800",
+                            isInTemplateMask && "ring-1 ring-green-200"
+                          )}
                           onClick={() => onScheduleTask(staff.id, slot.id, time)}
                         >
-                          Schedule Here
+                          {isInTemplateMask ? "✓ Schedule Here" : "Schedule Here"}
                         </Button>
                       )}
                     </div>
