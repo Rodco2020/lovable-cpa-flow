@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
 import { getClientById, getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
@@ -23,7 +23,8 @@ import {
   MapPin, 
   DollarSign, 
   Calendar, 
-  FileText 
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -33,22 +34,83 @@ import {
   TabsTrigger 
 } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { useToast } from '@/components/ui/use-toast';
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // State for async data
+  const [client, setClient] = useState<Client | null>(null);
+  const [recurringTasks, setRecurringTasks] = useState<string[]>([]);
+  const [adHocTasks, setAdHocTasks] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Fetch client data
-  const client = id ? getClientById(id) : null;
+  useEffect(() => {
+    const fetchClientData = async () => {
+      if (!id) {
+        navigate('/clients');
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        // Fetch client
+        const clientData = await getClientById(id);
+        if (!clientData) {
+          toast({
+            title: "Client not found",
+            description: `Unable to find client with ID ${id}`,
+            variant: "destructive"
+          });
+          navigate('/clients');
+          return;
+        }
+        
+        setClient(clientData);
+        
+        // Fetch tasks
+        const [recurringTasksData, adHocTasksData] = await Promise.all([
+          getClientRecurringTasks(clientData.id),
+          getClientAdHocTasks(clientData.id)
+        ]);
+        
+        setRecurringTasks(recurringTasksData);
+        setAdHocTasks(adHocTasksData);
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load client details",
+          variant: "destructive"
+        });
+        navigate('/clients');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchClientData();
+  }, [id, navigate, toast]);
   
-  if (!client) {
-    navigate('/clients');
-    return null;
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6 flex justify-center items-center h-64">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin mb-2" />
+          <p>Loading client details...</p>
+        </div>
+      </div>
+    );
   }
   
-  // Get client tasks
-  const recurringTasks = getClientRecurringTasks(client.id);
-  const adHocTasks = getClientAdHocTasks(client.id);
+  // Client not loaded
+  if (!client) {
+    return null;
+  }
   
   // Status badge color mapping
   const getStatusBadge = (status: Client['status']) => {

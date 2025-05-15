@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
 import { supabase, isSupabaseConnected } from '@/lib/supabaseClient';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast';
 
 // In-memory storage for when Supabase is not connected
 let inMemoryClients: Client[] = [];
@@ -19,7 +19,7 @@ export const getClients = async (filters?: {
       toast({
         title: "Supabase Not Connected",
         description: "Using in-memory storage. Connect to Supabase to persist data.",
-        variant: "warning"
+        variant: "warning" as any
       });
       
       // Apply filters to in-memory clients if provided
@@ -67,8 +67,10 @@ export const getClients = async (filters?: {
       return [];
     }
     
+    if (!data) return [];
+    
     // Map Supabase data format to our Client type
-    return data?.map(item => ({
+    return data.map(item => ({
       id: item.id,
       legalName: item.legal_name,
       primaryContact: item.primary_contact,
@@ -84,7 +86,7 @@ export const getClients = async (filters?: {
       notificationPreferences: item.notification_preferences as Client['notificationPreferences'],
       createdAt: new Date(item.created_at),
       updatedAt: new Date(item.updated_at)
-    })) || [];
+    }));
   } catch (error) {
     console.error('Unexpected error:', error);
     return [];
