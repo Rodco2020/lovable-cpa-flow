@@ -61,7 +61,8 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
     const demand = await calculateDemand(
       periodRange,
       parameters.mode,
-      parameters.includeSkills
+      parameters.includeSkills,
+      parameters.skillAllocationStrategy || 'duplicate' // Default to existing behavior
     );
     
     // Fetch capacity hours by skill for this period
@@ -105,7 +106,8 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
 const calculateDemand = async (
   dateRange: DateRange,
   mode: ForecastMode,
-  includeSkills: SkillType[] | "all"
+  includeSkills: SkillType[] | "all",
+  skillAllocationStrategy: SkillAllocationStrategy = 'duplicate'
 ): Promise<SkillHours[]> => {
   const skillHoursMap = {} as Record<SkillType, number>;
   
@@ -115,6 +117,7 @@ const calculateDemand = async (
     
     if (DEBUG_MODE) {
       console.log(`[Forecast Debug] Calculating virtual demand for ${recurringTasks.length} tasks`);
+      console.log(`[Forecast Debug] Using skill allocation strategy: ${skillAllocationStrategy}`);
     }
     
     // For each recurring task, calculate expected hours in the period
@@ -127,16 +130,39 @@ const calculateDemand = async (
       
       // Estimate how many instances would fall in the date range
       const instanceCount = estimateRecurringTaskInstances(task, dateRange);
+      const totalTaskHours = task.estimatedHours * instanceCount;
       
       if (DEBUG_MODE) {
-        console.log(`[Forecast Debug] Task: ${task.name}, Estimated instances: ${instanceCount}, Hours per instance: ${task.estimatedHours}`);
+        console.log(`[Forecast Debug] Task: ${task.name}, Estimated instances: ${instanceCount}, Hours per instance: ${task.estimatedHours}, Total hours: ${totalTaskHours}`);
+        console.log(`[Forecast Debug] Required skills: ${task.requiredSkills.join(', ')}`);
       }
       
-      // Allocate hours to all required skills
-      task.requiredSkills.forEach(skill => {
-        skillHoursMap[skill] = (skillHoursMap[skill] || 0) + 
-                                (task.estimatedHours * instanceCount);
-      });
+      // Allocate hours to all required skills based on strategy
+      if (skillAllocationStrategy === 'distribute' && task.requiredSkills.length > 0) {
+        // Distribute hours evenly across all required skills
+        const hoursPerSkill = totalTaskHours / task.requiredSkills.length;
+        
+        if (DEBUG_MODE) {
+          console.log(`[Forecast Debug] Distributing ${totalTaskHours} hours across ${task.requiredSkills.length} skills (${hoursPerSkill} per skill)`);
+        }
+        
+        task.requiredSkills.forEach(skill => {
+          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
+          
+          if (DEBUG_MODE) {
+            console.log(`[Forecast Debug] Allocated ${hoursPerSkill} hours to skill ${skill}`);
+          }
+        });
+      } else {
+        // Duplicate hours for each required skill (original behavior)
+        task.requiredSkills.forEach(skill => {
+          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalTaskHours;
+          
+          if (DEBUG_MODE) {
+            console.log(`[Forecast Debug] Duplicated ${totalTaskHours} hours to skill ${skill}`);
+          }
+        });
+      }
     });
   } else {
     // Actual demand is based on task instances that have been generated
@@ -145,7 +171,7 @@ const calculateDemand = async (
       dueBefore: dateRange.endDate
     });
     
-    // For each task instance, add its hours to the demand
+    // For each task instance, add its hours to the demand using the selected strategy
     taskInstances.forEach(task => {
       // Skip tasks with skills not in the filter if specific skills are requested
       if (includeSkills !== "all" && 
@@ -153,9 +179,21 @@ const calculateDemand = async (
         return;
       }
       
-      task.requiredSkills.forEach(skill => {
-        skillHoursMap[skill] = (skillHoursMap[skill] || 0) + task.estimatedHours;
-      });
+      const totalTaskHours = task.estimatedHours;
+      
+      if (skillAllocationStrategy === 'distribute' && task.requiredSkills.length > 0) {
+        // Distribute hours evenly across all required skills
+        const hoursPerSkill = totalTaskHours / task.requiredSkills.length;
+        
+        task.requiredSkills.forEach(skill => {
+          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
+        });
+      } else {
+        // Duplicate hours for each required skill (original behavior)
+        task.requiredSkills.forEach(skill => {
+          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalTaskHours;
+        });
+      }
     });
   }
   
@@ -633,4 +671,18 @@ export const setForecastDebugMode = (enabled: boolean): void => {
  */
 export const isForecastDebugModeEnabled = (): boolean => {
   return window.localStorage.getItem('forecast_debug_mode') === 'true';
+};
+
+/**
+ * Set the skill allocation strategy for forecast calculations
+ */
+export const setSkillAllocationStrategy = (strategy: SkillAllocationStrategy): void => {
+  window.localStorage.setItem('forecast_skill_allocation_strategy', strategy);
+};
+
+/**
+ * Get the current skill allocation strategy
+ */
+export const getSkillAllocationStrategy = (): SkillAllocationStrategy => {
+  return (window.localStorage.getItem('forecast_skill_allocation_strategy') as SkillAllocationStrategy) || 'duplicate';
 };

@@ -4,6 +4,7 @@ import { SkillType } from "./task";
 export type ForecastTimeframe = "week" | "month" | "quarter" | "year" | "custom";
 export type ForecastMode = "virtual" | "actual";
 export type GranularityType = "daily" | "weekly" | "monthly";
+export type SkillAllocationStrategy = "duplicate" | "distribute";
 
 export interface DateRange {
   startDate: Date;
@@ -53,6 +54,7 @@ export interface ForecastParameters {
   dateRange: DateRange;
   granularity: GranularityType;
   includeSkills: SkillType[] | "all";
+  skillAllocationStrategy?: SkillAllocationStrategy; // New parameter for hour allocation strategy
 }
 
 export interface ForecastResult {

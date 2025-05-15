@@ -1,6 +1,6 @@
 
 import { RecurringTask, RecurrencePattern, SkillType, TaskPriority, TaskCategory } from '@/types/task';
-import { DateRange } from '@/types/forecasting';
+import { DateRange, SkillAllocationStrategy } from '@/types/forecasting';
 import { estimateRecurringTaskInstances } from '@/services/forecastingService';
 
 /**
@@ -119,6 +119,50 @@ export const runRecurrenceTests = () => {
       startDate: new Date('2023-01-01'),
       endDate: new Date('2023-03-31') // ~90 days
     })); // Expected: 2
+  
+  console.groupEnd();
+};
+
+/**
+ * Tests the skill hour allocation strategies
+ */
+export const runSkillAllocationTests = () => {
+  console.group('Skill Hour Allocation Tests');
+  
+  // Create a task with multiple skills
+  const multiSkillTask = createTestRecurringTask(
+    {
+      type: 'Daily',
+      interval: 1
+    },
+    5, // 5 hours per instance
+    ['Tax Specialist', 'CPA', 'Audit'] // 3 skills
+  );
+  
+  // Test range for 3 days
+  const testRange: DateRange = {
+    startDate: new Date('2023-01-01'),
+    endDate: new Date('2023-01-03')
+  };
+  
+  // Calculate instance count
+  const instances = estimateRecurringTaskInstances(multiSkillTask, testRange);
+  console.log(`Task instances in range: ${instances}`);
+  
+  // Expected total hours
+  const totalHours = instances * multiSkillTask.estimatedHours;
+  console.log(`Total task hours: ${totalHours}`);
+  
+  // Duplicate strategy (original behavior)
+  console.log('With duplicate strategy:');
+  console.log(`- Each skill receives ${totalHours} hours`);
+  console.log(`- Total demand hours: ${totalHours * multiSkillTask.requiredSkills.length}`);
+  
+  // Distribute strategy (new behavior)
+  const hoursPerSkill = totalHours / multiSkillTask.requiredSkills.length;
+  console.log('With distribute strategy:');
+  console.log(`- Each skill receives ${hoursPerSkill} hours`);
+  console.log(`- Total demand hours: ${totalHours}`);
   
   console.groupEnd();
 };
