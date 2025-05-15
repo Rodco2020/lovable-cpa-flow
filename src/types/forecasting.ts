@@ -19,6 +19,18 @@ export interface ForecastData {
   period: string; // Format depends on granularity: "2023-05-15" for daily, "2023-W20" for weekly, "2023-05" for monthly
   demand: SkillHours[];
   capacity: SkillHours[];
+  // Additional derived data properties for components
+  timeSeriesData?: any[];
+  skillDistribution?: any[];
+  gapAnalysis?: any[];
+  financialProjections?: FinancialProjection[];
+  // Summary fields
+  demandHours?: number;
+  capacityHours?: number;
+  gapHours?: number;
+  projectedRevenue?: number;
+  projectedCost?: number;
+  projectedProfit?: number;
 }
 
 export interface FinancialProjection {
@@ -49,6 +61,13 @@ export interface ForecastResult {
     totalProfit: number;
   };
   generatedAt: Date;
+}
+
+// Define SkillData type for UI display
+export interface SkillData {
+  id: string;
+  name: string;
+  color: string;
 }
 
 // Re-export SkillType using 'export type' for TypeScript with isolatedModules

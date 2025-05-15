@@ -9,7 +9,9 @@ export function initializeForecastingIntegrations() {
   // Subscribe to staff availability updates
   eventService.subscribe("availability.updated", (event) => {
     // Extract staff ID from the event payload if available
-    const staffId = event.payload && 'staffId' in event.payload ? event.payload.staffId : null;
+    const staffId = event.payload && typeof event.payload === 'object' && 'staffId' in event.payload
+      ? event.payload.staffId 
+      : null;
     
     // Trigger forecast recalculation
     console.log(`[Forecasting Integration] Recalculating forecast due to availability update for staff: ${staffId || 'all staff'}`);
@@ -29,8 +31,12 @@ export function initializeForecastingIntegrations() {
   // Subscribe to availability template changes
   eventService.subscribe("availability.template.changed", (event) => {
     // Extract staff ID and change type from the event payload if available
-    const staffId = event.payload && 'staffId' in event.payload ? event.payload.staffId : null;
-    const changeType = event.payload && 'changeType' in event.payload ? event.payload.changeType : 'unknown';
+    const staffId = event.payload && typeof event.payload === 'object' && 'staffId' in event.payload
+      ? event.payload.staffId 
+      : null;
+    const changeType = event.payload && typeof event.payload === 'object' && 'changeType' in event.payload
+      ? event.payload.changeType 
+      : 'unknown';
     
     console.log(`[Forecasting Integration] Template changed for staff: ${staffId || 'unknown'}, type: ${changeType}`);
     

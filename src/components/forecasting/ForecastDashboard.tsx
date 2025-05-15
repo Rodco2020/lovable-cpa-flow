@@ -13,7 +13,7 @@ import GapAnalysisTable from './GapAnalysisTable';
 import FinancialProjections from './FinancialProjections';
 import { getForecast } from '@/services/forecastingService';
 import useAppEvent from '@/hooks/useAppEvent';
-import { ForecastData, SkillData } from '@/types/forecasting';
+import { ForecastData, ForecastParameters, ForecastResult, SkillData } from '@/types/forecasting';
 
 const ForecastDashboard: React.FC = () => {
   const [forecastWindow, setForecastWindow] = useState<string>('next-30-days');
@@ -37,8 +37,43 @@ const ForecastDashboard: React.FC = () => {
     const loadForecast = async () => {
       setIsLoading(true);
       try {
-        const data = await getForecast(forecastWindow, forecastType);
-        setForecastData(data);
+        // Create forecast parameters
+        const params: ForecastParameters = {
+          mode: forecastType as any,
+          timeframe: 'month',
+          dateRange: {
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          },
+          granularity: 'weekly',
+          includeSkills: 'all'
+        };
+        
+        // Get forecast data
+        const result = await getForecast(params);
+        
+        // Process the result into the format expected by components
+        const processedData: ForecastData = {
+          period: 'current',
+          demand: [],
+          capacity: [],
+          
+          // Summary data from the forecast result
+          demandHours: result.summary.totalDemand,
+          capacityHours: result.summary.totalCapacity,
+          gapHours: result.summary.gap,
+          projectedRevenue: result.summary.totalRevenue,
+          projectedCost: result.summary.totalCost,
+          projectedProfit: result.summary.totalProfit,
+          
+          // Additional data for charts and tables
+          timeSeriesData: result.data,
+          skillDistribution: result.data,
+          gapAnalysis: result.data,
+          financialProjections: result.financials
+        };
+        
+        setForecastData(processedData);
       } catch (error) {
         console.error("Error loading forecast:", error);
         toast({
@@ -65,8 +100,43 @@ const ForecastDashboard: React.FC = () => {
     const loadForecast = async () => {
       setIsLoading(true);
       try {
-        const data = await getForecast(forecastWindow, forecastType);
-        setForecastData(data);
+        // Create forecast parameters
+        const params: ForecastParameters = {
+          mode: forecastType as any,
+          timeframe: 'month',
+          dateRange: {
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          },
+          granularity: 'weekly',
+          includeSkills: 'all'
+        };
+        
+        // Get forecast data
+        const result = await getForecast(params);
+        
+        // Process the result into the format expected by components
+        const processedData: ForecastData = {
+          period: 'current',
+          demand: [],
+          capacity: [],
+          
+          // Summary data from the forecast result
+          demandHours: result.summary.totalDemand,
+          capacityHours: result.summary.totalCapacity,
+          gapHours: result.summary.gap,
+          projectedRevenue: result.summary.totalRevenue,
+          projectedCost: result.summary.totalCost,
+          projectedProfit: result.summary.totalProfit,
+          
+          // Additional data for charts and tables
+          timeSeriesData: result.data,
+          skillDistribution: result.data,
+          gapAnalysis: result.data,
+          financialProjections: result.financials
+        };
+        
+        setForecastData(processedData);
       } catch (error) {
         console.error("Error reloading forecast:", error);
       } finally {
@@ -139,14 +209,12 @@ const ForecastDashboard: React.FC = () => {
           <TabsContent value="summary">
             {forecastData && (
               <ForecastSummary 
-                demandHours={forecastData.demandHours}
-                capacityHours={forecastData.capacityHours}
-                gapHours={forecastData.gapHours}
-                projectedRevenue={forecastData.projectedRevenue}
-                projectedCost={forecastData.projectedCost}
-                projectedProfit={forecastData.projectedProfit}
-                forecastType={forecastType}
-                timeWindow={forecastWindow}
+                totalDemand={forecastData.demandHours || 0}
+                totalCapacity={forecastData.capacityHours || 0}
+                gap={forecastData.gapHours || 0}
+                totalRevenue={forecastData.projectedRevenue || 0}
+                totalCost={forecastData.projectedCost || 0}
+                totalProfit={forecastData.projectedProfit || 0}
               />
             )}
           </TabsContent>
@@ -168,7 +236,7 @@ const ForecastDashboard: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {forecastData && (
+                  {forecastData && forecastData.timeSeriesData && (
                     <ForecastChart 
                       chartType="line"
                       data={forecastData.timeSeriesData}
@@ -185,7 +253,7 @@ const ForecastDashboard: React.FC = () => {
                   <CardTitle className="text-md font-medium">Skill Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {forecastData && (
+                  {forecastData && forecastData.skillDistribution && (
                     <ForecastChart 
                       chartType="bar"
                       data={forecastData.skillDistribution}
@@ -205,10 +273,10 @@ const ForecastDashboard: React.FC = () => {
                 <CardTitle>Gap Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                {forecastData && (
+                {forecastData && forecastData.gapAnalysis && (
                   <GapAnalysisTable 
                     data={forecastData.gapAnalysis}
-                    skills={availableSkills}
+                    skills={availableSkills.map(s => s.id)}
                   />
                 )}
               </CardContent>
@@ -221,9 +289,10 @@ const ForecastDashboard: React.FC = () => {
                 <CardTitle>Financial Projections</CardTitle>
               </CardHeader>
               <CardContent>
-                {forecastData && (
+                {forecastData && forecastData.financialProjections && (
                   <FinancialProjections
                     data={forecastData.financialProjections}
+                    view="chart"
                   />
                 )}
               </CardContent>

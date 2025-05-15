@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-interface FinancialProjectionsProps {
+export interface FinancialProjectionsProps {
   data: FinancialProjection[];
   view: 'chart' | 'table';
 }

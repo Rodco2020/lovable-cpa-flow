@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUp, ArrowDown, TrendingUp, TrendingDown } from 'lucide-react';
 
-interface ForecastSummaryProps {
+export interface ForecastSummaryProps {
   totalDemand: number;
   totalCapacity: number;
   gap: number;
@@ -35,7 +35,7 @@ const ForecastSummary: React.FC<ForecastSummaryProps> = ({
   
   const capacityUtilization = totalCapacity > 0 
     ? ((totalDemand / totalCapacity) * 100).toFixed(1)
-    : 0;
+    : '0.0';
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -88,7 +88,7 @@ const ForecastSummary: React.FC<ForecastSummaryProps> = ({
           </div>
           <div className="mt-2 text-sm text-gray-500">
             <div>Cost: {formatCurrency(totalCost)}</div>
-            <div>Margin: {totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}%</div>
+            <div>Margin: {totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0'}%</div>
           </div>
         </CardContent>
       </Card>
