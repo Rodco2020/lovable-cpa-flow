@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getStaffById, createStaff, updateStaff } from "@/services/staffService";
+import { getAllSkills } from "@/services/skillService";
 import { Staff, StaffStatus } from "@/types/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,10 +57,16 @@ const StaffForm: React.FC = () => {
   });
 
   // Fetch staff data for edit mode
-  const { data: staff, isLoading } = useQuery({
+  const { data: staff, isLoading: isLoadingStaff } = useQuery({
     queryKey: ["staff", id],
     queryFn: () => getStaffById(id || ""),
     enabled: isEditMode,
+  });
+
+  // Fetch all skills from the skills service
+  const { data: skills, isLoading: isLoadingSkills } = useQuery({
+    queryKey: ["skills"],
+    queryFn: getAllSkills,
   });
 
   // Populate form with existing data if in edit mode
@@ -111,18 +118,9 @@ const StaffForm: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoadingStaff) {
     return <div className="flex justify-center p-8">Loading staff data...</div>;
   }
-
-  // Mock skill options for demonstration
-  const mockSkills = [
-    { id: "skill-1", name: "Tax Preparation" },
-    { id: "skill-2", name: "Bookkeeping" },
-    { id: "skill-3", name: "Audit" },
-    { id: "skill-4", name: "Financial Planning" },
-    { id: "skill-5", name: "Payroll" },
-  ];
 
   return (
     <div className="space-y-6">
@@ -255,41 +253,54 @@ const StaffForm: React.FC = () => {
                     <div className="mb-4">
                       <FormLabel>Skills</FormLabel>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {mockSkills.map((skill) => (
-                        <FormField
-                          key={skill.id}
-                          control={form.control}
-                          name="skills"
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={skill.id}
-                                className="flex flex-row items-start space-x-3 space-y-0"
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(skill.id)}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value, skill.id])
-                                        : field.onChange(
-                                            field.value?.filter(
-                                              (value) => value !== skill.id
-                                            )
-                                          );
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="font-normal cursor-pointer">
-                                  {skill.name}
-                                </FormLabel>
-                              </FormItem>
-                            );
-                          }}
-                        />
-                      ))}
-                    </div>
+                    {isLoadingSkills ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="h-8 bg-gray-100 animate-pulse rounded"></div>
+                        <div className="h-8 bg-gray-100 animate-pulse rounded"></div>
+                        <div className="h-8 bg-gray-100 animate-pulse rounded"></div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {skills?.map((skill) => (
+                          <FormField
+                            key={skill.id}
+                            control={form.control}
+                            name="skills"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={skill.id}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(skill.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...field.value, skill.id])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== skill.id
+                                              )
+                                            );
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {skill.name}
+                                    {skill.category && (
+                                      <span className="text-xs text-gray-500 block">
+                                        {skill.category}
+                                      </span>
+                                    )}
+                                  </FormLabel>
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
