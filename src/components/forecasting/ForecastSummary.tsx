@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUp, ArrowDown, TrendingUp, TrendingDown } from 'lucide-react';
 
 export interface ForecastSummaryProps {
-  totalDemand: number;
+  totalDemand: React.ReactNode;  // Updated to ReactNode to accept both numbers and React Elements
   totalCapacity: number;
   gap: number;
   totalRevenue: number;
@@ -33,8 +33,10 @@ const ForecastSummary: React.FC<ForecastSummaryProps> = ({
     return Math.round(value * 10) / 10; // Round to 1 decimal place
   };
   
+  // Calculate utilization from totalDemand if it's a number, otherwise use 0
+  const demandHours = typeof totalDemand === 'number' ? totalDemand : 0;
   const capacityUtilization = totalCapacity > 0 
-    ? ((totalDemand / totalCapacity) * 100).toFixed(1)
+    ? ((demandHours / totalCapacity) * 100).toFixed(1)
     : '0.0';
   
   return (
@@ -52,7 +54,7 @@ const ForecastSummary: React.FC<ForecastSummaryProps> = ({
             </div>
           </div>
           <div className="mt-2 text-sm text-gray-500">
-            <div>Demand: {formatHours(totalDemand)} hrs</div>
+            <div>Demand: {typeof totalDemand === 'number' ? formatHours(totalDemand) : totalDemand} hrs</div>
             <div>Capacity: {formatHours(totalCapacity)} hrs</div>
           </div>
         </CardContent>
