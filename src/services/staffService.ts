@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from "uuid";
 import { Staff, TimeSlot, WeeklyAvailability } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,7 @@ export const getAllStaff = async (): Promise<Staff[]> => {
     costPerHour: item.cost_per_hour,
     email: item.email,
     phone: item.phone || "",
-    status: item.status,
+    status: item.status === "active" ? "active" : "inactive",
     createdAt: item.created_at,
     updatedAt: item.updated_at
   }));
@@ -51,7 +52,7 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status,
+    status: data.status === "active" ? "active" : "inactive",
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -85,7 +86,7 @@ export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "u
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status,
+    status: data.status === "active" ? "active" : "inactive",
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -123,7 +124,7 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status,
+    status: data.status === "active" ? "active" : "inactive",
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -152,13 +153,20 @@ const generateMockTimeSlots = (date: string): TimeSlot[] => {
   const startHour = 8; // 8 AM
   const endHour = 17; // 5 PM
 
-  mockStaff.forEach(staff => {
+  // Instead of using mockStaff, let's fetch the actual staff list
+  // This is just a placeholder for now - we'll use fixed IDs for the mock data
+  const mockStaffIds = [
+    'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c', 
+    'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d'
+  ];
+
+  mockStaffIds.forEach(staffId => {
     for (let hour = startHour; hour < endHour; hour++) {
       // Create two 30-minute slots per hour
       for (let minutes of [0, 30]) {
         slots.push({
           id: uuidv4(),
-          staffId: staff.id,
+          staffId: staffId,
           date,
           startTime: `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
           endTime: minutes === 0 
@@ -174,26 +182,42 @@ const generateMockTimeSlots = (date: string): TimeSlot[] => {
 };
 
 // Mock weekly availability
-const mockWeeklyAvailability: WeeklyAvailability[] = mockStaff.flatMap(staff => {
-  return [1, 2, 3, 4, 5].flatMap(day => { // Monday to Friday
-    return [
-      {
-        staffId: staff.id,
-        dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-        startTime: "09:00",
-        endTime: "12:00",
-        isAvailable: true,
-      },
-      {
-        staffId: staff.id,
-        dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-        startTime: "13:00",
-        endTime: "17:00",
-        isAvailable: true,
-      }
-    ];
-  });
-});
+const mockWeeklyAvailability: WeeklyAvailability[] = [
+  // Mock data for first staff member
+  ...[1, 2, 3, 4, 5].flatMap(day => [
+    {
+      staffId: 'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "09:00",
+      endTime: "12:00",
+      isAvailable: true,
+    },
+    {
+      staffId: 'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "13:00",
+      endTime: "17:00",
+      isAvailable: true,
+    }
+  ]),
+  // Mock data for second staff member
+  ...[1, 2, 3, 4, 5].flatMap(day => [
+    {
+      staffId: 'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "09:00",
+      endTime: "12:00",
+      isAvailable: true,
+    },
+    {
+      staffId: 'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "13:00",
+      endTime: "17:00",
+      isAvailable: true,
+    }
+  ])
+];
 
 // TimeSlot operations
 export const getTimeSlotsByDate = async (date: string): Promise<TimeSlot[]> => {

@@ -1,6 +1,4 @@
 
-import { Skill } from "./skill";
-
 export type StaffStatus = "active" | "inactive";
 
 export interface Staff {
