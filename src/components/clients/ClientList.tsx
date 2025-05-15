@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
@@ -59,8 +60,8 @@ const ClientList: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ClientStatus | ''>('');
-  const [industryFilter, setIndustryFilter] = useState<IndustryType | ''>('');
+  const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
+  const [industryFilter, setIndustryFilter] = useState<IndustryType | 'all'>('all');
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -72,10 +73,10 @@ const ClientList: React.FC = () => {
       setIsLoading(true);
       try {
         const fetchedClients = await getClients(
-          (statusFilter || industryFilter) 
+          (statusFilter !== 'all' || industryFilter !== 'all') 
             ? {
-                status: statusFilter ? [statusFilter] : undefined,
-                industry: industryFilter ? [industryFilter] : undefined
+                status: statusFilter !== 'all' ? [statusFilter] : undefined,
+                industry: industryFilter !== 'all' ? [industryFilter] : undefined
               }
             : undefined
         );
@@ -176,13 +177,13 @@ const ClientList: React.FC = () => {
             <div className="flex gap-2">
               <Select 
                 value={statusFilter} 
-                onValueChange={(value) => setStatusFilter(value as ClientStatus | '')}
+                onValueChange={(value) => setStatusFilter(value as ClientStatus | 'all')}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                   <SelectItem value="Pending">Pending</SelectItem>
@@ -192,13 +193,13 @@ const ClientList: React.FC = () => {
               
               <Select 
                 value={industryFilter} 
-                onValueChange={(value) => setIndustryFilter(value as IndustryType | '')}
+                onValueChange={(value) => setIndustryFilter(value as IndustryType | 'all')}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by industry" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Industries</SelectItem>
+                  <SelectItem value="all">All Industries</SelectItem>
                   <SelectItem value="Retail">Retail</SelectItem>
                   <SelectItem value="Healthcare">Healthcare</SelectItem>
                   <SelectItem value="Manufacturing">Manufacturing</SelectItem>
