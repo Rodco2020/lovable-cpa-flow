@@ -128,7 +128,7 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   const filteredStaff = selectedTask && selectedTask.requiredSkills && selectedTask.requiredSkills.length > 0
     ? staff.filter(s => 
         selectedTask.requiredSkills.some(skill => 
-          s.assigned_skills && s.assigned_skills.includes(skill)
+          s.skills && s.skills.includes(skill)
         )
       )
     : staff;
@@ -138,12 +138,21 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
     const mask = availabilityMasks[staffId];
     if (!mask || !mask.slots) return [];
     
+    // Format available slots from the slots in the mask
     return mask.slots
-      .filter(slot => slot.available)
-      .map(slot => ({
-        startTime: slot.startTime,
-        endTime: slot.endTime
-      }));
+      .filter(slot => slot.isAvailable) // use isAvailable instead of available
+      .map(slot => {
+        // Convert hour and minute to HH:MM format
+        const startHour = slot.hour;
+        const startMinute = slot.minute;
+        const endHour = startMinute === 30 ? startHour + 1 : startHour;
+        const endMinute = startMinute === 30 ? 0 : 30;
+        
+        return {
+          startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
+          endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+        };
+      });
   };
   
   if (loading) {
