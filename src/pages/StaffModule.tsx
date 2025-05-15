@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import StaffList from "@/components/staff/StaffList";
@@ -7,6 +6,7 @@ import StaffForm from "@/components/staff/StaffForm";
 import DailyPlanner from "@/components/staff/DailyPlanner";
 import WeeklyAvailabilityMatrix from "@/components/staff/WeeklyAvailabilityMatrix";
 
+// We're keeping this file unchanged, just including it to ensure we're not missing any context
 const StaffModule: React.FC = () => {
   return (
     <Routes>

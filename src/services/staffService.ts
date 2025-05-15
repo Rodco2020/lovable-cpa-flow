@@ -378,17 +378,25 @@ export const batchUpdateWeeklyAvailability = async (
   return results;
 };
 
-// New function to calculate daily and weekly availability summaries
+// New function to calculate daily and weekly availability summaries with more detailed metrics
 export const calculateAvailabilitySummary = async (
   staffId: string
-): Promise<{
-  dailySummaries: { day: number; totalHours: number }[];
-  weeklyTotal: number;
-}> => {
+): Promise<AvailabilitySummary> => {
   const availabilities = await getWeeklyAvailabilityByStaff(staffId);
   
   // Calculate hours for each time slot and group by day
-  const dailySummaries = Array.from({ length: 7 }, (_, i) => ({ day: i, totalHours: 0 }));
+  const dailySummaries = Array.from({ length: 7 }, (_, i) => ({ 
+    day: i, 
+    totalHours: 0,
+    slots: [] as { startTime: string; endTime: string }[] 
+  }));
+  
+  // Distribution by time of day
+  const distribution: { [key: string]: number } = {
+    morning: 0,   // 6:00 AM - 12:00 PM
+    afternoon: 0, // 12:00 PM - 5:00 PM
+    evening: 0    // 5:00 PM - 10:00 PM
+  };
   
   for (const avail of availabilities) {
     if (avail.isAvailable) {
@@ -401,14 +409,46 @@ export const calculateAvailabilitySummary = async (
       
       const hours = endHours - startHours;
       dailySummaries[avail.dayOfWeek].totalHours += hours;
+      
+      // Track detailed slot information
+      dailySummaries[avail.dayOfWeek].slots.push({
+        startTime: avail.startTime,
+        endTime: avail.endTime
+      });
+      
+      // Calculate distribution by time of day
+      // This is a simplified algorithm - in reality we'd need to split slots that cross boundaries
+      if (startHours >= 6 && startHours < 12) {
+        distribution.morning += hours;
+      } else if (startHours >= 12 && startHours < 17) {
+        distribution.afternoon += hours;
+      } else if (startHours >= 17 && startHours < 22) {
+        distribution.evening += hours;
+      }
     }
   }
   
   // Calculate weekly total
   const weeklyTotal = dailySummaries.reduce((sum, day) => sum + day.totalHours, 0);
   
+  // Calculate average daily hours (only counting days with any availability)
+  const daysWithAvailability = dailySummaries.filter(day => day.totalHours > 0).length;
+  const averageDailyHours = daysWithAvailability > 0 
+    ? weeklyTotal / daysWithAvailability 
+    : 0;
+  
+  // Find peak day (day with most hours)
+  const peakDay = dailySummaries.reduce((peak, day) => {
+    return day.totalHours > (peak?.hours || 0) 
+      ? { day: day.day, hours: day.totalHours } 
+      : peak;
+  }, null as { day: number; hours: number } | null);
+  
   return {
     dailySummaries,
     weeklyTotal,
+    averageDailyHours,
+    peakDay,
+    distribution,
   };
 };

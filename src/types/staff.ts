@@ -33,8 +33,19 @@ export interface WeeklyAvailability {
   isAvailable: boolean;
 }
 
-// New interface for availability summaries
+// Enhanced interface for availability summaries with more detailed metrics
 export interface AvailabilitySummary {
-  dailySummaries: { day: number; totalHours: number }[];
+  dailySummaries: { 
+    day: number; 
+    totalHours: number; 
+    slots: { startTime: string; endTime: string }[]; // Added slot details for more granular analysis
+  }[];
   weeklyTotal: number;
+  // Added metrics for capacity analysis
+  averageDailyHours: number; 
+  peakDay: { day: number; hours: number } | null;
+  distribution: { [key: string]: number }; // Morning/afternoon/evening distribution
 }
+
+// New type for tracking capacity in different time segments
+export type TimeSegment = 'morning' | 'afternoon' | 'evening';
