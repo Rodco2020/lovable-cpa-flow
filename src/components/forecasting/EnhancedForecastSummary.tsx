@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { InfoCircle } from 'lucide-react';
 import ForecastInfoTooltip from './ForecastInfoTooltip';
 
 interface EnhancedForecastSummaryProps {

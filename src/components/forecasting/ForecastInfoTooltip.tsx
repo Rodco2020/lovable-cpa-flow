@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { InfoCircle } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ForecastInfoTooltipProps {
@@ -12,7 +12,7 @@ interface ForecastInfoTooltipProps {
 const ForecastInfoTooltip: React.FC<ForecastInfoTooltipProps> = ({ 
   title, 
   content, 
-  icon = <InfoCircle className="h-4 w-4" />
+  icon = <Info className="h-4 w-4" />
 }) => {
   return (
     <TooltipProvider>

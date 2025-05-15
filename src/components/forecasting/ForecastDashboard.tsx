@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertTriangle, InfoCircle, ChartBar, Calendar } from 'lucide-react';
+import { AlertTriangle, Info, ChartBar, Calendar } from 'lucide-react';
 import ForecastSummary from './ForecastSummary';
 import ForecastChart from './ForecastChart';
 import GapAnalysisTable from './GapAnalysisTable';
@@ -446,7 +445,7 @@ const ForecastDashboard: React.FC = () => {
                           tasks={taskBreakdown}
                           title="Tasks Contributing to Demand"
                         >
-                          {forecastData.demandHours || 0}
+                          {forecastData.demandHours !== undefined ? forecastData.demandHours : 0}
                         </TaskBreakdownHoverCard>
                       }
                       totalCapacity={forecastData.capacityHours || 0}

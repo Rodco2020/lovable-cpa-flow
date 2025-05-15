@@ -24,6 +24,18 @@ import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getClientById } from '@/services/clientService';
 
+// Define TaskBreakdownItem interface for hover details
+interface TaskBreakdownItem {
+  id: string;
+  name: string;
+  clientName: string;
+  clientId: string;
+  skill: SkillType;
+  hours: number;
+  dueDate?: string;
+  status?: string;
+}
+
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
 
@@ -939,7 +951,7 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
     // This is just a placeholder for demonstration
     
     // Log for debug mode
-    if (debugMode) {
+    if (getDebugMode()) {
       console.log(`[Forecast Debug] Retrieved ${mockTasks.length} tasks for breakdown`);
     }
     
