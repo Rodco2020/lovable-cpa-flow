@@ -1,19 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
-import { supabase, isSupabaseConnected } from '@/lib/supabaseClient';
-import { useToast as useToastOriginal } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Local memory storage as fallback when Supabase is not connected
 let clients: Client[] = [];
-
-// Helper function to create toast without using hooks
-const showToast = (title: string, description: string) => {
-  // Only log to console when Supabase is not connected
-  // The actual toast will be shown by the UI components
-  if (!isSupabaseConnected()) {
-    console.warn(`${title}: ${description}`);
-  }
-};
 
 // Map Supabase data to our Client model
 const mapSupabaseDataToClient = (data: any): Client => {
@@ -66,49 +56,31 @@ export const getClients = async (filters?: { status?: ClientStatus[]; industry?:
 
 // Get all clients
 export const getAllClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
-  if (isSupabaseConnected()) {
-    try {
-      let query = supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (filters?.status && filters.status.length > 0) {
-        query = query.in('status', filters.status);
-      }
-      
-      if (filters?.industry && filters.industry.length > 0) {
-        query = query.in('industry', filters.industry);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data.map(mapSupabaseDataToClient);
-    } catch (error) {
-      console.error('Error fetching clients from Supabase:', error);
-      showToast(
-        "Database Connection Error",
-        "Failed to fetch clients from Supabase. Using in-memory storage instead."
-      );
-      
-      // Apply filters to in-memory clients if needed
-      let filteredClients = clients;
-      
-      if (filters?.status && filters.status.length > 0) {
-        filteredClients = filteredClients.filter(c => filters.status?.includes(c.status));
-      }
-      
-      if (filters?.industry && filters.industry.length > 0) {
-        filteredClients = filteredClients.filter(c => filters.industry?.includes(c.industry));
-      }
-      
-      return filteredClients;
+  try {
+    let query = supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (filters?.status && filters.status.length > 0) {
+      query = query.in('status', filters.status);
     }
-  } else {
+    
+    if (filters?.industry && filters.industry.length > 0) {
+      query = query.in('industry', filters.industry);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching clients from Supabase:', error);
+      return clients; // Fallback to in-memory
+    }
+    
+    return data.map(mapSupabaseDataToClient);
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    
     // Apply filters to in-memory clients if needed
     let filteredClients = clients;
     
@@ -126,32 +98,20 @@ export const getAllClients = async (filters?: { status?: ClientStatus[]; industr
 
 // Get a client by ID
 export const getClientById = async (id: string): Promise<Client> => {
-  if (isSupabaseConnected()) {
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return mapSupabaseDataToClient(data);
-    } catch (error) {
-      console.error(`Error fetching client ${id} from Supabase:`, error);
-      showToast(
-        "Database Connection Error",
-        "Failed to fetch client details. Using in-memory storage instead."
-      );
-      const client = clients.find(client => client.id === id);
-      if (!client) {
-        throw new Error(`Client with ID ${id} not found`);
-      }
-      return client;
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      throw error;
     }
-  } else {
+    
+    return mapSupabaseDataToClient(data);
+  } catch (error) {
+    console.error(`Error fetching client ${id} from Supabase:`, error);
     const client = clients.find(client => client.id === id);
     if (!client) {
       throw new Error(`Client with ID ${id} not found`);
@@ -170,39 +130,29 @@ export const createClient = async (clientData: Omit<Client, 'id' | 'createdAt' |
     updatedAt: new Date(),
   };
   
-  if (isSupabaseConnected()) {
-    try {
-      // Map client data to Supabase format
-      const supabaseData = {
-        id: newClient.id,
-        ...mapClientToSupabaseData(newClient),
-        created_at: newClient.createdAt.toISOString(),
-        updated_at: newClient.updatedAt.toISOString(),
-      };
-      
-      const { data, error } = await supabase
-        .from('clients')
-        .insert([supabaseData])
-        .select()
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return mapSupabaseDataToClient(data);
-    } catch (error) {
-      console.error('Error creating client in Supabase:', error);
-      showToast(
-        "Database Connection Error",
-        "Failed to save client to database. Saved in memory only."
-      );
-      // Fall back to in-memory storage
-      clients.push(newClient);
-      return newClient;
+  try {
+    // Map client data to Supabase format
+    const supabaseData = {
+      id: newClient.id,
+      ...mapClientToSupabaseData(newClient),
+      created_at: newClient.createdAt.toISOString(),
+      updated_at: newClient.updatedAt.toISOString(),
+    };
+    
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([supabaseData])
+      .select()
+      .single();
+    
+    if (error) {
+      throw error;
     }
-  } else {
-    // In-memory storage only
+    
+    return mapSupabaseDataToClient(data);
+  } catch (error) {
+    console.error('Error creating client in Supabase:', error);
+    // Fall back to in-memory storage
     clients.push(newClient);
     return newClient;
   }
@@ -215,47 +165,28 @@ export const updateClient = async (id: string, clientData: Partial<Omit<Client, 
     updatedAt: new Date(),
   };
   
-  if (isSupabaseConnected()) {
-    try {
-      // Map client data to Supabase format
-      const supabaseData = {
-        ...mapClientToSupabaseData(updatedData),
-        updated_at: updatedData.updatedAt?.toISOString(),
-      };
+  try {
+    // Map client data to Supabase format
+    const supabaseData = {
+      ...mapClientToSupabaseData(updatedData),
+      updated_at: updatedData.updatedAt?.toISOString(),
+    };
+    
+    const { data, error } = await supabase
+      .from('clients')
+      .update(supabaseData)
+      .eq('id', id)
+      .select()
+      .single();
       
-      const { data, error } = await supabase
-        .from('clients')
-        .update(supabaseData)
-        .eq('id', id)
-        .select()
-        .single();
-        
-      if (error) {
-        throw error;
-      }
-      
-      return mapSupabaseDataToClient(data);
-    } catch (error) {
-      console.error(`Error updating client ${id} in Supabase:`, error);
-      showToast(
-        "Database Connection Error",
-        "Failed to update client in database. Updated in memory only."
-      );
-      // Fall back to in-memory storage
-      const index = clients.findIndex(c => c.id === id);
-      if (index === -1) {
-        throw new Error(`Client with ID ${id} not found`);
-      }
-      
-      clients[index] = {
-        ...clients[index],
-        ...updatedData,
-      };
-      
-      return clients[index];
+    if (error) {
+      throw error;
     }
-  } else {
-    // In-memory storage only
+    
+    return mapSupabaseDataToClient(data);
+  } catch (error) {
+    console.error(`Error updating client ${id} in Supabase:`, error);
+    // Fall back to in-memory storage
     const index = clients.findIndex(c => c.id === id);
     if (index === -1) {
       throw new Error(`Client with ID ${id} not found`);
@@ -272,32 +203,22 @@ export const updateClient = async (id: string, clientData: Partial<Omit<Client, 
 
 // Delete a client
 export const deleteClient = async (id: string): Promise<boolean> => {
-  if (isSupabaseConnected()) {
-    try {
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        throw error;
-      }
+  try {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id);
       
-      // Also remove from local array to keep in sync
-      clients = clients.filter(c => c.id !== id);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting client ${id} from Supabase:`, error);
-      showToast(
-        "Database Connection Error",
-        "Failed to delete client from database. Deleted from memory only."
-      );
-      // Fall back to in-memory storage
-      clients = clients.filter(c => c.id !== id);
-      return true;
+    if (error) {
+      throw error;
     }
-  } else {
-    // In-memory storage only
+    
+    // Also remove from local array to keep in sync
+    clients = clients.filter(c => c.id !== id);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting client ${id} from Supabase:`, error);
+    // Fall back to in-memory storage
     clients = clients.filter(c => c.id !== id);
     return true;
   }
