@@ -52,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           setTimeout(() => {
             // Can add additional user data fetching here if needed
+            checkAndCreateStaffRecord(session.user);
           }, 0);
         }
       }
@@ -61,11 +62,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        checkAndCreateStaffRecord(session.user);
+      }
+      
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+  
+  // Helper function to check if a staff record exists for the user
+  // and create one if it doesn't
+  const checkAndCreateStaffRecord = async (user: User) => {
+    try {
+      // First check if staff record already exists
+      const { data: existingStaff } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+      
+      // If staff record doesn't exist, create one
+      if (!existingStaff) {
+        // Get user profile to get first/last name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', user.id)
+          .maybeSingle();
+          
+        const firstName = profile?.first_name || '';
+        const lastName = profile?.last_name || '';
+        const name = `${firstName} ${lastName}`.trim() || user.email?.split('@')[0] || 'New Staff';
+        
+        // Create staff record
+        await supabase.from('staff').insert({
+          email: user.email,
+          name: name,
+          assigned_skills: [],
+          is_active: true
+        });
+        
+        console.log('Created new staff record for user:', user.email);
+      }
+    } catch (error) {
+      console.error('Error checking/creating staff record:', error);
+      // Non-blocking - don't throw error so auth flow continues
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
