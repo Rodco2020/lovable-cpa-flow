@@ -185,27 +185,33 @@ export type Database = {
       }
       skills: {
         Row: {
+          category: string | null
           cost_per_hour: number
           created_at: string
           description: string | null
           id: string
           name: string
+          proficiency_level: string | null
           updated_at: string
         }
         Insert: {
+          category?: string | null
           cost_per_hour: number
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          proficiency_level?: string | null
           updated_at?: string
         }
         Update: {
+          category?: string | null
           cost_per_hour?: number
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          proficiency_level?: string | null
           updated_at?: string
         }
         Relationships: []

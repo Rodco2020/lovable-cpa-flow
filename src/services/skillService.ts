@@ -61,7 +61,7 @@ export const createSkill = async (skillData: Omit<Skill, "id" | "createdAt" | "u
       description: skillData.description,
       category: skillData.category,
       proficiency_level: skillData.proficiencyLevel,
-      // Don't need to specify cost_per_hour as it has a default value in the DB
+      cost_per_hour: 50.00, // Default value if not provided
     })
     .select()
     .single();
