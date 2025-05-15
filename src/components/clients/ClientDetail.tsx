@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
@@ -37,14 +36,10 @@ import {
 } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
+
+// Import the task list components
+import ClientRecurringTaskList from './ClientRecurringTaskList';
+import ClientAdHocTaskList from './ClientAdHocTaskList';
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +103,27 @@ const ClientDetail: React.FC = () => {
     
     fetchClientData();
   }, [id, navigate, toast]);
+  
+  // Handle task view navigation
+  const handleViewRecurringTask = (taskId: string) => {
+    navigate(`/tasks/recurring/${taskId}`);
+  };
+  
+  const handleViewAdHocTask = (taskId: string) => {
+    navigate(`/tasks/${taskId}`);
+  };
+  
+  // Handle create task with client context
+  const handleCreateTask = () => {
+    if (client) {
+      navigate('/tasks/create', { 
+        state: { 
+          clientId: client.id,
+          clientName: client.legalName
+        } 
+      });
+    }
+  };
   
   // Show loading state
   if (isLoading) {
@@ -380,8 +396,8 @@ const ClientDetail: React.FC = () => {
                 Client Engagements
               </CardTitle>
               <TabsList>
-                <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
-                <TabsTrigger value="adhoc">Ad-hoc Tasks</TabsTrigger>
+                <TabsTrigger value="recurring">Recurring Tasks ({recurringTasks.length})</TabsTrigger>
+                <TabsTrigger value="adhoc">Ad-hoc Tasks ({adHocTasks.length})</TabsTrigger>
               </TabsList>
             </div>
             <CardDescription>
@@ -391,96 +407,22 @@ const ClientDetail: React.FC = () => {
           
           <CardContent>
             <TabsContent value="recurring" className="space-y-4">
-              {recurringTasks.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Task Name</TableHead>
-                      <TableHead>Schedule</TableHead>
-                      <TableHead>Required Skills</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead className="text-right">Hours</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recurringTasks.map((task) => (
-                      <TableRow key={task.id}>
-                        <TableCell className="font-medium">{task.name}</TableCell>
-                        <TableCell>{formatRecurrencePattern(task)}</TableCell>
-                        <TableCell>{task.requiredSkills.join(', ')}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            task.priority === "Low" ? "outline" :
-                            task.priority === "Medium" ? "secondary" :
-                            task.priority === "High" ? "default" :
-                            "destructive"
-                          }>
-                            {task.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{task.estimatedHours}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center p-6 border rounded-md bg-muted/20">
-                  <h3 className="font-medium">No Recurring Tasks</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This client doesn't have any recurring tasks set up yet.
-                  </p>
-                </div>
-              )}
+              <ClientRecurringTaskList 
+                tasks={recurringTasks}
+                onViewTask={handleViewRecurringTask}
+              />
             </TabsContent>
             
             <TabsContent value="adhoc" className="space-y-4">
-              {adHocTasks.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Task Name</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Required Skills</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Hours</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {adHocTasks.map((task) => (
-                      <TableRow key={task.id}>
-                        <TableCell className="font-medium">{task.name}</TableCell>
-                        <TableCell>
-                          {task.dueDate ? format(task.dueDate, 'MMM d, yyyy') : 'Not set'}
-                        </TableCell>
-                        <TableCell>{task.requiredSkills.join(', ')}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            task.status === "Completed" ? "outline" :
-                            task.status === "In Progress" ? "secondary" :
-                            task.status === "Scheduled" ? "default" :
-                            "destructive"
-                          }>
-                            {task.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{task.estimatedHours}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center p-6 border rounded-md bg-muted/20">
-                  <h3 className="font-medium">No Ad-hoc Tasks</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This client doesn't have any ad-hoc tasks assigned.
-                  </p>
-                </div>
-              )}
+              <ClientAdHocTaskList 
+                tasks={adHocTasks}
+                onViewTask={handleViewAdHocTask}
+              />
             </TabsContent>
           </CardContent>
           
           <CardFooter>
-            <Button onClick={() => navigate('/tasks/create')} className="ml-auto">
+            <Button onClick={handleCreateTask} className="ml-auto">
               Create New Task
             </Button>
           </CardFooter>
