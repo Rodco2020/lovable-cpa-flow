@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ForecastData, SkillHours } from '@/types/forecasting';
+import { ForecastData, SkillHours, SkillData } from '@/types/forecasting';
 
 interface ForecastChartProps {
   data: ForecastData[];
   chartType: 'bar' | 'line';
   showDemand: boolean;
   showCapacity: boolean;
-  skills: string[] | 'all';
+  skills: SkillData[] | 'all';
 }
 
 const ForecastChart: React.FC<ForecastChartProps> = ({ 
@@ -26,7 +26,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     if (showDemand) {
       period.demand.forEach(skillHours => {
         // Check if skill is included in the filter
-        if (skills === 'all' || skills.includes(skillHours.skill)) {
+        if (skills === 'all' || skills.some(s => s.id === skillHours.skill)) {
           result[`demand_${skillHours.skill}`] = skillHours.hours;
         }
       });
@@ -36,7 +36,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     if (showCapacity) {
       period.capacity.forEach(skillHours => {
         // Check if skill is included in the filter
-        if (skills === 'all' || skills.includes(skillHours.skill)) {
+        if (skills === 'all' || skills.some(s => s.id === skillHours.skill)) {
           result[`capacity_${skillHours.skill}`] = skillHours.hours;
         }
       });
@@ -63,9 +63,10 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     period.capacity.forEach(skillHours => uniqueSkills.add(skillHours.skill));
   });
   
+  // Filter skills based on the skills prop
   const filteredSkills = skills === 'all' 
     ? Array.from(uniqueSkills)
-    : Array.from(uniqueSkills).filter(skill => skills.includes(skill));
+    : Array.from(uniqueSkills).filter(skill => skills.some(s => s.id === skill));
   
   // Format tooltip and legend labels
   const formatName = (name: string | number) => {

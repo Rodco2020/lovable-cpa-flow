@@ -26,7 +26,7 @@ const GapAnalysisTable: React.FC<GapAnalysisTableProps> = ({ data, skills }) => 
   // Filter skills if needed
   const skillsToDisplay = skills === 'all' 
     ? Array.from(uniqueSkills)
-    : skills.filter(skill => uniqueSkills.has(skill as SkillType)).map(skill => skill as SkillType);
+    : skills.filter(skill => uniqueSkills.has(skill));
   
   // Calculate skill totals across all periods
   const skillTotals = {} as Record<SkillType, { demand: number; capacity: number; gap: number }>;

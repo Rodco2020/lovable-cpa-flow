@@ -13,7 +13,14 @@ import GapAnalysisTable from './GapAnalysisTable';
 import FinancialProjections from './FinancialProjections';
 import { getForecast } from '@/services/forecastingService';
 import useAppEvent from '@/hooks/useAppEvent';
-import { ForecastData, ForecastParameters, ForecastResult, SkillData } from '@/types/forecasting';
+import { ForecastData, ForecastParameters, ForecastResult, SkillType } from '@/types/forecasting';
+
+// Define skill data type for UI display
+interface SkillData {
+  id: SkillType;
+  name: string;
+  color: string;
+}
 
 const ForecastDashboard: React.FC = () => {
   const [forecastWindow, setForecastWindow] = useState<string>('next-30-days');
@@ -22,14 +29,14 @@ const ForecastDashboard: React.FC = () => {
   const [showDemand, setShowDemand] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<SkillType[]>([]);
   const { toast } = useToast();
   
   const availableSkills: SkillData[] = [
-    { id: 'tax-prep', name: 'Tax Preparation', color: '#4CAF50' },
-    { id: 'audit', name: 'Audit', color: '#2196F3' },
-    { id: 'advisory', name: 'Advisory', color: '#9C27B0' },
-    { id: 'bookkeeping', name: 'Bookkeeping', color: '#FF9800' }
+    { id: 'tax-prep' as SkillType, name: 'Tax Preparation', color: '#4CAF50' },
+    { id: 'audit' as SkillType, name: 'Audit', color: '#2196F3' },
+    { id: 'advisory' as SkillType, name: 'Advisory', color: '#9C27B0' },
+    { id: 'bookkeeping' as SkillType, name: 'Bookkeeping', color: '#FF9800' }
   ];
   
   // Load forecast data
@@ -55,22 +62,22 @@ const ForecastDashboard: React.FC = () => {
         // Process the result into the format expected by components
         const processedData: ForecastData = {
           period: 'current',
-          demand: [],
-          capacity: [],
-          
-          // Summary data from the forecast result
-          demandHours: result.summary.totalDemand,
-          capacityHours: result.summary.totalCapacity,
-          gapHours: result.summary.gap,
-          projectedRevenue: result.summary.totalRevenue,
-          projectedCost: result.summary.totalCost,
-          projectedProfit: result.summary.totalProfit,
+          demand: result.data.flatMap(d => d.demand),
+          capacity: result.data.flatMap(d => d.capacity),
           
           // Additional data for charts and tables
           timeSeriesData: result.data,
           skillDistribution: result.data,
           gapAnalysis: result.data,
-          financialProjections: result.financials
+          financialProjections: result.financials,
+          
+          // Summary data
+          demandHours: result.summary.totalDemand,
+          capacityHours: result.summary.totalCapacity,
+          gapHours: result.summary.gap,
+          projectedRevenue: result.summary.totalRevenue,
+          projectedCost: result.summary.totalCost,
+          projectedProfit: result.summary.totalProfit
         };
         
         setForecastData(processedData);
@@ -118,22 +125,22 @@ const ForecastDashboard: React.FC = () => {
         // Process the result into the format expected by components
         const processedData: ForecastData = {
           period: 'current',
-          demand: [],
-          capacity: [],
-          
-          // Summary data from the forecast result
-          demandHours: result.summary.totalDemand,
-          capacityHours: result.summary.totalCapacity,
-          gapHours: result.summary.gap,
-          projectedRevenue: result.summary.totalRevenue,
-          projectedCost: result.summary.totalCost,
-          projectedProfit: result.summary.totalProfit,
+          demand: result.data.flatMap(d => d.demand),
+          capacity: result.data.flatMap(d => d.capacity),
           
           // Additional data for charts and tables
           timeSeriesData: result.data,
           skillDistribution: result.data,
           gapAnalysis: result.data,
-          financialProjections: result.financials
+          financialProjections: result.financials,
+          
+          // Summary data
+          demandHours: result.summary.totalDemand,
+          capacityHours: result.summary.totalCapacity,
+          gapHours: result.summary.gap,
+          projectedRevenue: result.summary.totalRevenue,
+          projectedCost: result.summary.totalCost,
+          projectedProfit: result.summary.totalProfit
         };
         
         setForecastData(processedData);

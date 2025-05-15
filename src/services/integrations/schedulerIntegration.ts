@@ -7,6 +7,10 @@ import eventService from "@/services/eventService";
 export interface AvailabilityMask {
   date: string;
   staffId: string;
+  availableSlots: {
+    startTime: string;
+    endTime: string;
+  }[];
   slots: {
     hour: number;
     minute: number;
@@ -55,7 +59,8 @@ export async function generateAvailabilityMasks(staffId: string, startDate: Date
     const mask: AvailabilityMask = {
       date: date.toISOString().split('T')[0],
       staffId,
-      slots: []
+      slots: [],
+      availableSlots: []
     };
     
     // Generate 30-minute slots from 8:00 to 17:00
@@ -65,6 +70,17 @@ export async function generateAvailabilityMasks(staffId: string, startDate: Date
           hour,
           minute,
           isAvailable: true // Default all slots to available
+        });
+        
+        // Also add to availableSlots for StaffScheduleCard
+        const startTime = `${hour < 10 ? '0' + hour : hour}:${minute === 0 ? '00' : minute}`;
+        const endHour = minute === 0 ? hour : hour + 1;
+        const endMinute = minute === 0 ? 30 : 0;
+        const endTime = `${endHour < 10 ? '0' + endHour : endHour}:${endMinute === 0 ? '00' : endMinute}`;
+        
+        mask.availableSlots.push({
+          startTime,
+          endTime
         });
       }
     }

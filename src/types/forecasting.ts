@@ -63,12 +63,7 @@ export interface ForecastResult {
   generatedAt: Date;
 }
 
-// Define SkillData type for UI display
-export interface SkillData {
-  id: string;
-  name: string;
-  color: string;
-}
+// Define SkillData type for UI display - removed and moved to specific components to avoid circular dependencies
 
 // Re-export SkillType using 'export type' for TypeScript with isolatedModules
 export type { SkillType };
