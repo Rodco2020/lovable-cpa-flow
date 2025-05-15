@@ -856,7 +856,7 @@ export const validateForecastSystem = async (): Promise<string[]> => {
   const staff = await getAllStaff();
   staff.forEach(member => {
     if (!member.skills || member.skills.length === 0) {
-      issues.push(`Staff member ${member.id} (${member.name}) has no assigned skills`);
+      issues.push(`Staff member ${member.id} (${member.fullName}) has no assigned skills`);
     }
   });
   
