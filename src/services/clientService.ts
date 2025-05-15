@@ -1,8 +1,11 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, isSupabaseConnected } from '@/lib/supabaseClient';
 import { toast } from '@/hooks/use-toast';
+
+// In-memory storage for when Supabase is not connected
+let inMemoryClients: Client[] = [];
 
 // Client CRUD operations
 export const getClients = async (filters?: {
@@ -10,6 +13,37 @@ export const getClients = async (filters?: {
   industry?: IndustryType[];
 }): Promise<Client[]> => {
   try {
+    // Check if Supabase is connected
+    if (!isSupabaseConnected()) {
+      console.warn('Using in-memory storage for clients because Supabase is not connected.');
+      toast({
+        title: "Supabase Not Connected",
+        description: "Using in-memory storage. Connect to Supabase to persist data.",
+        variant: "warning"
+      });
+      
+      // Apply filters to in-memory clients if provided
+      if (filters) {
+        let filteredClients = [...inMemoryClients];
+        
+        if (filters.status && filters.status.length > 0) {
+          filteredClients = filteredClients.filter(client => 
+            filters.status?.includes(client.status)
+          );
+        }
+        if (filters.industry && filters.industry.length > 0) {
+          filteredClients = filteredClients.filter(client => 
+            filters.industry?.includes(client.industry)
+          );
+        }
+        
+        return filteredClients;
+      }
+      
+      return inMemoryClients;
+    }
+    
+    // If Supabase is connected, use it
     let query = supabase.from('clients').select('*');
     
     if (filters) {
@@ -34,7 +68,7 @@ export const getClients = async (filters?: {
     }
     
     // Map Supabase data format to our Client type
-    return data.map(item => ({
+    return data?.map(item => ({
       id: item.id,
       legalName: item.legal_name,
       primaryContact: item.primary_contact,
@@ -50,15 +84,22 @@ export const getClients = async (filters?: {
       notificationPreferences: item.notification_preferences as Client['notificationPreferences'],
       createdAt: new Date(item.created_at),
       updatedAt: new Date(item.updated_at)
-    }));
+    })) || [];
   } catch (error) {
     console.error('Unexpected error:', error);
     return [];
   }
 };
 
-export const getClientById = async (id: string): Promise<Client | undefined> => {
+export const getClientById = async (id: string): Promise<Client | null> => {
   try {
+    // Check if Supabase is connected
+    if (!isSupabaseConnected()) {
+      console.warn('Using in-memory storage for clients because Supabase is not connected.');
+      const client = inMemoryClients.find(c => c.id === id);
+      return client || null;
+    }
+    
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -67,10 +108,10 @@ export const getClientById = async (id: string): Promise<Client | undefined> => 
     
     if (error) {
       console.error('Error fetching client:', error);
-      return undefined;
+      return null;
     }
     
-    if (!data) return undefined;
+    if (!data) return null;
     
     // Map Supabase data to Client type
     return {
@@ -92,14 +133,33 @@ export const getClientById = async (id: string): Promise<Client | undefined> => 
     };
   } catch (error) {
     console.error('Unexpected error:', error);
-    return undefined;
+    return null;
   }
 };
 
 export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client | null> => {
   try {
     const newId = uuidv4();
-    const now = new Date().toISOString();
+    const now = new Date();
+    const newClient: Client = {
+      id: newId,
+      ...client,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    // Check if Supabase is connected
+    if (!isSupabaseConnected()) {
+      console.warn('Using in-memory storage for clients because Supabase is not connected.');
+      toast({
+        title: "Client Created (In-Memory)",
+        description: "Client created in memory. Connect to Supabase to persist data.",
+        variant: "warning"
+      });
+      
+      inMemoryClients.push(newClient);
+      return newClient;
+    }
     
     // Map our Client type to Supabase format
     const { data, error } = await supabase
@@ -118,8 +178,8 @@ export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'up
         billing_frequency: client.billingFrequency,
         default_task_priority: client.defaultTaskPriority,
         notification_preferences: client.notificationPreferences,
-        created_at: now,
-        updated_at: now
+        created_at: now.toISOString(),
+        updated_at: now.toISOString()
       })
       .select()
       .single();
@@ -133,6 +193,8 @@ export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'up
       });
       return null;
     }
+    
+    if (!data) return null;
     
     return {
       id: data.id,
@@ -159,6 +221,33 @@ export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'up
 
 export const updateClient = async (id: string, updates: Partial<Omit<Client, 'id' | 'createdAt'>>): Promise<Client | null> => {
   try {
+    // Check if Supabase is connected
+    if (!isSupabaseConnected()) {
+      console.warn('Using in-memory storage for clients because Supabase is not connected.');
+      
+      // Find the client in in-memory storage
+      const clientIndex = inMemoryClients.findIndex(c => c.id === id);
+      if (clientIndex === -1) return null;
+      
+      // Update the client
+      const now = new Date();
+      const updatedClient = {
+        ...inMemoryClients[clientIndex],
+        ...updates,
+        updatedAt: now
+      };
+      
+      inMemoryClients[clientIndex] = updatedClient;
+      
+      toast({
+        title: "Client Updated (In-Memory)",
+        description: "Client updated in memory. Connect to Supabase to persist data.",
+        variant: "warning"
+      });
+      
+      return updatedClient;
+    }
+    
     // Map our Client type to Supabase format
     const supabaseUpdates: any = {
       updated_at: new Date().toISOString()
@@ -221,6 +310,27 @@ export const updateClient = async (id: string, updates: Partial<Omit<Client, 'id
 
 export const deleteClient = async (id: string): Promise<boolean> => {
   try {
+    // Check if Supabase is connected
+    if (!isSupabaseConnected()) {
+      console.warn('Using in-memory storage for clients because Supabase is not connected.');
+      
+      // Delete from in-memory storage
+      const initialLength = inMemoryClients.length;
+      inMemoryClients = inMemoryClients.filter(c => c.id !== id);
+      
+      const deleted = initialLength > inMemoryClients.length;
+      
+      if (deleted) {
+        toast({
+          title: "Client Deleted (In-Memory)",
+          description: "Client deleted from memory. Connect to Supabase to persist data.",
+          variant: "warning"
+        });
+      }
+      
+      return deleted;
+    }
+    
     const { error } = await supabase
       .from('clients')
       .delete()
@@ -259,21 +369,29 @@ export const getClientAdHocTasks = async (clientId: string): Promise<string[]> =
 // Initialize with sample data - will be removed in production
 export const initializeClientData = async () => {
   try {
-    // Check if we have clients already
-    const { data: existingClients, error: countError } = await supabase
-      .from('clients')
-      .select('id')
-      .limit(1);
-    
-    if (countError) {
-      console.error('Error checking for existing clients:', countError);
+    // If already using in-memory storage or Supabase has clients, don't initialize
+    if (inMemoryClients.length > 0) {
+      console.log('In-memory clients already exist, skipping initialization');
       return;
     }
     
-    // If we have clients, don't initialize
-    if (existingClients && existingClients.length > 0) {
-      console.log('Clients already exist, skipping initialization');
-      return;
+    if (isSupabaseConnected()) {
+      // Check if we have clients in Supabase already
+      const { data: existingClients, error: countError } = await supabase
+        .from('clients')
+        .select('id')
+        .limit(1);
+      
+      if (countError) {
+        console.error('Error checking for existing clients:', countError);
+        return;
+      }
+      
+      // If we have clients, don't initialize
+      if (existingClients && existingClients.length > 0) {
+        console.log('Clients already exist in Supabase, skipping initialization');
+        return;
+      }
     }
     
     // Sample clients to create
