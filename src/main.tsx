@@ -16,7 +16,8 @@ const AppWithToasts = () => {
       toast({
         title: "Supabase Not Connected",
         description: "The app will use in-memory storage instead of persisting data.",
-        variant: "warning"
+        // Fixed: Use valid toast variant
+        variant: "destructive"
       });
     }
   }, [toast]);

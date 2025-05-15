@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
@@ -114,19 +113,12 @@ const ClientList: React.FC = () => {
     setIsDeleting(true);
     try {
       const success = await deleteClient(clientToDelete.id);
-      if (success) {
-        setClients(clients.filter(c => c.id !== clientToDelete.id));
-        toast({
-          title: "Client deleted",
-          description: `${clientToDelete.legalName} has been deleted.`,
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to delete client.",
-          variant: "destructive",
-        });
-      }
+      // Fixed: Don't check void return for truthiness
+      setClients(clients.filter(c => c.id !== clientToDelete.id));
+      toast({
+        title: "Client deleted",
+        description: `${clientToDelete.legalName} has been deleted.`,
+      });
     } catch (error) {
       console.error('Error deleting client:', error);
       toast({

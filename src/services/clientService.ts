@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase, isSupabaseConnected } from '@/lib/supabaseClient';
@@ -60,14 +59,29 @@ const mapClientToSupabaseData = (client: Partial<Client>) => {
   };
 };
 
+// Get all clients (renamed to match the usage in ClientList.tsx)
+export const getClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
+  return getAllClients(filters);
+};
+
 // Get all clients
-export const getAllClients = async (): Promise<Client[]> => {
+export const getAllClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
   if (isSupabaseConnected()) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      if (filters?.status && filters.status.length > 0) {
+        query = query.in('status', filters.status);
+      }
+      
+      if (filters?.industry && filters.industry.length > 0) {
+        query = query.in('industry', filters.industry);
+      }
+      
+      const { data, error } = await query;
       
       if (error) {
         throw error;
@@ -80,10 +94,33 @@ export const getAllClients = async (): Promise<Client[]> => {
         "Database Connection Error",
         "Failed to fetch clients from Supabase. Using in-memory storage instead."
       );
-      return clients;
+      
+      // Apply filters to in-memory clients if needed
+      let filteredClients = clients;
+      
+      if (filters?.status && filters.status.length > 0) {
+        filteredClients = filteredClients.filter(c => filters.status?.includes(c.status));
+      }
+      
+      if (filters?.industry && filters.industry.length > 0) {
+        filteredClients = filteredClients.filter(c => filters.industry?.includes(c.industry));
+      }
+      
+      return filteredClients;
     }
   } else {
-    return clients;
+    // Apply filters to in-memory clients if needed
+    let filteredClients = clients;
+    
+    if (filters?.status && filters.status.length > 0) {
+      filteredClients = filteredClients.filter(c => filters.status?.includes(c.status));
+    }
+    
+    if (filters?.industry && filters.industry.length > 0) {
+      filteredClients = filteredClients.filter(c => filters.industry?.includes(c.industry));
+    }
+    
+    return filteredClients;
   }
 };
 
@@ -234,7 +271,7 @@ export const updateClient = async (id: string, clientData: Partial<Omit<Client, 
 };
 
 // Delete a client
-export const deleteClient = async (id: string): Promise<void> => {
+export const deleteClient = async (id: string): Promise<boolean> => {
   if (isSupabaseConnected()) {
     try {
       const { error } = await supabase
@@ -245,6 +282,10 @@ export const deleteClient = async (id: string): Promise<void> => {
       if (error) {
         throw error;
       }
+      
+      // Also remove from local array to keep in sync
+      clients = clients.filter(c => c.id !== id);
+      return true;
     } catch (error) {
       console.error(`Error deleting client ${id} from Supabase:`, error);
       showToast(
@@ -253,16 +294,33 @@ export const deleteClient = async (id: string): Promise<void> => {
       );
       // Fall back to in-memory storage
       clients = clients.filter(c => c.id !== id);
+      return true;
     }
   } else {
     // In-memory storage only
     clients = clients.filter(c => c.id !== id);
+    return true;
   }
 };
 
-// Get linked task IDs for a client (to be implemented when tasks module is ready)
+// Get linked task IDs for a client
 export const getClientTaskIds = async (clientId: string): Promise<string[]> => {
-  // This is a stub for now
-  // In the future, it would query tasks associated with this client
+  // This is a stub - in the future, it would query tasks associated with this client
+  return [];
+};
+
+// Get recurring tasks for a client (new function)
+export const getClientRecurringTasks = async (clientId: string): Promise<string[]> => {
+  // This is a stub until the task module is implemented
+  // Will return task IDs or full task objects in the future
+  console.log(`Fetching recurring tasks for client ${clientId}`);
+  return [];
+};
+
+// Get ad-hoc tasks for a client (new function)
+export const getClientAdHocTasks = async (clientId: string): Promise<string[]> => {
+  // This is a stub until the task module is implemented
+  // Will return task IDs or full task objects in the future
+  console.log(`Fetching ad-hoc tasks for client ${clientId}`);
   return [];
 };
