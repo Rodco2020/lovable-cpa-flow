@@ -12,6 +12,7 @@ import StaffModule from '@/pages/StaffModule';
 import SchedulerModule from '@/pages/SchedulerModule';
 import ForecastingModule from '@/pages/ForecastingModule';
 import TaskModule from '@/pages/TaskModule';
+import SkillsModule from '@/pages/SkillsModule';
 import IntegrationsInitializer from "@/components/integrations/IntegrationsInitializer";
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
             <Route path="scheduler/*" element={<SchedulerModule />} />
             <Route path="forecasting/*" element={<ForecastingModule />} />
             <Route path="tasks/*" element={<TaskModule />} />
+            <Route path="skills/*" element={<SkillsModule />} />
           </Route>
         </Routes>
       </Router>
