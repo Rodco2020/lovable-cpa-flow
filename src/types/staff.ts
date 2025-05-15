@@ -24,11 +24,17 @@ export interface TimeSlot {
   taskId?: string; // If assigned to a task
 }
 
-// For the weekly availability matrix
+// Enhanced for the weekly availability matrix
 export interface WeeklyAvailability {
   staffId: string;
   dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 6 = Saturday
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
   isAvailable: boolean;
+}
+
+// New interface for availability summaries
+export interface AvailabilitySummary {
+  dailySummaries: { day: number; totalHours: number }[];
+  weeklyTotal: number;
 }

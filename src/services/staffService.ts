@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from "uuid";
 import { Staff, TimeSlot, WeeklyAvailability } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
@@ -252,7 +251,34 @@ export const updateTimeSlot = async (
 
 // Weekly availability operations
 export const getWeeklyAvailabilityByStaff = async (staffId: string): Promise<WeeklyAvailability[]> => {
-  return Promise.resolve(mockWeeklyAvailability.filter(avail => avail.staffId === staffId));
+  const { data, error } = await supabase
+    .from('staff_availability')
+    .select('*')
+    .eq('staff_id', staffId);
+  
+  if (error) {
+    console.error("Error fetching staff availability:", error);
+    throw error;
+  }
+  
+  // If no data is found, return empty array
+  if (!data || data.length === 0) {
+    return [];
+  }
+  
+  // Map the database records to our WeeklyAvailability model
+  return data.map(item => {
+    // Parse time_slot format which might be "09:00-12:00" to get start and end times
+    const [startTime, endTime] = item.time_slot.split('-');
+    
+    return {
+      staffId: item.staff_id,
+      dayOfWeek: item.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: startTime,
+      endTime: endTime,
+      isAvailable: item.is_available,
+    };
+  });
 };
 
 export const updateWeeklyAvailability = async (
@@ -260,13 +286,129 @@ export const updateWeeklyAvailability = async (
   dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6,
   availabilities: Omit<WeeklyAvailability, "staffId" | "dayOfWeek">[]
 ): Promise<WeeklyAvailability[]> => {
-  // In a real app, this would update the database
-  // For this mock service, we'll just return the new availabilities
-  const newAvailabilities = availabilities.map(avail => ({
-    staffId,
-    dayOfWeek,
-    ...avail,
+  // First, get existing availabilities for this staff and day
+  const { data: existingData, error: fetchError } = await supabase
+    .from('staff_availability')
+    .select('id')
+    .eq('staff_id', staffId)
+    .eq('day_of_week', dayOfWeek);
+  
+  if (fetchError) {
+    console.error("Error fetching existing staff availability:", fetchError);
+    throw fetchError;
+  }
+  
+  // Delete existing records for this staff and day
+  if (existingData && existingData.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('staff_availability')
+      .delete()
+      .eq('staff_id', staffId)
+      .eq('day_of_week', dayOfWeek);
+    
+    if (deleteError) {
+      console.error("Error deleting existing staff availability:", deleteError);
+      throw deleteError;
+    }
+  }
+  
+  // Prepare records for insertion
+  const recordsToInsert = availabilities.map(avail => ({
+    staff_id: staffId,
+    day_of_week: dayOfWeek,
+    time_slot: `${avail.startTime}-${avail.endTime}`,
+    is_available: avail.isAvailable,
   }));
   
-  return Promise.resolve(newAvailabilities);
+  // Insert new availability records
+  const { data: insertedData, error: insertError } = await supabase
+    .from('staff_availability')
+    .insert(recordsToInsert)
+    .select();
+  
+  if (insertError) {
+    console.error("Error inserting staff availability:", insertError);
+    throw insertError;
+  }
+  
+  // Return the newly created availability records
+  return insertedData.map(item => ({
+    staffId: item.staff_id,
+    dayOfWeek: item.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+    startTime: item.time_slot.split('-')[0],
+    endTime: item.time_slot.split('-')[1],
+    isAvailable: item.is_available,
+  }));
+};
+
+// New batch operations for availability
+export const batchUpdateWeeklyAvailability = async (
+  staffId: string,
+  availabilities: WeeklyAvailability[]
+): Promise<WeeklyAvailability[]> => {
+  // Group availabilities by day of week
+  const availabilitiesByDay = availabilities.reduce<Record<string, Omit<WeeklyAvailability, "staffId" | "dayOfWeek">[]>>(
+    (acc, avail) => {
+      const day = avail.dayOfWeek.toString();
+      if (!acc[day]) {
+        acc[day] = [];
+      }
+      acc[day].push({
+        startTime: avail.startTime,
+        endTime: avail.endTime,
+        isAvailable: avail.isAvailable,
+      });
+      return acc;
+    },
+    {}
+  );
+  
+  // Update each day's availabilities
+  const results: WeeklyAvailability[] = [];
+  for (const [day, dayAvailabilities] of Object.entries(availabilitiesByDay)) {
+    const dayOfWeek = parseInt(day) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    const updatedAvailabilities = await updateWeeklyAvailability(
+      staffId,
+      dayOfWeek,
+      dayAvailabilities
+    );
+    results.push(...updatedAvailabilities);
+  }
+  
+  return results;
+};
+
+// New function to calculate daily and weekly availability summaries
+export const calculateAvailabilitySummary = async (
+  staffId: string
+): Promise<{
+  dailySummaries: { day: number; totalHours: number }[];
+  weeklyTotal: number;
+}> => {
+  const availabilities = await getWeeklyAvailabilityByStaff(staffId);
+  
+  // Calculate hours for each time slot and group by day
+  const dailySummaries = Array.from({ length: 7 }, (_, i) => ({ day: i, totalHours: 0 }));
+  
+  for (const avail of availabilities) {
+    if (avail.isAvailable) {
+      // Calculate hours in this time slot
+      const startParts = avail.startTime.split(':').map(Number);
+      const endParts = avail.endTime.split(':').map(Number);
+      
+      const startHours = startParts[0] + startParts[1] / 60;
+      const endHours = endParts[0] + endParts[1] / 60;
+      
+      const hours = endHours - startHours;
+      dailySummaries[avail.dayOfWeek].totalHours += hours;
+    }
+  }
+  
+  // Calculate weekly total
+  const weeklyTotal = dailySummaries.reduce((sum, day) => sum + day.totalHours, 0);
+  
+  return {
+    dailySummaries,
+    weeklyTotal,
+  };
 };
