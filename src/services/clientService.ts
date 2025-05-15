@@ -1,466 +1,268 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { Client, ClientStatus, IndustryType } from '@/types/client';
+import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase, isSupabaseConnected } from '@/lib/supabaseClient';
-import { toast } from '@/components/ui/use-toast';
+import { useToast as useToastOriginal } from '@/hooks/use-toast';
 
-// In-memory storage for when Supabase is not connected
-let inMemoryClients: Client[] = [];
+// Local memory storage as fallback when Supabase is not connected
+let clients: Client[] = [];
 
-// Client CRUD operations
-export const getClients = async (filters?: {
-  status?: ClientStatus[];
-  industry?: IndustryType[];
-}): Promise<Client[]> => {
-  try {
-    // Check if Supabase is connected
-    if (!isSupabaseConnected()) {
-      console.warn('Using in-memory storage for clients because Supabase is not connected.');
-      toast({
-        title: "Supabase Not Connected",
-        description: "Using in-memory storage. Connect to Supabase to persist data.",
-        variant: "warning" as any
-      });
-      
-      // Apply filters to in-memory clients if provided
-      if (filters) {
-        let filteredClients = [...inMemoryClients];
-        
-        if (filters.status && filters.status.length > 0) {
-          filteredClients = filteredClients.filter(client => 
-            filters.status?.includes(client.status)
-          );
-        }
-        if (filters.industry && filters.industry.length > 0) {
-          filteredClients = filteredClients.filter(client => 
-            filters.industry?.includes(client.industry)
-          );
-        }
-        
-        return filteredClients;
-      }
-      
-      return inMemoryClients;
-    }
-    
-    // If Supabase is connected, use it
-    let query = supabase.from('clients').select('*');
-    
-    if (filters) {
-      if (filters.status && filters.status.length > 0) {
-        query = query.in('status', filters.status);
-      }
-      if (filters.industry && filters.industry.length > 0) {
-        query = query.in('industry', filters.industry);
-      }
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Error fetching clients:', error);
-      toast({
-        title: "Error fetching clients",
-        description: error.message,
-        variant: "destructive"
-      });
-      return [];
-    }
-    
-    if (!data) return [];
-    
-    // Map Supabase data format to our Client type
-    return data.map(item => ({
-      id: item.id,
-      legalName: item.legal_name,
-      primaryContact: item.primary_contact,
-      email: item.email,
-      phone: item.phone,
-      billingAddress: item.billing_address,
-      industry: item.industry as IndustryType,
-      status: item.status as ClientStatus,
-      expectedMonthlyRevenue: item.expected_monthly_revenue,
-      paymentTerms: item.payment_terms,
-      billingFrequency: item.billing_frequency,
-      defaultTaskPriority: item.default_task_priority,
-      notificationPreferences: item.notification_preferences as Client['notificationPreferences'],
-      createdAt: new Date(item.created_at),
-      updatedAt: new Date(item.updated_at)
-    }));
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return [];
+// Helper function to create toast without using hooks
+const showToast = (title: string, description: string) => {
+  // Only log to console when Supabase is not connected
+  // The actual toast will be shown by the UI components
+  if (!isSupabaseConnected()) {
+    console.warn(`${title}: ${description}`);
   }
 };
 
-export const getClientById = async (id: string): Promise<Client | null> => {
-  try {
-    // Check if Supabase is connected
-    if (!isSupabaseConnected()) {
-      console.warn('Using in-memory storage for clients because Supabase is not connected.');
-      const client = inMemoryClients.find(c => c.id === id);
-      return client || null;
+// Map Supabase data to our Client model
+const mapSupabaseDataToClient = (data: any): Client => {
+  if (!data) throw new Error("Invalid data from Supabase");
+  
+  return {
+    id: data.id || "",
+    legalName: data.legal_name || "",
+    primaryContact: data.primary_contact || "",
+    email: data.email || "",
+    phone: data.phone || "",
+    billingAddress: data.billing_address || "",
+    industry: (data.industry || "Other") as IndustryType,
+    status: (data.status || "Active") as ClientStatus,
+    expectedMonthlyRevenue: data.expected_monthly_revenue || 0,
+    paymentTerms: (data.payment_terms || "Net30") as PaymentTerms,
+    billingFrequency: (data.billing_frequency || "Monthly") as BillingFrequency,
+    defaultTaskPriority: data.default_task_priority || "Medium",
+    notificationPreferences: data.notification_preferences || {
+      emailReminders: true,
+      taskNotifications: true,
+    },
+    createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+    updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
+  };
+};
+
+// Map our Client model to Supabase data
+const mapClientToSupabaseData = (client: Partial<Client>) => {
+  return {
+    legal_name: client.legalName,
+    primary_contact: client.primaryContact,
+    email: client.email,
+    phone: client.phone,
+    billing_address: client.billingAddress,
+    industry: client.industry,
+    status: client.status,
+    expected_monthly_revenue: client.expectedMonthlyRevenue,
+    payment_terms: client.paymentTerms,
+    billing_frequency: client.billingFrequency,
+    default_task_priority: client.defaultTaskPriority,
+    notification_preferences: client.notificationPreferences,
+  };
+};
+
+// Get all clients
+export const getAllClients = async (): Promise<Client[]> => {
+  if (isSupabaseConnected()) {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data.map(mapSupabaseDataToClient);
+    } catch (error) {
+      console.error('Error fetching clients from Supabase:', error);
+      showToast(
+        "Database Connection Error",
+        "Failed to fetch clients from Supabase. Using in-memory storage instead."
+      );
+      return clients;
     }
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching client:', error);
-      return null;
-    }
-    
-    if (!data) return null;
-    
-    // Map Supabase data to Client type
-    return {
-      id: data.id,
-      legalName: data.legal_name,
-      primaryContact: data.primary_contact,
-      email: data.email,
-      phone: data.phone,
-      billingAddress: data.billing_address,
-      industry: data.industry as IndustryType,
-      status: data.status as ClientStatus,
-      expectedMonthlyRevenue: data.expected_monthly_revenue,
-      paymentTerms: data.payment_terms,
-      billingFrequency: data.billing_frequency,
-      defaultTaskPriority: data.default_task_priority,
-      notificationPreferences: data.notification_preferences as Client['notificationPreferences'],
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
-    };
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return null;
+  } else {
+    return clients;
   }
 };
 
-export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client | null> => {
-  try {
-    const newId = uuidv4();
-    const now = new Date();
-    const newClient: Client = {
-      id: newId,
-      ...client,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    // Check if Supabase is connected
-    if (!isSupabaseConnected()) {
-      console.warn('Using in-memory storage for clients because Supabase is not connected.');
-      toast({
-        title: "Client Created (In-Memory)",
-        description: "Client created in memory. Connect to Supabase to persist data.",
-        variant: "warning"
-      });
+// Get a client by ID
+export const getClientById = async (id: string): Promise<Client> => {
+  if (isSupabaseConnected()) {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', id)
+        .single();
       
-      inMemoryClients.push(newClient);
-      return newClient;
+      if (error) {
+        throw error;
+      }
+      
+      return mapSupabaseDataToClient(data);
+    } catch (error) {
+      console.error(`Error fetching client ${id} from Supabase:`, error);
+      showToast(
+        "Database Connection Error",
+        "Failed to fetch client details. Using in-memory storage instead."
+      );
+      const client = clients.find(client => client.id === id);
+      if (!client) {
+        throw new Error(`Client with ID ${id} not found`);
+      }
+      return client;
     }
-    
-    // Map our Client type to Supabase format
-    const { data, error } = await supabase
-      .from('clients')
-      .insert({
-        id: newId,
-        legal_name: client.legalName,
-        primary_contact: client.primaryContact,
-        email: client.email,
-        phone: client.phone,
-        billing_address: client.billingAddress,
-        industry: client.industry,
-        status: client.status,
-        expected_monthly_revenue: client.expectedMonthlyRevenue,
-        payment_terms: client.paymentTerms,
-        billing_frequency: client.billingFrequency,
-        default_task_priority: client.defaultTaskPriority,
-        notification_preferences: client.notificationPreferences,
-        created_at: now.toISOString(),
-        updated_at: now.toISOString()
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error creating client:', error);
-      toast({
-        title: "Error creating client",
-        description: error.message,
-        variant: "destructive"
-      });
-      return null;
+  } else {
+    const client = clients.find(client => client.id === id);
+    if (!client) {
+      throw new Error(`Client with ID ${id} not found`);
     }
-    
-    if (!data) return null;
-    
-    return {
-      id: data.id,
-      legalName: data.legal_name,
-      primaryContact: data.primary_contact,
-      email: data.email,
-      phone: data.phone,
-      billingAddress: data.billing_address,
-      industry: data.industry as IndustryType,
-      status: data.status as ClientStatus,
-      expectedMonthlyRevenue: data.expected_monthly_revenue,
-      paymentTerms: data.payment_terms,
-      billingFrequency: data.billing_frequency,
-      defaultTaskPriority: data.default_task_priority,
-      notificationPreferences: data.notification_preferences as Client['notificationPreferences'],
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
-    };
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return null;
+    return client;
   }
 };
 
-export const updateClient = async (id: string, updates: Partial<Omit<Client, 'id' | 'createdAt'>>): Promise<Client | null> => {
-  try {
-    // Check if Supabase is connected
-    if (!isSupabaseConnected()) {
-      console.warn('Using in-memory storage for clients because Supabase is not connected.');
-      
-      // Find the client in in-memory storage
-      const clientIndex = inMemoryClients.findIndex(c => c.id === id);
-      if (clientIndex === -1) return null;
-      
-      // Update the client
-      const now = new Date();
-      const updatedClient = {
-        ...inMemoryClients[clientIndex],
-        ...updates,
-        updatedAt: now
+// Create a new client
+export const createClient = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client> => {
+  // Create a new client object with ID and timestamps
+  const newClient: Client = {
+    ...clientData,
+    id: uuidv4(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  
+  if (isSupabaseConnected()) {
+    try {
+      // Map client data to Supabase format
+      const supabaseData = {
+        id: newClient.id,
+        ...mapClientToSupabaseData(newClient),
+        created_at: newClient.createdAt.toISOString(),
+        updated_at: newClient.updatedAt.toISOString(),
       };
       
-      inMemoryClients[clientIndex] = updatedClient;
-      
-      toast({
-        title: "Client Updated (In-Memory)",
-        description: "Client updated in memory. Connect to Supabase to persist data.",
-        variant: "warning"
-      });
-      
-      return updatedClient;
-    }
-    
-    // Map our Client type to Supabase format
-    const supabaseUpdates: any = {
-      updated_at: new Date().toISOString()
-    };
-    
-    if (updates.legalName !== undefined) supabaseUpdates.legal_name = updates.legalName;
-    if (updates.primaryContact !== undefined) supabaseUpdates.primary_contact = updates.primaryContact;
-    if (updates.email !== undefined) supabaseUpdates.email = updates.email;
-    if (updates.phone !== undefined) supabaseUpdates.phone = updates.phone;
-    if (updates.billingAddress !== undefined) supabaseUpdates.billing_address = updates.billingAddress;
-    if (updates.industry !== undefined) supabaseUpdates.industry = updates.industry;
-    if (updates.status !== undefined) supabaseUpdates.status = updates.status;
-    if (updates.expectedMonthlyRevenue !== undefined) supabaseUpdates.expected_monthly_revenue = updates.expectedMonthlyRevenue;
-    if (updates.paymentTerms !== undefined) supabaseUpdates.payment_terms = updates.paymentTerms;
-    if (updates.billingFrequency !== undefined) supabaseUpdates.billing_frequency = updates.billingFrequency;
-    if (updates.defaultTaskPriority !== undefined) supabaseUpdates.default_task_priority = updates.defaultTaskPriority;
-    if (updates.notificationPreferences !== undefined) supabaseUpdates.notification_preferences = updates.notificationPreferences;
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .update(supabaseUpdates)
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error updating client:', error);
-      toast({
-        title: "Error updating client",
-        description: error.message,
-        variant: "destructive"
-      });
-      return null;
-    }
-    
-    if (!data) return null;
-    
-    return {
-      id: data.id,
-      legalName: data.legal_name,
-      primaryContact: data.primary_contact,
-      email: data.email,
-      phone: data.phone,
-      billingAddress: data.billing_address,
-      industry: data.industry as IndustryType,
-      status: data.status as ClientStatus,
-      expectedMonthlyRevenue: data.expected_monthly_revenue,
-      paymentTerms: data.payment_terms,
-      billingFrequency: data.billing_frequency,
-      defaultTaskPriority: data.default_task_priority,
-      notificationPreferences: data.notification_preferences as Client['notificationPreferences'],
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
-    };
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return null;
-  }
-};
-
-export const deleteClient = async (id: string): Promise<boolean> => {
-  try {
-    // Check if Supabase is connected
-    if (!isSupabaseConnected()) {
-      console.warn('Using in-memory storage for clients because Supabase is not connected.');
-      
-      // Delete from in-memory storage
-      const initialLength = inMemoryClients.length;
-      inMemoryClients = inMemoryClients.filter(c => c.id !== id);
-      
-      const deleted = initialLength > inMemoryClients.length;
-      
-      if (deleted) {
-        toast({
-          title: "Client Deleted (In-Memory)",
-          description: "Client deleted from memory. Connect to Supabase to persist data.",
-          variant: "warning"
-        });
-      }
-      
-      return deleted;
-    }
-    
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      console.error('Error deleting client:', error);
-      toast({
-        title: "Error deleting client",
-        description: error.message,
-        variant: "destructive"
-      });
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return false;
-  }
-};
-
-// Client engagement tracking
-export const getClientRecurringTasks = async (clientId: string): Promise<string[]> => {
-  // In a real implementation, this would query the task service
-  // For now, returning a placeholder
-  return ["task-id-1", "task-id-2"];
-};
-
-export const getClientAdHocTasks = async (clientId: string): Promise<string[]> => {
-  // In a real implementation, this would query the task service
-  // For now, returning a placeholder
-  return ["task-id-3", "task-id-4"];
-};
-
-// Initialize with sample data - will be removed in production
-export const initializeClientData = async () => {
-  try {
-    // If already using in-memory storage or Supabase has clients, don't initialize
-    if (inMemoryClients.length > 0) {
-      console.log('In-memory clients already exist, skipping initialization');
-      return;
-    }
-    
-    if (isSupabaseConnected()) {
-      // Check if we have clients in Supabase already
-      const { data: existingClients, error: countError } = await supabase
+      const { data, error } = await supabase
         .from('clients')
-        .select('id')
-        .limit(1);
+        .insert([supabaseData])
+        .select()
+        .single();
       
-      if (countError) {
-        console.error('Error checking for existing clients:', countError);
-        return;
+      if (error) {
+        throw error;
       }
       
-      // If we have clients, don't initialize
-      if (existingClients && existingClients.length > 0) {
-        console.log('Clients already exist in Supabase, skipping initialization');
-        return;
-      }
+      return mapSupabaseDataToClient(data);
+    } catch (error) {
+      console.error('Error creating client in Supabase:', error);
+      showToast(
+        "Database Connection Error",
+        "Failed to save client to database. Saved in memory only."
+      );
+      // Fall back to in-memory storage
+      clients.push(newClient);
+      return newClient;
     }
-    
-    // Sample clients to create
-    const sampleClients = [
-      {
-        legalName: "ABC Corporation",
-        primaryContact: "John Smith",
-        email: "john@abccorp.com",
-        phone: "(555) 123-4567",
-        billingAddress: "123 Business Ave, Suite 100, New York, NY 10001",
-        industry: "Technology" as IndustryType,
-        status: "Active" as ClientStatus,
-        expectedMonthlyRevenue: 5000,
-        paymentTerms: "Net30",
-        billingFrequency: "Monthly",
-        defaultTaskPriority: "Medium",
-        notificationPreferences: {
-          emailReminders: true,
-          taskNotifications: true
-        }
-      },
-      {
-        legalName: "XYZ Enterprises",
-        primaryContact: "Sarah Johnson",
-        email: "sarah@xyzent.com",
-        phone: "(555) 987-6543",
-        billingAddress: "456 Commerce St, Chicago, IL 60601",
-        industry: "Manufacturing" as IndustryType,
-        status: "Active" as ClientStatus,
-        expectedMonthlyRevenue: 8500,
-        paymentTerms: "Net45",
-        billingFrequency: "Quarterly",
-        defaultTaskPriority: "High",
-        notificationPreferences: {
-          emailReminders: true,
-          taskNotifications: false
-        }
-      },
-      {
-        legalName: "Acme Consulting",
-        primaryContact: "Michael Brown",
-        email: "michael@acmeconsulting.com",
-        phone: "(555) 456-7890",
-        billingAddress: "789 Professional Dr, Austin, TX 78701",
-        industry: "Professional Services" as IndustryType,
-        status: "Inactive" as ClientStatus,
-        expectedMonthlyRevenue: 3200,
-        paymentTerms: "Net30",
-        billingFrequency: "Monthly",
-        defaultTaskPriority: "Medium",
-        notificationPreferences: {
-          emailReminders: false,
-          taskNotifications: true
-        }
-      }
-    ];
-    
-    // Create each sample client
-    for (const client of sampleClients) {
-      await createClient(client);
-    }
-    
-    console.log('Sample clients created successfully');
-  } catch (error) {
-    console.error('Error initializing client data:', error);
+  } else {
+    // In-memory storage only
+    clients.push(newClient);
+    return newClient;
   }
 };
 
-// Initialize data when the app starts
-initializeClientData();
+// Update an existing client
+export const updateClient = async (id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Client> => {
+  const updatedData = {
+    ...clientData,
+    updatedAt: new Date(),
+  };
+  
+  if (isSupabaseConnected()) {
+    try {
+      // Map client data to Supabase format
+      const supabaseData = {
+        ...mapClientToSupabaseData(updatedData),
+        updated_at: updatedData.updatedAt?.toISOString(),
+      };
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .update(supabaseData)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      return mapSupabaseDataToClient(data);
+    } catch (error) {
+      console.error(`Error updating client ${id} in Supabase:`, error);
+      showToast(
+        "Database Connection Error",
+        "Failed to update client in database. Updated in memory only."
+      );
+      // Fall back to in-memory storage
+      const index = clients.findIndex(c => c.id === id);
+      if (index === -1) {
+        throw new Error(`Client with ID ${id} not found`);
+      }
+      
+      clients[index] = {
+        ...clients[index],
+        ...updatedData,
+      };
+      
+      return clients[index];
+    }
+  } else {
+    // In-memory storage only
+    const index = clients.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Client with ID ${id} not found`);
+    }
+    
+    clients[index] = {
+      ...clients[index],
+      ...updatedData,
+    };
+    
+    return clients[index];
+  }
+};
+
+// Delete a client
+export const deleteClient = async (id: string): Promise<void> => {
+  if (isSupabaseConnected()) {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error(`Error deleting client ${id} from Supabase:`, error);
+      showToast(
+        "Database Connection Error",
+        "Failed to delete client from database. Deleted from memory only."
+      );
+      // Fall back to in-memory storage
+      clients = clients.filter(c => c.id !== id);
+    }
+  } else {
+    // In-memory storage only
+    clients = clients.filter(c => c.id !== id);
+  }
+};
+
+// Get linked task IDs for a client (to be implemented when tasks module is ready)
+export const getClientTaskIds = async (clientId: string): Promise<string[]> => {
+  // This is a stub for now
+  // In the future, it would query tasks associated with this client
+  return [];
+};

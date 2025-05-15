@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -90,8 +91,6 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {
@@ -139,6 +138,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+// Create the toast function that's not dependent on hooks
 function toast({ ...props }: Toast) {
   const id = genId()
 
@@ -168,6 +168,7 @@ function toast({ ...props }: Toast) {
   }
 }
 
+// The hook is only used within components
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 

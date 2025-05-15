@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   TaskTemplate, 
   SkillType, 
@@ -14,7 +13,7 @@ import {
   createRecurringTask,
   createAdHocTask
 } from '@/services/taskService';
-import { getClients } from '@/services/clientService';
+import { getAllClients } from '@/services/clientService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +48,7 @@ const CreateClientTask: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Form state for the task
   const [taskForm, setTaskForm] = useState({
@@ -76,8 +76,19 @@ const CreateClientTask: React.FC = () => {
     setTaskTemplates(templates);
     
     // Load clients
-    const activeClients = getClients({ status: ['Active'] });
-    setClients(activeClients);
+    const fetchClients = async () => {
+      setIsLoading(true);
+      try {
+        const clientData = await getAllClients();
+        setClients(clientData);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchClients();
   }, []);
   
   const handleTemplateSelect = (templateId: string) => {
