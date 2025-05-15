@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom'; // Add this import to extend Jest matchers
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
 import ClientAdHocTaskList from '@/components/clients/ClientAdHocTaskList';
 import { RecurringTask, TaskInstance } from '@/types/task';
