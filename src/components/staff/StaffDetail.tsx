@@ -5,8 +5,9 @@ import { useParams, Link } from "react-router-dom";
 import { getStaffById } from "@/services/staffService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CustomBadge } from "@/components/ui/custom-badge"; // Updated import
+import { CustomBadge } from "@/components/ui/custom-badge";
 import { CalendarDays, Edit, Mail, Phone } from "lucide-react";
+import { useSkillNames } from "@/hooks/useSkillNames";
 
 const StaffDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,8 @@ const StaffDetail: React.FC = () => {
     queryFn: () => getStaffById(id || ""),
     enabled: !!id,
   });
+
+  const { skillsMap, isLoading: skillsLoading } = useSkillNames(staff?.skills || []);
 
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading staff details...</div>;
@@ -96,11 +99,17 @@ const StaffDetail: React.FC = () => {
                 <dt className="text-sm font-medium text-muted-foreground mb-2">Skills</dt>
                 <dd>
                   <div className="flex flex-wrap gap-2">
-                    {staff.skills.map((skillId) => (
-                      <CustomBadge key={skillId} variant="outline" className="bg-slate-100">
-                        {skillId}
-                      </CustomBadge>
-                    ))}
+                    {skillsLoading ? (
+                      <span className="text-sm text-muted-foreground">Loading skills...</span>
+                    ) : staff.skills.length > 0 ? (
+                      staff.skills.map((skillId) => (
+                        <CustomBadge key={skillId} variant="outline" className="bg-slate-100">
+                          {skillsMap[skillId]?.name || skillId}
+                        </CustomBadge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No skills assigned</span>
+                    )}
                   </div>
                 </dd>
               </div>
