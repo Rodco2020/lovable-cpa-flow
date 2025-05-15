@@ -1,16 +1,24 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { AlertTriangle } from 'lucide-react';
 import ForecastSummary from './ForecastSummary';
 import ForecastChart from './ForecastChart';
 import GapAnalysisTable from './GapAnalysisTable';
 import FinancialProjections from './FinancialProjections';
-import { getForecast, clearForecastCache, isForecastDebugModeEnabled, setForecastDebugMode } from '@/services/forecastingService';
+import { 
+  getForecast, 
+  clearForecastCache, 
+  isForecastDebugModeEnabled, 
+  setForecastDebugMode,
+  validateForecastSystem
+} from '@/services/forecastingService';
 import { runRecurrenceTests } from '@/utils/forecastTestingUtils';
 import useAppEvent from '@/hooks/useAppEvent';
 import { ForecastData, ForecastParameters, ForecastResult, SkillType } from '@/types/forecasting';
@@ -30,6 +38,7 @@ const ForecastDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<SkillType[]>([]);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
   const { toast } = useToast();
   
   const availableSkills: SkillData[] = [
@@ -88,7 +97,7 @@ const ForecastDashboard: React.FC = () => {
         console.error("Error loading forecast:", error);
         toast({
           title: "Error loading forecast",
-          description: "Please try again later",
+          description: error instanceof Error ? error.message : "Please try again later",
           variant: "destructive"
         });
       } finally {
@@ -122,9 +131,40 @@ const ForecastDashboard: React.FC = () => {
       console.error("Error running tests:", error);
       toast({
         title: "Test execution failed",
-        description: "Check browser console for details",
+        description: error instanceof Error ? error.message : "Check browser console for details",
         variant: "destructive"
       });
+    }
+  };
+  
+  // Handle system validation
+  const handleValidateSystem = async () => {
+    setIsLoading(true);
+    try {
+      const issues = await validateForecastSystem();
+      setValidationIssues(issues);
+      
+      if (issues.length === 0) {
+        toast({
+          title: "Validation successful",
+          description: "No issues found in the forecasting system"
+        });
+      } else {
+        toast({
+          title: `${issues.length} validation issues found`,
+          description: "See debug tab for details",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error validating system:", error);
+      toast({
+        title: "Validation failed",
+        description: error instanceof Error ? error.message : "Check console for details",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -399,33 +439,72 @@ const ForecastDashboard: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="debug">
-            <Card>
-              <CardHeader>
-                <CardTitle>Forecast Calculation Debug</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch 
-                    id="debug-mode" 
-                    checked={debugMode} 
-                    onCheckedChange={handleToggleDebugMode} 
-                  />
-                  <Label htmlFor="debug-mode">Enable Debug Mode</Label>
-                </div>
-                <p className="text-sm text-gray-500">
-                  When debug mode is enabled, detailed calculation logs will be shown in the browser console.
-                </p>
-                
-                <div className="pt-4">
-                  <Button onClick={handleRunTests}>
-                    Run Test Cases
-                  </Button>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Executes test cases for various recurrence patterns. Results will be shown in the browser console.
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Forecast Calculation Debug</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch 
+                      id="debug-mode" 
+                      checked={debugMode} 
+                      onCheckedChange={handleToggleDebugMode} 
+                    />
+                    <Label htmlFor="debug-mode">Enable Debug Mode</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    When debug mode is enabled, detailed calculation logs will be shown in the browser console.
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                  
+                  <div className="pt-4 space-y-2">
+                    <Button onClick={handleRunTests} className="mr-2">
+                      Run Test Cases
+                    </Button>
+                    <Button onClick={handleValidateSystem} variant="outline">
+                      Validate System
+                    </Button>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Executes test cases for various recurrence patterns, or validates the entire forecast system.
+                      Results will be shown in the browser console.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className={validationIssues.length > 0 ? "border-amber-500" : ""}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {validationIssues.length > 0 && (
+                      <AlertTriangle className="h-5 w-5 text-amber-500" />
+                    )}
+                    Validation Results
+                  </CardTitle>
+                  <CardDescription>
+                    {validationIssues.length === 0 
+                      ? "Run validation to check for potential issues" 
+                      : `${validationIssues.length} issues found`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {validationIssues.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No validation issues detected.
+                    </p>
+                  ) : (
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <ul className="list-disc pl-5 space-y-1">
+                        {validationIssues.map((issue, index) => (
+                          <li key={index} className="text-sm text-amber-700 dark:text-amber-500">
+                            {issue}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       )}

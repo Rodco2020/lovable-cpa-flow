@@ -27,8 +27,21 @@ import { getClientById } from '@/services/clientService';
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
 
-// Debug mode flag
-const DEBUG_MODE = false;
+// Debug mode is now controlled by the local storage setting
+const getDebugMode = (): boolean => {
+  return localStorage.getItem('forecast_debug_mode') === 'true';
+};
+
+// Debug logger function that checks debug mode before logging
+const debugLog = (message: string, data?: any): void => {
+  if (getDebugMode()) {
+    if (data) {
+      console.log(`[Forecast Debug] ${message}`, data);
+    } else {
+      console.log(`[Forecast Debug] ${message}`);
+    }
+  }
+};
 
 /**
  * Generate a forecast based on the provided parameters
@@ -37,26 +50,41 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
   // Generate a cache key based on the parameters
   const cacheKey = JSON.stringify(parameters);
   
+  debugLog(`Generating forecast with parameters:`, parameters);
+  
   // Return cached result if available and not older than 5 minutes
   if (forecastCache[cacheKey]) {
     const cachedResult = forecastCache[cacheKey];
     const cacheAge = Date.now() - cachedResult.generatedAt.getTime();
     if (cacheAge < 5 * 60 * 1000) { // 5 minutes in milliseconds
+      debugLog(`Using cached forecast result, age: ${cacheAge}ms`);
       return cachedResult;
     }
+    debugLog(`Cache expired (age: ${cacheAge}ms), regenerating forecast`);
+  } else {
+    debugLog(`No cached result found, generating new forecast`);
   }
+  
+  // Validate parameters
+  validateForecastParameters(parameters);
   
   // Set up the date range based on the timeframe
   const dateRange = parameters.timeframe === 'custom'
     ? parameters.dateRange
     : getDateRangeFromTimeframe(parameters.timeframe);
 
+  debugLog(`Date range for forecast: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
+
   // Calculate forecast periods based on granularity
   const periods = calculatePeriods(dateRange, parameters.granularity);
+  debugLog(`Calculated ${periods.length} periods based on ${parameters.granularity} granularity`);
   
   // Generate the forecast data for each period
   const forecastData = await Promise.all(periods.map(async period => {
+    debugLog(`Calculating forecast for period: ${period}`);
+    
     const periodRange = getPeriodDateRange(period, parameters.granularity);
+    debugLog(`Period date range: ${periodRange.startDate.toISOString()} to ${periodRange.endDate.toISOString()}`);
     
     // Fetch demand hours by skill for this period
     const demand = await calculateDemand(
@@ -73,6 +101,8 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
       parameters.includeSkills
     );
     
+    debugLog(`Period ${period} calculation complete`, { demand, capacity });
+    
     return {
       period,
       demand,
@@ -82,9 +112,11 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
   
   // Generate financial projections
   const financials = await generateFinancialProjections(forecastData, parameters);
+  debugLog(`Financial projections generated`, financials);
   
   // Calculate summary metrics
   const summary = calculateSummary(forecastData, financials);
+  debugLog(`Summary metrics calculated`, summary);
   
   // Create the complete forecast result
   const result: ForecastResult = {
@@ -95,10 +127,102 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
     generatedAt: new Date()
   };
   
+  // Validate the forecast result before caching
+  try {
+    validateForecastResult(result);
+    debugLog(`Forecast result validated successfully`);
+  } catch (error) {
+    console.error('[Forecast Validation Error]', error);
+    throw new Error(`Forecast validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
   // Cache the result
   forecastCache[cacheKey] = result;
+  debugLog(`Forecast result cached with key: ${cacheKey.substring(0, 30)}...`);
   
   return result;
+};
+
+/**
+ * Validate forecast parameters to ensure they are valid
+ */
+const validateForecastParameters = (parameters: ForecastParameters): void => {
+  // Validate mode
+  if (!['virtual', 'actual'].includes(parameters.mode)) {
+    throw new Error(`Invalid forecast mode: ${parameters.mode}`);
+  }
+  
+  // Validate timeframe
+  if (!['week', 'month', 'quarter', 'year', 'custom'].includes(parameters.timeframe)) {
+    throw new Error(`Invalid forecast timeframe: ${parameters.timeframe}`);
+  }
+  
+  // Validate custom date range if timeframe is custom
+  if (parameters.timeframe === 'custom') {
+    if (!parameters.dateRange || !parameters.dateRange.startDate || !parameters.dateRange.endDate) {
+      throw new Error('Custom timeframe requires valid dateRange with startDate and endDate');
+    }
+    
+    if (parameters.dateRange.endDate < parameters.dateRange.startDate) {
+      throw new Error('End date cannot be before start date');
+    }
+    
+    // Check if date range is too large (e.g., more than 1 year)
+    const daysDiff = differenceInDays(parameters.dateRange.endDate, parameters.dateRange.startDate);
+    if (daysDiff > 366) {
+      debugLog(`Warning: Large date range detected (${daysDiff} days), forecast may take longer to calculate`);
+    }
+  }
+  
+  // Validate granularity
+  if (!['daily', 'weekly', 'monthly'].includes(parameters.granularity)) {
+    throw new Error(`Invalid forecast granularity: ${parameters.granularity}`);
+  }
+  
+  // Validate skill allocation strategy if provided
+  if (parameters.skillAllocationStrategy && 
+      !['duplicate', 'distribute'].includes(parameters.skillAllocationStrategy)) {
+    throw new Error(`Invalid skill allocation strategy: ${parameters.skillAllocationStrategy}`);
+  }
+  
+  debugLog('Forecast parameters validated successfully');
+};
+
+/**
+ * Validate forecast result to ensure it contains expected data
+ */
+const validateForecastResult = (result: ForecastResult): void => {
+  // Validate that data array exists and has at least one item
+  if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
+    throw new Error('Forecast result must contain data array with at least one item');
+  }
+  
+  // Check if summary metrics are reasonable
+  if (result.summary.totalCapacity < 0 || result.summary.totalDemand < 0) {
+    throw new Error(`Negative values found in summary: capacity=${result.summary.totalCapacity}, demand=${result.summary.totalDemand}`);
+  }
+  
+  // Check for unusually high values that might indicate calculation errors
+  const MAX_REASONABLE_HOURS = 10000; // For example, 10,000 hours is extremely high for a forecast period
+  if (result.summary.totalCapacity > MAX_REASONABLE_HOURS || 
+      result.summary.totalDemand > MAX_REASONABLE_HOURS) {
+    debugLog(`Warning: Unusually high values in forecast summary`, result.summary);
+  }
+  
+  // Verify that each period has both demand and capacity data
+  result.data.forEach((periodData, index) => {
+    if (!periodData.period) {
+      throw new Error(`Period identifier missing in data[${index}]`);
+    }
+    
+    if (!Array.isArray(periodData.demand)) {
+      throw new Error(`Demand data missing or invalid in period ${periodData.period}`);
+    }
+    
+    if (!Array.isArray(periodData.capacity)) {
+      throw new Error(`Capacity data missing or invalid in period ${periodData.period}`);
+    }
+  });
 };
 
 /**
@@ -112,20 +236,24 @@ const calculateDemand = async (
 ): Promise<SkillHours[]> => {
   const skillHoursMap = {} as Record<SkillType, number>;
   
+  debugLog(`Calculating ${mode} demand for date range: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
+  debugLog(`Using skill allocation strategy: ${skillAllocationStrategy}`);
+  
   if (mode === 'virtual') {
     // Virtual demand is based on recurring tasks
     const recurringTasks = getRecurringTasks();
     
-    if (DEBUG_MODE) {
-      console.log(`[Forecast Debug] Calculating virtual demand for ${recurringTasks.length} tasks`);
-      console.log(`[Forecast Debug] Using skill allocation strategy: ${skillAllocationStrategy}`);
-    }
+    debugLog(`Found ${recurringTasks.length} recurring tasks for virtual demand calculation`);
     
     // For each recurring task, calculate expected hours in the period
     recurringTasks.forEach(task => {
       // Skip tasks with skills not in the filter if specific skills are requested
       if (includeSkills !== "all" && 
           !task.requiredSkills.some(skill => includeSkills.includes(skill))) {
+        debugLog(`Skipping task ${task.id}: required skills don't match filter`, {
+          taskSkills: task.requiredSkills,
+          filterSkills: includeSkills
+        });
         return;
       }
       
@@ -133,9 +261,11 @@ const calculateDemand = async (
       const instanceCount = estimateRecurringTaskInstances(task, dateRange);
       const totalTaskHours = task.estimatedHours * instanceCount;
       
-      if (DEBUG_MODE) {
-        console.log(`[Forecast Debug] Task: ${task.name}, Estimated instances: ${instanceCount}, Hours per instance: ${task.estimatedHours}, Total hours: ${totalTaskHours}`);
-        console.log(`[Forecast Debug] Required skills: ${task.requiredSkills.join(', ')}`);
+      debugLog(`Task ${task.id} (${task.name}): ${instanceCount} instances × ${task.estimatedHours}h = ${totalTaskHours}h total`);
+      
+      if (task.requiredSkills.length === 0) {
+        debugLog(`Warning: Task ${task.id} (${task.name}) has no required skills, skipping demand calculation`);
+        return;
       }
       
       // Allocate hours to all required skills based on strategy
@@ -143,25 +273,17 @@ const calculateDemand = async (
         // Distribute hours evenly across all required skills
         const hoursPerSkill = totalTaskHours / task.requiredSkills.length;
         
-        if (DEBUG_MODE) {
-          console.log(`[Forecast Debug] Distributing ${totalTaskHours} hours across ${task.requiredSkills.length} skills (${hoursPerSkill} per skill)`);
-        }
+        debugLog(`Distributing ${totalTaskHours}h across ${task.requiredSkills.length} skills (${hoursPerSkill}h per skill)`);
         
         task.requiredSkills.forEach(skill => {
           skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
-          
-          if (DEBUG_MODE) {
-            console.log(`[Forecast Debug] Allocated ${hoursPerSkill} hours to skill ${skill}`);
-          }
+          debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skill}`);
         });
       } else {
         // Duplicate hours for each required skill (original behavior)
         task.requiredSkills.forEach(skill => {
           skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalTaskHours;
-          
-          if (DEBUG_MODE) {
-            console.log(`[Forecast Debug] Duplicated ${totalTaskHours} hours to skill ${skill}`);
-          }
+          debugLog(`  - Duplicated ${totalTaskHours}h to skill ${skill}`);
         });
       }
     });
@@ -172,6 +294,8 @@ const calculateDemand = async (
       dueBefore: dateRange.endDate
     });
     
+    debugLog(`Found ${taskInstances.length} task instances for actual demand calculation`);
+    
     // For each task instance, add its hours to the demand using the selected strategy
     taskInstances.forEach(task => {
       // Skip tasks with skills not in the filter if specific skills are requested
@@ -181,6 +305,11 @@ const calculateDemand = async (
       }
       
       const totalTaskHours = task.estimatedHours;
+      
+      if (task.requiredSkills.length === 0) {
+        debugLog(`Warning: Task instance ${task.id} has no required skills, skipping demand calculation`);
+        return;
+      }
       
       if (skillAllocationStrategy === 'distribute' && task.requiredSkills.length > 0) {
         // Distribute hours evenly across all required skills
@@ -199,10 +328,14 @@ const calculateDemand = async (
   }
   
   // Convert map to array of SkillHours
-  return Object.entries(skillHoursMap).map(([skill, hours]) => ({
+  const result = Object.entries(skillHoursMap).map(([skill, hours]) => ({
     skill: skill as SkillType,
     hours
   }));
+  
+  debugLog(`Demand calculation complete, results:`, result);
+  
+  return result;
 };
 
 /**
@@ -387,7 +520,7 @@ export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: D
   
   // Validate inputs
   if (!pattern || !pattern.type) {
-    if (DEBUG_MODE) console.log(`[Forecast Debug] Invalid recurrence pattern for task: ${task.name}`);
+    debugLog(`Invalid recurrence pattern for task: ${task.name}`);
     return 0;
   }
   
@@ -403,13 +536,16 @@ export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: D
   
   // If end date is before start date, no instances will occur
   if (endDate < startDate) {
+    debugLog(`No instances for task ${task.id} (${task.name}): end date (${endDate.toISOString()}) is before start date (${startDate.toISOString()})`);
     return 0;
   }
   
-  if (DEBUG_MODE) {
-    console.log(`[Forecast Debug] Calculating instances for ${task.name}, pattern: ${pattern.type}, interval: ${pattern.interval || 1}`);
-    console.log(`[Forecast Debug] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-  }
+  debugLog(`Calculating instances for task ${task.id} (${task.name}):`, {
+    patternType: pattern.type, 
+    interval: pattern.interval || 1,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString()
+  });
   
   switch (pattern.type) {
     case 'Daily':
@@ -506,6 +642,7 @@ export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: D
       
     default:
       // For unknown patterns, use a default estimate of one instance
+      debugLog(`Warning: Unknown recurrence pattern type "${pattern.type}" for task ${task.id} (${task.name})`);
       instanceCount = 1;
       break;
   }
@@ -513,9 +650,7 @@ export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: D
   // Ensure we always return a non-negative integer
   instanceCount = Math.max(0, Math.round(instanceCount));
   
-  if (DEBUG_MODE) {
-    console.log(`[Forecast Debug] Final instance count for ${task.name}: ${instanceCount}`);
-  }
+  debugLog(`Final instance count for task ${task.id} (${task.name}): ${instanceCount}`);
   
   return instanceCount;
 };
@@ -650,6 +785,7 @@ const getPeriodDateRange = (period: string, granularity: GranularityType): DateR
  * Clear the forecast cache
  */
 export const clearForecastCache = () => {
+  debugLog('Clearing forecast cache');
   forecastCache = {};
 };
 
@@ -657,33 +793,92 @@ export const clearForecastCache = () => {
  * Get a forecast from the cache or generate a new one if not cached
  */
 export const getForecast = async (parameters: ForecastParameters): Promise<ForecastResult> => {
-  return generateForecast(parameters);
+  try {
+    debugLog('Attempting to get forecast', parameters);
+    return await generateForecast(parameters);
+  } catch (error) {
+    console.error('Error generating forecast:', error);
+    throw error;
+  }
 };
 
 /**
  * Enable or disable debug mode for forecast calculations
  */
 export const setForecastDebugMode = (enabled: boolean): void => {
-  window.localStorage.setItem('forecast_debug_mode', enabled ? 'true' : 'false');
+  localStorage.setItem('forecast_debug_mode', enabled ? 'true' : 'false');
+  debugLog(`Debug mode ${enabled ? 'enabled' : 'disabled'}`);
 };
 
 /**
  * Check if forecast debug mode is enabled
  */
 export const isForecastDebugModeEnabled = (): boolean => {
-  return window.localStorage.getItem('forecast_debug_mode') === 'true';
+  return localStorage.getItem('forecast_debug_mode') === 'true';
 };
 
 /**
  * Set the skill allocation strategy for forecast calculations
  */
 export const setSkillAllocationStrategy = (strategy: SkillAllocationStrategy): void => {
-  window.localStorage.setItem('forecast_skill_allocation_strategy', strategy);
+  localStorage.setItem('forecast_skill_allocation_strategy', strategy);
+  debugLog(`Skill allocation strategy set to: ${strategy}`);
 };
 
 /**
  * Get the current skill allocation strategy
  */
 export const getSkillAllocationStrategy = (): SkillAllocationStrategy => {
-  return (window.localStorage.getItem('forecast_skill_allocation_strategy') as SkillAllocationStrategy) || 'duplicate';
+  return (localStorage.getItem('forecast_skill_allocation_strategy') as SkillAllocationStrategy) || 'duplicate';
+};
+
+/**
+ * Run validation checks on the forecasting system
+ * Returns a list of any issues found, empty array if all checks pass
+ */
+export const validateForecastSystem = async (): Promise<string[]> => {
+  const issues: string[] = [];
+  
+  debugLog('Running forecast system validation checks');
+  
+  // Check 1: Verify recurring tasks have valid recurrence patterns
+  const recurringTasks = getRecurringTasks();
+  recurringTasks.forEach(task => {
+    if (!task.recurrencePattern || !task.recurrencePattern.type) {
+      issues.push(`Task ${task.id} (${task.name}) has invalid recurrence pattern`);
+    }
+    if (!task.requiredSkills || task.requiredSkills.length === 0) {
+      issues.push(`Task ${task.id} (${task.name}) has no required skills`);
+    }
+  });
+  
+  // Check 2: Verify staff have skills assigned
+  const staff = await getAllStaff();
+  staff.forEach(member => {
+    if (!member.skills || member.skills.length === 0) {
+      issues.push(`Staff member ${member.id} (${member.name}) has no assigned skills`);
+    }
+  });
+  
+  // Check 3: Verify that the forecast can be generated
+  try {
+    const testParams: ForecastParameters = {
+      mode: 'virtual',
+      timeframe: 'week',
+      dateRange: {
+        startDate: new Date(),
+        endDate: addDays(new Date(), 7)
+      },
+      granularity: 'daily',
+      includeSkills: 'all'
+    };
+    
+    await generateForecast(testParams);
+  } catch (error) {
+    issues.push(`Failed to generate test forecast: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  debugLog(`Validation complete. Found ${issues.length} issues:`, issues);
+  
+  return issues;
 };
