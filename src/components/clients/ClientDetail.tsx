@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
 import { getClientById, getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
+import { RecurringTask, TaskInstance } from '@/types/task';
 import { 
   Card, 
   CardHeader, 
@@ -24,7 +25,8 @@ import {
   DollarSign, 
   Calendar, 
   FileText,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -35,17 +37,26 @@ import {
 } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // State for async data
+  // State for async data - updated types to match the actual data structures
   const [client, setClient] = useState<Client | null>(null);
-  const [recurringTasks, setRecurringTasks] = useState<string[]>([]);
-  const [adHocTasks, setAdHocTasks] = useState<string[]>([]);
+  const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
+  const [adHocTasks, setAdHocTasks] = useState<TaskInstance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Fetch client data
   useEffect(() => {
@@ -57,6 +68,8 @@ const ClientDetail: React.FC = () => {
       
       try {
         setIsLoading(true);
+        setError(null);
+        
         // Fetch client
         const clientData = await getClientById(id);
         if (!clientData) {
@@ -81,12 +94,13 @@ const ClientDetail: React.FC = () => {
         setAdHocTasks(adHocTasksData);
       } catch (error) {
         console.error("Error fetching client data:", error);
+        setError("Failed to load client details. Please try again later.");
+        
         toast({
           title: "Error",
           description: "Failed to load client details",
           variant: "destructive"
         });
-        navigate('/clients');
       } finally {
         setIsLoading(false);
       }
@@ -102,6 +116,22 @@ const ClientDetail: React.FC = () => {
         <div className="flex flex-col items-center">
           <Loader2 className="h-8 w-8 animate-spin mb-2" />
           <p>Loading client details...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto py-6 flex justify-center items-center h-64">
+        <div className="flex flex-col items-center text-center">
+          <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
+          <p className="text-lg font-semibold">Something went wrong</p>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => navigate('/clients')}>
+            Return to Clients
+          </Button>
         </div>
       </div>
     );
@@ -125,6 +155,31 @@ const ClientDetail: React.FC = () => {
         return <Badge variant="outline">{status}</Badge>;
       default:
         return <Badge>{status}</Badge>;
+    }
+  };
+
+  // Format recurrence pattern for display
+  const formatRecurrencePattern = (task: RecurringTask): string => {
+    const pattern = task.recurrencePattern;
+    switch (pattern.type) {
+      case 'Daily':
+        return `Daily${pattern.interval && pattern.interval > 1 ? ` (every ${pattern.interval} days)` : ''}`;
+      case 'Weekly':
+        if (pattern.weekdays && pattern.weekdays.length) {
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          return `Weekly on ${pattern.weekdays.map(d => days[d]).join(', ')}`;
+        }
+        return `Weekly${pattern.interval && pattern.interval > 1 ? ` (every ${pattern.interval} weeks)` : ''}`;
+      case 'Monthly':
+        return `Monthly on day ${pattern.dayOfMonth || 1}${pattern.interval && pattern.interval > 1 ? ` (every ${pattern.interval} months)` : ''}`;
+      case 'Quarterly':
+        return 'Quarterly';
+      case 'Annually':
+        return 'Annually';
+      case 'Custom':
+        return 'Custom schedule';
+      default:
+        return 'Unknown schedule';
     }
   };
   
@@ -337,12 +392,37 @@ const ClientDetail: React.FC = () => {
           <CardContent>
             <TabsContent value="recurring" className="space-y-4">
               {recurringTasks.length > 0 ? (
-                <div className="rounded-md border">
-                  <div className="p-4">
-                    Recurring task list would be displayed here, pulling from the Task Module.
-                    This client has {recurringTasks.length} recurring tasks.
-                  </div>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task Name</TableHead>
+                      <TableHead>Schedule</TableHead>
+                      <TableHead>Required Skills</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead className="text-right">Hours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recurringTasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.name}</TableCell>
+                        <TableCell>{formatRecurrencePattern(task)}</TableCell>
+                        <TableCell>{task.requiredSkills.join(', ')}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            task.priority === "Low" ? "outline" :
+                            task.priority === "Medium" ? "secondary" :
+                            task.priority === "High" ? "default" :
+                            "destructive"
+                          }>
+                            {task.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{task.estimatedHours}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
                 <div className="text-center p-6 border rounded-md bg-muted/20">
                   <h3 className="font-medium">No Recurring Tasks</h3>
@@ -355,12 +435,39 @@ const ClientDetail: React.FC = () => {
             
             <TabsContent value="adhoc" className="space-y-4">
               {adHocTasks.length > 0 ? (
-                <div className="rounded-md border">
-                  <div className="p-4">
-                    Ad-hoc task list would be displayed here, pulling from the Task Module.
-                    This client has {adHocTasks.length} ad-hoc tasks.
-                  </div>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task Name</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Required Skills</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Hours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {adHocTasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.name}</TableCell>
+                        <TableCell>
+                          {task.dueDate ? format(task.dueDate, 'MMM d, yyyy') : 'Not set'}
+                        </TableCell>
+                        <TableCell>{task.requiredSkills.join(', ')}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            task.status === "Completed" ? "outline" :
+                            task.status === "In Progress" ? "secondary" :
+                            task.status === "Scheduled" ? "default" :
+                            "destructive"
+                          }>
+                            {task.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{task.estimatedHours}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
                 <div className="text-center p-6 border rounded-md bg-muted/20">
                   <h3 className="font-medium">No Ad-hoc Tasks</h3>

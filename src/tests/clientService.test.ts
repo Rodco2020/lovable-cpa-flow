@@ -1,6 +1,7 @@
 
 import { getClientRecurringTasks, getClientAdHocTasks } from '../services/clientService';
 import { getRecurringTasks, getTaskInstances } from '../services/taskService';
+import { RecurringTask, TaskInstance } from '../types/task';
 
 // Mock the task service functions
 jest.mock('../services/taskService', () => ({
@@ -20,7 +21,7 @@ describe('Client Service - Task Integration Tests', () => {
         { id: 'task1', clientId: 'client1', name: 'Task 1' },
         { id: 'task2', clientId: 'client1', name: 'Task 2' },
         { id: 'task3', clientId: 'client2', name: 'Task 3' },
-      ];
+      ] as RecurringTask[];
       
       // Setup mock implementation
       (getRecurringTasks as jest.Mock).mockReturnValue(mockRecurringTasks);
@@ -40,7 +41,7 @@ describe('Client Service - Task Integration Tests', () => {
       const mockRecurringTasks = [
         { id: 'task1', clientId: 'client1', name: 'Task 1' },
         { id: 'task2', clientId: 'client1', name: 'Task 2' },
-      ];
+      ] as RecurringTask[];
       
       // Setup mock implementation
       (getRecurringTasks as jest.Mock).mockReturnValue(mockRecurringTasks);
@@ -73,7 +74,7 @@ describe('Client Service - Task Integration Tests', () => {
         { id: 'task1', clientId: 'client1', recurringTaskId: null },
         { id: 'task2', clientId: 'client1', recurringTaskId: 'rec1' },
         { id: 'task3', clientId: 'client1', recurringTaskId: null },
-      ];
+      ] as TaskInstance[];
       
       // Setup mock implementation
       (getTaskInstances as jest.Mock).mockReturnValue(mockTaskInstances);
@@ -85,7 +86,7 @@ describe('Client Service - Task Integration Tests', () => {
       expect(getTaskInstances).toHaveBeenCalledWith({ clientId: 'client1' });
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe('task1');
-      expect(result[2]).toBeUndefined();
+      expect(result[1].id).toBe('task3');
     });
     
     it('should return empty array when no ad-hoc tasks exist', async () => {
@@ -93,7 +94,7 @@ describe('Client Service - Task Integration Tests', () => {
       const mockTaskInstances = [
         { id: 'task1', clientId: 'client1', recurringTaskId: 'rec1' },
         { id: 'task2', clientId: 'client1', recurringTaskId: 'rec2' },
-      ];
+      ] as TaskInstance[];
       
       // Setup mock implementation
       (getTaskInstances as jest.Mock).mockReturnValue(mockTaskInstances);
