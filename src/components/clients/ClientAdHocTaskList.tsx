@@ -312,7 +312,9 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
                       variant={dueDateFilter === 'upcoming' ? "default" : "outline"}
                       onClick={() => setDueDateFilter(dueDateFilter === 'upcoming' ? 'all' : 'upcoming')}
                       className="w-full"
-                      colSpan={2}
+                      // Removed the colSpan={2} prop since it's not valid for Button
+                      // Instead, use a grid layout with CSS styling to span multiple columns
+                      style={{ gridColumn: "span 2" }}
                     >
                       Upcoming
                     </Button>
