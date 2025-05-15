@@ -15,6 +15,7 @@ import SchedulerModule from '@/pages/SchedulerModule';
 import ForecastingModule from '@/pages/ForecastingModule';
 import TaskModule from '@/pages/TaskModule';
 import SkillsModule from '@/pages/SkillsModule';
+import ClientModule from '@/pages/ClientModule';
 import IntegrationsInitializer from "@/components/integrations/IntegrationsInitializer";
 import Auth from '@/pages/Auth';
 
@@ -42,6 +43,7 @@ function App() {
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardModule />} />
+                <Route path="clients/*" element={<ClientModule />} />
                 <Route path="staff/*" element={<StaffModule />} />
                 <Route path="scheduler/*" element={<SchedulerModule />} />
                 <Route path="forecasting/*" element={<ForecastingModule />} />
