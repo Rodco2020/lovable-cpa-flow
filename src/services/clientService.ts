@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
+import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
+import { RecurringTask, TaskInstance } from '@/types/task';
 
 // Local memory storage as fallback when Supabase is not connected
 let clients: Client[] = [];
@@ -230,18 +232,31 @@ export const getClientTaskIds = async (clientId: string): Promise<string[]> => {
   return [];
 };
 
-// Get recurring tasks for a client (new function)
-export const getClientRecurringTasks = async (clientId: string): Promise<string[]> => {
-  // This is a stub until the task module is implemented
-  // Will return task IDs or full task objects in the future
-  console.log(`Fetching recurring tasks for client ${clientId}`);
-  return [];
+// Get recurring tasks for a client
+export const getClientRecurringTasks = async (clientId: string): Promise<RecurringTask[]> => {
+  try {
+    // Use the task service to get all recurring tasks and filter by client ID
+    const allRecurringTasks = getRecurringTasks(false); // Include both active and inactive tasks
+    return allRecurringTasks.filter(task => task.clientId === clientId);
+  } catch (error) {
+    console.error(`Error fetching recurring tasks for client ${clientId}:`, error);
+    return []; // Return empty array on error
+  }
 };
 
-// Get ad-hoc tasks for a client (new function)
-export const getClientAdHocTasks = async (clientId: string): Promise<string[]> => {
-  // This is a stub until the task module is implemented
-  // Will return task IDs or full task objects in the future
-  console.log(`Fetching ad-hoc tasks for client ${clientId}`);
-  return [];
+// Get ad-hoc tasks for a client
+export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstance[]> => {
+  try {
+    // Use the task service to get task instances that aren't generated from recurring tasks
+    // and filter by client ID
+    const allTaskInstances = getTaskInstances({
+      clientId: clientId
+    });
+    
+    // Filter out tasks that were generated from recurring tasks
+    return allTaskInstances.filter(task => !task.recurringTaskId);
+  } catch (error) {
+    console.error(`Error fetching ad-hoc tasks for client ${clientId}:`, error);
+    return []; // Return empty array on error
+  }
 };
