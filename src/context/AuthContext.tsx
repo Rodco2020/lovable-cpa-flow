@@ -95,14 +95,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
         const firstName = profile?.first_name || '';
         const lastName = profile?.last_name || '';
-        const name = `${firstName} ${lastName}`.trim() || user.email?.split('@')[0] || 'New Staff';
+        const fullName = `${firstName} ${lastName}`.trim() || user.email?.split('@')[0] || 'New Staff';
         
-        // Create staff record
+        // Create staff record - using correct column names that match our database schema
         await supabase.from('staff').insert({
           email: user.email,
-          name: name,
+          full_name: fullName,
           assigned_skills: [],
-          is_active: true
+          status: 'active',
+          cost_per_hour: 50.00
         });
         
         console.log('Created new staff record for user:', user.email);
