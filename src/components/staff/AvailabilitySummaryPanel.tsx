@@ -113,9 +113,9 @@ const AvailabilitySummaryPanel: React.FC<AvailabilitySummaryPanelProps> = ({
           <div className="md:col-span-2">
             <ChartContainer 
               config={{
-                low: { theme: { light: "#ef4444" } },
-                average: { theme: { light: "#3b82f6" } },
-                high: { theme: { light: "#22c55e" } },
+                low: { theme: { light: "#ef4444", dark: "#ef4444" } },
+                average: { theme: { light: "#3b82f6", dark: "#3b82f6" } },
+                high: { theme: { light: "#22c55e", dark: "#22c55e" } },
               }}
               className="h-[300px]"
             >

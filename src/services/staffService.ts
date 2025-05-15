@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { Staff, TimeSlot, WeeklyAvailability } from "@/types/staff";
+import { Staff, TimeSlot, WeeklyAvailability, AvailabilitySummary } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
 
 // Staff CRUD operations
