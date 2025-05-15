@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ForecastData, SkillHours, SkillData } from '@/types/forecasting';
+import { ForecastData, SkillData } from '@/types/forecasting';
 
 interface ForecastChartProps {
   data: ForecastData[];

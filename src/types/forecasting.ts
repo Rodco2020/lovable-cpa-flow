@@ -15,6 +15,13 @@ export interface SkillHours {
   hours: number;
 }
 
+// Adding SkillData interface for UI display
+export interface SkillData {
+  id: SkillType;
+  name: string;
+  color: string;
+}
+
 export interface ForecastData {
   period: string; // Format depends on granularity: "2023-05-15" for daily, "2023-W20" for weekly, "2023-05" for monthly
   demand: SkillHours[];
@@ -62,8 +69,6 @@ export interface ForecastResult {
   };
   generatedAt: Date;
 }
-
-// Define SkillData type for UI display - removed and moved to specific components to avoid circular dependencies
 
 // Re-export SkillType using 'export type' for TypeScript with isolatedModules
 export type { SkillType };
