@@ -46,10 +46,10 @@ const ForecastDashboard: React.FC = () => {
   const { toast } = useToast();
   
   const availableSkills: SkillData[] = [
-    { id: 'tax-prep' as SkillType, name: 'Tax Preparation', color: '#4CAF50' },
-    { id: 'audit' as SkillType, name: 'Audit', color: '#2196F3' },
-    { id: 'advisory' as SkillType, name: 'Advisory', color: '#9C27B0' },
-    { id: 'bookkeeping' as SkillType, name: 'Bookkeeping', color: '#FF9800' }
+    { id: 'Tax' as SkillType, name: 'Tax Preparation', color: '#4CAF50' },
+    { id: 'Audit' as SkillType, name: 'Audit', color: '#2196F3' },
+    { id: 'Advisory' as SkillType, name: 'Advisory', color: '#9C27B0' },
+    { id: 'Bookkeeping' as SkillType, name: 'Bookkeeping', color: '#FF9800' }
   ];
   
   // Add debug mode state
@@ -445,7 +445,8 @@ const ForecastDashboard: React.FC = () => {
                           tasks={taskBreakdown}
                           title="Tasks Contributing to Demand"
                         >
-                          {forecastData.demandHours !== undefined ? forecastData.demandHours : 0}
+                          {/* Convert the React node to a simple number */}
+                          {forecastData.demandHours || 0}
                         </TaskBreakdownHoverCard>
                       }
                       totalCapacity={forecastData.capacityHours || 0}

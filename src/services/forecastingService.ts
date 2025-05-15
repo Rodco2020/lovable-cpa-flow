@@ -909,7 +909,7 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
         name: "Quarterly Tax Filing",
         clientName: "Acme Corp",
         clientId: "client1",
-        skill: "tax-prep",
+        skill: "Tax" as SkillType,  // Fixed casing to match SkillType enum
         hours: 8,
         dueDate: "2025-07-15",
         status: "scheduled"
@@ -919,7 +919,7 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
         name: "Financial Statement Review",
         clientName: "Globex Industries",
         clientId: "client2",
-        skill: "audit",
+        skill: "Audit" as SkillType,  // Fixed casing to match SkillType enum
         hours: 12,
         dueDate: "2025-07-10",
         status: "scheduled"
@@ -929,7 +929,7 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
         name: "Bookkeeping",
         clientName: "Sterling LLC",
         clientId: "client3",
-        skill: "bookkeeping",
+        skill: "Bookkeeping" as SkillType,  // Fixed casing to match SkillType enum
         hours: 6,
         dueDate: "2025-07-05",
         status: "scheduled"
@@ -939,7 +939,7 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
         name: "Strategic Planning Session",
         clientName: "Tech Innovations",
         clientId: "client4",
-        skill: "advisory",
+        skill: "Advisory" as SkillType,  // Fixed casing to match SkillType enum
         hours: 4,
         dueDate: "2025-07-20",
         status: "scheduled"

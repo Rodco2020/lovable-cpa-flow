@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import ForecastInfoTooltip from './ForecastInfoTooltip';
 
 interface EnhancedForecastSummaryProps {
-  totalDemand: React.ReactNode;
+  totalDemand: React.ReactNode;  // Updated to ReactNode to accept both numbers and React Elements
   totalCapacity: number;
   gap: number;
   totalRevenue: number;
