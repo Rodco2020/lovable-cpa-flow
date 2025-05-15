@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TaskInstance, TaskStatus } from '@/types/task';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -20,12 +21,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, ClipboardList } from 'lucide-react';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { 
+  Search, 
+  ClipboardList, 
+  Filter, 
+  ArrowUpDown,
+  ChevronDown
+} from 'lucide-react';
+import TaskListPagination from './TaskListPagination';
 
 interface ClientAdHocTaskListProps {
   tasks: TaskInstance[];
   onViewTask?: (taskId: string) => void;
 }
+
+const ITEMS_PER_PAGE = 5;
 
 const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
   tasks,
@@ -35,16 +50,81 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
   const [sortBy, setSortBy] = useState<'name' | 'dueDate' | 'status' | 'priority' | 'hours'>('dueDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Advanced filtering
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [skillFilter, setSkillFilter] = useState<string[]>([]);
+  const [dueDateFilter, setDueDateFilter] = useState<'past' | 'today' | 'upcoming' | 'all'>('all');
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, skillFilter, dueDateFilter]);
+  
+  // Extract unique categories from tasks
+  const uniqueCategories = Array.from(
+    new Set(tasks.map(task => task.category))
+  ).sort();
+  
+  // Extract unique skills from tasks
+  const uniqueSkills = Array.from(
+    new Set(tasks.flatMap(task => task.requiredSkills))
+  ).sort();
+  
+  // Extract unique statuses from tasks
+  const uniqueStatuses = Array.from(
+    new Set(tasks.map(task => task.status))
+  ) as TaskStatus[];
 
-  // Filter tasks by search term and status
+  // Due date filter function
+  const taskMatchesDueDateFilter = (task: TaskInstance): boolean => {
+    if (!task.dueDate || dueDateFilter === 'all') return true;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dueDate = new Date(task.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    switch (dueDateFilter) {
+      case 'past':
+        return dueDate < today;
+      case 'today':
+        return dueDate.getTime() === today.getTime();
+      case 'upcoming':
+        return dueDate >= tomorrow;
+      default:
+        return true;
+    }
+  };
+
+  // Filter tasks by all criteria
   const filteredTasks = tasks.filter(task => {
+    // Text search
     const matchesSearch = 
       task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.description.toLowerCase().includes(searchTerm.toLowerCase());
     
+    // Status filter
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Category filter
+    const matchesCategory = 
+      categoryFilter.length === 0 || categoryFilter.includes(task.category);
+    
+    // Skill filter
+    const matchesSkill = 
+      skillFilter.length === 0 || 
+      task.requiredSkills.some(skill => skillFilter.includes(skill));
+    
+    // Due date filter
+    const matchesDueDate = taskMatchesDueDateFilter(task);
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesSkill && matchesDueDate;
   });
   
   // Sort tasks
@@ -85,6 +165,21 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
     return 0;
   });
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(sortedTasks.length / ITEMS_PER_PAGE));
+  
+  // Adjust current page if we have fewer pages than the current page
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+  
+  const paginatedTasks = sortedTasks.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE, 
+    currentPage * ITEMS_PER_PAGE
+  );
+
   // Toggle sort direction
   const toggleSort = (field: 'name' | 'dueDate' | 'status' | 'priority' | 'hours') => {
     if (sortBy === field) {
@@ -123,6 +218,14 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
     if (!date) return 'Not set';
     return format(date, 'MMM d, yyyy');
   };
+  
+  // Count active filters
+  const activeFiltersCount = [
+    categoryFilter.length > 0,
+    skillFilter.length > 0,
+    dueDateFilter !== 'all',
+    statusFilter !== 'all'
+  ].filter(Boolean).length;
 
   // Render empty state
   if (tasks.length === 0) {
@@ -151,32 +254,149 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
         </div>
         
         <div className="flex flex-wrap gap-2 items-center justify-end">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
-            <Select 
-              value={statusFilter} 
-              onValueChange={(value) => setStatusFilter(value as TaskStatus | 'all')}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="Unscheduled">Unscheduled</SelectItem>
-                <SelectItem value="Scheduled">Scheduled</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="Canceled">Canceled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 px-1 py-0 h-5 min-w-5 text-xs">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72" align="end">
+              <div className="space-y-4">
+                {/* Status filter */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Status</h4>
+                  <Select 
+                    value={statusFilter} 
+                    onValueChange={(value) => setStatusFilter(value as TaskStatus | 'all')}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      {uniqueStatuses.map(status => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Due Date filter */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Due Date</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant={dueDateFilter === 'past' ? "default" : "outline"}
+                      onClick={() => setDueDateFilter(dueDateFilter === 'past' ? 'all' : 'past')}
+                      className="w-full"
+                    >
+                      Past Due
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={dueDateFilter === 'today' ? "default" : "outline"}
+                      onClick={() => setDueDateFilter(dueDateFilter === 'today' ? 'all' : 'today')}
+                      className="w-full"
+                    >
+                      Due Today
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={dueDateFilter === 'upcoming' ? "default" : "outline"}
+                      onClick={() => setDueDateFilter(dueDateFilter === 'upcoming' ? 'all' : 'upcoming')}
+                      className="w-full"
+                      colSpan={2}
+                    >
+                      Upcoming
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Category filter */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Categories</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {uniqueCategories.map(category => (
+                      <div key={category} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`category-${category}`}
+                          checked={categoryFilter.includes(category)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setCategoryFilter([...categoryFilter, category]);
+                            } else {
+                              setCategoryFilter(categoryFilter.filter(c => c !== category));
+                            }
+                          }}
+                        />
+                        <label 
+                          htmlFor={`category-${category}`}
+                          className="text-sm"
+                        >
+                          {category}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Skills filter */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Required Skills</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {uniqueSkills.map(skill => (
+                      <div key={skill} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`skill-${skill}`}
+                          checked={skillFilter.includes(skill)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSkillFilter([...skillFilter, skill]);
+                            } else {
+                              setSkillFilter(skillFilter.filter(s => s !== skill));
+                            }
+                          }}
+                        />
+                        <label 
+                          htmlFor={`skill-${skill}`}
+                          className="text-sm"
+                        >
+                          {skill}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Clear filters */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full mt-2"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setCategoryFilter([]);
+                    setSkillFilter([]);
+                    setDueDateFilter('all');
+                  }}
+                  disabled={activeFiltersCount === 0}
+                >
+                  Clear all filters
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by:</span>
-            <Select 
-              value={sortBy} 
-              onValueChange={(value) => setSortBy(value as any)}
-            >
+            <span className="text-sm text-muted-foreground">Sort by:</span>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
               </SelectTrigger>
@@ -190,9 +410,10 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
             </Select>
             <Button 
               variant="outline" 
-              size="sm" 
+              size="sm"
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
             >
+              <ArrowUpDown className="h-4 w-4 mr-2" />
               {sortOrder === 'asc' ? 'A→Z' : 'Z→A'}
             </Button>
           </div>
@@ -204,101 +425,125 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
           <p className="text-muted-foreground">No tasks match your search criteria</p>
         </div>
       ) : (
-        <div className="border rounded-md overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => toggleSort('name')}
-                >
-                  Task Name
-                  {sortBy === 'name' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => toggleSort('dueDate')}
-                >
-                  Due Date
-                  {sortBy === 'dueDate' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </TableHead>
-                <TableHead>Skills</TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => toggleSort('status')}
-                >
-                  Status
-                  {sortBy === 'status' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => toggleSort('priority')}
-                >
-                  Priority
-                  {sortBy === 'priority' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </TableHead>
-                <TableHead 
-                  className="text-right cursor-pointer"
-                  onClick={() => toggleSort('hours')}
-                >
-                  Hours
-                  {sortBy === 'hours' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedTasks.map((task) => (
-                <TableRow 
-                  key={task.id} 
-                  className={onViewTask ? "cursor-pointer hover:bg-muted" : ""}
-                  onClick={() => onViewTask && onViewTask(task.id)}
-                >
-                  <TableCell className="font-medium">{task.name}</TableCell>
-                  <TableCell>{formatDate(task.dueDate)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {task.requiredSkills.map((skill) => (
-                        <Badge key={skill} variant="outline" className="bg-slate-100 text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
+        <>
+          <div className="border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead 
+                    className="cursor-pointer w-[25%]"
+                    onClick={() => toggleSort('name')}
+                  >
+                    <div className="flex items-center">
+                      Task Name
+                      {sortBy === 'name' && (
+                        <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                      )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    {typeof getStatusBadgeVariant(task.status) === 'string' ? (
-                      <Badge variant={getStatusBadgeVariant(task.status) as any}>
-                        {task.status}
-                      </Badge>
-                    ) : (
-                      <Badge 
-                        variant={(getStatusBadgeVariant(task.status) as any).variant}
-                        className={(getStatusBadgeVariant(task.status) as any).className}
-                      >
-                        {task.status}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getPriorityBadgeVariant(task.priority)}>
-                      {task.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{task.estimatedHours}</TableCell>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => toggleSort('dueDate')}
+                  >
+                    <div className="flex items-center">
+                      Due Date
+                      {sortBy === 'dueDate' && (
+                        <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead>Skills</TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => toggleSort('status')}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      {sortBy === 'status' && (
+                        <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => toggleSort('priority')}
+                  >
+                    <div className="flex items-center">
+                      Priority
+                      {sortBy === 'priority' && (
+                        <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer"
+                    onClick={() => toggleSort('hours')}
+                  >
+                    <div className="flex items-center justify-end">
+                      Hours
+                      {sortBy === 'hours' && (
+                        <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                      )}
+                    </div>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {paginatedTasks.map((task) => (
+                  <TableRow 
+                    key={task.id} 
+                    className={onViewTask ? "cursor-pointer hover:bg-muted" : ""}
+                    onClick={() => onViewTask && onViewTask(task.id)}
+                  >
+                    <TableCell className="font-medium">{task.name}</TableCell>
+                    <TableCell>{formatDate(task.dueDate)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {task.requiredSkills.map((skill) => (
+                          <Badge key={skill} variant="outline" className="bg-slate-100 text-xs">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {typeof getStatusBadgeVariant(task.status) === 'string' ? (
+                        <Badge variant={getStatusBadgeVariant(task.status) as any}>
+                          {task.status}
+                        </Badge>
+                      ) : (
+                        <Badge 
+                          variant={(getStatusBadgeVariant(task.status) as any).variant}
+                          className={(getStatusBadgeVariant(task.status) as any).className}
+                        >
+                          {task.status}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getPriorityBadgeVariant(task.priority)}>
+                        {task.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{task.estimatedHours}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Showing {Math.min(filteredTasks.length, currentPage * ITEMS_PER_PAGE - ITEMS_PER_PAGE + 1)}-
+              {Math.min(filteredTasks.length, currentPage * ITEMS_PER_PAGE)} of {filteredTasks.length} tasks
+            </div>
+            <TaskListPagination 
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        </>
       )}
     </div>
   );

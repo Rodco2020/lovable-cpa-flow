@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
 import { getClientById, getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
-import { RecurringTask, TaskInstance } from '@/types/task';
+import { RecurringTask, TaskInstance, TaskStatus } from '@/types/task';
 import { 
   Card, 
   CardHeader, 
@@ -25,7 +26,9 @@ import {
   Calendar, 
   FileText,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Clock
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -52,6 +55,46 @@ const ClientDetail: React.FC = () => {
   const [adHocTasks, setAdHocTasks] = useState<TaskInstance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Task analytics
+  const [taskAnalytics, setTaskAnalytics] = useState({
+    activeRecurringCount: 0,
+    upcomingTasksCount: 0,
+    pendingTasksCount: 0,
+    completedTasksCount: 0
+  });
+  
+  // Calculate task analytics
+  useEffect(() => {
+    if (recurringTasks.length || adHocTasks.length) {
+      const activeRecurring = recurringTasks.filter(task => task.isActive).length;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nextTwoWeeks = new Date(today);
+      nextTwoWeeks.setDate(today.getDate() + 14);
+      
+      const upcoming = adHocTasks.filter(task => 
+        task.dueDate && task.dueDate >= today && task.dueDate <= nextTwoWeeks &&
+        ['Unscheduled', 'Scheduled'].includes(task.status)
+      ).length;
+      
+      const pending = adHocTasks.filter(task => 
+        task.status === 'In Progress'
+      ).length;
+      
+      const completed = adHocTasks.filter(task => 
+        task.status === 'Completed'
+      ).length;
+      
+      setTaskAnalytics({
+        activeRecurringCount: activeRecurring,
+        upcomingTasksCount: upcoming,
+        pendingTasksCount: pending,
+        completedTasksCount: completed
+      });
+    }
+  }, [recurringTasks, adHocTasks]);
   
   // Fetch client data
   useEffect(() => {
@@ -199,6 +242,13 @@ const ClientDetail: React.FC = () => {
     }
   };
   
+  // Calculate active recurring tasks and tasks requiring attention
+  const activeRecurringTasks = recurringTasks.filter(task => task.isActive);
+  const tasksRequiringAttention = adHocTasks.filter(task => 
+    (task.status === 'Unscheduled' || task.status === 'In Progress') && 
+    task.dueDate && task.dueDate < new Date()
+  );
+  
   return (
     <div className="container mx-auto py-6 space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
@@ -219,6 +269,65 @@ const ClientDetail: React.FC = () => {
           <PencilIcon className="mr-2 h-4 w-4" />
           Edit Client
         </Button>
+      </div>
+      
+      {/* Task Analytics Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <Card className="bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active Recurring Tasks</p>
+                <p className="text-2xl font-bold">{taskAnalytics.activeRecurringCount}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-blue-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Upcoming Tasks</p>
+                <p className="text-2xl font-bold">{taskAnalytics.upcomingTasksCount}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-yellow-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-purple-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">In Progress</p>
+                <p className="text-2xl font-bold">{taskAnalytics.pendingTasksCount}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-purple-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Completed Tasks</p>
+                <p className="text-2xl font-bold">{taskAnalytics.completedTasksCount}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-green-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -396,8 +505,21 @@ const ClientDetail: React.FC = () => {
                 Client Engagements
               </CardTitle>
               <TabsList>
-                <TabsTrigger value="recurring">Recurring Tasks ({recurringTasks.length})</TabsTrigger>
-                <TabsTrigger value="adhoc">Ad-hoc Tasks ({adHocTasks.length})</TabsTrigger>
+                <TabsTrigger value="recurring" className="relative">
+                  Recurring Tasks
+                  <Badge variant="secondary" className="ml-2">
+                    {recurringTasks.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="adhoc" className="relative">
+                  Ad-hoc Tasks
+                  <Badge variant="secondary" className="ml-2">
+                    {adHocTasks.length}
+                  </Badge>
+                  {tasksRequiringAttention.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full" />
+                  )}
+                </TabsTrigger>
               </TabsList>
             </div>
             <CardDescription>
@@ -421,8 +543,16 @@ const ClientDetail: React.FC = () => {
             </TabsContent>
           </CardContent>
           
-          <CardFooter>
-            <Button onClick={handleCreateTask} className="ml-auto">
+          <CardFooter className="flex justify-between items-center border-t pt-4">
+            <div className="text-sm text-muted-foreground">
+              {client.status === 'Active' ? (
+                <span>This client is active and can be assigned new tasks</span>
+              ) : (
+                <span>This client is {client.status.toLowerCase()} and may have restricted functionalities</span>
+              )}
+            </div>
+            <Button onClick={handleCreateTask}>
+              <Plus className="mr-2 h-4 w-4" />
               Create New Task
             </Button>
           </CardFooter>

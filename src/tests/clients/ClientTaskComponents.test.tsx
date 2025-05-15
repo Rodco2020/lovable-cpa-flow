@@ -87,6 +87,31 @@ const mockAdHocTasks: TaskInstance[] = [
   }
 ];
 
+// Mock the pagination component since it's primarily visual
+jest.mock('@/components/clients/TaskListPagination', () => ({
+  __esModule: true,
+  default: ({ currentPage, totalPages, onPageChange }) => (
+    <div data-testid="pagination">
+      <button 
+        onClick={() => onPageChange(currentPage > 1 ? currentPage - 1 : 1)}
+        disabled={currentPage === 1}
+        data-testid="prev-page"
+      >
+        Previous
+      </button>
+      <span data-testid="current-page">{currentPage}</span>
+      <span data-testid="total-pages">of {totalPages}</span>
+      <button 
+        onClick={() => onPageChange(currentPage < totalPages ? currentPage + 1 : totalPages)}
+        disabled={currentPage === totalPages}
+        data-testid="next-page"
+      >
+        Next
+      </button>
+    </div>
+  )
+}));
+
 describe('ClientRecurringTaskList', () => {
   test('renders recurring tasks correctly', () => {
     render(<ClientRecurringTaskList tasks={mockRecurringTasks} />);
@@ -105,14 +130,19 @@ describe('ClientRecurringTaskList', () => {
     expect(screen.getByText('Quarterly Tax Filing')).toBeInTheDocument();
   });
 
-  test('sorts tasks correctly', () => {
+  test('sorts tasks correctly with the expanded sorter', () => {
     render(<ClientRecurringTaskList tasks={mockRecurringTasks} />);
     
-    // Change sort order
-    const sortOrderButton = screen.getByText('A→Z');
+    // Change sort field to priority
+    const sortSelect = screen.getByText('Name');
+    fireEvent.click(sortSelect);
+    fireEvent.click(screen.getByText('Priority'));
+    
+    // Change sort direction
+    const sortOrderButton = screen.getAllByText('A→Z')[0];
     fireEvent.click(sortOrderButton);
     
-    // Check if tasks are sorted in descending order
+    // Check if tasks are sorted in descending order by priority
     const taskRows = screen.getAllByRole('row').slice(1); // Skip the header row
     expect(taskRows[0]).toHaveTextContent('Quarterly Tax Filing');
     expect(taskRows[1]).toHaveTextContent('Monthly Bookkeeping');
@@ -132,6 +162,21 @@ describe('ClientRecurringTaskList', () => {
     fireEvent.click(taskRow!);
     
     expect(mockViewTask).toHaveBeenCalledWith('task1');
+  });
+  
+  test('shows pagination when there are more tasks than items per page', () => {
+    // Create more tasks to trigger pagination
+    const manyTasks = Array(10).fill(null).map((_, i) => ({
+      ...mockRecurringTasks[0],
+      id: `task-${i}`,
+      name: `Task ${i}`,
+    }));
+    
+    render(<ClientRecurringTaskList tasks={manyTasks} />);
+    
+    expect(screen.getByTestId('pagination')).toBeInTheDocument();
+    expect(screen.getByTestId('current-page')).toHaveTextContent('1');
+    expect(screen.getByTestId('total-pages')).toHaveTextContent(/of 2/i);
   });
 });
 
@@ -153,11 +198,15 @@ describe('ClientAdHocTaskList', () => {
     expect(screen.getByText('Emergency Tax Consultation')).toBeInTheDocument();
   });
 
-  test('filters tasks by status', () => {
+  test('filters tasks by status with the expanded filter interface', () => {
     render(<ClientAdHocTaskList tasks={mockAdHocTasks} />);
     
-    // Open the status dropdown and select "In Progress"
-    const statusSelect = screen.getByDisplayValue('All');
+    // Open filter popover
+    const filterButton = screen.getByText('Filters');
+    fireEvent.click(filterButton);
+    
+    // Select In Progress status
+    const statusSelect = screen.getByText('All Statuses');
     fireEvent.click(statusSelect);
     fireEvent.click(screen.getByText('In Progress'));
     
@@ -179,5 +228,41 @@ describe('ClientAdHocTaskList', () => {
     fireEvent.click(taskRow!);
     
     expect(mockViewTask).toHaveBeenCalledWith('task3');
+  });
+  
+  test('filters tasks by due date', () => {
+    // Create tasks with different due dates
+    const tasksWithDifferentDueDates = [
+      {
+        ...mockAdHocTasks[0],
+        dueDate: new Date(new Date().setDate(new Date().getDate() - 1)), // yesterday
+        name: 'Past Due Task'
+      },
+      {
+        ...mockAdHocTasks[1],
+        dueDate: new Date(), // today
+        name: 'Due Today Task'
+      },
+      {
+        ...mockAdHocTasks[1],
+        id: 'task-future',
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 5)), // 5 days from now
+        name: 'Upcoming Task'
+      }
+    ];
+    
+    render(<ClientAdHocTaskList tasks={tasksWithDifferentDueDates} />);
+    
+    // Open filter popover
+    const filterButton = screen.getByText('Filters');
+    fireEvent.click(filterButton);
+    
+    // Filter by today
+    const todayButton = screen.getByText('Due Today');
+    fireEvent.click(todayButton);
+    
+    expect(screen.queryByText('Past Due Task')).not.toBeInTheDocument();
+    expect(screen.getByText('Due Today Task')).toBeInTheDocument();
+    expect(screen.queryByText('Upcoming Task')).not.toBeInTheDocument();
   });
 });
