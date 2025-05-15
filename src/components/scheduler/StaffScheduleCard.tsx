@@ -1,141 +1,89 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { format, parse } from "date-fns";
-import { cn } from "@/lib/utils";
 import { Staff } from "@/types/staff";
-import { TimeSlot } from "@/types/staff";
 import { TaskInstance } from "@/types/task";
-import { AvailabilityMask } from "@/services/integrations/schedulerIntegration";
-import { CalendarClock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface StaffScheduleCardProps {
   staff: Staff;
-  date: Date;
-  timeSlots: TimeSlot[];
   selectedTask: TaskInstance | null;
-  availabilityMask?: AvailabilityMask;
-  onScheduleTask: (staffId: string, timeSlotId: string, startTime: string) => void;
+  currentDate: Date;
+  availableSlots: {
+    startTime: string;
+    endTime: string;
+  }[];
+  onSchedule?: (staffId: string, startTime: string, endTime: string) => void;
 }
 
-const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({ 
-  staff, 
-  date, 
-  timeSlots, 
+const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
+  staff,
   selectedTask,
-  availabilityMask,
-  onScheduleTask 
+  currentDate,
+  availableSlots,
+  onSchedule,
 }) => {
-  // Generate time slots for display (8:00 AM to 5:00 PM in 30-minute increments)
-  const timeLabels = Array.from({ length: 18 }, (_, i) => {
-    const hour = Math.floor(i / 2) + 8; // Start at 8 AM
-    const minutes = i % 2 === 0 ? "00" : "30";
-    return `${hour < 10 ? '0' + hour : hour}:${minutes}`;
-  });
-  
-  // Check if a time is within any availability mask slot
-  const isInAvailabilityMask = (time: string): boolean => {
-    if (!availabilityMask) return false;
-    
-    // Check if this time is within any mask slot's range
-    return availabilityMask.availableSlots.some(slot => {
-      return slot.startTime <= time && slot.endTime > time;
-    });
+  const [selectedSlot, setSelectedSlot] = React.useState("");
+
+  const handleSchedule = () => {
+    if (selectedSlot && onSchedule) {
+      const [startTime, endTime] = selectedSlot.split("-");
+      onSchedule(staff.id, startTime, endTime);
+    }
   };
-  
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span>{staff.fullName}</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              {staff.roleTitle}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-normal text-muted-foreground">
-              ${staff.costPerHour}/hour
-            </span>
-            {availabilityMask && (
-              <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                <CalendarClock className="h-3 w-3 mr-1" />
-                <span>Template Available</span>
-              </div>
-            )}
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-[80px_1fr] divide-x overflow-x-auto">
-          <div className="bg-slate-50 text-slate-500">
-            {/* Time labels column */}
-            {timeLabels.map((time, index) => (
-              <div 
-                key={time}
-                className={cn(
-                  "h-12 flex items-center justify-center text-sm border-b",
-                  index % 2 === 0 ? "bg-slate-50" : "bg-slate-100"
-                )}
-              >
-                {time}
-              </div>
-            ))}
-          </div>
-          
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-slate-50 pb-3">
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarFallback>
+              {staff.fullName
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </AvatarFallback>
+            <AvatarImage src={`/placeholder-avatar-${Math.floor(Math.random() * 5) + 1}.jpg`} />
+          </Avatar>
           <div>
-            {/* Schedule column */}
-            {timeLabels.map((time, index) => {
-              // Find time slot for this time
-              const timeStart = time;
-              const slot = timeSlots.find(s => s.startTime === timeStart);
-              const isInTemplateMask = isInAvailabilityMask(time);
-              
-              return (
-                <div 
-                  key={time}
-                  className={cn(
-                    "h-12 p-1 border-b",
-                    index % 2 === 0 ? "bg-white" : "bg-slate-50",
-                    !slot?.isAvailable && "bg-gray-100",
-                    isInTemplateMask && "bg-green-50/30" // Subtle highlight for template availability
-                  )}
-                >
-                  {slot?.isAvailable && !slot.taskId && (
-                    <div className="h-full flex items-center justify-center">
-                      {selectedTask && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className={cn(
-                            "h-8 w-full text-xs text-green-700 border-green-300 bg-green-50 hover:bg-green-100 hover:text-green-800",
-                            isInTemplateMask && "ring-1 ring-green-200"
-                          )}
-                          onClick={() => onScheduleTask(staff.id, slot.id, time)}
-                        >
-                          {isInTemplateMask ? "✓ Schedule Here" : "Schedule Here"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                  
-                  {slot?.taskId && (
-                    <div className="h-full bg-blue-50 border border-blue-200 rounded-md p-2 flex flex-col">
-                      <span className="text-xs text-blue-800 font-medium">Assigned Task</span>
-                    </div>
-                  )}
-                  
-                  {slot && !slot.isAvailable && !slot.taskId && (
-                    <div className="h-full bg-slate-100 border border-slate-200 rounded-md p-1 flex items-center justify-center">
-                      <span className="text-xs text-slate-500">Unavailable</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <CardTitle className="text-base">{staff.fullName}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {staff.roleTitle}
+            </p>
           </div>
         </div>
+      </CardHeader>
+      <CardContent className="p-4">
+        {availableSlots.length === 0 ? (
+          <div className="text-center p-4 text-muted-foreground">
+            No available time slots for this day
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Select value={selectedSlot} onValueChange={setSelectedSlot}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select time slot" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableSlots.map((slot, index) => (
+                  <SelectItem key={index} value={`${slot.startTime}-${slot.endTime}`}>
+                    {slot.startTime} - {slot.endTime}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button 
+              className="w-full"
+              onClick={handleSchedule}
+              disabled={!selectedTask || !selectedSlot}
+            >
+              Schedule
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
