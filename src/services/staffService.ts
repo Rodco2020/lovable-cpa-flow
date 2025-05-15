@@ -1,34 +1,150 @@
-
 import { v4 as uuidv4 } from "uuid";
 import { Staff, TimeSlot, WeeklyAvailability } from "@/types/staff";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for development
-const mockStaff: Staff[] = [
-  {
-    id: "staff-1",
-    fullName: "John Doe",
-    roleTitle: "Senior Accountant",
-    skills: ["skill-1", "skill-3"],
-    costPerHour: 75,
-    email: "john.doe@example.com",
-    phone: "(555) 123-4567",
-    status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "staff-2",
-    fullName: "Jane Smith",
-    roleTitle: "Tax Specialist",
-    skills: ["skill-2", "skill-4"],
-    costPerHour: 85,
-    email: "jane.smith@example.com",
-    phone: "(555) 987-6543",
-    status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+// Staff CRUD operations
+export const getAllStaff = async (): Promise<Staff[]> => {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*');
+  
+  if (error) {
+    console.error("Error fetching staff:", error);
+    throw error;
+  }
+  
+  // Map the database fields to our Staff model
+  return data.map(item => ({
+    id: item.id,
+    fullName: item.full_name,
+    roleTitle: item.role_title || "",
+    skills: item.assigned_skills || [],
+    costPerHour: item.cost_per_hour,
+    email: item.email,
+    phone: item.phone || "",
+    status: item.status,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at
+  }));
+};
+
+export const getStaffById = async (id: string): Promise<Staff | undefined> => {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    if (error.code === 'PGRST116') { // No rows returned
+      return undefined;
+    }
+    console.error("Error fetching staff by ID:", error);
+    throw error;
+  }
+  
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    roleTitle: data.role_title || "",
+    skills: data.assigned_skills || [],
+    costPerHour: data.cost_per_hour,
+    email: data.email,
+    phone: data.phone || "",
+    status: data.status,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
+};
+
+export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "updatedAt">): Promise<Staff> => {
+  const { data, error } = await supabase
+    .from('staff')
+    .insert({
+      full_name: staffData.fullName,
+      role_title: staffData.roleTitle,
+      assigned_skills: staffData.skills,
+      cost_per_hour: staffData.costPerHour,
+      email: staffData.email,
+      phone: staffData.phone,
+      status: staffData.status
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error creating staff:", error);
+    throw error;
+  }
+  
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    roleTitle: data.role_title || "",
+    skills: data.assigned_skills || [],
+    costPerHour: data.cost_per_hour,
+    email: data.email,
+    phone: data.phone || "",
+    status: data.status,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
+};
+
+export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id" | "createdAt">>): Promise<Staff | undefined> => {
+  // Map the Staff model fields to database fields
+  const dbData: any = {};
+  
+  if (staffData.fullName !== undefined) dbData.full_name = staffData.fullName;
+  if (staffData.roleTitle !== undefined) dbData.role_title = staffData.roleTitle;
+  if (staffData.skills !== undefined) dbData.assigned_skills = staffData.skills;
+  if (staffData.costPerHour !== undefined) dbData.cost_per_hour = staffData.costPerHour;
+  if (staffData.email !== undefined) dbData.email = staffData.email;
+  if (staffData.phone !== undefined) dbData.phone = staffData.phone;
+  if (staffData.status !== undefined) dbData.status = staffData.status;
+  
+  const { data, error } = await supabase
+    .from('staff')
+    .update(dbData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error updating staff:", error);
+    throw error;
+  }
+  
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    roleTitle: data.role_title || "",
+    skills: data.assigned_skills || [],
+    costPerHour: data.cost_per_hour,
+    email: data.email,
+    phone: data.phone || "",
+    status: data.status,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
+};
+
+export const deleteStaff = async (id: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('staff')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error("Error deleting staff:", error);
+    throw error;
+  }
+  
+  return true;
+};
+
+// For now, we'll keep the mock implementations for TimeSlot operations,
+// but we can implement them with Supabase in a future update
 
 // Mock timeslots for the current day
 const generateMockTimeSlots = (date: string): TimeSlot[] => {
@@ -78,54 +194,6 @@ const mockWeeklyAvailability: WeeklyAvailability[] = mockStaff.flatMap(staff => 
     ];
   });
 });
-
-// Staff CRUD operations
-export const getAllStaff = async (): Promise<Staff[]> => {
-  return Promise.resolve([...mockStaff]);
-};
-
-export const getStaffById = async (id: string): Promise<Staff | undefined> => {
-  return Promise.resolve(mockStaff.find(staff => staff.id === id));
-};
-
-export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "updatedAt">): Promise<Staff> => {
-  const newStaff: Staff = {
-    id: uuidv4(),
-    ...staffData,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  
-  mockStaff.push(newStaff);
-  return Promise.resolve(newStaff);
-};
-
-export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id" | "createdAt">>): Promise<Staff | undefined> => {
-  const index = mockStaff.findIndex(staff => staff.id === id);
-  
-  if (index === -1) {
-    return Promise.resolve(undefined);
-  }
-  
-  mockStaff[index] = {
-    ...mockStaff[index],
-    ...staffData,
-    updatedAt: new Date().toISOString(),
-  };
-  
-  return Promise.resolve(mockStaff[index]);
-};
-
-export const deleteStaff = async (id: string): Promise<boolean> => {
-  const index = mockStaff.findIndex(staff => staff.id === id);
-  
-  if (index === -1) {
-    return Promise.resolve(false);
-  }
-  
-  mockStaff.splice(index, 1);
-  return Promise.resolve(true);
-};
 
 // TimeSlot operations
 export const getTimeSlotsByDate = async (date: string): Promise<TimeSlot[]> => {

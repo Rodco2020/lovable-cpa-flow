@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CustomBadge } from "@/components/ui/custom-badge"; // Updated import
+import { CustomBadge } from "@/components/ui/custom-badge";
 
 const StaffList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +37,7 @@ const StaffList: React.FC = () => {
   }
 
   if (error) {
-    return <div className="text-red-500 p-4">Error loading staff data</div>;
+    return <div className="text-red-500 p-4">Error loading staff data: {(error as Error).message}</div>;
   }
 
   return (

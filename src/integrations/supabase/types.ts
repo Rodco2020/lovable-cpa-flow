@@ -222,10 +222,11 @@ export type Database = {
           cost_per_hour: number
           created_at: string
           email: string
+          full_name: string
           id: string
-          is_active: boolean
-          name: string
           phone: string | null
+          role_title: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -233,10 +234,11 @@ export type Database = {
           cost_per_hour?: number
           created_at?: string
           email: string
+          full_name: string
           id?: string
-          is_active?: boolean
-          name: string
           phone?: string | null
+          role_title?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -244,10 +246,11 @@ export type Database = {
           cost_per_hour?: number
           created_at?: string
           email?: string
+          full_name?: string
           id?: string
-          is_active?: boolean
-          name?: string
           phone?: string | null
+          role_title?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
