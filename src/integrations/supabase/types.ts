@@ -9,7 +9,391 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          billing_address: string
+          billing_frequency: string
+          created_at: string
+          default_task_priority: string
+          email: string
+          expected_monthly_revenue: number
+          id: string
+          industry: string
+          legal_name: string
+          notification_preferences: Json
+          payment_terms: string
+          phone: string
+          primary_contact: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          billing_address: string
+          billing_frequency: string
+          created_at?: string
+          default_task_priority: string
+          email: string
+          expected_monthly_revenue: number
+          id?: string
+          industry: string
+          legal_name: string
+          notification_preferences?: Json
+          payment_terms: string
+          phone: string
+          primary_contact: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          billing_address?: string
+          billing_frequency?: string
+          created_at?: string
+          default_task_priority?: string
+          email?: string
+          expected_monthly_revenue?: number
+          id?: string
+          industry?: string
+          legal_name?: string
+          notification_preferences?: Json
+          payment_terms?: string
+          phone?: string
+          primary_contact?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recurring_tasks: {
+        Row: {
+          category: string
+          client_id: string
+          created_at: string
+          custom_offset_days: number | null
+          day_of_month: number | null
+          description: string | null
+          due_date: string | null
+          end_date: string | null
+          estimated_hours: number
+          id: string
+          is_active: boolean
+          last_generated_date: string | null
+          month_of_year: number | null
+          name: string
+          notes: string | null
+          priority: string
+          recurrence_interval: number | null
+          recurrence_type: string
+          required_skills: string[]
+          status: string
+          template_id: string
+          updated_at: string
+          weekdays: number[] | null
+        }
+        Insert: {
+          category: string
+          client_id: string
+          created_at?: string
+          custom_offset_days?: number | null
+          day_of_month?: number | null
+          description?: string | null
+          due_date?: string | null
+          end_date?: string | null
+          estimated_hours: number
+          id?: string
+          is_active?: boolean
+          last_generated_date?: string | null
+          month_of_year?: number | null
+          name: string
+          notes?: string | null
+          priority: string
+          recurrence_interval?: number | null
+          recurrence_type: string
+          required_skills: string[]
+          status?: string
+          template_id: string
+          updated_at?: string
+          weekdays?: number[] | null
+        }
+        Update: {
+          category?: string
+          client_id?: string
+          created_at?: string
+          custom_offset_days?: number | null
+          day_of_month?: number | null
+          description?: string | null
+          due_date?: string | null
+          end_date?: string | null
+          estimated_hours?: number
+          id?: string
+          is_active?: boolean
+          last_generated_date?: string | null
+          month_of_year?: number | null
+          name?: string
+          notes?: string | null
+          priority?: string
+          recurrence_interval?: number | null
+          recurrence_type?: string
+          required_skills?: string[]
+          status?: string
+          template_id?: string
+          updated_at?: string
+          weekdays?: number[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_tasks_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skills: {
+        Row: {
+          cost_per_hour: number
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          cost_per_hour: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          cost_per_hour?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff: {
+        Row: {
+          assigned_skills: string[]
+          cost_per_hour: number
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_skills: string[]
+          cost_per_hour?: number
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_skills?: string[]
+          cost_per_hour?: number
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_availability: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          id: string
+          is_available: boolean
+          staff_id: string
+          time_slot: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          id?: string
+          is_available?: boolean
+          staff_id: string
+          time_slot: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          is_available?: boolean
+          staff_id?: string
+          time_slot?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_instances: {
+        Row: {
+          assigned_staff_id: string | null
+          category: string
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          estimated_hours: number
+          id: string
+          name: string
+          notes: string | null
+          priority: string
+          recurring_task_id: string | null
+          required_skills: string[]
+          scheduled_end_time: string | null
+          scheduled_start_time: string | null
+          status: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          category: string
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_hours: number
+          id?: string
+          name: string
+          notes?: string | null
+          priority: string
+          recurring_task_id?: string | null
+          required_skills: string[]
+          scheduled_end_time?: string | null
+          scheduled_start_time?: string | null
+          status?: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          category?: string
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          priority?: string
+          recurring_task_id?: string | null
+          required_skills?: string[]
+          scheduled_end_time?: string | null
+          scheduled_start_time?: string | null
+          status?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_instances_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_recurring_task_id_fkey"
+            columns: ["recurring_task_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_templates: {
+        Row: {
+          category: string
+          created_at: string
+          default_estimated_hours: number
+          default_priority: string
+          description: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          required_skills: string[]
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          default_estimated_hours: number
+          default_priority: string
+          description?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          required_skills: string[]
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          default_estimated_hours?: number
+          default_priority?: string
+          description?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          required_skills?: string[]
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
