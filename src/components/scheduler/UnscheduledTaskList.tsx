@@ -47,11 +47,20 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
   };
 
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (task.clientName && task.clientName.toLowerCase().includes(searchQuery.toLowerCase()));
+    // Fix for undefined properties: safely check if properties exist before using toLowerCase()
+    const nameMatch = task.name && searchQuery ? 
+      task.name.toLowerCase().includes(searchQuery.toLowerCase()) : 
+      !searchQuery;
     
+    const clientMatch = task.clientId && searchQuery ? 
+      task.clientId.toLowerCase().includes(searchQuery.toLowerCase()) : 
+      !searchQuery;
+    
+    const matchesSearch = nameMatch || clientMatch;
+    
+    // Make sure to match the correct priority format from the TaskPriority type
     const matchesPriority = priorityFilter === "all" || 
-      task.priority === priorityFilter;
+      task.priority.toLowerCase() === priorityFilter.toLowerCase();
     
     return matchesSearch && matchesPriority;
   });
@@ -105,20 +114,20 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
               className="flex justify-between items-center p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"
             >
               <div className="flex-1">
-                <h4 className="font-medium">{task.title}</h4>
+                <h4 className="font-medium">{task.name}</h4>
                 <div className="flex gap-2 text-sm text-muted-foreground">
-                  <span>{task.clientName || "No client"}</span>
+                  <span>{task.clientId || "No client"}</span>
                   <span>•</span>
                   <span>{task.estimatedHours} hours</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className={`px-2 py-1 text-xs rounded-full ${
-                  task.priority === "high" ? "bg-red-100 text-red-800" :
-                  task.priority === "medium" ? "bg-yellow-100 text-yellow-800" :
+                  task.priority.toLowerCase() === "high" ? "bg-red-100 text-red-800" :
+                  task.priority.toLowerCase() === "medium" ? "bg-yellow-100 text-yellow-800" :
                   "bg-green-100 text-green-800"
                 }`}>
-                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
                 </div>
                 <Button variant="outline" size="sm">
                   Assign

@@ -75,15 +75,10 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   }, [formattedDate]);
   
   // Handle scheduling a task
-  const handleScheduleTask = async (staffId: string, timeSlotId: string, startTime: string) => {
+  const handleScheduleTask = async (staffId: string, startTime: string, endTime: string) => {
     if (!selectedTask) return;
     
     try {
-      // Parse start time and create an end time 1 hour later
-      const [hour, minute] = startTime.split(":").map(Number);
-      const endHour = hour + 1;
-      const endTime = `${endHour < 10 ? '0' + endHour : endHour}:${minute < 10 ? '0' + minute : minute}`;
-      
       // Schedule the task
       await scheduleTask(
         selectedTask.id,
@@ -133,10 +128,23 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   const filteredStaff = selectedTask && selectedTask.requiredSkills && selectedTask.requiredSkills.length > 0
     ? staff.filter(s => 
         selectedTask.requiredSkills.some(skill => 
-          s.skills.includes(skill)
+          s.assigned_skills && s.assigned_skills.includes(skill)
         )
       )
     : staff;
+  
+  // Convert availability masks to available slots for the schedule card
+  const getAvailableSlots = (staffId: string) => {
+    const mask = availabilityMasks[staffId];
+    if (!mask || !mask.slots) return [];
+    
+    return mask.slots
+      .filter(slot => slot.available)
+      .map(slot => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime
+      }));
+  };
   
   if (loading) {
     return (
@@ -174,11 +182,10 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
           <StaffScheduleCard
             key={s.id}
             staff={s}
-            date={currentDate}
-            timeSlots={timeSlots[s.id] || []}
+            currentDate={currentDate}
+            availableSlots={getAvailableSlots(s.id)}
             selectedTask={selectedTask}
-            onScheduleTask={handleScheduleTask}
-            availabilityMask={availabilityMasks[s.id]}
+            onSchedule={(staffId, startTime, endTime) => handleScheduleTask(staffId, startTime, endTime)}
           />
         ))}
       </div>
