@@ -1,111 +1,198 @@
 
-import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/lib/supabaseClient";
 import { Skill, ProficiencyLevel, SkillCategory } from "@/types/skill";
-
-// Mock data for development
-const mockSkills: Skill[] = [
-  {
-    id: "skill-1",
-    name: "Tax Preparation",
-    description: "Preparation of various tax returns including individual and business filings",
-    proficiencyLevel: "Expert",
-    category: "Tax",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "skill-2",
-    name: "Bookkeeping",
-    description: "Monthly and quarterly bookkeeping services",
-    proficiencyLevel: "Intermediate",
-    category: "Bookkeeping",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "skill-3",
-    name: "Audit",
-    description: "Financial statement audit services",
-    proficiencyLevel: "Expert",
-    category: "Audit",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "skill-4",
-    name: "Payroll Tax",
-    description: "Preparation and filing of payroll tax returns",
-    proficiencyLevel: "Intermediate",
-    category: "Tax",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
 
 // CRUD operations
 export const getAllSkills = async (): Promise<Skill[]> => {
-  return Promise.resolve([...mockSkills]);
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*");
+  
+  if (error) {
+    console.error("Error fetching skills:", error);
+    throw new Error(error.message);
+  }
+  
+  // Map the Supabase data to our Skill type
+  return data.map((item: any): Skill => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    proficiencyLevel: item.proficiency_level as ProficiencyLevel,
+    category: item.category as SkillCategory,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  }));
 };
 
 export const getSkillById = async (id: string): Promise<Skill | undefined> => {
-  return Promise.resolve(mockSkills.find(skill => skill.id === id));
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*")
+    .eq("id", id)
+    .single();
+  
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return undefined; // Skill not found
+    }
+    console.error("Error fetching skill:", error);
+    throw new Error(error.message);
+  }
+  
+  if (!data) return undefined;
+  
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    proficiencyLevel: data.proficiency_level as ProficiencyLevel,
+    category: data.category as SkillCategory,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 };
 
 export const createSkill = async (skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">): Promise<Skill> => {
-  const newSkill: Skill = {
-    id: uuidv4(),
-    ...skillData,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const { data, error } = await supabase
+    .from("skills")
+    .insert({
+      name: skillData.name,
+      description: skillData.description,
+      category: skillData.category,
+      proficiency_level: skillData.proficiencyLevel,
+    })
+    .select()
+    .single();
   
-  mockSkills.push(newSkill);
-  return Promise.resolve(newSkill);
+  if (error) {
+    console.error("Error creating skill:", error);
+    throw new Error(error.message);
+  }
+  
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    proficiencyLevel: data.proficiency_level as ProficiencyLevel,
+    category: data.category as SkillCategory,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 };
 
 export const updateSkill = async (id: string, skillData: Partial<Omit<Skill, "id" | "createdAt">>): Promise<Skill | undefined> => {
-  const index = mockSkills.findIndex(skill => skill.id === id);
+  const updateData: any = {};
   
-  if (index === -1) {
-    return Promise.resolve(undefined);
+  if (skillData.name) updateData.name = skillData.name;
+  if (skillData.description !== undefined) updateData.description = skillData.description;
+  if (skillData.category) updateData.category = skillData.category;
+  if (skillData.proficiencyLevel) updateData.proficiency_level = skillData.proficiencyLevel;
+  
+  const { data, error } = await supabase
+    .from("skills")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error updating skill:", error);
+    throw new Error(error.message);
   }
   
-  mockSkills[index] = {
-    ...mockSkills[index],
-    ...skillData,
-    updatedAt: new Date().toISOString(),
-  };
+  if (!data) return undefined;
   
-  return Promise.resolve(mockSkills[index]);
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    proficiencyLevel: data.proficiency_level as ProficiencyLevel,
+    category: data.category as SkillCategory,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 };
 
 export const deleteSkill = async (id: string): Promise<boolean> => {
-  const index = mockSkills.findIndex(skill => skill.id === id);
+  const { error } = await supabase
+    .from("skills")
+    .delete()
+    .eq("id", id);
   
-  if (index === -1) {
-    return Promise.resolve(false);
+  if (error) {
+    console.error("Error deleting skill:", error);
+    throw new Error(error.message);
   }
   
-  mockSkills.splice(index, 1);
-  return Promise.resolve(true);
+  return true;
 };
 
 // Advanced operations
 export const getSkillsByCategory = async (category: SkillCategory): Promise<Skill[]> => {
-  return Promise.resolve(mockSkills.filter(skill => skill.category === category));
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*")
+    .eq("category", category);
+  
+  if (error) {
+    console.error("Error fetching skills by category:", error);
+    throw new Error(error.message);
+  }
+  
+  return data.map((item: any): Skill => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    proficiencyLevel: item.proficiency_level as ProficiencyLevel,
+    category: item.category as SkillCategory,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  }));
 };
 
 export const getSkillsByProficiencyLevel = async (level: ProficiencyLevel): Promise<Skill[]> => {
-  return Promise.resolve(mockSkills.filter(skill => skill.proficiencyLevel === level));
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*")
+    .eq("proficiency_level", level);
+  
+  if (error) {
+    console.error("Error fetching skills by proficiency level:", error);
+    throw new Error(error.message);
+  }
+  
+  return data.map((item: any): Skill => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    proficiencyLevel: item.proficiency_level as ProficiencyLevel,
+    category: item.category as SkillCategory,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  }));
 };
 
 export const searchSkills = async (query: string): Promise<Skill[]> => {
   const lowercaseQuery = query.toLowerCase();
-  return Promise.resolve(
-    mockSkills.filter(
-      skill => 
-        skill.name.toLowerCase().includes(lowercaseQuery) || 
-        (skill.description && skill.description.toLowerCase().includes(lowercaseQuery))
-    )
-  );
+  
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*")
+    .or(`name.ilike.%${lowercaseQuery}%,description.ilike.%${lowercaseQuery}%`);
+  
+  if (error) {
+    console.error("Error searching skills:", error);
+    throw new Error(error.message);
+  }
+  
+  return data.map((item: any): Skill => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    proficiencyLevel: item.proficiency_level as ProficiencyLevel,
+    category: item.category as SkillCategory,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  }));
 };
