@@ -16,7 +16,8 @@ import {
   FinancialProjection,
   GranularityType,
   ForecastMode,
-  ForecastTimeframe
+  ForecastTimeframe,
+  SkillAllocationStrategy
 } from '@/types/forecasting';
 import { SkillType, RecurringTask } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
