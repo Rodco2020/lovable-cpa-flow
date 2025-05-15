@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -76,9 +76,41 @@ const ClientForm: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isEditMode = !!id;
+  const [isLoading, setIsLoading] = useState(false);
+  const [client, setClient] = useState<Client | null>(null);
+  const [isClientLoading, setIsClientLoading] = useState(isEditMode);
   
   // Fetch client data if in edit mode
-  const client = isEditMode ? getClientById(id!) : null;
+  useEffect(() => {
+    const fetchClient = async () => {
+      if (isEditMode) {
+        try {
+          const fetchedClient = await getClientById(id!);
+          if (fetchedClient) {
+            setClient(fetchedClient);
+          } else {
+            toast({
+              title: "Client not found",
+              description: "The requested client could not be found.",
+              variant: "destructive"
+            });
+            navigate('/clients');
+          }
+        } catch (error) {
+          console.error("Error fetching client:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load client details.",
+            variant: "destructive"
+          });
+        } finally {
+          setIsClientLoading(false);
+        }
+      }
+    };
+    
+    fetchClient();
+  }, [id, isEditMode, navigate, toast]);
   
   // Initialize form with client data or defaults
   const form = useForm<ClientFormValues>({
@@ -118,7 +150,27 @@ const ClientForm: React.FC = () => {
     }
   });
   
-  const onSubmit = (data: ClientFormValues) => {
+  // Update form values when client data is loaded
+  useEffect(() => {
+    if (client && isEditMode) {
+      Object.keys(client).forEach(key => {
+        const clientKey = key as keyof Client;
+        if (clientKey !== 'id' && clientKey !== 'createdAt' && clientKey !== 'updatedAt') {
+          if (clientKey === 'notificationPreferences') {
+            form.setValue('notificationPreferences.emailReminders', client.notificationPreferences.emailReminders);
+            form.setValue('notificationPreferences.taskNotifications', client.notificationPreferences.taskNotifications);
+          } else {
+            // @ts-ignore - This is a bit hacky but works for our known properties
+            form.setValue(clientKey, client[clientKey]);
+          }
+        }
+      });
+    }
+  }, [client, form, isEditMode]);
+  
+  const onSubmit = async (data: ClientFormValues) => {
+    setIsLoading(true);
+    
     // Create a properly typed client data object that meets the required interfaces
     const clientData = {
       legalName: data.legalName,
@@ -138,26 +190,49 @@ const ClientForm: React.FC = () => {
       },
     };
 
-    if (isEditMode && client) {
-      updateClient(client.id, clientData);
+    try {
+      if (isEditMode && client) {
+        const updatedClient = await updateClient(client.id, clientData);
+        if (updatedClient) {
+          toast({
+            title: "Client updated",
+            description: `${data.legalName} has been updated successfully.`,
+          });
+          navigate('/clients');
+        }
+      } else {
+        const newClient = await createClient(clientData);
+        if (newClient) {
+          toast({
+            title: "Client created",
+            description: `${data.legalName} has been added successfully.`,
+          });
+          navigate('/clients');
+        }
+      }
+    } catch (error) {
+      console.error("Error saving client:", error);
       toast({
-        title: "Client updated",
-        description: `${data.legalName} has been updated successfully.`,
+        title: "Error",
+        description: "Failed to save client data.",
+        variant: "destructive"
       });
-    } else {
-      createClient(clientData);
-      toast({
-        title: "Client created",
-        description: `${data.legalName} has been added successfully.`,
-      });
+    } finally {
+      setIsLoading(false);
     }
-    navigate('/clients');
   };
 
-  // Redirect if client not found in edit mode
-  if (isEditMode && !client) {
-    navigate('/clients');
-    return null;
+  // Show loading state
+  if (isClientLoading) {
+    return (
+      <Card className="max-w-4xl mx-auto">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center h-64">
+            <p>Loading client data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
   
   return (
@@ -475,12 +550,19 @@ const ClientForm: React.FC = () => {
               type="button" 
               variant="outline" 
               onClick={() => navigate('/clients')}
+              disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button type="submit">
-              <Save className="mr-2 h-4 w-4" />
-              {isEditMode ? 'Update Client' : 'Save Client'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <span>Saving...</span>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isEditMode ? 'Update Client' : 'Save Client'}
+                </>
+              )}
             </Button>
           </CardFooter>
         </form>
