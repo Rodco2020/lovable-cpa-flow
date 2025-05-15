@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -5,7 +6,7 @@ import {
   Route,
   Navigate,
 } from 'react-router-dom';
-import { MainLayout } from '@/layouts/MainLayout';
+import MainLayout from '@/layouts/MainLayout';
 import DashboardModule from '@/pages/DashboardModule';
 import StaffModule from '@/pages/StaffModule';
 import SchedulerModule from '@/pages/SchedulerModule';
