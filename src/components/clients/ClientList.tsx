@@ -44,7 +44,8 @@ import {
   Trash2, 
   Plus, 
   FileText,
-  Loader2 
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -55,6 +56,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 const ClientList: React.FC = () => {
   const navigate = useNavigate();
@@ -63,10 +69,12 @@ const ClientList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
   const [industryFilter, setIndustryFilter] = useState<IndustryType | 'all'>('all');
   const [clients, setClients] = useState<Client[]>([]);
+  const [unfilteredClients, setUnfilteredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [filtersEnabled, setFiltersEnabled] = useState(true);
   
   // Fetch clients
   useEffect(() => {
@@ -74,20 +82,29 @@ const ClientList: React.FC = () => {
       setIsLoading(true);
       setFetchError(null);
       try {
-        console.log("Fetching clients with filters:", { 
+        console.log("Debug - Starting to fetch clients");
+        console.log("Debug - Current filters:", { 
           status: statusFilter !== 'all' ? [statusFilter] : undefined,
-          industry: industryFilter !== 'all' ? [industryFilter] : undefined
+          industry: industryFilter !== 'all' ? [industryFilter] : undefined,
+          filtersEnabled
         });
         
-        const filtersToApply = (statusFilter !== 'all' || industryFilter !== 'all') 
+        // First fetch all clients with no filters for debugging
+        const allClients = await getClients();
+        console.log("Debug - All clients without filters:", allClients);
+        setUnfilteredClients(allClients);
+        
+        // Now fetch with filters if enabled
+        const filtersToApply = (filtersEnabled && (statusFilter !== 'all' || industryFilter !== 'all')) 
           ? {
               status: statusFilter !== 'all' ? [statusFilter] : undefined,
               industry: industryFilter !== 'all' ? [industryFilter] : undefined
             }
           : undefined;
         
+        console.log("Debug - Filters to apply:", filtersToApply);
         const fetchedClients = await getClients(filtersToApply);
-        console.log("Fetched clients:", fetchedClients);
+        console.log("Debug - Filtered clients result:", fetchedClients);
         
         setClients(fetchedClients);
       } catch (error) {
@@ -104,7 +121,7 @@ const ClientList: React.FC = () => {
     };
     
     fetchClients();
-  }, [statusFilter, industryFilter, toast]);
+  }, [statusFilter, industryFilter, filtersEnabled, toast]);
   
   // Further filter by search term
   const filteredClients = clients.filter(client => 
@@ -113,7 +130,7 @@ const ClientList: React.FC = () => {
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  console.log("After search filter, client count:", filteredClients.length);
+  console.log("Debug - After search filter, clients:", filteredClients);
   
   // Handle client deletion
   const handleDeleteClick = (client: Client) => {
@@ -126,7 +143,6 @@ const ClientList: React.FC = () => {
     setIsDeleting(true);
     try {
       const success = await deleteClient(clientToDelete.id);
-      // Fixed: Don't check void return for truthiness
       setClients(clients.filter(c => c.id !== clientToDelete.id));
       toast({
         title: "Client deleted",
@@ -142,6 +158,21 @@ const ClientList: React.FC = () => {
     } finally {
       setIsDeleting(false);
       setClientToDelete(null);
+    }
+  };
+  
+  const toggleFilters = () => {
+    setFiltersEnabled(!filtersEnabled);
+    if (filtersEnabled) {
+      toast({
+        title: "Filters disabled",
+        description: "Showing all clients regardless of filter settings.",
+      });
+    } else {
+      toast({
+        title: "Filters enabled",
+        description: "Applying selected filters to clients.",
+      });
     }
   };
   
@@ -170,10 +201,19 @@ const ClientList: React.FC = () => {
               <CardTitle>Client Directory</CardTitle>
               <CardDescription>Manage your client relationships</CardDescription>
             </div>
-            <Button onClick={() => navigate('/clients/new')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Client
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={toggleFilters}
+                className={filtersEnabled ? "" : "bg-amber-100"}
+              >
+                {filtersEnabled ? "Disable Filters" : "Enable Filters"}
+              </Button>
+              <Button onClick={() => navigate('/clients/new')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Client
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -235,6 +275,27 @@ const ClientList: React.FC = () => {
                 {fetchError}
               </p>
             </div>
+          )}
+          
+          {unfilteredClients.length > 0 && filteredClients.length === 0 && (
+            <Alert className="mb-4" variant="warning">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No clients match your filters</AlertTitle>
+              <AlertDescription>
+                There are {unfilteredClients.length} client(s) in the database, but none match your current filters.
+                <Button 
+                  variant="link" 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                    setIndustryFilter('all');
+                  }}
+                  className="p-0 h-auto ml-2"
+                >
+                  Clear filters
+                </Button>
+              </AlertDescription>
+            </Alert>
           )}
           
           <div className="rounded-md border">
@@ -329,6 +390,16 @@ const ClientList: React.FC = () => {
               </TableBody>
             </Table>
           </div>
+          
+          {unfilteredClients.length > 0 && (
+            <div className="mt-4 p-2 bg-slate-50 rounded-md text-sm text-slate-600">
+              <p>Debug Info:</p>
+              <p>Total clients in database: {unfilteredClients.length}</p>
+              <p>Clients after status/industry filters: {clients.length}</p>
+              <p>Clients after search filter: {filteredClients.length}</p>
+              <p>Current filters: Status={statusFilter}, Industry={industryFilter}, Filters enabled={filtersEnabled ? "Yes" : "No"}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
       

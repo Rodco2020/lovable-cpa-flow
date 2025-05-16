@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +11,9 @@ let clients: Client[] = [];
 const mapSupabaseDataToClient = (data: any): Client => {
   if (!data) throw new Error("Invalid data from Supabase");
   
-  return {
+  console.log("Raw client data from Supabase:", data);
+  
+  const mappedClient = {
     id: data.id || "",
     legalName: data.legal_name || "",
     primaryContact: data.primary_contact || "",
@@ -32,6 +33,9 @@ const mapSupabaseDataToClient = (data: any): Client => {
     createdAt: data.created_at ? new Date(data.created_at) : new Date(),
     updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
   };
+  
+  console.log("Mapped client:", mappedClient);
+  return mappedClient;
 };
 
 // Map our Client model to Supabase data
@@ -60,7 +64,7 @@ export const getClients = async (filters?: { status?: ClientStatus[]; industry?:
 // Get all clients
 export const getAllClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
   try {
-    console.log("Fetching clients from Supabase with filters:", filters);
+    console.log("Fetching clients from Supabase with filters:", JSON.stringify(filters, null, 2));
     let query = supabase
       .from('clients')
       .select('*')
@@ -83,15 +87,25 @@ export const getAllClients = async (filters?: { status?: ClientStatus[]; industr
       return clients; // Fallback to in-memory
     }
 
-    console.log("Received data from Supabase:", data);
+    console.log("Raw data from Supabase query:", data);
     
     if (!data || data.length === 0) {
       console.log("No clients found in Supabase, returning empty array");
       return [];
     }
     
+    // Log each client data to check values
+    data.forEach(client => {
+      console.log("Client from Supabase:", {
+        id: client.id,
+        legal_name: client.legal_name,
+        status: client.status, 
+        industry: client.industry
+      });
+    });
+    
     const mappedClients = data.map(mapSupabaseDataToClient);
-    console.log("Mapped clients:", mappedClients);
+    console.log("All mapped clients:", mappedClients);
     return mappedClients;
   } catch (error) {
     console.error('Error fetching clients:', error);
