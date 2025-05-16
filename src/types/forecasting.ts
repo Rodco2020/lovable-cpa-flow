@@ -84,5 +84,11 @@ export interface TaskBreakdownItem {
   status?: string;
 }
 
+// Adding ClientTaskBreakdown interface
+export interface ClientTaskBreakdown {
+  totalMonthlyHours: number;
+  categoryBreakdown: Record<string, number>;
+}
+
 // Re-export SkillType using 'export type' for TypeScript with isolatedModules
 export type { SkillType };

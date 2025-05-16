@@ -17,7 +17,9 @@ import {
   GranularityType,
   ForecastMode,
   ForecastTimeframe,
-  SkillAllocationStrategy
+  SkillAllocationStrategy,
+  ClientTaskBreakdown,
+  TaskBreakdownItem
 } from '@/types/forecasting';
 import { SkillType, RecurringTask } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
@@ -253,7 +255,7 @@ const calculateDemand = async (
   
   if (mode === 'virtual') {
     // Virtual demand is based on recurring tasks
-    const recurringTasks = getRecurringTasks();
+    const recurringTasks = await getRecurringTasks();
     
     debugLog(`Found ${recurringTasks.length} recurring tasks for virtual demand calculation`);
     
@@ -1010,13 +1012,13 @@ export const calculateTotalDemandForSkill = async (
     let totalDemand = 0;
     const recurringTasks = await getRecurringTasks(true);
     
-    recurringTasks.forEach(task => {
+    for (const task of recurringTasks) {
       if (task.requiredSkills.includes(skillId as any)) {
         // Calculate demand for this task within the date range
         const demand = await calculateDemandForTask(task, startDate, endDate);
         totalDemand += demand;
       }
-    });
+    }
     
     return totalDemand;
   } catch (error) {
