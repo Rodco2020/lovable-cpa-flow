@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { 
   TaskTemplate, 
@@ -39,8 +40,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { toast } from '@/hooks/use-toast';
-import { Plus, Calendar, Clock, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { Plus, Calendar, Clock, Users, Loader } from 'lucide-react';
 
 const CreateClientTask: React.FC = () => {
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
@@ -48,7 +49,8 @@ const CreateClientTask: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   // Form state for the task
   const [taskForm, setTaskForm] = useState({
@@ -78,11 +80,7 @@ const CreateClientTask: React.FC = () => {
         setTaskTemplates(templates);
       } catch (error) {
         console.error('Error loading task templates:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load task templates.",
-          variant: "destructive"
-        });
+        toast.error("Failed to load task templates");
       }
     };
     
@@ -90,14 +88,15 @@ const CreateClientTask: React.FC = () => {
     
     // Load clients
     const fetchClients = async () => {
-      setIsLoading(true);
+      setIsSubmitting(true);
       try {
         const clientData = await getAllClients();
         setClients(clientData);
       } catch (error) {
         console.error('Error fetching clients:', error);
+        toast.error("Failed to load clients");
       } finally {
-        setIsLoading(false);
+        setIsSubmitting(false);
       }
     };
     
@@ -129,10 +128,25 @@ const CreateClientTask: React.FC = () => {
     } else {
       setTaskForm({ ...taskForm, [name]: value });
     }
+
+    // Clear validation error when field is updated
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: ''
+      });
+    }
   };
 
   const handleClientChange = (clientId: string) => {
     setTaskForm({ ...taskForm, clientId });
+    // Clear validation error
+    if (formErrors.clientId) {
+      setFormErrors({
+        ...formErrors,
+        clientId: ''
+      });
+    }
   };
   
   const handleWeekdayChange = (day: number, checked: boolean) => {
@@ -173,40 +187,70 @@ const CreateClientTask: React.FC = () => {
     return pattern;
   };
   
-  const handleSubmit = () => {
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
     if (!selectedTemplate) {
-      toast({
-        title: "Missing Template",
-        description: "Please select a task template first.",
-        variant: "destructive"
-      });
-      return;
+      errors.templateId = "Please select a task template";
     }
     
     if (!taskForm.clientId) {
-      toast({
-        title: "Missing Client",
-        description: "Please select a client.",
-        variant: "destructive"
-      });
+      errors.clientId = "Please select a client";
+    }
+    
+    if (!taskForm.name.trim()) {
+      errors.name = "Task name is required";
+    }
+    
+    if (taskForm.estimatedHours <= 0) {
+      errors.estimatedHours = "Estimated hours must be greater than 0";
+    }
+    
+    if (isRecurring) {
+      if (!taskForm.dueDate) {
+        errors.dueDate = "First due date is required";
+      }
+      
+      if (taskForm.recurrenceType === 'Weekly' && taskForm.weekdays.length === 0) {
+        errors.weekdays = "Please select at least one weekday";
+      }
+    } else if (!taskForm.dueDate) {
+      errors.dueDate = "Due date is required";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      // Scroll to the first error if any
+      const firstErrorField = Object.keys(formErrors)[0];
+      const errorElement = document.getElementById(firstErrorField);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
     
+    if (!selectedTemplate) {
+      toast.error("Please select a task template");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
+      // Show in-progress toast
+      const loadingToast = toast.loading(
+        isRecurring ? "Creating recurring task..." : "Creating ad-hoc task..."
+      );
+      
       if (isRecurring) {
         // Create recurring task
         const recurrencePattern = buildRecurrencePattern();
         
-        if (!taskForm.dueDate) {
-          toast({
-            title: "Missing Due Date",
-            description: "Please specify the first due date.",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        createRecurringTask({
+        const newTask = await createRecurringTask({
           templateId: selectedTemplate.id,
           clientId: taskForm.clientId,
           name: taskForm.name,
@@ -219,22 +263,18 @@ const CreateClientTask: React.FC = () => {
           recurrencePattern
         });
         
-        toast({
-          title: "Recurring Task Created",
-          description: "The recurring task has been created successfully.",
-        });
+        toast.dismiss(loadingToast);
+        
+        if (newTask) {
+          toast.success("Recurring task created successfully!");
+          // Reset form and close dialog
+          resetFormAndCloseDialog();
+        } else {
+          toast.error("Failed to create recurring task");
+        }
       } else {
         // Create ad-hoc task
-        if (!taskForm.dueDate) {
-          toast({
-            title: "Missing Due Date",
-            description: "Please specify a due date.",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        createAdHocTask({
+        const newTask = await createAdHocTask({
           templateId: selectedTemplate.id,
           clientId: taskForm.clientId,
           name: taskForm.name,
@@ -246,41 +286,48 @@ const CreateClientTask: React.FC = () => {
           dueDate: new Date(taskForm.dueDate)
         });
         
-        toast({
-          title: "Ad-hoc Task Created",
-          description: "The ad-hoc task has been created successfully.",
-        });
+        toast.dismiss(loadingToast);
+        
+        if (newTask) {
+          toast.success("Ad-hoc task created successfully!");
+          // Reset form and close dialog
+          resetFormAndCloseDialog();
+        } else {
+          toast.error("Failed to create ad-hoc task");
+        }
       }
-      
-      // Reset form and close dialog
-      setIsDialogOpen(false);
-      setSelectedTemplate(null);
-      setIsRecurring(false);
-      setTaskForm({
-        name: '',
-        description: '',
-        clientId: '',
-        estimatedHours: 1,
-        priority: 'Medium' as TaskPriority,
-        category: 'Other' as TaskCategory,
-        requiredSkills: [],
-        dueDate: '',
-        recurrenceType: 'Monthly' as RecurrencePattern['type'],
-        interval: 1,
-        weekdays: [],
-        dayOfMonth: 15,
-        monthOfYear: 1,
-        endDate: '',
-        customOffsetDays: 0
-      });
-      
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred while creating the task.",
-        variant: "destructive"
-      });
+      console.error('Error creating task:', error);
+      toast.error("An error occurred while creating the task");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+  
+  const resetFormAndCloseDialog = () => {
+    // Reset form state
+    setSelectedTemplate(null);
+    setIsRecurring(false);
+    setTaskForm({
+      name: '',
+      description: '',
+      clientId: '',
+      estimatedHours: 1,
+      priority: 'Medium' as TaskPriority,
+      category: 'Other' as TaskCategory,
+      requiredSkills: [],
+      dueDate: '',
+      recurrenceType: 'Monthly' as RecurrencePattern['type'],
+      interval: 1,
+      weekdays: [],
+      dayOfMonth: 15,
+      monthOfYear: 1,
+      endDate: '',
+      customOffsetDays: 0
+    });
+    
+    // Close dialog
+    setIsDialogOpen(false);
   };
   
   return (
@@ -313,6 +360,7 @@ const CreateClientTask: React.FC = () => {
                   value={selectedTemplate?.id || ''}
                   onChange={(e) => handleTemplateSelect(e.target.value)}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={isSubmitting}
                 >
                   <option value="">-- Select Template --</option>
                   {taskTemplates.map(template => (
@@ -321,6 +369,9 @@ const CreateClientTask: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                {formErrors.templateId && (
+                  <p className="text-sm font-medium text-destructive">{formErrors.templateId}</p>
+                )}
               </div>
               
               {selectedTemplate && (
@@ -329,7 +380,11 @@ const CreateClientTask: React.FC = () => {
                     <label htmlFor="clientId" className="text-sm font-medium">
                       Client
                     </label>
-                    <Select value={taskForm.clientId} onValueChange={handleClientChange}>
+                    <Select 
+                      value={taskForm.clientId} 
+                      onValueChange={handleClientChange}
+                      disabled={isSubmitting}
+                    >
                       <SelectTrigger className="w-full">
                         <Users className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Select a client" />
@@ -342,6 +397,9 @@ const CreateClientTask: React.FC = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {formErrors.clientId && (
+                      <p className="text-sm font-medium text-destructive">{formErrors.clientId}</p>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -356,7 +414,11 @@ const CreateClientTask: React.FC = () => {
                         onChange={handleInputChange}
                         placeholder="Enter task name"
                         required
+                        disabled={isSubmitting}
                       />
+                      {formErrors.name && (
+                        <p className="text-sm font-medium text-destructive">{formErrors.name}</p>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
@@ -372,7 +434,11 @@ const CreateClientTask: React.FC = () => {
                         value={taskForm.estimatedHours}
                         onChange={handleInputChange}
                         required
+                        disabled={isSubmitting}
                       />
+                      {formErrors.estimatedHours && (
+                        <p className="text-sm font-medium text-destructive">{formErrors.estimatedHours}</p>
+                      )}
                     </div>
                   </div>
                   
@@ -387,6 +453,7 @@ const CreateClientTask: React.FC = () => {
                       onChange={handleInputChange}
                       placeholder="Describe the task"
                       rows={2}
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -401,6 +468,7 @@ const CreateClientTask: React.FC = () => {
                         value={taskForm.priority}
                         onChange={handleInputChange}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        disabled={isSubmitting}
                       >
                         <option value="Low">Low</option>
                         <option value="Medium">Medium</option>
@@ -419,6 +487,7 @@ const CreateClientTask: React.FC = () => {
                         value={taskForm.category}
                         onChange={handleInputChange}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        disabled={isSubmitting}
                       >
                         <option value="Tax">Tax</option>
                         <option value="Audit">Audit</option>
@@ -438,6 +507,7 @@ const CreateClientTask: React.FC = () => {
                         checked={isRecurring}
                         onChange={(e) => setIsRecurring(e.target.checked)}
                         className="h-4 w-4 rounded border-gray-300"
+                        disabled={isSubmitting}
                       />
                       <label htmlFor="isRecurring" className="text-sm font-medium">
                         This is a recurring task
@@ -460,7 +530,11 @@ const CreateClientTask: React.FC = () => {
                           onChange={handleInputChange}
                           className="pl-8"
                           required
+                          disabled={isSubmitting}
                         />
+                        {formErrors.dueDate && (
+                          <p className="text-sm font-medium text-destructive">{formErrors.dueDate}</p>
+                        )}
                       </div>
                     </div>
                     
@@ -475,6 +549,7 @@ const CreateClientTask: React.FC = () => {
                           value={taskForm.recurrenceType}
                           onChange={handleInputChange}
                           className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          disabled={isSubmitting}
                         >
                           <option value="Daily">Daily</option>
                           <option value="Weekly">Weekly</option>
@@ -504,6 +579,7 @@ const CreateClientTask: React.FC = () => {
                               value={taskForm.interval}
                               onChange={handleInputChange}
                               className="w-20"
+                              disabled={isSubmitting}
                             />
                             <span className="text-sm">
                               {taskForm.recurrenceType === 'Daily' ? 'day(s)' :
@@ -528,6 +604,7 @@ const CreateClientTask: React.FC = () => {
                                   checked={taskForm.weekdays.includes(index)}
                                   onChange={(e) => handleWeekdayChange(index, e.target.checked)}
                                   className="h-4 w-4 rounded border-gray-300"
+                                  disabled={isSubmitting}
                                 />
                                 <label htmlFor={`day-${index}`} className="text-xs mt-1">
                                   {day}
@@ -535,6 +612,9 @@ const CreateClientTask: React.FC = () => {
                               </div>
                             ))}
                           </div>
+                          {formErrors.weekdays && (
+                            <p className="text-sm font-medium text-destructive">{formErrors.weekdays}</p>
+                          )}
                         </div>
                       )}
                       
@@ -551,6 +631,7 @@ const CreateClientTask: React.FC = () => {
                             max="31"
                             value={taskForm.dayOfMonth}
                             onChange={handleInputChange}
+                            disabled={isSubmitting}
                           />
                         </div>
                       )}
@@ -566,6 +647,7 @@ const CreateClientTask: React.FC = () => {
                             value={taskForm.monthOfYear}
                             onChange={handleInputChange}
                             className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            disabled={isSubmitting}
                           >
                             <option value="1">January</option>
                             <option value="2">February</option>
@@ -596,6 +678,7 @@ const CreateClientTask: React.FC = () => {
                               value={taskForm.customOffsetDays}
                               onChange={handleInputChange}
                               className="w-20"
+                              disabled={isSubmitting}
                             />
                             <span className="text-sm">days after month-end</span>
                           </div>
@@ -615,6 +698,7 @@ const CreateClientTask: React.FC = () => {
                             value={taskForm.endDate}
                             onChange={handleInputChange}
                             className="pl-8"
+                            disabled={isSubmitting}
                           />
                         </div>
                         <p className="text-xs text-gray-500">
@@ -627,15 +711,27 @@ const CreateClientTask: React.FC = () => {
               )}
               
               <div className="flex justify-end space-x-2 pt-4">
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Cancel</Button>
-                </DialogClose>
                 <Button 
                   type="button" 
-                  disabled={!selectedTemplate || !taskForm.clientId}
-                  onClick={handleSubmit}
+                  variant="outline" 
+                  onClick={resetFormAndCloseDialog}
+                  disabled={isSubmitting}
                 >
-                  {isRecurring ? 'Create Recurring Task' : 'Create Ad-hoc Task'}
+                  Cancel
+                </Button>
+                <Button 
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !selectedTemplate || !taskForm.clientId}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      {isRecurring ? 'Creating Recurring Task...' : 'Creating Ad-hoc Task...'}
+                    </>
+                  ) : (
+                    isRecurring ? 'Create Recurring Task' : 'Create Ad-hoc Task'
+                  )}
                 </Button>
               </div>
             </div>
