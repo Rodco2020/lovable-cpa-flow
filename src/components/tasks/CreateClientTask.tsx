@@ -23,15 +23,32 @@ interface CreateClientTaskProps {
   onTaskCreated?: (task: RecurringTask) => void;
 }
 
+/**
+ * CreateClientTask Component
+ * 
+ * A card component that provides access to the task creation flow via a dialog.
+ * This component serves as the entry point for users to create new client-assigned tasks.
+ * 
+ * @param {Object} props - Component props
+ * @param {Function} props.onTaskCreated - Optional callback when a task is created successfully
+ */
 const CreateClientTask: React.FC<CreateClientTaskProps> = ({ onTaskCreated }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
+  /**
+   * Handles successful task creation and forwards the new task to the parent callback
+   * 
+   * @param {RecurringTask} task - The newly created recurring task
+   */
   const handleTaskSuccess = (task: RecurringTask) => {
     if (onTaskCreated) {
       onTaskCreated(task);
     }
   };
 
+  /**
+   * Closes the task creation dialog
+   */
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
   };
@@ -47,8 +64,8 @@ const CreateClientTask: React.FC<CreateClientTaskProps> = ({ onTaskCreated }) =>
       <CardContent>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
+            <Button className="gap-2" aria-label="Assign new task to client">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Assign New Task
             </Button>
           </DialogTrigger>

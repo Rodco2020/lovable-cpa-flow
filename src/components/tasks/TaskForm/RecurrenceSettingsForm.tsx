@@ -19,6 +19,19 @@ interface RecurrenceSettingsFormProps {
   handleWeekdayChange: (day: number, checked: boolean) => void;
 }
 
+/**
+ * RecurrenceSettingsForm Component
+ * 
+ * This component renders recurrence-specific form fields based on the selected recurrence type.
+ * It adapts to show relevant controls for daily, weekly, monthly, annual, and custom recurrence patterns.
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.taskForm - Task form state values related to recurrence
+ * @param {Object} props.formErrors - Form validation errors
+ * @param {boolean} props.isSubmitting - Whether the form is currently submitting
+ * @param {Function} props.onInputChange - Handler for input field changes
+ * @param {Function} props.handleWeekdayChange - Handler for weekday checkbox changes
+ */
 const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
   taskForm,
   formErrors,
@@ -26,10 +39,26 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
   onInputChange,
   handleWeekdayChange
 }) => {
+  // Array of weekday names for labels
+  const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  // Determine units label based on recurrence type
+  const getIntervalUnitsLabel = () => {
+    switch (taskForm.recurrenceType) {
+      case 'Daily': return 'day(s)';
+      case 'Weekly': return 'week(s)';
+      case 'Monthly': return 'month(s)';
+      case 'Quarterly': return 'quarter(s)';
+      case 'Annually': return 'year(s)';
+      default: return 'interval';
+    }
+  };
+  
   return (
-    <div className="border p-4 rounded-md space-y-4 bg-gray-50">
+    <div className="border p-4 rounded-md space-y-4 bg-gray-50" role="region" aria-label="Recurrence Settings">
       <h4 className="text-sm font-medium">Recurrence Settings</h4>
       
+      {/* Interval setting for standard recurrence types */}
       {(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually'].includes(taskForm.recurrenceType)) && (
         <div className="space-y-2">
           <label htmlFor="interval" className="text-sm font-medium">
@@ -46,23 +75,19 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
               onChange={onInputChange}
               className="w-20"
               disabled={isSubmitting}
+              aria-label={`Recurrence interval in ${getIntervalUnitsLabel()}`}
             />
-            <span className="text-sm">
-              {taskForm.recurrenceType === 'Daily' ? 'day(s)' :
-                taskForm.recurrenceType === 'Weekly' ? 'week(s)' :
-                taskForm.recurrenceType === 'Monthly' ? 'month(s)' :
-                taskForm.recurrenceType === 'Quarterly' ? 'quarter(s)' :
-                'year(s)'}
-            </span>
+            <span className="text-sm">{getIntervalUnitsLabel()}</span>
           </div>
         </div>
       )}
       
+      {/* Weekly recurrence specific settings */}
       {taskForm.recurrenceType === 'Weekly' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">On which days</label>
-          <div className="grid grid-cols-7 gap-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+          <div className="grid grid-cols-7 gap-2" role="group" aria-label="Weekday selection">
+            {weekdayNames.map((day, index) => (
               <div key={day} className="flex flex-col items-center">
                 <input
                   type="checkbox"
@@ -71,6 +96,7 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
                   onChange={(e) => handleWeekdayChange(index, e.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   disabled={isSubmitting}
+                  aria-label={`Repeat on ${day}`}
                 />
                 <label htmlFor={`day-${index}`} className="text-xs mt-1">
                   {day}
@@ -79,11 +105,12 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
             ))}
           </div>
           {formErrors.weekdays && (
-            <p className="text-sm font-medium text-destructive">{formErrors.weekdays}</p>
+            <p className="text-sm font-medium text-destructive" role="alert">{formErrors.weekdays}</p>
           )}
         </div>
       )}
       
+      {/* Monthly and Annually recurrence settings */}
       {['Monthly', 'Annually'].includes(taskForm.recurrenceType) && (
         <div className="space-y-2">
           <label htmlFor="dayOfMonth" className="text-sm font-medium">
@@ -98,10 +125,12 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
             value={taskForm.dayOfMonth}
             onChange={onInputChange}
             disabled={isSubmitting}
+            aria-label="Day of month for recurrence"
           />
         </div>
       )}
       
+      {/* Annually specific settings */}
       {taskForm.recurrenceType === 'Annually' && (
         <div className="space-y-2">
           <label htmlFor="monthOfYear" className="text-sm font-medium">
@@ -114,6 +143,7 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
             onChange={onInputChange}
             className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             disabled={isSubmitting}
+            aria-label="Month for annual recurrence"
           >
             <option value="1">January</option>
             <option value="2">February</option>
@@ -131,6 +161,7 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
         </div>
       )}
       
+      {/* Custom recurrence settings */}
       {taskForm.recurrenceType === 'Custom' && (
         <div className="space-y-2">
           <label htmlFor="customOffsetDays" className="text-sm font-medium">
@@ -145,18 +176,20 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
               onChange={onInputChange}
               className="w-20"
               disabled={isSubmitting}
+              aria-label="Days after month-end"
             />
             <span className="text-sm">days after month-end</span>
           </div>
         </div>
       )}
       
+      {/* End date setting for all recurrence types */}
       <div className="space-y-2">
         <label htmlFor="endDate" className="text-sm font-medium">
           End Date (Optional)
         </label>
         <div className="relative">
-          <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" aria-hidden="true" />
           <Input
             id="endDate"
             name="endDate"
@@ -165,6 +198,7 @@ const RecurrenceSettingsForm: React.FC<RecurrenceSettingsFormProps> = ({
             onChange={onInputChange}
             className="pl-8"
             disabled={isSubmitting}
+            aria-label="End date for recurring task"
           />
         </div>
         <p className="text-xs text-gray-500">

@@ -20,7 +20,19 @@ interface TaskFormProps {
   onSuccess?: (task: RecurringTask) => void;
 }
 
+/**
+ * TaskForm Component
+ * 
+ * A comprehensive form for creating new client-assigned tasks, both ad-hoc and recurring.
+ * This component handles the entire workflow from template selection to task submission,
+ * including validation, error handling, and success notifications.
+ * 
+ * @param {Object} props - Component props
+ * @param {Function} props.onClose - Function to call when the form is closed
+ * @param {Function} props.onSuccess - Optional callback when a task is created successfully
+ */
 const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
+  // Use the task form custom hook for form state and logic
   const {
     taskForm,
     selectedTemplate,
@@ -37,15 +49,22 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
     buildRecurrencePattern
   } = useTaskForm();
   
+  // Component state
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+  /**
+   * Load task templates and clients when component mounts
+   */
   useEffect(() => {
     loadResources();
   }, []);
   
+  /**
+   * Fetches templates and clients data from API
+   */
   const loadResources = async () => {
     setIsLoading(true);
     try {
@@ -65,11 +84,19 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
     }
   };
   
+  /**
+   * Handles changes to recurrence type select element
+   */
   const handleRecurrenceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     handleInputChange(e);
   };
   
+  /**
+   * Handles form submission to create a task
+   * Validates form, creates task via API, and shows appropriate notifications
+   */
   const handleSubmit = async () => {
+    // Validate the form
     if (!validateForm()) {
       // Show a toast for validation errors
       toast.error("Please fix the form errors before submitting");
@@ -171,10 +198,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
     }
   };
   
+  /**
+   * Handler for template selection that calls the hook's handler
+   */
   const onTemplateSelectHandler = (templateId: string) => {
     handleTemplateSelect(templateId, taskTemplates);
   };
   
+  // Show loading state while resources are being fetched
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
@@ -185,7 +216,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="form" aria-label="Task Creation Form">
+      {/* Basic Information Form */}
       <TaskBasicInfoForm 
         taskTemplates={taskTemplates}
         clients={clients}
@@ -210,6 +242,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
                 onChange={(e) => setIsRecurring(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                 disabled={isSubmitting}
+                aria-label="Enable recurring task"
               />
               <label htmlFor="isRecurring" className="text-sm font-medium">
                 This is a recurring task
@@ -239,6 +272,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
                   onChange={handleRecurrenceTypeChange}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   disabled={isSubmitting}
+                  aria-label="Recurrence Pattern"
                 >
                   <option value="Daily">Daily</option>
                   <option value="Weekly">Weekly</option>
@@ -278,6 +312,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
               variant="outline" 
               onClick={onClose}
               disabled={isSubmitting}
+              aria-label="Cancel task creation"
             >
               Cancel
             </Button>
@@ -285,6 +320,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting || !selectedTemplate || !taskForm.clientId}
+              aria-label={isRecurring ? "Create recurring task" : "Create ad-hoc task"}
             >
               {isSubmitting ? (
                 <>

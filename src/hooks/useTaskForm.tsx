@@ -1,6 +1,10 @@
+
 import { useState } from 'react';
 import { TaskPriority, TaskCategory, TaskTemplate, RecurrencePattern, SkillType } from '@/types/task';
 
+/**
+ * Interface defining the structure of the task form data
+ */
 interface TaskFormData {
   name: string;
   description: string;
@@ -19,6 +23,9 @@ interface TaskFormData {
   customOffsetDays: number;
 }
 
+/**
+ * Interface defining the return type of the useTaskForm hook
+ */
 interface TaskFormHookReturn {
   taskForm: TaskFormData;
   selectedTemplate: TaskTemplate | null;
@@ -35,6 +42,15 @@ interface TaskFormHookReturn {
   buildRecurrencePattern: () => RecurrencePattern;
 }
 
+/**
+ * Custom hook for managing task form state and logic
+ * 
+ * This hook encapsulates form state, validation, and transformations for both
+ * ad-hoc and recurring task creation flows. It handles template selection,
+ * input changes, and building recurrence patterns.
+ * 
+ * @returns {TaskFormHookReturn} Object containing form state and handler functions
+ */
 export default function useTaskForm(): TaskFormHookReturn {
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
@@ -58,6 +74,11 @@ export default function useTaskForm(): TaskFormHookReturn {
     customOffsetDays: 0
   });
   
+  /**
+   * Handles changes to form input fields
+   * 
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>} e - The input change event
+   */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
@@ -77,6 +98,13 @@ export default function useTaskForm(): TaskFormHookReturn {
     }
   };
 
+  /**
+   * Handles selection of a task template
+   * Auto-populates form values based on the selected template
+   * 
+   * @param {string} templateId - ID of the selected template
+   * @param {TaskTemplate[]} templates - Array of available templates
+   */
   const handleTemplateSelect = (templateId: string, templates: TaskTemplate[]) => {
     const template = templates.find(t => t.id === templateId);
     if (template) {
@@ -94,6 +122,11 @@ export default function useTaskForm(): TaskFormHookReturn {
     }
   };
 
+  /**
+   * Handles client selection in the form
+   * 
+   * @param {string} clientId - ID of the selected client
+   */
   const handleClientChange = (clientId: string) => {
     setTaskForm(prev => ({ ...prev, clientId }));
     // Clear validation error
@@ -105,6 +138,12 @@ export default function useTaskForm(): TaskFormHookReturn {
     }
   };
   
+  /**
+   * Handles selection/deselection of weekdays for weekly recurring tasks
+   * 
+   * @param {number} day - Day number (0-6, where 0 is Sunday)
+   * @param {boolean} checked - Whether the day is selected
+   */
   const handleWeekdayChange = (day: number, checked: boolean) => {
     if (checked) {
       setTaskForm(prev => ({
@@ -127,12 +166,18 @@ export default function useTaskForm(): TaskFormHookReturn {
     }
   };
   
+  /**
+   * Builds a recurrence pattern object based on current form values
+   * 
+   * @returns {RecurrencePattern} The constructed recurrence pattern
+   */
   const buildRecurrencePattern = (): RecurrencePattern => {
     const pattern: RecurrencePattern = {
       type: taskForm.recurrenceType,
       interval: taskForm.interval
     };
     
+    // Add type-specific fields
     if (taskForm.recurrenceType === 'Weekly') {
       pattern.weekdays = taskForm.weekdays;
     } else if (taskForm.recurrenceType === 'Monthly') {
@@ -144,6 +189,7 @@ export default function useTaskForm(): TaskFormHookReturn {
       pattern.customOffsetDays = taskForm.customOffsetDays;
     }
     
+    // Add end date if provided
     if (taskForm.endDate) {
       pattern.endDate = new Date(taskForm.endDate);
     }
@@ -151,6 +197,11 @@ export default function useTaskForm(): TaskFormHookReturn {
     return pattern;
   };
   
+  /**
+   * Validates the form values and populates error messages
+   * 
+   * @returns {boolean} True if the form is valid, false otherwise
+   */
   const validateForm = () => {
     const errors: Record<string, string> = {};
     
@@ -170,6 +221,7 @@ export default function useTaskForm(): TaskFormHookReturn {
       errors.estimatedHours = "Estimated hours must be greater than 0";
     }
     
+    // Validation specific to recurring vs. ad-hoc tasks
     if (isRecurring) {
       if (!taskForm.dueDate) {
         errors.dueDate = "First due date is required";
@@ -186,6 +238,9 @@ export default function useTaskForm(): TaskFormHookReturn {
     return Object.keys(errors).length === 0;
   };
   
+  /**
+   * Resets the form to its initial state
+   */
   const resetForm = () => {
     setSelectedTemplate(null);
     setIsRecurring(false);
