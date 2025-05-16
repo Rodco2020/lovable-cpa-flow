@@ -1,11 +1,12 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Staff } from "@/types/staff";
 import { TaskInstance } from "@/types/task";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader } from "lucide-react";
 
 interface StaffScheduleCardProps {
   staff: Staff;
@@ -25,13 +26,32 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
   availableSlots,
   onSchedule,
 }) => {
-  const [selectedSlot, setSelectedSlot] = React.useState("");
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [isScheduling, setIsScheduling] = useState(false);
 
-  const handleSchedule = () => {
+  const handleSchedule = async () => {
     if (selectedSlot && onSchedule) {
+      setIsScheduling(true);
       const [startTime, endTime] = selectedSlot.split("-");
-      onSchedule(staff.id, startTime, endTime);
+      
+      try {
+        await onSchedule(staff.id, startTime, endTime);
+        setSelectedSlot("");
+      } catch (error) {
+        console.error("Error in schedule handler:", error);
+      } finally {
+        setIsScheduling(false);
+      }
     }
+  };
+
+  // Get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
   };
 
   return (
@@ -40,10 +60,7 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarFallback>
-              {staff.fullName
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
+              {getInitials(staff.fullName)}
             </AvatarFallback>
             <AvatarImage src={`/placeholder-avatar-${Math.floor(Math.random() * 5) + 1}.jpg`} />
           </Avatar>
@@ -62,7 +79,11 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            <Select value={selectedSlot} onValueChange={setSelectedSlot}>
+            <Select 
+              value={selectedSlot} 
+              onValueChange={setSelectedSlot}
+              disabled={isScheduling || !selectedTask}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select time slot" />
               </SelectTrigger>
@@ -78,9 +99,16 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
             <Button 
               className="w-full"
               onClick={handleSchedule}
-              disabled={!selectedTask || !selectedSlot}
+              disabled={!selectedTask || !selectedSlot || isScheduling}
             >
-              Schedule
+              {isScheduling ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                "Schedule"
+              )}
             </Button>
           </div>
         )}

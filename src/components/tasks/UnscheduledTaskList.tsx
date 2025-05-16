@@ -6,25 +6,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { BriefcaseBusiness, Clock } from 'lucide-react';
+import { BriefcaseBusiness, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const UnscheduledTaskList: React.FC = () => {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const unscheduledTasks = await getUnscheduledTaskInstances();
+      setTasks(unscheduledTasks);
+      // Show success toast only if refreshing, not on initial load
+      if (!loading) {
+        toast.success("Tasks refreshed successfully");
+      }
+    } catch (error) {
+      console.error('Error fetching unscheduled tasks:', error);
+      setError("Failed to load unscheduled tasks. Please try again.");
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      setLoading(true);
-      try {
-        const unscheduledTasks = await getUnscheduledTaskInstances();
-        setTasks(unscheduledTasks);
-      } catch (error) {
-        console.error('Error fetching unscheduled tasks:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTasks();
   }, []);
 
@@ -41,12 +53,31 @@ const UnscheduledTaskList: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Clock className="mr-2 h-5 w-5" /> 
-          Unscheduled Tasks
-        </CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" /> 
+            Unscheduled Tasks
+          </CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchTasks}
+            disabled={loading}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full"></div>

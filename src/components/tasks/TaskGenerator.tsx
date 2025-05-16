@@ -4,8 +4,9 @@ import { generateTaskInstances } from '@/services/taskService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
-import { Calendar, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
+import { Calendar, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const TaskGenerator: React.FC = () => {
   const [fromDate, setFromDate] = useState<string>(
@@ -16,9 +17,11 @@ const TaskGenerator: React.FC = () => {
   );
   const [leadTimeDays, setLeadTimeDays] = useState<number>(14);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setError(null);
     
     try {
       const from = new Date(fromDate);
@@ -26,29 +29,24 @@ const TaskGenerator: React.FC = () => {
       
       // Validate dates
       if (from > to) {
-        toast({
-          title: "Invalid Date Range",
-          description: "The 'From' date must be before the 'To' date.",
-          variant: "destructive"
-        });
+        toast.error("The 'From' date must be before the 'To' date.");
+        setError("Invalid date range: 'From' date must be before 'To' date.");
         setIsGenerating(false);
         return;
       }
       
-      // Generate tasks
+      // Generate tasks with progress feedback
+      toast.loading("Generating tasks...");
+      
       const newTasks = await generateTaskInstances(from, to, leadTimeDays);
       
-      toast({
-        title: "Tasks Generated",
-        description: `Successfully generated ${newTasks.length} new tasks.`,
-      });
+      toast.dismiss();
+      toast.success(`Successfully generated ${newTasks.length} new tasks.`);
     } catch (error) {
-      toast({
-        title: "Generation Error",
-        description: "An error occurred while generating tasks.",
-        variant: "destructive"
-      });
+      toast.dismiss();
+      toast.error("An error occurred while generating tasks.");
       console.error("Task generation error:", error);
+      setError("Failed to generate tasks. Please check the console for details.");
     } finally {
       setIsGenerating(false);
     }
@@ -63,6 +61,13 @@ const TaskGenerator: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <label htmlFor="fromDate" className="text-sm font-medium">
@@ -114,9 +119,21 @@ const TaskGenerator: React.FC = () => {
           <Button 
             onClick={handleGenerate} 
             disabled={isGenerating}
+            className="relative"
           >
-            {isGenerating ? 'Generating...' : 'Generate Tasks'}
-            {!isGenerating && <ArrowRight className="ml-2 h-4 w-4" />}
+            {isGenerating ? (
+              <>
+                <span className="opacity-0">Generate Tasks</span>
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin h-5 w-5 border-t-2 border-b-2 border-white rounded-full"></div>
+                </span>
+              </>
+            ) : (
+              <>
+                Generate Tasks
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

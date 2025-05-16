@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { createRecurringTask, getTaskTemplates } from '@/services/taskService';
 import { TaskTemplate, RecurringTask } from '@/types/task';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle, Loader } from 'lucide-react';
 
 // Define the form schema
 const taskFormSchema = z.object({
@@ -33,16 +35,24 @@ interface CreateClientTaskProps {
 const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) => {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTemplates = async () => {
+      setTemplatesLoading(true);
+      setError(null);
+      
       try {
         const fetchedTemplates = await getTaskTemplates();
         setTemplates(fetchedTemplates);
       } catch (error) {
         console.error("Error loading templates:", error);
+        setError("Failed to load task templates. Please try again.");
         toast.error("Failed to load task templates");
+      } finally {
+        setTemplatesLoading(false);
       }
     };
     
@@ -80,8 +90,12 @@ const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) =>
     }
 
     setLoading(true);
+    setError(null);
     
     try {
+      // Show in-progress toast
+      toast.loading("Creating recurring task...");
+      
       // Create the recurrence pattern based on form data
       const recurrencePattern: any = {
         type: data.recurrenceType,
@@ -106,6 +120,9 @@ const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) =>
         recurrencePattern: recurrencePattern,
       });
       
+      // Dismiss loading toast
+      toast.dismiss();
+      
       if (newTask) {
         toast.success("Recurring task created successfully!");
         form.reset();
@@ -113,18 +130,39 @@ const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) =>
         if (onTaskCreated) onTaskCreated(newTask);
       } else {
         toast.error("Failed to create recurring task");
+        setError("Failed to create the recurring task. Please try again.");
       }
     } catch (error) {
+      toast.dismiss();
       console.error("Error creating task:", error);
       toast.error("An error occurred while creating the task");
+      setError("Failed to create the recurring task. Please check the console for details.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (templatesLoading) {
+    return (
+      <div className="flex justify-center items-center p-8 border rounded-lg bg-white">
+        <div className="text-center">
+          <Loader className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+          <p>Loading templates...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <FormField
           control={form.control}
           name="templateId"
@@ -269,7 +307,16 @@ const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) =>
         </div>
 
         <Button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Create Recurring Task"}
+          {loading ? (
+            <>
+              <span className="mr-2">
+                <Loader className="h-4 w-4 animate-spin" />
+              </span>
+              Creating...
+            </>
+          ) : (
+            "Create Recurring Task"
+          )}
         </Button>
       </form>
     </Form>

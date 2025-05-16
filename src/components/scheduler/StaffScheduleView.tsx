@@ -7,11 +7,12 @@ import { getTimeSlotsByDate } from "@/services/staffService";
 import { format } from "date-fns";
 import StaffScheduleCard from "./StaffScheduleCard";
 import { scheduleTask } from "@/services/schedulerService";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader } from "lucide-react";
 import { generateAvailabilityMasks, AvailabilityMask } from "@/services/integrations/schedulerIntegration";
 import { useEventPublisher } from "@/hooks/useAppEvent";
+import { Button } from "@/components/ui/button";
 
 interface StaffScheduleViewProps {
   selectedTask: TaskInstance | null;
@@ -25,6 +26,7 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   const [staff, setStaff] = useState<Staff[]>([]);
   const [timeSlots, setTimeSlots] = useState<Record<string, TimeSlot[]>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [availabilityMasks, setAvailabilityMasks] = useState<Record<string, AvailabilityMask>>({});
   const { publishEvent } = useEventPublisher();
   
@@ -32,20 +34,28 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   const formattedDate = format(currentDate, "yyyy-MM-dd");
   
   // Load staff and their time slots
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch all staff
-        const staffList = await getAllStaff();
-        setStaff(staffList.filter(s => s.status === "active"));
-        
-        // Load time slots for each staff member
-        const slots: Record<string, TimeSlot[]> = {};
-        const masks: Record<string, AvailabilityMask> = {};
-        
-        for (const s of staffList.filter(s => s.status === "active")) {
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch all staff
+      const staffList = await getAllStaff();
+      const activeStaff = staffList.filter(s => s.status === "active");
+      setStaff(activeStaff);
+      
+      if (activeStaff.length === 0) {
+        setError("No active staff members found.");
+        setLoading(false);
+        return;
+      }
+      
+      // Load time slots for each staff member
+      const slots: Record<string, TimeSlot[]> = {};
+      const masks: Record<string, AvailabilityMask> = {};
+      
+      for (const s of activeStaff) {
+        try {
           // Get time slots from the service
           const staffSlots = await getTimeSlotsByDate(formattedDate);
           slots[s.id] = staffSlots.filter(slot => slot.staffId === s.id);
@@ -55,22 +65,23 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
           if (availMasks.length > 0) {
             masks[s.id] = availMasks[0];
           }
+        } catch (staffError) {
+          console.error(`Error loading data for staff ${s.id}:`, staffError);
         }
-        
-        setTimeSlots(slots);
-        setAvailabilityMasks(masks);
-      } catch (error) {
-        console.error("Error loading staff schedule data:", error);
-        toast({
-          variant: "destructive",
-          title: "Error loading schedule",
-          description: "Failed to load staff schedule data. Please try again.",
-        });
-      } finally {
-        setLoading(false);
       }
-    };
-    
+      
+      setTimeSlots(slots);
+      setAvailabilityMasks(masks);
+    } catch (error) {
+      console.error("Error loading staff schedule data:", error);
+      setError("Failed to load staff schedule data. Please try again.");
+      toast.error("Failed to load schedule data");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     loadData();
   }, [formattedDate]);
   
@@ -78,7 +89,12 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   const handleScheduleTask = async (staffId: string, startTime: string, endTime: string) => {
     if (!selectedTask) return;
     
+    const staffName = staff.find(s => s.id === staffId)?.fullName || "selected staff";
+    
     try {
+      // Show loading toast
+      toast.loading(`Scheduling task for ${staffName}...`);
+      
       // Schedule the task
       await scheduleTask(
         selectedTask.id,
@@ -87,6 +103,9 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
         startTime,
         endTime
       );
+      
+      // Dismiss loading toast
+      toast.dismiss();
       
       // Refresh the time slots
       const updatedSlots = await getTimeSlotsByDate(formattedDate);
@@ -110,17 +129,11 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
         source: "SchedulerView"
       });
       
-      toast({
-        title: "Task scheduled",
-        description: `Task "${selectedTask.name}" has been scheduled.`,
-      });
+      toast.success(`Task "${selectedTask.name}" has been scheduled for ${staffName}`);
     } catch (error) {
+      toast.dismiss();
       console.error("Error scheduling task:", error);
-      toast({
-        variant: "destructive",
-        title: "Error scheduling task",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-      });
+      toast.error("Error scheduling task");
     }
   };
   
@@ -158,8 +171,26 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <Loader className="h-10 w-10 animate-spin mx-auto mb-3 text-primary" />
+          <p className="text-lg font-medium">Loading staff schedule data...</p>
+        </div>
       </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <Alert variant="destructive" className="my-4">
+        <AlertCircle className="h-5 w-5" />
+        <AlertTitle>Error loading schedule data</AlertTitle>
+        <AlertDescription className="mt-2">
+          {error}
+          <div className="mt-4">
+            <Button onClick={loadData} variant="outline">Try Again</Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     );
   }
   
