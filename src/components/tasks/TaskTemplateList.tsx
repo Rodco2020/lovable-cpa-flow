@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TaskTemplate, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 import { 
   getTaskTemplates, 
@@ -28,13 +28,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Archive, Edit, Plus } from 'lucide-react';
+import { Archive, Edit, Plus, Loader2 } from 'lucide-react';
 
 const TaskTemplateList: React.FC = () => {
-  const [templates, setTemplates] = useState<TaskTemplate[]>(getTaskTemplates());
+  const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state for new/edited template
   const [formData, setFormData] = useState<Partial<TaskTemplate>>({
@@ -46,13 +48,31 @@ const TaskTemplateList: React.FC = () => {
     category: 'Other',
   });
 
-  const refreshTemplates = () => {
-    setTemplates(getTaskTemplates(showArchived));
+  // Fetch templates on component mount and when showArchived changes
+  useEffect(() => {
+    refreshTemplates();
+  }, [showArchived]);
+
+  const refreshTemplates = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedTemplates = await getTaskTemplates(showArchived);
+      setTemplates(fetchedTemplates);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load task templates.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleToggleArchived = () => {
     setShowArchived(!showArchived);
-    setTemplates(getTaskTemplates(!showArchived));
+    // The useEffect will trigger the refreshTemplates
   };
 
   const handleCreateTemplate = () => {
@@ -81,18 +101,27 @@ const TaskTemplateList: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleArchiveTemplate = (id: string) => {
-    const result = archiveTaskTemplate(id);
-    if (result) {
-      toast({
-        title: "Template Archived",
-        description: "The task template has been archived successfully.",
-      });
-      refreshTemplates();
-    } else {
+  const handleArchiveTemplate = async (id: string) => {
+    try {
+      const result = await archiveTaskTemplate(id);
+      if (result) {
+        toast({
+          title: "Template Archived",
+          description: "The task template has been archived successfully.",
+        });
+        refreshTemplates();
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not archive template.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error archiving template:', error);
       toast({
         title: "Error",
-        description: "Could not archive template.",
+        description: "An unexpected error occurred while archiving the template.",
         variant: "destructive",
       });
     }
@@ -122,22 +151,25 @@ const TaskTemplateList: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     try {
       if (editingTemplate) {
         // Update existing template
-        const updated = updateTaskTemplate(editingTemplate.id, formData as Partial<TaskTemplate>);
+        const updated = await updateTaskTemplate(editingTemplate.id, formData as Partial<TaskTemplate>);
         if (updated) {
           toast({
             title: "Template Updated",
             description: "The task template has been updated successfully.",
           });
+        } else {
+          throw new Error("Failed to update template");
         }
       } else {
         // Create new template
-        createTaskTemplate({
+        const newTemplate = await createTaskTemplate({
           name: formData.name!,
           description: formData.description!,
           defaultEstimatedHours: formData.defaultEstimatedHours!,
@@ -145,6 +177,11 @@ const TaskTemplateList: React.FC = () => {
           defaultPriority: formData.defaultPriority as TaskPriority,
           category: formData.category as TaskCategory
         });
+        
+        if (!newTemplate) {
+          throw new Error("Failed to create template");
+        }
+        
         toast({
           title: "Template Created",
           description: "The new task template has been created successfully.",
@@ -155,15 +192,18 @@ const TaskTemplateList: React.FC = () => {
       setIsDialogOpen(false);
       refreshTemplates();
     } catch (error) {
+      console.error('Error saving template:', error);
       toast({
         title: "Error",
         description: "An error occurred while saving the template.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const availableSkills: SkillType[] = ["Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory"];
+  const availableSkills: SkillType[] = ["Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory", "Bookkeeping"];
   const priorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
   const categories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
 
@@ -189,84 +229,91 @@ const TaskTemplateList: React.FC = () => {
         </div>
       </div>
       
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Est. Hours</TableHead>
-            <TableHead>Required Skills</TableHead>
-            <TableHead>Priority</TableHead>
-            <TableHead>Version</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {templates.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading templates...</span>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-4">
-                No task templates found. Create a new template to get started.
-              </TableCell>
+              <TableHead>Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Est. Hours</TableHead>
+              <TableHead>Required Skills</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Version</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ) : (
-            templates.map(template => (
-              <TableRow 
-                key={template.id}
-                className={template.isArchived ? "bg-gray-100" : ""}
-              >
-                <TableCell className="font-medium">{template.name}</TableCell>
-                <TableCell>{template.category}</TableCell>
-                <TableCell>{template.defaultEstimatedHours}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {template.requiredSkills.map(skill => (
-                      <span 
-                        key={skill} 
-                        className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                    template.defaultPriority === 'Low' ? 'bg-green-100 text-green-800' :
-                    template.defaultPriority === 'Medium' ? 'bg-blue-100 text-blue-800' :
-                    template.defaultPriority === 'High' ? 'bg-orange-100 text-orange-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {template.defaultPriority}
-                  </span>
-                </TableCell>
-                <TableCell>v{template.version}</TableCell>
-                <TableCell className="text-right">
-                  {!template.isArchived && (
-                    <>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleEditTemplate(template)}
-                        title="Edit Template"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleArchiveTemplate(template.id)}
-                        title="Archive Template"
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+          </TableHeader>
+          <TableBody>
+            {templates.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-4">
+                  No task templates found. Create a new template to get started.
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              templates.map(template => (
+                <TableRow 
+                  key={template.id}
+                  className={template.isArchived ? "bg-gray-100" : ""}
+                >
+                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell>{template.category}</TableCell>
+                  <TableCell>{template.defaultEstimatedHours}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {template.requiredSkills.map(skill => (
+                        <span 
+                          key={skill} 
+                          className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+                      template.defaultPriority === 'Low' ? 'bg-green-100 text-green-800' :
+                      template.defaultPriority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                      template.defaultPriority === 'High' ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {template.defaultPriority}
+                    </span>
+                  </TableCell>
+                  <TableCell>v{template.version}</TableCell>
+                  <TableCell className="text-right">
+                    {!template.isArchived && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEditTemplate(template)}
+                          title="Edit Template"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleArchiveTemplate(template.id)}
+                          title="Archive Template"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      )}
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -286,6 +333,7 @@ const TaskTemplateList: React.FC = () => {
                   onChange={handleInputChange}
                   placeholder="Enter template name"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -299,6 +347,7 @@ const TaskTemplateList: React.FC = () => {
                   value={formData.category || 'Other'}
                   onChange={handleInputChange}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={isSubmitting}
                 >
                   {categories.map(category => (
                     <option key={category} value={category}>{category}</option>
@@ -318,6 +367,7 @@ const TaskTemplateList: React.FC = () => {
                 onChange={handleInputChange}
                 placeholder="Describe the task template"
                 rows={3}
+                disabled={isSubmitting}
               />
             </div>
             
@@ -335,6 +385,7 @@ const TaskTemplateList: React.FC = () => {
                   value={formData.defaultEstimatedHours || 1}
                   onChange={handleInputChange}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -348,6 +399,7 @@ const TaskTemplateList: React.FC = () => {
                   value={formData.defaultPriority || 'Medium'}
                   onChange={handleInputChange}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={isSubmitting}
                 >
                   {priorities.map(priority => (
                     <option key={priority} value={priority}>{priority}</option>
@@ -367,6 +419,7 @@ const TaskTemplateList: React.FC = () => {
                       onCheckedChange={(checked) => 
                         handleSkillChange(skill, checked === true)
                       }
+                      disabled={isSubmitting}
                     />
                     <label htmlFor={`skill-${skill}`} className="text-sm">{skill}</label>
                   </div>
@@ -376,9 +429,18 @@ const TaskTemplateList: React.FC = () => {
             
             <div className="flex justify-end space-x-2 pt-4">
               <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
+                <Button type="button" variant="outline" disabled={isSubmitting}>Cancel</Button>
               </DialogClose>
-              <Button type="submit">{editingTemplate ? 'Update Template' : 'Create Template'}</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {editingTemplate ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  editingTemplate ? 'Update Template' : 'Create Template'
+                )}
+              </Button>
             </div>
           </form>
         </DialogContent>
