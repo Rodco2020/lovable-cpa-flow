@@ -1,17 +1,20 @@
 
 import React from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import ClientList from '@/components/clients/ClientList';
 import ClientForm from '@/components/clients/ClientForm';
 import ClientDetail from '@/components/clients/ClientDetail';
+import ClientAssignedTasksOverview from '@/components/clients/ClientAssignedTasksOverview';
 import { Button } from '@/components/ui/button';
 import { 
   Building,
   Users,
   DollarSign,
   FileText,
-  PlusCircle
+  PlusCircle,
+  CalendarClock
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ClientModule: React.FC = () => {
   const navigate = useNavigate();
@@ -74,7 +77,23 @@ const ClientModule: React.FC = () => {
               </div>
             </div>
             
-            <ClientList />
+            <Tabs defaultValue="clients" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="clients">Client Directory</TabsTrigger>
+                <TabsTrigger value="tasks">
+                  <CalendarClock className="h-4 w-4 mr-2" />
+                  Client-Assigned Tasks
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="clients">
+                <ClientList />
+              </TabsContent>
+              
+              <TabsContent value="tasks">
+                <ClientAssignedTasksOverview />
+              </TabsContent>
+            </Tabs>
           </>
         } />
         <Route path="/new" element={<ClientForm />} />
