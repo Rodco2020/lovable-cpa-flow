@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
@@ -530,7 +529,7 @@ const ClientDetail: React.FC = () => {
           <CardContent>
             <TabsContent value="recurring" className="space-y-4">
               <ClientRecurringTaskList 
-                tasks={recurringTasks}
+                clientId={client.id}
                 onViewTask={handleViewRecurringTask}
               />
             </TabsContent>

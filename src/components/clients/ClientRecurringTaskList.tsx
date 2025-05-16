@@ -14,9 +14,14 @@ import TaskListPagination from './TaskListPagination';
 interface ClientRecurringTaskListProps {
   clientId: string;
   onRefreshNeeded?: () => void;
+  onViewTask?: (taskId: string) => void;
 }
 
-const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ clientId, onRefreshNeeded }) => {
+const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ 
+  clientId, 
+  onRefreshNeeded,
+  onViewTask 
+}) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,7 +152,11 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ clien
           </TableHeader>
           <TableBody>
             {currentTasks.map(task => (
-              <TableRow key={task.id}>
+              <TableRow 
+                key={task.id} 
+                className={onViewTask ? "cursor-pointer hover:bg-muted/50" : ""}
+                onClick={() => onViewTask ? onViewTask(task.id) : null}
+              >
                 <TableCell className="font-medium">{task.name}</TableCell>
                 <TableCell>{formatRecurrencePattern(task.recurrencePattern)}</TableCell>
                 <TableCell>
@@ -167,7 +176,10 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ clien
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleDeactivate(task.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeactivate(task.id);
+                      }}
                     >
                       Deactivate
                     </Button>

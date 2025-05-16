@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -263,7 +264,7 @@ export const getClientTaskIds = async (clientId: string): Promise<string[]> => {
 export const getClientRecurringTasks = async (clientId: string): Promise<RecurringTask[]> => {
   try {
     // Use the task service to get all recurring tasks and filter by client ID
-    const allRecurringTasks = getRecurringTasks(false); // Include both active and inactive tasks
+    const allRecurringTasks = await getRecurringTasks(false); // Include both active and inactive tasks
     return allRecurringTasks.filter(task => task.clientId === clientId);
   } catch (error) {
     console.error(`Error fetching recurring tasks for client ${clientId}:`, error);
@@ -276,7 +277,7 @@ export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanc
   try {
     // Use the task service to get task instances that aren't generated from recurring tasks
     // and filter by client ID
-    const allTaskInstances = getTaskInstances({
+    const allTaskInstances = await getTaskInstances({
       clientId: clientId
     });
     

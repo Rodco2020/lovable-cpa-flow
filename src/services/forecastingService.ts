@@ -961,3 +961,252 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
     return [];
   }
 };
+
+/**
+ * Calculate client tasks data for a given client
+ */
+export const calculateClientTasksData = async (clientId: string): Promise<ClientTaskBreakdown> => {
+  try {
+    const recurringTasks = await getRecurringTasks(true);
+    const clientRecurringTasks = recurringTasks.filter(task => task.clientId === clientId);
+    
+    let totalHours = 0;
+    let tasksByCategory: Record<string, number> = {};
+    
+    clientRecurringTasks.forEach(task => {
+      // Calculate monthly hours for this task based on recurrence pattern
+      const monthlyHours = estimateMonthlyHoursForTask(task);
+      totalHours += monthlyHours;
+      
+      // Aggregate by category
+      if (!tasksByCategory[task.category]) {
+        tasksByCategory[task.category] = 0;
+      }
+      tasksByCategory[task.category] += monthlyHours;
+    });
+    
+    return {
+      totalMonthlyHours: totalHours,
+      categoryBreakdown: tasksByCategory
+    };
+  } catch (error) {
+    console.error(`Error calculating task data for client ${clientId}:`, error);
+    return {
+      totalMonthlyHours: 0,
+      categoryBreakdown: {},
+    };
+  }
+};
+
+/**
+ * Calculate total demand for a skill within a date range
+ */
+export const calculateTotalDemandForSkill = async (
+  skillId: string,
+  startDate?: Date,
+  endDate?: Date
+): Promise<number> => {
+  try {
+    let totalDemand = 0;
+    const recurringTasks = await getRecurringTasks(true);
+    
+    recurringTasks.forEach(task => {
+      if (task.requiredSkills.includes(skillId as any)) {
+        // Calculate demand for this task within the date range
+        const demand = await calculateDemandForTask(task, startDate, endDate);
+        totalDemand += demand;
+      }
+    });
+    
+    return totalDemand;
+  } catch (error) {
+    console.error(`Error calculating demand for skill ${skillId}:`, error);
+    return 0;
+  }
+};
+
+/**
+ * Calculate demand for a specific task within a date range
+ */
+const calculateDemandForTask = async (
+  task: RecurringTask,
+  startDate?: Date,
+  endDate?: Date
+): Promise<number> => {
+  const pattern = task.recurrencePattern;
+  
+  if (!pattern || !pattern.type) {
+    debugLog(`Invalid recurrence pattern for task: ${task.name}`);
+    return 0;
+  }
+  
+  const startDateForCalc = startDate || task.createdAt;
+  const endDateForCalc = endDate || task.recurrencePattern.endDate;
+  
+  let instanceCount = 0;
+  
+  switch (pattern.type) {
+    case 'Daily':
+      // Accurate count of days in the range considering the interval
+      const daysDiff = differenceInDays(endDateForCalc, startDateForCalc) + 1; // +1 to include both start and end days
+      instanceCount = Math.ceil(daysDiff / (pattern.interval || 1));
+      break;
+      
+    case 'Weekly':
+      if (pattern.weekdays && pattern.weekdays.length > 0) {
+        // Count specific weekdays within the period
+        instanceCount = 0;
+        
+        // Calculate full weeks in the range
+        const fullWeeks = Math.floor(differenceInDays(endDateForCalc, startDateForCalc) / 7);
+        const remainingDays = differenceInDays(endDateForCalc, addDays(startDateForCalc, fullWeeks * 7));
+        
+        // Count instances for full weeks
+        instanceCount += fullWeeks * pattern.weekdays.length / (pattern.interval || 1);
+        
+        // Count instances for remaining days
+        let currentDay = addDays(startDateForCalc, fullWeeks * 7);
+        for (let i = 0; i <= remainingDays; i++) {
+          const dayOfWeek = getDay(currentDay); // 0 = Sunday, 1 = Monday, etc.
+          if (pattern.weekdays.includes(dayOfWeek)) {
+            instanceCount++;
+          }
+          currentDay = addDays(currentDay, 1);
+        }
+        
+        // Apply interval
+        instanceCount = instanceCount / (pattern.interval || 1);
+      } else {
+        // Simple weekly recurrence (every X weeks)
+        instanceCount = (differenceInDays(endDateForCalc, startDateForCalc) + 1) / 7 / (pattern.interval || 1);
+      }
+      break;
+      
+    case 'Monthly':
+      // Calculate months between start and end, considering day of month
+      const monthsDiff = differenceInMonths(endDateForCalc, startDateForCalc);
+      
+      if (pattern.dayOfMonth) {
+        // If specific day of month is specified
+        instanceCount = 0;
+        
+        // For each month in the range
+        for (let i = 0; i <= monthsDiff; i++) {
+          const currentMonth = addDays(startDateForCalc, i * 30); // Approximation
+          const daysInCurrentMonth = getDaysInMonth(currentMonth);
+          
+          // Check if the day exists in this month and falls within our range
+          if (pattern.dayOfMonth <= daysInCurrentMonth) {
+            const instanceDate = new Date(
+              currentMonth.getFullYear(),
+              currentMonth.getMonth(),
+              pattern.dayOfMonth
+            );
+            
+            if (instanceDate >= startDateForCalc && instanceDate <= endDateForCalc) {
+              instanceCount++;
+            }
+          }
+        }
+      } else {
+        // Simple monthly recurrence (same day each month)
+        instanceCount = monthsDiff + 1; // +1 to include both start and end months
+      }
+      
+      // Apply interval
+      instanceCount = instanceCount / (pattern.interval || 1);
+      break;
+      
+    case 'Quarterly':
+      // Each quarter is 3 months
+      instanceCount = Math.ceil(differenceInMonths(endDateForCalc, startDateForCalc) / 3 / (pattern.interval || 1));
+      break;
+      
+    case 'Annually':
+      // Count years, handling partial years
+      const yearsDiff = differenceInYears(endDateForCalc, startDateForCalc);
+      const extraMonths = differenceInMonths(endDateForCalc, addDays(startDateForCalc, yearsDiff * 365)) > 0 ? 1 : 0;
+      instanceCount = (yearsDiff + extraMonths) / (pattern.interval || 1);
+      break;
+      
+    case 'Custom':
+      // For custom patterns, estimate based on custom offset days
+      if (pattern.customOffsetDays && pattern.customOffsetDays > 0) {
+        instanceCount = Math.ceil(differenceInDays(endDateForCalc, startDateForCalc) / pattern.customOffsetDays);
+      } else {
+        instanceCount = 1; // Default to one instance if no custom logic applies
+      }
+      break;
+      
+    default:
+      // For unknown patterns, use a default estimate of one instance
+      debugLog(`Warning: Unknown recurrence pattern type "${pattern.type}" for task ${task.id} (${task.name})`);
+      instanceCount = 1;
+      break;
+  }
+  
+  // Ensure we always return a non-negative integer
+  instanceCount = Math.max(0, Math.round(instanceCount));
+  
+  debugLog(`Final instance count for task ${task.id} (${task.name}): ${instanceCount}`);
+  
+  return instanceCount;
+};
+
+/**
+ * Estimate monthly hours for a recurring task
+ */
+const estimateMonthlyHoursForTask = (task: RecurringTask): number => {
+  const pattern = task.recurrencePattern;
+  
+  if (!pattern || !pattern.type) {
+    debugLog(`Invalid recurrence pattern for task: ${task.name}`);
+    return 0;
+  }
+  
+  let monthlyHours = 0;
+  
+  switch (pattern.type) {
+    case 'Daily':
+      // Estimate hours per day and multiply by 30 (approximation)
+      monthlyHours = task.estimatedHours * 30;
+      break;
+      
+    case 'Weekly':
+      // Estimate hours per week and multiply by 4 (approximation)
+      monthlyHours = task.estimatedHours * 4;
+      break;
+      
+    case 'Monthly':
+      // Use the estimated hours directly
+      monthlyHours = task.estimatedHours;
+      break;
+      
+    case 'Quarterly':
+      // Estimate hours per quarter and multiply by 3 (approximation)
+      monthlyHours = task.estimatedHours * 3;
+      break;
+      
+    case 'Annually':
+      // Estimate hours per year and multiply by 1 (approximation)
+      monthlyHours = task.estimatedHours;
+      break;
+      
+    case 'Custom':
+      // For custom patterns, estimate based on custom offset days
+      if (pattern.customOffsetDays && pattern.customOffsetDays > 0) {
+        monthlyHours = task.estimatedHours * (pattern.customOffsetDays / 30);
+      } else {
+        monthlyHours = task.estimatedHours; // Default to full estimated hours
+      }
+      break;
+      
+    default:
+      // For unknown patterns, use a default estimate of one instance
+      debugLog(`Warning: Unknown recurrence pattern type "${pattern.type}" for task ${task.id} (${task.name})`);
+      monthlyHours = task.estimatedHours;
+      break;
+  }
+  
+  return monthlyHours;
+};

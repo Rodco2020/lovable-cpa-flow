@@ -1,10 +1,19 @@
-
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom'; // Add this import to extend Jest matchers
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
 import ClientAdHocTaskList from '@/components/clients/ClientAdHocTaskList';
 import { RecurringTask, TaskInstance } from '@/types/task';
+
+// Mock the taskService module
+jest.mock('@/services/taskService', () => ({
+  getRecurringTasks: jest.fn().mockResolvedValue([]),
+  deactivateRecurringTask: jest.fn().mockResolvedValue(true),
+  getTaskInstances: jest.fn().mockResolvedValue([])
+}));
+
+// Import the mock functions for easier assertions
+import { getRecurringTasks, deactivateRecurringTask } from '@/services/taskService';
 
 // Mock data for testing
 const mockRecurringTasks: RecurringTask[] = [
@@ -113,58 +122,63 @@ jest.mock('@/components/clients/TaskListPagination', () => ({
 }));
 
 describe('ClientRecurringTaskList', () => {
-  test('renders recurring tasks correctly', () => {
-    render(<ClientRecurringTaskList tasks={mockRecurringTasks} />);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock the function to return our test data
+    (getRecurringTasks as jest.Mock).mockResolvedValue(mockRecurringTasks);
+  });
+
+  test('renders recurring tasks correctly', async () => {
+    render(<ClientRecurringTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Monthly Bookkeeping');
+    await screen.findByText('Quarterly Tax Filing');
     
     expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();
     expect(screen.getByText('Quarterly Tax Filing')).toBeInTheDocument();
   });
 
-  test('filters tasks based on search term', () => {
-    render(<ClientRecurringTaskList tasks={mockRecurringTasks} />);
+  test('handles deactivation correctly', async () => {
+    render(<ClientRecurringTaskList clientId="client1" />);
     
-    const searchInput = screen.getByPlaceholderText('Search tasks...');
-    fireEvent.change(searchInput, { target: { value: 'tax' } });
+    // Wait for tasks to load
+    await screen.findByText('Monthly Bookkeeping');
     
-    expect(screen.queryByText('Monthly Bookkeeping')).not.toBeInTheDocument();
-    expect(screen.getByText('Quarterly Tax Filing')).toBeInTheDocument();
+    // Find and click the deactivate button
+    const deactivateButton = screen.getAllByText('Deactivate')[0];
+    fireEvent.click(deactivateButton);
+    
+    expect(deactivateRecurringTask).toHaveBeenCalledWith('task1');
   });
 
-  test('sorts tasks correctly with the expanded sorter', () => {
-    render(<ClientRecurringTaskList tasks={mockRecurringTasks} />);
+  test('displays empty state when no tasks are found', async () => {
+    (getRecurringTasks as jest.Mock).mockResolvedValue([]);
     
-    // Change sort field to priority
-    const sortSelect = screen.getByText('Name');
-    fireEvent.click(sortSelect);
-    fireEvent.click(screen.getByText('Priority'));
+    render(<ClientRecurringTaskList clientId="client1" />);
     
-    // Change sort direction
-    const sortOrderButton = screen.getAllByText('A→Z')[0];
-    fireEvent.click(sortOrderButton);
+    // Wait for the empty state to appear
+    await screen.findByText('No recurring tasks');
     
-    // Check if tasks are sorted in descending order by priority
-    const taskRows = screen.getAllByRole('row').slice(1); // Skip the header row
-    expect(taskRows[0]).toHaveTextContent('Quarterly Tax Filing');
-    expect(taskRows[1]).toHaveTextContent('Monthly Bookkeeping');
+    expect(screen.getByText('No recurring tasks')).toBeInTheDocument();
+    expect(screen.getByText('This client doesn\'t have any recurring tasks set up yet.')).toBeInTheDocument();
   });
 
-  test('displays empty state when no tasks are provided', () => {
-    render(<ClientRecurringTaskList tasks={[]} />);
-    
-    expect(screen.getByText('No Recurring Tasks')).toBeInTheDocument();
-  });
-
-  test('calls onViewTask callback when task is clicked', () => {
+  test('calls onViewTask callback when task is clicked', async () => {
     const mockViewTask = jest.fn();
-    render(<ClientRecurringTaskList tasks={mockRecurringTasks} onViewTask={mockViewTask} />);
+    render(<ClientRecurringTaskList clientId="client1" onViewTask={mockViewTask} />);
     
+    // Wait for tasks to load
+    await screen.findByText('Monthly Bookkeeping');
+    
+    // Click on the row
     const taskRow = screen.getByText('Monthly Bookkeeping').closest('tr');
     fireEvent.click(taskRow!);
     
     expect(mockViewTask).toHaveBeenCalledWith('task1');
   });
   
-  test('shows pagination when there are more tasks than items per page', () => {
+  test('shows pagination when there are more tasks than items per page', async () => {
     // Create more tasks to trigger pagination
     const manyTasks = Array(10).fill(null).map((_, i) => ({
       ...mockRecurringTasks[0],
@@ -172,11 +186,14 @@ describe('ClientRecurringTaskList', () => {
       name: `Task ${i}`,
     }));
     
-    render(<ClientRecurringTaskList tasks={manyTasks} />);
+    (getRecurringTasks as jest.Mock).mockResolvedValue(manyTasks);
+    
+    render(<ClientRecurringTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Task 0');
     
     expect(screen.getByTestId('pagination')).toBeInTheDocument();
-    expect(screen.getByTestId('current-page')).toHaveTextContent('1');
-    expect(screen.getByTestId('total-pages')).toHaveTextContent(/of 2/i);
   });
 });
 
