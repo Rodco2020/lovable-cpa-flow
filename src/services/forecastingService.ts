@@ -26,18 +26,6 @@ import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getClientById } from '@/services/clientService';
 
-// Define TaskBreakdownItem interface for hover details
-interface TaskBreakdownItem {
-  id: string;
-  name: string;
-  clientName: string;
-  clientId: string;
-  skill: SkillType;
-  hours: number;
-  dueDate?: string;
-  status?: string;
-}
-
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
 
@@ -303,7 +291,7 @@ const calculateDemand = async (
     });
   } else {
     // Actual demand is based on task instances that have been generated
-    const taskInstances = getTaskInstances({
+    const taskInstances = await getTaskInstances({
       dueAfter: dateRange.startDate,
       dueBefore: dateRange.endDate
     });
@@ -450,7 +438,7 @@ const generateFinancialProjections = async (
     
     // Get tasks in this period
     const periodRange = getPeriodDateRange(periodData.period, parameters.granularity);
-    const tasksInPeriod = getTaskInstances({
+    const tasksInPeriod = await getTaskInstances({
       dueAfter: periodRange.startDate,
       dueBefore: periodRange.endDate
     });
@@ -856,7 +844,7 @@ export const validateForecastSystem = async (): Promise<string[]> => {
   debugLog('Running forecast system validation checks');
   
   // Check 1: Verify recurring tasks have valid recurrence patterns
-  const recurringTasks = getRecurringTasks();
+  const recurringTasks = await getRecurringTasks();
   recurringTasks.forEach(task => {
     if (!task.recurrencePattern || !task.recurrencePattern.type) {
       issues.push(`Task ${task.id} (${task.name}) has invalid recurrence pattern`);
