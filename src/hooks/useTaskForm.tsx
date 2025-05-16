@@ -1,6 +1,5 @@
-
 import { useState } from 'react';
-import { TaskPriority, TaskCategory, TaskTemplate, RecurrencePattern } from '@/types/task';
+import { TaskPriority, TaskCategory, TaskTemplate, RecurrencePattern, SkillType } from '@/types/task';
 
 interface TaskFormData {
   name: string;
@@ -9,7 +8,7 @@ interface TaskFormData {
   estimatedHours: number;
   priority: TaskPriority;
   category: TaskCategory;
-  requiredSkills: string[];
+  requiredSkills: SkillType[]; // Ensure this uses SkillType rather than string
   dueDate: string;
   recurrenceType: RecurrencePattern['type'];
   interval: number;
@@ -48,7 +47,7 @@ export default function useTaskForm(): TaskFormHookReturn {
     estimatedHours: 1,
     priority: 'Medium' as TaskPriority,
     category: 'Other' as TaskCategory,
-    requiredSkills: [],
+    requiredSkills: [] as SkillType[], // Ensure proper typing
     dueDate: '',
     recurrenceType: 'Monthly' as RecurrencePattern['type'],
     interval: 1,
@@ -82,6 +81,7 @@ export default function useTaskForm(): TaskFormHookReturn {
     const template = templates.find(t => t.id === templateId);
     if (template) {
       setSelectedTemplate(template);
+      // Ensure requiredSkills is properly typed as SkillType[]
       setTaskForm(prev => ({
         ...prev,
         name: template.name,
@@ -89,7 +89,7 @@ export default function useTaskForm(): TaskFormHookReturn {
         estimatedHours: template.defaultEstimatedHours,
         priority: template.defaultPriority,
         category: template.category,
-        requiredSkills: [...template.requiredSkills]
+        requiredSkills: [...template.requiredSkills] // This already has the correct type
       }));
     }
   };

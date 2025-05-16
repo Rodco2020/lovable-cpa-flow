@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TaskTemplate, RecurringTask } from '@/types/task';
+import { TaskTemplate, RecurringTask, SkillType } from '@/types/task';
 import { Client } from '@/types/client';
 import { getTaskTemplates } from '@/services/taskService';
 import { getAllClients } from '@/services/clientService';
@@ -98,6 +98,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
       
       let newTask;
       
+      // Convert string[] to SkillType[] - ensuring the values are valid SkillType values
+      const requiredSkills = taskForm.requiredSkills.filter((skill): skill is SkillType => {
+        return ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'].includes(skill);
+      });
+      
       if (isRecurring) {
         // Create recurring task
         const recurrencePattern = buildRecurrencePattern();
@@ -108,7 +113,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
           name: taskForm.name,
           description: taskForm.description,
           estimatedHours: taskForm.estimatedHours,
-          requiredSkills: taskForm.requiredSkills,
+          requiredSkills, // Using the filtered SkillType array
           priority: taskForm.priority,
           category: taskForm.category,
           dueDate: new Date(taskForm.dueDate),
@@ -122,7 +127,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
           name: taskForm.name,
           description: taskForm.description,
           estimatedHours: taskForm.estimatedHours,
-          requiredSkills: taskForm.requiredSkills,
+          requiredSkills, // Using the filtered SkillType array
           priority: taskForm.priority,
           category: taskForm.category,
           dueDate: new Date(taskForm.dueDate)
