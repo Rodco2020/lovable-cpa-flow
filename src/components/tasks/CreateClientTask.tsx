@@ -72,8 +72,21 @@ const CreateClientTask: React.FC = () => {
   
   useEffect(() => {
     // Load task templates
-    const templates = getTaskTemplates();
-    setTaskTemplates(templates);
+    const loadTemplates = async () => {
+      try {
+        const templates = await getTaskTemplates();
+        setTaskTemplates(templates);
+      } catch (error) {
+        console.error('Error loading task templates:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load task templates.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    loadTemplates();
     
     // Load clients
     const fetchClients = async () => {

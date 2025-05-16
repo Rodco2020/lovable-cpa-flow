@@ -5,12 +5,37 @@ import {
   RecurringTask, 
   TaskInstance, 
   TaskStatus, 
-  RecurrencePattern 
+  RecurrencePattern,
+  SkillType,
+  TaskPriority,
+  TaskCategory
 } from '@/types/task';
 
 // Mock data storage for non-migrated functions
 let recurringTasks: RecurringTask[] = [];
 let taskInstances: TaskInstance[] = [];
+
+// Helper function to validate and convert skill types
+const validateSkillType = (skills: string[]): SkillType[] => {
+  const validSkillTypes: SkillType[] = ["Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory", "Bookkeeping"];
+  return skills.filter(skill => validSkillTypes.includes(skill as SkillType)) as SkillType[];
+};
+
+// Helper function to validate and convert priority
+const validatePriority = (priority: string): TaskPriority => {
+  const validPriorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
+  return validPriorities.includes(priority as TaskPriority) 
+    ? (priority as TaskPriority) 
+    : "Medium";
+};
+
+// Helper function to validate and convert category
+const validateCategory = (category: string): TaskCategory => {
+  const validCategories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
+  return validCategories.includes(category as TaskCategory) 
+    ? (category as TaskCategory) 
+    : "Other";
+};
 
 // Task Template CRUD operations
 export const getTaskTemplates = async (includeArchived: boolean = false): Promise<TaskTemplate[]> => {
@@ -30,15 +55,15 @@ export const getTaskTemplates = async (includeArchived: boolean = false): Promis
       return [];
     }
     
-    // Map Supabase data to TaskTemplate type
+    // Map Supabase data to TaskTemplate type with proper type conversions
     return data.map(template => ({
       id: template.id,
       name: template.name,
       description: template.description || '',
       defaultEstimatedHours: template.default_estimated_hours,
-      requiredSkills: template.required_skills,
-      defaultPriority: template.default_priority,
-      category: template.category,
+      requiredSkills: validateSkillType(template.required_skills),
+      defaultPriority: validatePriority(template.default_priority),
+      category: validateCategory(template.category),
       isArchived: template.is_archived,
       createdAt: new Date(template.created_at),
       updatedAt: new Date(template.updated_at),
@@ -63,15 +88,15 @@ export const getTaskTemplateById = async (id: string): Promise<TaskTemplate | un
       return undefined;
     }
     
-    // Map Supabase data to TaskTemplate type
+    // Map Supabase data to TaskTemplate type with proper type conversions
     return {
       id: data.id,
       name: data.name,
       description: data.description || '',
       defaultEstimatedHours: data.default_estimated_hours,
-      requiredSkills: data.required_skills,
-      defaultPriority: data.default_priority,
-      category: data.category,
+      requiredSkills: validateSkillType(data.required_skills),
+      defaultPriority: validatePriority(data.default_priority),
+      category: validateCategory(data.category),
       isArchived: data.is_archived,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
@@ -114,9 +139,9 @@ export const createTaskTemplate = async (template: Omit<TaskTemplate, 'id' | 'cr
       name: data.name,
       description: data.description || '',
       defaultEstimatedHours: data.default_estimated_hours,
-      requiredSkills: data.required_skills,
-      defaultPriority: data.default_priority,
-      category: data.category,
+      requiredSkills: validateSkillType(data.required_skills),
+      defaultPriority: validatePriority(data.default_priority),
+      category: validateCategory(data.category),
       isArchived: data.is_archived,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
@@ -169,9 +194,9 @@ export const updateTaskTemplate = async (id: string, updates: Partial<Omit<TaskT
       name: data.name,
       description: data.description || '',
       defaultEstimatedHours: data.default_estimated_hours,
-      requiredSkills: data.required_skills,
-      defaultPriority: data.default_priority,
-      category: data.category,
+      requiredSkills: validateSkillType(data.required_skills),
+      defaultPriority: validatePriority(data.default_priority),
+      category: validateCategory(data.category),
       isArchived: data.is_archived,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
