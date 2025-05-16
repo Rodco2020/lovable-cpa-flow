@@ -7,15 +7,25 @@ import CreateClientTask from '@/components/tasks/CreateClientTask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ListCheck, Clipboard, Calendar } from 'lucide-react';
+import { ListCheck, Clipboard, Calendar, RefreshCw } from 'lucide-react';
 
 const TaskModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState("templates");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Function to trigger refreshes in child components
+  const triggerRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
   
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Task Module</h1>
+        <Button variant="outline" size="sm" onClick={triggerRefresh} className="flex items-center gap-1">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -73,16 +83,16 @@ const TaskModule: React.FC = () => {
         </TabsList>
         
         <TabsContent value="templates" className="space-y-4">
-          <TaskTemplateList />
+          <TaskTemplateList key={`templates-${refreshTrigger}`} />
         </TabsContent>
         
         <TabsContent value="create" className="space-y-4">
           <CreateClientTask />
-          <TaskGenerator />
+          <TaskGenerator key={`generator-${refreshTrigger}`} />
         </TabsContent>
         
         <TabsContent value="unscheduled" className="space-y-4">
-          <UnscheduledTaskList />
+          <UnscheduledTaskList key={`unscheduled-${refreshTrigger}`} />
         </TabsContent>
       </Tabs>
     </div>
