@@ -427,136 +427,260 @@ export const deactivateRecurringTask = async (id: string): Promise<boolean> => {
   }
 };
 
+// Helper function to map Supabase task instance to our TaskInstance type
+const mapSupabaseToTaskInstance = (data: any): TaskInstance => {
+  return {
+    id: data.id,
+    templateId: data.template_id,
+    recurringTaskId: data.recurring_task_id || undefined,
+    clientId: data.client_id,
+    name: data.name,
+    description: data.description || '',
+    estimatedHours: data.estimated_hours,
+    requiredSkills: validateSkillType(data.required_skills),
+    priority: validatePriority(data.priority),
+    category: validateCategory(data.category),
+    status: data.status as TaskStatus,
+    dueDate: data.due_date ? new Date(data.due_date) : null,
+    completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
+    assignedStaffId: data.assigned_staff_id || undefined,
+    scheduledStartTime: data.scheduled_start_time ? new Date(data.scheduled_start_time) : undefined,
+    scheduledEndTime: data.scheduled_end_time ? new Date(data.scheduled_end_time) : undefined,
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at),
+    notes: data.notes || undefined
+  };
+};
+
+// Helper function to map TaskInstance to Supabase format
+const mapTaskInstanceToSupabase = (task: TaskInstance | Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt'>): any => {
+  return {
+    template_id: task.templateId,
+    recurring_task_id: task.recurringTaskId || null,
+    client_id: task.clientId,
+    name: task.name,
+    description: task.description || null,
+    estimated_hours: task.estimatedHours,
+    required_skills: task.requiredSkills,
+    priority: task.priority,
+    category: task.category,
+    status: task.status,
+    due_date: task.dueDate ? task.dueDate.toISOString() : null,
+    completed_at: 'completedAt' in task && task.completedAt ? task.completedAt.toISOString() : null,
+    assigned_staff_id: 'assignedStaffId' in task ? task.assignedStaffId || null : null,
+    scheduled_start_time: 'scheduledStartTime' in task && task.scheduledStartTime ? task.scheduledStartTime.toISOString() : null,
+    scheduled_end_time: 'scheduledEndTime' in task && task.scheduledEndTime ? task.scheduledEndTime.toISOString() : null,
+    notes: 'notes' in task ? task.notes || null : null
+  };
+};
+
 // Task Instance operations
-export const getTaskInstances = (filters?: {
+export const getTaskInstances = async (filters?: {
   status?: TaskStatus[],
   clientId?: string,
   dueAfter?: Date,
   dueBefore?: Date,
   requiredSkills?: string[]
-}): TaskInstance[] => {
-  let filteredTasks = [...taskInstances];
-  
-  if (filters) {
-    if (filters.status) {
-      filteredTasks = filteredTasks.filter(t => filters.status?.includes(t.status));
+}): Promise<TaskInstance[]> => {
+  try {
+    let query = supabase
+      .from('task_instances')
+      .select('*');
+    
+    if (filters) {
+      if (filters.status && filters.status.length > 0) {
+        query = query.in('status', filters.status);
+      }
+      if (filters.clientId) {
+        query = query.eq('client_id', filters.clientId);
+      }
+      if (filters.dueAfter && filters.dueAfter instanceof Date) {
+        query = query.gte('due_date', filters.dueAfter.toISOString());
+      }
+      if (filters.dueBefore && filters.dueBefore instanceof Date) {
+        query = query.lte('due_date', filters.dueBefore.toISOString());
+      }
+      if (filters.requiredSkills && filters.requiredSkills.length > 0) {
+        // For skills, we need to check if any of the task's required skills match any of the filter skills
+        // This is more complex in SQL, we'll handle it with a contains operator
+        query = query.overlaps('required_skills', filters.requiredSkills);
+      }
     }
-    if (filters.clientId) {
-      filteredTasks = filteredTasks.filter(t => t.clientId === filters.clientId);
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching task instances:', error);
+      return [];
     }
-    if (filters.dueAfter && filters.dueAfter instanceof Date) {
-      filteredTasks = filteredTasks.filter(t => t.dueDate && t.dueDate >= filters.dueAfter!);
-    }
-    if (filters.dueBefore && filters.dueBefore instanceof Date) {
-      filteredTasks = filteredTasks.filter(t => t.dueDate && t.dueDate <= filters.dueBefore!);
-    }
-    if (filters.requiredSkills && filters.requiredSkills.length > 0) {
-      filteredTasks = filteredTasks.filter(t => 
-        t.requiredSkills.some(skill => filters.requiredSkills?.includes(skill))
-      );
-    }
+    
+    // Map Supabase data to TaskInstance type
+    return data.map(mapSupabaseToTaskInstance);
+  } catch (err) {
+    console.error('Unexpected error fetching task instances:', err);
+    return [];
   }
-  
-  return filteredTasks;
 };
 
-export const getUnscheduledTaskInstances = (): TaskInstance[] => {
-  return taskInstances.filter(t => t.status === 'Unscheduled');
+export const getUnscheduledTaskInstances = async (): Promise<TaskInstance[]> => {
+  return getTaskInstances({ status: ['Unscheduled'] });
 };
 
-export const createAdHocTask = (task: Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt' | 'status'>): TaskInstance => {
-  const newTask: TaskInstance = {
-    ...task,
-    id: uuidv4(),
-    status: 'Unscheduled',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-  taskInstances.push(newTask);
-  return newTask;
+export const createAdHocTask = async (task: Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<TaskInstance | null> => {
+  try {
+    const newTaskData = mapTaskInstanceToSupabase({
+      ...task,
+      status: 'Unscheduled'
+    });
+    
+    const { data, error } = await supabase
+      .from('task_instances')
+      .insert(newTaskData)
+      .select()
+      .single();
+    
+    if (error || !data) {
+      console.error('Error creating ad-hoc task:', error);
+      return null;
+    }
+    
+    return mapSupabaseToTaskInstance(data);
+  } catch (err) {
+    console.error('Unexpected error creating ad-hoc task:', err);
+    return null;
+  }
 };
 
-export const updateTaskInstance = (id: string, updates: Partial<Omit<TaskInstance, 'id' | 'createdAt'>>): TaskInstance | null => {
-  const index = taskInstances.findIndex(t => t.id === id);
-  if (index === -1) return null;
-  
-  taskInstances[index] = {
-    ...taskInstances[index],
-    ...updates,
-    updatedAt: new Date()
-  };
-  
-  return taskInstances[index];
+export const updateTaskInstance = async (id: string, updates: Partial<Omit<TaskInstance, 'id' | 'createdAt'>>): Promise<TaskInstance | null> => {
+  try {
+    // Prepare the update data for Supabase
+    const updateData: any = {};
+    
+    if (updates.templateId !== undefined) updateData.template_id = updates.templateId;
+    if (updates.recurringTaskId !== undefined) updateData.recurring_task_id = updates.recurringTaskId;
+    if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.estimatedHours !== undefined) updateData.estimated_hours = updates.estimatedHours;
+    if (updates.requiredSkills !== undefined) updateData.required_skills = updates.requiredSkills;
+    if (updates.priority !== undefined) updateData.priority = updates.priority;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate ? updates.dueDate.toISOString() : null;
+    if (updates.completedAt !== undefined) updateData.completed_at = updates.completedAt ? updates.completedAt.toISOString() : null;
+    if (updates.assignedStaffId !== undefined) updateData.assigned_staff_id = updates.assignedStaffId;
+    if (updates.scheduledStartTime !== undefined) updateData.scheduled_start_time = updates.scheduledStartTime ? updates.scheduledStartTime.toISOString() : null;
+    if (updates.scheduledEndTime !== undefined) updateData.scheduled_end_time = updates.scheduledEndTime ? updates.scheduledEndTime.toISOString() : null;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    
+    const { data, error } = await supabase
+      .from('task_instances')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error || !data) {
+      console.error('Error updating task instance:', error);
+      return null;
+    }
+    
+    return mapSupabaseToTaskInstance(data);
+  } catch (err) {
+    console.error('Unexpected error updating task instance:', err);
+    return null;
+  }
 };
 
 // Task Generation Engine
-export const generateTaskInstances = (
+export const generateTaskInstances = async (
   fromDate: Date,
   toDate: Date,
   leadTimeDays: number = 14
-): TaskInstance[] => {
+): Promise<TaskInstance[]> => {
   const newInstances: TaskInstance[] = [];
   
-  // Generate tasks for each active recurring task
-  getRecurringTasks(true)
-    .then(recurringTasks => {
-      recurringTasks.forEach(recurringTask => {
-        // Generate instances based on recurrence pattern
-        const dueDates = calculateDueDates(
-          recurringTask.recurrencePattern,
-          fromDate,
-          toDate,
-          recurringTask.lastGeneratedDate
-        );
-        
-        // Create task instances for each due date
-        dueDates.forEach(dueDate => {
-          // Check for duplicates (avoid regenerating tasks)
-          const isDuplicate = taskInstances.some(
-            ti => ti.recurringTaskId === recurringTask.id && 
-                 ti.dueDate && 
-                 isSameDay(ti.dueDate, dueDate)
-          );
-          
-          if (!isDuplicate) {
-            const newTaskInstance: TaskInstance = {
-              id: uuidv4(),
-              templateId: recurringTask.templateId,
-              clientId: recurringTask.clientId,
-              name: recurringTask.name,
-              description: recurringTask.description,
-              estimatedHours: recurringTask.estimatedHours,
-              requiredSkills: [...recurringTask.requiredSkills],
-              priority: recurringTask.priority,
-              category: recurringTask.category,
-              status: 'Unscheduled',
-              dueDate: dueDate,
-              recurringTaskId: recurringTask.id,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            };
-            
-            newInstances.push(newTaskInstance);
-          }
-        });
-        
-        // Update last generated date for the recurring task
-        if (dueDates.length > 0) {
-          const latestDueDate = new Date(Math.max(...dueDates.map(d => d.getTime())));
-          updateRecurringTask(recurringTask.id, {
-            lastGeneratedDate: latestDueDate
-          });
-        }
-      });
+  try {
+    // Get all active recurring tasks
+    const recurringTasks = await getRecurringTasks(true);
+    
+    // Process each recurring task
+    for (const recurringTask of recurringTasks) {
+      // Generate due dates based on recurrence pattern
+      const dueDates = calculateDueDates(
+        recurringTask.recurrencePattern,
+        fromDate,
+        toDate,
+        recurringTask.lastGeneratedDate
+      );
       
-      // Add the new instances to our storage
-      taskInstances.push(...newInstances);
-    })
-    .catch(err => {
-      console.error('Error generating task instances:', err);
-    });
-  
-  return newInstances;
+      // For each due date, check if we already have a task instance
+      for (const dueDate of dueDates) {
+        // Check for duplicates in Supabase
+        const { data: existingInstances, error: checkError } = await supabase
+          .from('task_instances')
+          .select('id')
+          .eq('recurring_task_id', recurringTask.id)
+          .eq('due_date', dueDate.toISOString());
+          
+        if (checkError) {
+          console.error('Error checking for duplicate task instances:', checkError);
+          continue;
+        }
+        
+        // If no duplicate found, create a new task instance
+        if (!existingInstances || existingInstances.length === 0) {
+          const newTaskData = {
+            template_id: recurringTask.templateId,
+            recurring_task_id: recurringTask.id,
+            client_id: recurringTask.clientId,
+            name: recurringTask.name,
+            description: recurringTask.description || null,
+            estimated_hours: recurringTask.estimatedHours,
+            required_skills: recurringTask.requiredSkills,
+            priority: recurringTask.priority,
+            category: recurringTask.category,
+            status: 'Unscheduled' as TaskStatus,
+            due_date: dueDate.toISOString(),
+            completed_at: null,
+            assigned_staff_id: null,
+            scheduled_start_time: null,
+            scheduled_end_time: null,
+            notes: null
+          };
+          
+          // Insert the new task instance into Supabase
+          const { data, error } = await supabase
+            .from('task_instances')
+            .insert(newTaskData)
+            .select()
+            .single();
+            
+          if (error) {
+            console.error('Error creating task instance:', error);
+          } else if (data) {
+            // Add to our return list
+            const newInstance = mapSupabaseToTaskInstance(data);
+            newInstances.push(newInstance);
+          }
+        }
+      }
+      
+      // Update last generated date for the recurring task if any due dates were processed
+      if (dueDates.length > 0) {
+        const latestDueDate = new Date(Math.max(...dueDates.map(d => d.getTime())));
+        await updateRecurringTask(recurringTask.id, {
+          lastGeneratedDate: latestDueDate
+        });
+      }
+    }
+    
+    return newInstances;
+    
+  } catch (err) {
+    console.error('Error generating task instances:', err);
+    return [];
+  }
 };
 
 // Helper functions
@@ -574,7 +698,6 @@ function calculateDueDates(
     currentDate = new Date(fromDate);
   }
   
-  // Simple implementation for now - can be expanded with more complex recurrence patterns
   switch (pattern.type) {
     case 'Daily':
       while (currentDate <= toDate) {
@@ -584,30 +707,127 @@ function calculateDueDates(
       break;
       
     case 'Weekly':
-      while (currentDate <= toDate) {
-        if (!pattern.weekdays || pattern.weekdays.includes(currentDate.getDay())) {
-          dueDates.push(new Date(currentDate));
+      // Handle weekly recurrence with specific weekdays
+      if (pattern.weekdays && pattern.weekdays.length > 0) {
+        while (currentDate <= toDate) {
+          const dayOfWeek = currentDate.getDay();
+          if (pattern.weekdays.includes(dayOfWeek)) {
+            dueDates.push(new Date(currentDate));
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
         }
-        currentDate.setDate(currentDate.getDate() + 1);
+      } else {
+        // Simple weekly recurrence
+        while (currentDate <= toDate) {
+          dueDates.push(new Date(currentDate));
+          currentDate.setDate(currentDate.getDate() + 7 * (pattern.interval || 1));
+        }
       }
       break;
       
     case 'Monthly':
+      // Find the target day of month
+      const dayOfMonth = pattern.dayOfMonth || currentDate.getDate();
+      
+      // Ensure the current date is at the target day of month
+      currentDate.setDate(1); // Start at beginning of month
+      
       while (currentDate <= toDate) {
-        if (pattern.dayOfMonth && currentDate.getDate() === pattern.dayOfMonth) {
+        // Set to the target day of month (or last day if month is shorter)
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        const targetDay = Math.min(dayOfMonth, lastDayOfMonth);
+        
+        currentDate.setDate(targetDay);
+        
+        // Only add if within our range
+        if (currentDate >= fromDate && currentDate <= toDate) {
           dueDates.push(new Date(currentDate));
-          // Skip to next month
-          currentDate.setMonth(currentDate.getMonth() + (pattern.interval || 1));
-          currentDate.setDate(pattern.dayOfMonth);
-        } else {
-          // Move to the next day
-          currentDate.setDate(currentDate.getDate() + 1);
         }
+        
+        // Move to next month
+        currentDate.setMonth(currentDate.getMonth() + (pattern.interval || 1));
+        currentDate.setDate(1); // Reset to first day of month for next iteration
       }
       break;
       
-    // Additional patterns can be implemented (Quarterly, Annually, Custom)
-    default:
+    case 'Quarterly':
+      // Similar to monthly, but with 3-month intervals
+      const quarterDayOfMonth = pattern.dayOfMonth || currentDate.getDate();
+      
+      // Make sure we're at the start of a quarter if needed
+      if (pattern.interval && pattern.interval > 0) {
+        const currentMonth = currentDate.getMonth();
+        const quarterStartMonth = Math.floor(currentMonth / 3) * 3;
+        currentDate.setMonth(quarterStartMonth);
+        currentDate.setDate(1);
+      }
+      
+      while (currentDate <= toDate) {
+        // Set to the target day of month
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        const targetDay = Math.min(quarterDayOfMonth, lastDayOfMonth);
+        
+        currentDate.setDate(targetDay);
+        
+        // Only add if within our range
+        if (currentDate >= fromDate && currentDate <= toDate) {
+          dueDates.push(new Date(currentDate));
+        }
+        
+        // Move to next quarter (3 months)
+        currentDate.setMonth(currentDate.getMonth() + 3 * (pattern.interval || 1));
+        currentDate.setDate(1); // Reset to first day of month for next iteration
+      }
+      break;
+      
+    case 'Annually':
+      // Handle annual recurrence, potentially with specific month/day
+      const annualMonth = pattern.monthOfYear ? pattern.monthOfYear - 1 : currentDate.getMonth();
+      const annualDay = pattern.dayOfMonth || currentDate.getDate();
+      
+      // Ensure we're on the right day
+      currentDate.setMonth(annualMonth);
+      
+      while (currentDate <= toDate) {
+        // Set to the target day of month
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), annualMonth + 1, 0).getDate();
+        const targetDay = Math.min(annualDay, lastDayOfMonth);
+        
+        currentDate.setDate(targetDay);
+        
+        // Only add if within our range
+        if (currentDate >= fromDate && currentDate <= toDate) {
+          dueDates.push(new Date(currentDate));
+        }
+        
+        // Move to next year
+        currentDate.setFullYear(currentDate.getFullYear() + (pattern.interval || 1));
+        currentDate.setMonth(annualMonth);
+        currentDate.setDate(1); // Reset to first day of month for next iteration
+      }
+      break;
+      
+    case 'Custom':
+      // Handle custom offsets, like "X days after month-end"
+      if (pattern.customOffsetDays !== undefined) {
+        while (currentDate <= toDate) {
+          // Find month-end (or other reference point)
+          const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          
+          // Calculate target date with offset
+          const targetDate = new Date(monthEnd);
+          targetDate.setDate(monthEnd.getDate() + pattern.customOffsetDays);
+          
+          // Only add if within our range
+          if (targetDate >= fromDate && targetDate <= toDate) {
+            dueDates.push(new Date(targetDate));
+          }
+          
+          // Move to next month
+          currentDate.setMonth(currentDate.getMonth() + (pattern.interval || 1));
+          currentDate.setDate(1); // Reset to first day of month for next iteration
+        }
+      }
       break;
   }
   
@@ -636,7 +856,7 @@ export const initializeTaskData = async () => {
       return;
     }
     
-    // If we already have templates, don't initialize
+    // If we already have templates, don't initialize those
     if (existingTemplates && existingTemplates.length > 0) {
       console.log('Task templates already exist, skipping initialization');
     } else {
@@ -731,10 +951,27 @@ export const initializeTaskData = async () => {
       console.log('Sample recurring tasks created successfully');
     }
     
+    // Check if we already have task instances in Supabase
+    const { data: existingTaskInstances, error: taskCheckError } = await supabase
+      .from('task_instances')
+      .select('id')
+      .limit(1);
+      
+    if (taskCheckError) {
+      console.error('Error checking for existing task instances:', taskCheckError);
+      return;
+    }
+    
+    // If we already have task instances, don't initialize those
+    if (existingTaskInstances && existingTaskInstances.length > 0) {
+      console.log('Task instances already exist, skipping initialization');
+      return;
+    }
+    
     // Create sample ad-hoc task
-    createAdHocTask({
-      templateId: "template-id", // This would be replaced with a real template ID in production
-      clientId: "client-003",
+    await createAdHocTask({
+      templateId: "00000000-0000-0000-0000-000000000001", // Placeholder template ID
+      clientId: "00000000-0000-0000-0000-000000000003", // Placeholder client ID
       name: "Special Advisory Project",
       description: "One-time strategic advisory session",
       estimatedHours: 10,
@@ -747,7 +984,10 @@ export const initializeTaskData = async () => {
     // Generate some task instances for the next 30 days
     const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    generateTaskInstances(now, thirtyDaysLater, 14);
+    await generateTaskInstances(now, thirtyDaysLater, 14);
+    
+    console.log('Sample tasks and task instances initialized');
+    
   } catch (err) {
     console.error('Error initializing task data:', err);
   }

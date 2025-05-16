@@ -17,7 +17,7 @@ const TaskGenerator: React.FC = () => {
   const [leadTimeDays, setLeadTimeDays] = useState<number>(14);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
     
     try {
@@ -36,7 +36,7 @@ const TaskGenerator: React.FC = () => {
       }
       
       // Generate tasks
-      const newTasks = generateTaskInstances(from, to, leadTimeDays);
+      const newTasks = await generateTaskInstances(from, to, leadTimeDays);
       
       toast({
         title: "Tasks Generated",
@@ -48,6 +48,7 @@ const TaskGenerator: React.FC = () => {
         description: "An error occurred while generating tasks.",
         variant: "destructive"
       });
+      console.error("Task generation error:", error);
     } finally {
       setIsGenerating(false);
     }
