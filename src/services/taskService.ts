@@ -262,11 +262,28 @@ const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
 
 // Helper function to map RecurringTask to Supabase format
 const mapRecurringTaskToSupabase = (task: RecurringTask | Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): any => {
+  // Validate required fields are present
+  if (!task.templateId) {
+    throw new Error('Template ID is required');
+  }
+  
+  if (!task.clientId) {
+    throw new Error('Client ID is required');
+  }
+  
+  if (!task.name || task.name.trim() === '') {
+    throw new Error('Task name is required');
+  }
+  
+  if (!task.recurrencePattern || !task.recurrencePattern.type) {
+    throw new Error('Recurrence pattern type is required');
+  }
+  
   return {
     template_id: task.templateId,
     client_id: task.clientId,
     name: task.name,
-    description: task.description,
+    description: task.description || null,
     estimated_hours: task.estimatedHours,
     required_skills: task.requiredSkills,
     priority: task.priority,
@@ -333,7 +350,28 @@ export const getRecurringTaskById = async (id: string): Promise<RecurringTask | 
 
 export const createRecurringTask = async (task: Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): Promise<RecurringTask | null> => {
   try {
+    console.log('Creating recurring task with data:', JSON.stringify(task, null, 2));
+    
+    // Additional validation for recurrence-specific fields
+    if (task.recurrencePattern.type === 'Weekly' && 
+        (!task.recurrencePattern.weekdays || task.recurrencePattern.weekdays.length === 0)) {
+      throw new Error('Weekdays must be specified for weekly recurrence');
+    }
+    
+    if (['Monthly', 'Quarterly', 'Annually'].includes(task.recurrencePattern.type) && 
+        !task.recurrencePattern.dayOfMonth) {
+      throw new Error('Day of month must be specified for monthly, quarterly, or annual recurrence');
+    }
+    
+    if (task.recurrencePattern.type === 'Annually' && !task.recurrencePattern.monthOfYear) {
+      console.warn('Month of year not specified for annual recurrence, defaulting to January');
+      task.recurrencePattern.monthOfYear = 1;
+    }
+    
+    // Convert task to Supabase format
     const newTaskData = mapRecurringTaskToSupabase(task);
+    
+    console.log('Mapped task data for Supabase:', JSON.stringify(newTaskData, null, 2));
     
     const { data, error } = await supabase
       .from('recurring_tasks')
@@ -341,15 +379,20 @@ export const createRecurringTask = async (task: Omit<RecurringTask, 'id' | 'crea
       .select()
       .single();
     
-    if (error || !data) {
-      console.error('Error creating recurring task:', error);
-      return null;
+    if (error) {
+      console.error('Supabase error creating recurring task:', error);
+      throw new Error(`Failed to create recurring task: ${error.message}`);
     }
     
+    if (!data) {
+      throw new Error('No data returned from recurring task creation');
+    }
+    
+    console.log('Successfully created recurring task:', data.id);
     return mapSupabaseToRecurringTask(data);
   } catch (err) {
-    console.error('Unexpected error creating recurring task:', err);
-    return null;
+    console.error('Error in createRecurringTask:', err);
+    throw err; // Rethrow to allow caller to handle the error
   }
 };
 
@@ -454,6 +497,19 @@ const mapSupabaseToTaskInstance = (data: any): TaskInstance => {
 
 // Helper function to map TaskInstance to Supabase format
 const mapTaskInstanceToSupabase = (task: TaskInstance | Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt'>): any => {
+  // Validate required fields
+  if (!task.templateId) {
+    throw new Error('Template ID is required');
+  }
+  
+  if (!task.clientId) {
+    throw new Error('Client ID is required');
+  }
+  
+  if (!task.name || task.name.trim() === '') {
+    throw new Error('Task name is required');
+  }
+  
   return {
     template_id: task.templateId,
     recurring_task_id: task.recurringTaskId || null,
@@ -528,10 +584,19 @@ export const getUnscheduledTaskInstances = async (): Promise<TaskInstance[]> => 
 
 export const createAdHocTask = async (task: Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<TaskInstance | null> => {
   try {
+    console.log('Creating ad-hoc task with data:', JSON.stringify(task, null, 2));
+    
+    // Ensure task has required fields
+    if (!task.dueDate) {
+      throw new Error('Due date is required for ad-hoc tasks');
+    }
+    
     const newTaskData = mapTaskInstanceToSupabase({
       ...task,
       status: 'Unscheduled'
     });
+    
+    console.log('Mapped ad-hoc task data for Supabase:', JSON.stringify(newTaskData, null, 2));
     
     const { data, error } = await supabase
       .from('task_instances')
@@ -539,15 +604,20 @@ export const createAdHocTask = async (task: Omit<TaskInstance, 'id' | 'createdAt
       .select()
       .single();
     
-    if (error || !data) {
-      console.error('Error creating ad-hoc task:', error);
-      return null;
+    if (error) {
+      console.error('Supabase error creating ad-hoc task:', error);
+      throw new Error(`Failed to create ad-hoc task: ${error.message}`);
     }
     
+    if (!data) {
+      throw new Error('No data returned from ad-hoc task creation');
+    }
+    
+    console.log('Successfully created ad-hoc task:', data.id);
     return mapSupabaseToTaskInstance(data);
   } catch (err) {
-    console.error('Unexpected error creating ad-hoc task:', err);
-    return null;
+    console.error('Error in createAdHocTask:', err);
+    throw err; // Rethrow to allow caller to handle the error
   }
 };
 
