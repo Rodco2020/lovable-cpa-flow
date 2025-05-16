@@ -12,7 +12,6 @@ import {
 } from '@/types/task';
 
 // Mock data storage for non-migrated functions
-let recurringTasks: RecurringTask[] = [];
 let taskInstances: TaskInstance[] = [];
 
 // Helper function to validate and convert skill types
@@ -227,52 +226,205 @@ export const archiveTaskTemplate = async (id: string): Promise<boolean> => {
   }
 };
 
+// Helper function to map Supabase recurring task to our RecurringTask type
+const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
+  // Create recurrence pattern object from individual fields
+  const recurrencePattern: RecurrencePattern = {
+    type: data.recurrence_type as RecurrencePattern['type'],
+    interval: data.recurrence_interval || undefined,
+    weekdays: data.weekdays || undefined,
+    dayOfMonth: data.day_of_month || undefined,
+    monthOfYear: data.month_of_year || undefined,
+    endDate: data.end_date ? new Date(data.end_date) : undefined,
+    customOffsetDays: data.custom_offset_days || undefined,
+  };
+
+  return {
+    id: data.id,
+    templateId: data.template_id,
+    clientId: data.client_id,
+    name: data.name,
+    description: data.description || '',
+    estimatedHours: data.estimated_hours,
+    requiredSkills: validateSkillType(data.required_skills),
+    priority: validatePriority(data.priority),
+    category: validateCategory(data.category),
+    status: data.status as TaskStatus,
+    dueDate: data.due_date ? new Date(data.due_date) : null,
+    recurrencePattern,
+    lastGeneratedDate: data.last_generated_date ? new Date(data.last_generated_date) : null,
+    isActive: data.is_active,
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at),
+    notes: data.notes || undefined
+  };
+};
+
+// Helper function to map RecurringTask to Supabase format
+const mapRecurringTaskToSupabase = (task: RecurringTask | Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): any => {
+  return {
+    template_id: task.templateId,
+    client_id: task.clientId,
+    name: task.name,
+    description: task.description,
+    estimated_hours: task.estimatedHours,
+    required_skills: task.requiredSkills,
+    priority: task.priority,
+    category: task.category,
+    status: 'status' in task ? task.status : 'Unscheduled',
+    due_date: task.dueDate ? task.dueDate.toISOString() : null,
+    recurrence_type: task.recurrencePattern.type,
+    recurrence_interval: task.recurrencePattern.interval || null,
+    weekdays: task.recurrencePattern.weekdays || null,
+    day_of_month: task.recurrencePattern.dayOfMonth || null,
+    month_of_year: task.recurrencePattern.monthOfYear || null,
+    end_date: task.recurrencePattern.endDate ? task.recurrencePattern.endDate.toISOString() : null,
+    custom_offset_days: task.recurrencePattern.customOffsetDays || null,
+    is_active: 'isActive' in task ? task.isActive : true,
+    notes: task.notes || null,
+  };
+};
+
 // Recurring Task operations
-export const getRecurringTasks = (activeOnly: boolean = true): RecurringTask[] => {
-  // ... keep existing code (in-memory implementation for recurring tasks)
-  return activeOnly ? recurringTasks.filter(t => t.isActive) : recurringTasks;
+export const getRecurringTasks = async (activeOnly: boolean = true): Promise<RecurringTask[]> => {
+  try {
+    let query = supabase
+      .from('recurring_tasks')
+      .select('*');
+    
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching recurring tasks:', error);
+      return [];
+    }
+    
+    // Map Supabase data to RecurringTask type
+    return data.map(mapSupabaseToRecurringTask);
+  } catch (err) {
+    console.error('Unexpected error fetching recurring tasks:', err);
+    return [];
+  }
 };
 
-export const createRecurringTask = (task: Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): RecurringTask => {
-  // ... keep existing code (in-memory implementation for creating recurring tasks)
-  const newTask: RecurringTask = {
-    ...task,
-    id: uuidv4(),
-    status: 'Unscheduled',
-    isActive: true,
-    lastGeneratedDate: null,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-  recurringTasks.push(newTask);
-  return newTask;
+export const getRecurringTaskById = async (id: string): Promise<RecurringTask | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    
+    if (error || !data) {
+      console.error('Error fetching recurring task by ID:', error);
+      return null;
+    }
+    
+    return mapSupabaseToRecurringTask(data);
+  } catch (err) {
+    console.error('Unexpected error fetching recurring task by ID:', err);
+    return null;
+  }
 };
 
-export const updateRecurringTask = (id: string, updates: Partial<Omit<RecurringTask, 'id' | 'createdAt'>>): RecurringTask | null => {
-  // ... keep existing code (in-memory implementation for updating recurring tasks)
-  const index = recurringTasks.findIndex(t => t.id === id);
-  if (index === -1) return null;
-  
-  recurringTasks[index] = {
-    ...recurringTasks[index],
-    ...updates,
-    updatedAt: new Date()
-  };
-  
-  return recurringTasks[index];
+export const createRecurringTask = async (task: Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): Promise<RecurringTask | null> => {
+  try {
+    const newTaskData = mapRecurringTaskToSupabase(task);
+    
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .insert(newTaskData)
+      .select()
+      .single();
+    
+    if (error || !data) {
+      console.error('Error creating recurring task:', error);
+      return null;
+    }
+    
+    return mapSupabaseToRecurringTask(data);
+  } catch (err) {
+    console.error('Unexpected error creating recurring task:', err);
+    return null;
+  }
 };
 
-export const deactivateRecurringTask = (id: string): boolean => {
-  // ... keep existing code (in-memory implementation for deactivating recurring tasks)
-  const index = recurringTasks.findIndex(t => t.id === id);
-  if (index === -1) return false;
-  
-  recurringTasks[index] = {
-    ...recurringTasks[index],
-    isActive: false,
-    updatedAt: new Date()
-  };
-  return true;
+export const updateRecurringTask = async (id: string, updates: Partial<Omit<RecurringTask, 'id' | 'createdAt'>>): Promise<RecurringTask | null> => {
+  try {
+    // Prepare the update data for Supabase
+    const updateData: any = {};
+    
+    if (updates.templateId !== undefined) updateData.template_id = updates.templateId;
+    if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.estimatedHours !== undefined) updateData.estimated_hours = updates.estimatedHours;
+    if (updates.requiredSkills !== undefined) updateData.required_skills = updates.requiredSkills;
+    if (updates.priority !== undefined) updateData.priority = updates.priority;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate ? updates.dueDate.toISOString() : null;
+    if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    
+    // Handle recurrence pattern updates
+    if (updates.recurrencePattern) {
+      if (updates.recurrencePattern.type !== undefined) updateData.recurrence_type = updates.recurrencePattern.type;
+      if (updates.recurrencePattern.interval !== undefined) updateData.recurrence_interval = updates.recurrencePattern.interval;
+      if (updates.recurrencePattern.weekdays !== undefined) updateData.weekdays = updates.recurrencePattern.weekdays;
+      if (updates.recurrencePattern.dayOfMonth !== undefined) updateData.day_of_month = updates.recurrencePattern.dayOfMonth;
+      if (updates.recurrencePattern.monthOfYear !== undefined) updateData.month_of_year = updates.recurrencePattern.monthOfYear;
+      if (updates.recurrencePattern.endDate !== undefined) {
+        updateData.end_date = updates.recurrencePattern.endDate ? updates.recurrencePattern.endDate.toISOString() : null;
+      }
+      if (updates.recurrencePattern.customOffsetDays !== undefined) updateData.custom_offset_days = updates.recurrencePattern.customOffsetDays;
+    }
+    
+    // Handle lastGeneratedDate updates
+    if (updates.lastGeneratedDate !== undefined) {
+      updateData.last_generated_date = updates.lastGeneratedDate ? updates.lastGeneratedDate.toISOString() : null;
+    }
+    
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error || !data) {
+      console.error('Error updating recurring task:', error);
+      return null;
+    }
+    
+    return mapSupabaseToRecurringTask(data);
+  } catch (err) {
+    console.error('Unexpected error updating recurring task:', err);
+    return null;
+  }
+};
+
+export const deactivateRecurringTask = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('recurring_tasks')
+      .update({ is_active: false })
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deactivating recurring task:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('Unexpected error deactivating recurring task:', err);
+    return false;
+  }
 };
 
 // Task Instance operations
@@ -283,7 +435,6 @@ export const getTaskInstances = (filters?: {
   dueBefore?: Date,
   requiredSkills?: string[]
 }): TaskInstance[] => {
-  // ... keep existing code (in-memory implementation for fetching task instances)
   let filteredTasks = [...taskInstances];
   
   if (filters) {
@@ -310,12 +461,10 @@ export const getTaskInstances = (filters?: {
 };
 
 export const getUnscheduledTaskInstances = (): TaskInstance[] => {
-  // ... keep existing code (in-memory implementation for fetching unscheduled task instances)
   return taskInstances.filter(t => t.status === 'Unscheduled');
 };
 
 export const createAdHocTask = (task: Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt' | 'status'>): TaskInstance => {
-  // ... keep existing code (in-memory implementation for creating ad-hoc tasks)
   const newTask: TaskInstance = {
     ...task,
     id: uuidv4(),
@@ -328,7 +477,6 @@ export const createAdHocTask = (task: Omit<TaskInstance, 'id' | 'createdAt' | 'u
 };
 
 export const updateTaskInstance = (id: string, updates: Partial<Omit<TaskInstance, 'id' | 'createdAt'>>): TaskInstance | null => {
-  // ... keep existing code (in-memory implementation for updating task instances)
   const index = taskInstances.findIndex(t => t.id === id);
   if (index === -1) return null;
   
@@ -347,68 +495,67 @@ export const generateTaskInstances = (
   toDate: Date,
   leadTimeDays: number = 14
 ): TaskInstance[] => {
-  // ... keep existing code (in-memory implementation for generating task instances)
   const newInstances: TaskInstance[] = [];
   
   // Generate tasks for each active recurring task
-  recurringTasks
-    .filter(rt => rt.isActive)
-    .forEach(recurringTask => {
-      // Generate instances based on recurrence pattern
-      const dueDates = calculateDueDates(
-        recurringTask.recurrencePattern,
-        fromDate,
-        toDate,
-        recurringTask.lastGeneratedDate
-      );
-      
-      // Create task instances for each due date
-      dueDates.forEach(dueDate => {
-        // Check for duplicates (avoid regenerating tasks)
-        const isDuplicate = taskInstances.some(
-          ti => ti.recurringTaskId === recurringTask.id && 
-               ti.dueDate && 
-               isSameDay(ti.dueDate, dueDate)
+  getRecurringTasks(true)
+    .then(recurringTasks => {
+      recurringTasks.forEach(recurringTask => {
+        // Generate instances based on recurrence pattern
+        const dueDates = calculateDueDates(
+          recurringTask.recurrencePattern,
+          fromDate,
+          toDate,
+          recurringTask.lastGeneratedDate
         );
         
-        if (!isDuplicate) {
-          const newTaskInstance: TaskInstance = {
-            id: uuidv4(),
-            templateId: recurringTask.templateId,
-            clientId: recurringTask.clientId,
-            name: recurringTask.name,
-            description: recurringTask.description,
-            estimatedHours: recurringTask.estimatedHours,
-            requiredSkills: [...recurringTask.requiredSkills],
-            priority: recurringTask.priority,
-            category: recurringTask.category,
-            status: 'Unscheduled',
-            dueDate: dueDate,
-            recurringTaskId: recurringTask.id,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
+        // Create task instances for each due date
+        dueDates.forEach(dueDate => {
+          // Check for duplicates (avoid regenerating tasks)
+          const isDuplicate = taskInstances.some(
+            ti => ti.recurringTaskId === recurringTask.id && 
+                 ti.dueDate && 
+                 isSameDay(ti.dueDate, dueDate)
+          );
           
-          newInstances.push(newTaskInstance);
+          if (!isDuplicate) {
+            const newTaskInstance: TaskInstance = {
+              id: uuidv4(),
+              templateId: recurringTask.templateId,
+              clientId: recurringTask.clientId,
+              name: recurringTask.name,
+              description: recurringTask.description,
+              estimatedHours: recurringTask.estimatedHours,
+              requiredSkills: [...recurringTask.requiredSkills],
+              priority: recurringTask.priority,
+              category: recurringTask.category,
+              status: 'Unscheduled',
+              dueDate: dueDate,
+              recurringTaskId: recurringTask.id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+            
+            newInstances.push(newTaskInstance);
+          }
+        });
+        
+        // Update last generated date for the recurring task
+        if (dueDates.length > 0) {
+          const latestDueDate = new Date(Math.max(...dueDates.map(d => d.getTime())));
+          updateRecurringTask(recurringTask.id, {
+            lastGeneratedDate: latestDueDate
+          });
         }
       });
       
-      // Update last generated date for the recurring task
-      if (dueDates.length > 0) {
-        const latestDueDate = new Date(Math.max(...dueDates.map(d => d.getTime())));
-        const recurringTaskIndex = recurringTasks.findIndex(rt => rt.id === recurringTask.id);
-        if (recurringTaskIndex !== -1) {
-          recurringTasks[recurringTaskIndex] = {
-            ...recurringTasks[recurringTaskIndex],
-            lastGeneratedDate: latestDueDate,
-            updatedAt: new Date()
-          };
-        }
-      }
+      // Add the new instances to our storage
+      taskInstances.push(...newInstances);
+    })
+    .catch(err => {
+      console.error('Error generating task instances:', err);
     });
   
-  // Add the new instances to our storage
-  taskInstances.push(...newInstances);
   return newInstances;
 };
 
@@ -419,7 +566,6 @@ function calculateDueDates(
   toDate: Date,
   lastGeneratedDate: Date | null
 ): Date[] {
-  // ... keep existing code (helper function for calculating due dates)
   const dueDates: Date[] = [];
   let currentDate = lastGeneratedDate ? new Date(lastGeneratedDate) : new Date(fromDate);
   
@@ -469,7 +615,6 @@ function calculateDueDates(
 }
 
 function isSameDay(date1: Date, date2: Date): boolean {
-  // ... keep existing code (helper function for comparing dates)
   return (
     date1.getFullYear() === date2.getFullYear() &&
     date1.getMonth() === date2.getMonth() &&
@@ -494,83 +639,101 @@ export const initializeTaskData = async () => {
     // If we already have templates, don't initialize
     if (existingTemplates && existingTemplates.length > 0) {
       console.log('Task templates already exist, skipping initialization');
-      return;
-    }
-    
-    // Create sample task templates
-    const templatePromises = [
-      createTaskTemplate({
-        name: "Monthly Bookkeeping",
-        description: "Reconcile accounts and prepare monthly financial statements",
-        defaultEstimatedHours: 3,
+    } else {
+      // Create sample task templates
+      const templatePromises = [
+        createTaskTemplate({
+          name: "Monthly Bookkeeping",
+          description: "Reconcile accounts and prepare monthly financial statements",
+          defaultEstimatedHours: 3,
+          requiredSkills: ["Junior", "Bookkeeping"],
+          defaultPriority: "Medium",
+          category: "Bookkeeping"
+        }),
+        createTaskTemplate({
+          name: "Quarterly Tax Filing",
+          description: "Prepare and submit quarterly tax returns",
+          defaultEstimatedHours: 5,
+          requiredSkills: ["Senior", "Tax Specialist"],
+          defaultPriority: "High",
+          category: "Tax"
+        }),
+        createTaskTemplate({
+          name: "Annual Audit",
+          description: "Complete annual audit procedures",
+          defaultEstimatedHours: 40,
+          requiredSkills: ["CPA", "Audit"],
+          defaultPriority: "High",
+          category: "Audit"
+        })
+      ];
+      
+      const createdTemplates = await Promise.all(templatePromises);
+      const templateIds = createdTemplates.map(template => template?.id).filter(Boolean) as string[];
+      
+      if (templateIds.length !== 3) {
+        console.error('Failed to create all task templates');
+        return;
+      }
+      
+      console.log('Task templates initialized successfully');
+      
+      // Check if we already have recurring tasks in Supabase
+      const { data: existingRecurringTasks, error: recCheckError } = await supabase
+        .from('recurring_tasks')
+        .select('id')
+        .limit(1);
+        
+      if (recCheckError) {
+        console.error('Error checking for existing recurring tasks:', recCheckError);
+        return;
+      }
+      
+      // If we already have recurring tasks, don't initialize
+      if (existingRecurringTasks && existingRecurringTasks.length > 0) {
+        console.log('Recurring tasks already exist, skipping initialization');
+        return;
+      }
+      
+      // Create sample recurring tasks
+      await createRecurringTask({
+        templateId: templateIds[0],
+        clientId: "client-001",
+        name: "ABC Corp Monthly Bookkeeping",
+        description: "Reconcile accounts and prepare monthly financial statements for ABC Corp",
+        estimatedHours: 3,
         requiredSkills: ["Junior", "Bookkeeping"],
-        defaultPriority: "Medium",
-        category: "Bookkeeping"
-      }),
-      createTaskTemplate({
-        name: "Quarterly Tax Filing",
-        description: "Prepare and submit quarterly tax returns",
-        defaultEstimatedHours: 5,
+        priority: "Medium",
+        category: "Bookkeeping",
+        dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 15),
+        recurrencePattern: {
+          type: "Monthly",
+          dayOfMonth: 15
+        }
+      });
+      
+      await createRecurringTask({
+        templateId: templateIds[1],
+        clientId: "client-002",
+        name: "XYZ Inc Quarterly Taxes",
+        description: "Prepare and submit quarterly tax returns for XYZ Inc",
+        estimatedHours: 6,  // Overridden from template
         requiredSkills: ["Senior", "Tax Specialist"],
-        defaultPriority: "High",
-        category: "Tax"
-      }),
-      createTaskTemplate({
-        name: "Annual Audit",
-        description: "Complete annual audit procedures",
-        defaultEstimatedHours: 40,
-        requiredSkills: ["CPA", "Audit"],
-        defaultPriority: "High",
-        category: "Audit"
-      })
-    ];
-    
-    const createdTemplates = await Promise.all(templatePromises);
-    const templateIds = createdTemplates.map(template => template?.id).filter(Boolean) as string[];
-    
-    if (templateIds.length !== 3) {
-      console.error('Failed to create all task templates');
-      return;
+        priority: "High",
+        category: "Tax",
+        dueDate: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3 + 3, 15),
+        recurrencePattern: {
+          type: "Quarterly",
+          dayOfMonth: 15
+        }
+      });
+      
+      console.log('Sample recurring tasks created successfully');
     }
-    
-    console.log('Task templates initialized successfully');
-    
-    // Create sample recurring tasks (still using in-memory implementation)
-    createRecurringTask({
-      templateId: templateIds[0],
-      clientId: "client-001",
-      name: "ABC Corp Monthly Bookkeeping",
-      description: "Reconcile accounts and prepare monthly financial statements for ABC Corp",
-      estimatedHours: 3,
-      requiredSkills: ["Junior", "Bookkeeping"],
-      priority: "Medium",
-      category: "Bookkeeping",
-      dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 15),
-      recurrencePattern: {
-        type: "Monthly",
-        dayOfMonth: 15
-      }
-    });
-    
-    createRecurringTask({
-      templateId: templateIds[1],
-      clientId: "client-002",
-      name: "XYZ Inc Quarterly Taxes",
-      description: "Prepare and submit quarterly tax returns for XYZ Inc",
-      estimatedHours: 6,  // Overridden from template
-      requiredSkills: ["Senior", "Tax Specialist"],
-      priority: "High",
-      category: "Tax",
-      dueDate: new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3 + 3, 15),
-      recurrencePattern: {
-        type: "Quarterly",
-        dayOfMonth: 15
-      }
-    });
     
     // Create sample ad-hoc task
     createAdHocTask({
-      templateId: templateIds[2],
+      templateId: "template-id", // This would be replaced with a real template ID in production
       clientId: "client-003",
       name: "Special Advisory Project",
       description: "One-time strategic advisory session",
