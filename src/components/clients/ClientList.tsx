@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
@@ -61,6 +60,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { CustomBadge } from "@/components/ui/custom-badge";
 
 const ClientList: React.FC = () => {
   const navigate = useNavigate();
@@ -278,7 +278,7 @@ const ClientList: React.FC = () => {
           )}
           
           {unfilteredClients.length > 0 && filteredClients.length === 0 && (
-            <Alert className="mb-4" variant="warning">
+            <Alert className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>No clients match your filters</AlertTitle>
               <AlertDescription>
