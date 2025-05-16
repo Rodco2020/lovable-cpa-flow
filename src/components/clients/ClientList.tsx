@@ -66,23 +66,33 @@ const ClientList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   
   // Fetch clients
   useEffect(() => {
     const fetchClients = async () => {
       setIsLoading(true);
+      setFetchError(null);
       try {
-        const fetchedClients = await getClients(
-          (statusFilter !== 'all' || industryFilter !== 'all') 
-            ? {
-                status: statusFilter !== 'all' ? [statusFilter] : undefined,
-                industry: industryFilter !== 'all' ? [industryFilter] : undefined
-              }
-            : undefined
-        );
+        console.log("Fetching clients with filters:", { 
+          status: statusFilter !== 'all' ? [statusFilter] : undefined,
+          industry: industryFilter !== 'all' ? [industryFilter] : undefined
+        });
+        
+        const filtersToApply = (statusFilter !== 'all' || industryFilter !== 'all') 
+          ? {
+              status: statusFilter !== 'all' ? [statusFilter] : undefined,
+              industry: industryFilter !== 'all' ? [industryFilter] : undefined
+            }
+          : undefined;
+        
+        const fetchedClients = await getClients(filtersToApply);
+        console.log("Fetched clients:", fetchedClients);
+        
         setClients(fetchedClients);
       } catch (error) {
         console.error('Error fetching clients:', error);
+        setFetchError("Failed to load clients");
         toast({
           title: "Error",
           description: "Failed to load clients.",
@@ -102,6 +112,8 @@ const ClientList: React.FC = () => {
     client.primaryContact.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  console.log("After search filter, client count:", filteredClients.length);
   
   // Handle client deletion
   const handleDeleteClick = (client: Client) => {
@@ -216,6 +228,15 @@ const ClientList: React.FC = () => {
             </div>
           </div>
           
+          {fetchError && (
+            <div className="bg-red-50 p-4 mb-4 rounded-md border border-red-200 text-red-800">
+              <p className="flex items-center">
+                <XCircle className="h-4 w-4 mr-2" />
+                {fetchError}
+              </p>
+            </div>
+          )}
+          
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -285,7 +306,23 @@ const ClientList: React.FC = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
-                      No clients found.
+                      {searchTerm || statusFilter !== 'all' || industryFilter !== 'all' ? (
+                        <div>
+                          <p className="mb-2">No clients match your filters.</p>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setSearchTerm('');
+                              setStatusFilter('all');
+                              setIndustryFilter('all');
+                            }}
+                          >
+                            Clear Filters
+                          </Button>
+                        </div>
+                      ) : (
+                        "No clients found."
+                      )}
                     </TableCell>
                   </TableRow>
                 )}

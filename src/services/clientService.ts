@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,16 +60,19 @@ export const getClients = async (filters?: { status?: ClientStatus[]; industry?:
 // Get all clients
 export const getAllClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
   try {
+    console.log("Fetching clients from Supabase with filters:", filters);
     let query = supabase
       .from('clients')
       .select('*')
       .order('created_at', { ascending: false });
     
     if (filters?.status && filters.status.length > 0) {
+      console.log("Applying status filter:", filters.status);
       query = query.in('status', filters.status);
     }
     
     if (filters?.industry && filters.industry.length > 0) {
+      console.log("Applying industry filter:", filters.industry);
       query = query.in('industry', filters.industry);
     }
     
@@ -78,8 +82,17 @@ export const getAllClients = async (filters?: { status?: ClientStatus[]; industr
       console.error('Error fetching clients from Supabase:', error);
       return clients; // Fallback to in-memory
     }
+
+    console.log("Received data from Supabase:", data);
     
-    return data.map(mapSupabaseDataToClient);
+    if (!data || data.length === 0) {
+      console.log("No clients found in Supabase, returning empty array");
+      return [];
+    }
+    
+    const mappedClients = data.map(mapSupabaseDataToClient);
+    console.log("Mapped clients:", mappedClients);
+    return mappedClients;
   } catch (error) {
     console.error('Error fetching clients:', error);
     
