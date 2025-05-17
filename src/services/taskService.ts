@@ -1,43 +1,47 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  TaskInstance, 
   TaskTemplate, 
+  TaskInstance, 
   RecurringTask, 
-  TaskStatus, 
-  TaskCategory, 
-  TaskPriority,
-  RecurrenceType,
-  RecurrencePattern,
-  SkillType
+  RecurringTaskCreateParams, 
+  AdHocTaskCreateParams,
+  RecurrencePattern
 } from '@/types/task';
 
-export interface RecurringTaskCreateParams {
-  templateId: string;
-  clientId: string;
-  name: string;
-  description: string;
-  estimatedHours: number;
-  requiredSkills: SkillType[];
-  priority: TaskPriority;
-  category: TaskCategory;
-  dueDate: Date;
-  recurrencePattern: RecurrencePattern;
-  status?: TaskStatus;
-  isActive: boolean;
-}
+// Mock database of tasks
+const taskTemplates: TaskTemplate[] = [];
+const taskInstances: TaskInstance[] = [];
+const recurringTasks: RecurringTask[] = [];
 
-export interface AdHocTaskCreateParams {
-  templateId: string;
-  clientId: string;
-  name: string;
-  description: string;
-  estimatedHours: number;
-  requiredSkills: SkillType[];
-  priority: TaskPriority;
-  category: TaskCategory;
-  dueDate: Date;
-  status?: TaskStatus;
+// Add a new updateRecurringTask function
+export async function updateRecurringTask(
+  taskId: string, 
+  updates: Partial<Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<RecurringTask | null> {
+  try {
+    // Find the task to update
+    const taskIndex = recurringTasks.findIndex(task => task.id === taskId);
+    if (taskIndex === -1) {
+      console.error(`Recurring task with ID ${taskId} not found`);
+      return null;
+    }
+
+    // Update the task
+    const updatedTask = {
+      ...recurringTasks[taskIndex],
+      ...updates,
+      updatedAt: new Date()
+    };
+
+    // Replace the task in the array
+    recurringTasks[taskIndex] = updatedTask;
+    
+    console.log(`Updated recurring task ${taskId}:`, updatedTask);
+    return updatedTask;
+  } catch (error) {
+    console.error("Error updating recurring task:", error);
+    return null;
+  }
 }
 
 // Get all task templates
@@ -245,25 +249,30 @@ export const getRecurringTasks = async (includeInactive: boolean = false): Promi
 };
 
 // Create recurring task
-export const createRecurringTask = async (taskData: RecurringTaskCreateParams): Promise<RecurringTask | null> => {
-  try {
-    const newTask: RecurringTask = {
-      id: uuidv4(),
-      ...taskData,
-      status: taskData.status || 'Unscheduled',
-      lastGeneratedDate: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    // In a real app, this would save to the database
-    console.log('Created recurring task:', newTask);
-    return newTask;
-  } catch (error) {
-    console.error('Error creating recurring task:', error);
-    return null;
-  }
-};
+export async function createRecurringTask(params: RecurringTaskCreateParams): Promise<RecurringTask> {
+  // Mock implementation
+  const newTask: RecurringTask = {
+    id: uuidv4(),
+    templateId: params.templateId,
+    clientId: params.clientId,
+    name: params.name,
+    description: params.description || '',
+    requiredSkills: params.requiredSkills,
+    estimatedHours: params.estimatedHours,
+    priority: params.priority,
+    category: params.category,
+    dueDate: params.dueDate,
+    status: params.status || 'Unscheduled',
+    recurrencePattern: params.recurrencePattern,
+    lastGeneratedDate: null,
+    isActive: true, // Adding the missing isActive field
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  
+  recurringTasks.push(newTask);
+  return newTask;
+}
 
 // Deactivate recurring task
 export const deactivateRecurringTask = async (id: string): Promise<boolean> => {
@@ -366,44 +375,67 @@ export const getTaskInstances = async (filter: { clientId?: string, status?: Tas
 };
 
 // Create ad-hoc task
-export const createAdHocTask = async (taskData: AdHocTaskCreateParams): Promise<TaskInstance | null> => {
-  try {
-    const newTask: TaskInstance = {
-      id: uuidv4(),
-      ...taskData,
-      status: taskData.status || 'Unscheduled',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    // In a real app, this would save to the database
-    console.log('Created ad-hoc task:', newTask);
-    return newTask;
-  } catch (error) {
-    console.error('Error creating ad-hoc task:', error);
-    return null;
-  }
-};
+export async function createAdHocTask(params: AdHocTaskCreateParams): Promise<TaskInstance> {
+  // Mock implementation
+  const newTask: TaskInstance = {
+    id: uuidv4(),
+    templateId: params.templateId,
+    clientId: params.clientId,
+    name: params.name,
+    description: params.description || '',
+    requiredSkills: params.requiredSkills,
+    estimatedHours: params.estimatedHours,
+    priority: params.priority,
+    category: params.category,
+    dueDate: params.dueDate,
+    status: params.status || 'Unscheduled',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  
+  taskInstances.push(newTask);
+  return newTask;
+}
 
 // Generate task instances from recurring tasks
-export const generateTaskInstances = async (): Promise<{ generated: number, errors: number }> => {
-  try {
-    // In a real app, this would generate task instances from recurring tasks
-    // based on recurrence patterns and due dates
-    console.log('Generating task instances from recurring tasks');
-    return { generated: 3, errors: 0 };
-  } catch (error) {
-    console.error('Error generating task instances:', error);
-    return { generated: 0, errors: 1 };
+export async function generateTaskInstances(recurringTaskIds: string[]): Promise<TaskInstance[]> {
+  // Mock implementation
+  const generatedTasks: TaskInstance[] = [];
+  
+  for (const taskId of recurringTaskIds) {
+    const recurringTask = recurringTasks.find(rt => rt.id === taskId);
+    if (recurringTask && recurringTask.isActive) {
+      // Generate an instance
+      const instance: TaskInstance = {
+        id: uuidv4(),
+        templateId: recurringTask.templateId,
+        clientId: recurringTask.clientId,
+        recurringTaskId: recurringTask.id,
+        name: recurringTask.name,
+        description: recurringTask.description,
+        requiredSkills: recurringTask.requiredSkills,
+        estimatedHours: recurringTask.estimatedHours,
+        priority: recurringTask.priority,
+        category: recurringTask.category,
+        dueDate: new Date(recurringTask.dueDate || new Date()),
+        status: 'Unscheduled',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      taskInstances.push(instance);
+      generatedTasks.push(instance);
+      
+      // Update last generated date
+      recurringTask.lastGeneratedDate = new Date();
+    }
   }
-};
+  
+  return generatedTasks;
+}
 
 // Get unscheduled task instances
-export const getUnscheduledTaskInstances = async (): Promise<TaskInstance[]> => {
-  try {
-    return getTaskInstances({ status: 'Unscheduled' });
-  } catch (error) {
-    console.error('Error fetching unscheduled task instances:', error);
-    return [];
-  }
-};
+export async function getUnscheduledTaskInstances(): Promise<TaskInstance[]> {
+  // Mock implementation
+  return taskInstances.filter(task => task.status === 'Unscheduled');
+}

@@ -1,231 +1,134 @@
 
-import React, { useEffect, useState } from "react";
-import { getAllStaff } from "@/services/staffService";
-import { TaskInstance } from "@/types/task";
-import { Staff, TimeSlot } from "@/types/staff";
-import { getTimeSlotsByDate } from "@/services/staffService";
-import { format } from "date-fns";
-import StaffScheduleCard from "./StaffScheduleCard";
-import { scheduleTask } from "@/services/schedulerService";
-import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader } from "lucide-react";
-import { generateAvailabilityMasks, AvailabilityMask } from "@/services/integrations/schedulerIntegration";
-import { useEventPublisher } from "@/hooks/useAppEvent";
-import { Button } from "@/components/ui/button";
+// Fixing issues with date conversion and staff status
+import React, { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Clock } from 'lucide-react';
+import { StaffMember } from '@/types/staff';
+import StaffScheduleCard from './StaffScheduleCard';
+import { getAllStaff } from '@/services/staffService';
+import { getTimeSlotsByDate } from '@/services/staffService';
+import { scheduleTasks } from '@/services/schedulerService';
+import { TaskInstance } from '@/types/task';
+import { format, parseISO } from 'date-fns';
 
 interface StaffScheduleViewProps {
-  selectedTask: TaskInstance | null;
-  currentDate?: Date;
+  selectedDate: Date;
+  unscheduledTasks: TaskInstance[];
+  onTaskAssigned: () => void;
 }
 
-const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ 
-  selectedTask,
-  currentDate = new Date()
+const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
+  selectedDate,
+  unscheduledTasks,
+  onTaskAssigned
 }) => {
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [timeSlots, setTimeSlots] = useState<Record<string, TimeSlot[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [availabilityMasks, setAvailabilityMasks] = useState<Record<string, AvailabilityMask>>({});
-  const { publishEvent } = useEventPublisher();
-  
-  // Format date for API calls
-  const formattedDate = format(currentDate, "yyyy-MM-dd");
-  
-  // Load staff and their time slots
-  const loadData = async () => {
+  const [scheduleData, setScheduleData] = useState<Record<string, any>>({});
+
+  const fetchStaff = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setIsLoading(true);
+      const staffData = await getAllStaff();
       
-      // Fetch all staff
-      const staffList = await getAllStaff();
-      const activeStaff = staffList.filter(s => s.status === "active");
+      // Filter active staff
+      const activeStaff = staffData.filter(s => s.status === 'Active');
       setStaff(activeStaff);
       
-      if (activeStaff.length === 0) {
-        setError("No active staff members found.");
-        setLoading(false);
-        return;
-      }
-      
-      // Load time slots for each staff member
-      const slots: Record<string, TimeSlot[]> = {};
-      const masks: Record<string, AvailabilityMask> = {};
-      
-      for (const s of activeStaff) {
-        try {
-          // Get time slots from the service
-          const staffSlots = await getTimeSlotsByDate(formattedDate);
-          slots[s.id] = staffSlots.filter(slot => slot.staffId === s.id);
+      // Fetch schedule data for each staff member
+      const schedulePromises = activeStaff.map(async (s) => {
+        // Convert Date object to proper format if needed
+        const formattedDate = selectedDate instanceof Date 
+          ? selectedDate 
+          : new Date(selectedDate);
           
-          // Get availability mask from integration service
-          const availMasks = await generateAvailabilityMasks(s.id, currentDate, 1);
-          if (availMasks.length > 0) {
-            masks[s.id] = availMasks[0];
-          }
-        } catch (staffError) {
-          console.error(`Error loading data for staff ${s.id}:`, staffError);
-        }
-      }
+        const timeSlots = await getTimeSlotsByDate(s.id, formattedDate);
+        return { staffId: s.id, timeSlots };
+      });
       
-      setTimeSlots(slots);
-      setAvailabilityMasks(masks);
-    } catch (error) {
-      console.error("Error loading staff schedule data:", error);
-      setError("Failed to load staff schedule data. Please try again.");
-      toast.error("Failed to load schedule data");
+      const scheduleResults = await Promise.all(schedulePromises);
+      
+      // Convert to record for easier lookup
+      const scheduleRecord: Record<string, any> = {};
+      scheduleResults.forEach(item => {
+        scheduleRecord[item.staffId] = item.timeSlots;
+      });
+      
+      setScheduleData(scheduleRecord);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching staff data:", err);
+      setError("Failed to load staff schedule data");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-  
+
   useEffect(() => {
-    loadData();
-  }, [formattedDate]);
-  
-  // Handle scheduling a task
-  const handleScheduleTask = async (staffId: string, startTime: string, endTime: string) => {
-    if (!selectedTask) return;
-    
-    const staffName = staff.find(s => s.id === staffId)?.fullName || "selected staff";
-    
+    fetchStaff();
+  }, [selectedDate]);
+
+  const handleAssignTask = async (taskId: string, staffId: string, startTime: Date, endTime: Date) => {
     try {
-      // Show loading toast
-      toast.loading(`Scheduling task for ${staffName}...`);
-      
       // Schedule the task
-      await scheduleTask(
-        selectedTask.id,
+      const result = await scheduleTasks(
+        [taskId],
         staffId,
-        formattedDate,
         startTime,
         endTime
       );
       
-      // Dismiss loading toast
-      toast.dismiss();
-      
-      // Refresh the time slots
-      const updatedSlots = await getTimeSlotsByDate(formattedDate);
-      
-      // Update state
-      setTimeSlots(prev => ({
-        ...prev,
-        [staffId]: updatedSlots.filter(slot => slot.staffId === staffId)
-      }));
-      
-      // Emit event for task scheduling
-      publishEvent({
-        type: "task.scheduled",
-        payload: {
-          taskId: selectedTask.id,
-          staffId,
-          date: formattedDate,
-          startTime,
-          endTime
-        },
-        source: "SchedulerView"
-      });
-      
-      toast.success(`Task "${selectedTask.name}" has been scheduled for ${staffName}`);
+      if (result.success) {
+        onTaskAssigned();
+        
+        // Refresh schedule data for this staff member
+        const formattedDate = selectedDate instanceof Date 
+          ? selectedDate 
+          : new Date(selectedDate);
+          
+        const updatedTimeSlots = await getTimeSlotsByDate(staffId, formattedDate);
+        
+        setScheduleData(prev => ({
+          ...prev,
+          [staffId]: updatedTimeSlots
+        }));
+      }
     } catch (error) {
-      toast.dismiss();
-      console.error("Error scheduling task:", error);
-      toast.error("Error scheduling task");
+      console.error("Error assigning task:", error);
     }
   };
-  
-  // Filter staff based on required skills if a task is selected
-  const filteredStaff = selectedTask && selectedTask.requiredSkills && selectedTask.requiredSkills.length > 0
-    ? staff.filter(s => 
-        selectedTask.requiredSkills.some(skill => 
-          s.skills && s.skills.includes(skill)
-        )
-      )
-    : staff;
-  
-  // Convert availability masks to available slots for the schedule card
-  const getAvailableSlots = (staffId: string) => {
-    const mask = availabilityMasks[staffId];
-    if (!mask || !mask.slots) return [];
-    
-    // Format available slots from the slots in the mask
-    return mask.slots
-      .filter(slot => slot.isAvailable) // use isAvailable instead of available
-      .map(slot => {
-        // Convert hour and minute to HH:MM format
-        const startHour = slot.hour;
-        const startMinute = slot.minute;
-        const endHour = startMinute === 30 ? startHour + 1 : startHour;
-        const endMinute = startMinute === 30 ? 0 : 30;
-        
-        return {
-          startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
-          endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
-        };
-      });
-  };
-  
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className="text-center">
-          <Loader className="h-10 w-10 animate-spin mx-auto mb-3 text-primary" />
-          <p className="text-lg font-medium">Loading staff schedule data...</p>
-        </div>
-      </div>
-    );
+
+  if (isLoading) {
+    return <div className="p-4 text-center">Loading staff schedule data...</div>;
   }
-  
+
   if (error) {
-    return (
-      <Alert variant="destructive" className="my-4">
-        <AlertCircle className="h-5 w-5" />
-        <AlertTitle>Error loading schedule data</AlertTitle>
-        <AlertDescription className="mt-2">
-          {error}
-          <div className="mt-4">
-            <Button onClick={loadData} variant="outline">Try Again</Button>
-          </div>
-        </AlertDescription>
-      </Alert>
-    );
+    return <div className="p-4 text-center text-red-500">{error}</div>;
   }
-  
-  if (selectedTask && filteredStaff.length === 0) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>No eligible staff</AlertTitle>
-        <AlertDescription>
-          No staff members with the required skills ({selectedTask.requiredSkills.join(", ")}) are available.
-        </AlertDescription>
-      </Alert>
-    );
+
+  if (staff.length === 0) {
+    return <div className="p-4 text-center">No active staff members found.</div>;
   }
-  
+
   return (
-    <div className="space-y-6">
-      {selectedTask && (
-        <Alert className="bg-blue-50">
-          <AlertTitle>Scheduling Task: {selectedTask.name}</AlertTitle>
-          <AlertDescription>
-            Use the schedule buttons to assign this task to a staff member.
-          </AlertDescription>
-        </Alert>
-      )}
-      
+    <div className="space-y-6 pb-6">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Calendar className="h-4 w-4" />
+        <span>Showing schedule for {format(
+          selectedDate instanceof Date ? selectedDate : new Date(selectedDate), 
+          'EEEE, MMMM d, yyyy'
+        )}</span>
+      </div>
+
       <div className="space-y-6">
-        {filteredStaff.map(s => (
+        {staff.map((staffMember) => (
           <StaffScheduleCard
-            key={s.id}
-            staff={s}
-            currentDate={currentDate}
-            availableSlots={getAvailableSlots(s.id)}
-            selectedTask={selectedTask}
-            onSchedule={(staffId, startTime, endTime) => handleScheduleTask(staffId, startTime, endTime)}
+            key={staffMember.id}
+            staff={staffMember}
+            timeSlots={scheduleData[staffMember.id] || []}
+            unscheduledTasks={unscheduledTasks}
+            onAssignTask={handleAssignTask}
           />
         ))}
       </div>

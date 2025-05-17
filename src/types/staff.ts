@@ -9,7 +9,7 @@ export interface StaffMember {
   phone?: string;
   skills: SkillType[];
   costPerHour: number;
-  status: 'Active' | 'Inactive' | 'On Leave';
+  status: StaffStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,4 +63,6 @@ export interface AvailabilitySummary {
   dailyBreakdown: { [day: string]: number };
   utilizationPercentage: number;
   dailySummaries?: { [day: string]: number }; // Added for AvailabilitySummaryPanel
+  weeklyTotal?: number; // Added for StaffDetail
+  averageDailyHours?: number; // Added for StaffDetail
 }

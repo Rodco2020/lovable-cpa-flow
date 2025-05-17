@@ -1,5 +1,5 @@
 
-export type SkillType = "Junior" | "Senior" | "CPA" | "Tax Specialist" | "Audit" | "Advisory" | "Bookkeeping";
+export type SkillType = "Junior" | "Senior" | "CPA" | "Tax Specialist" | "Audit" | "Advisory" | "Bookkeeping" | string;
 export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TaskCategory = "Tax" | "Audit" | "Advisory" | "Compliance" | "Bookkeeping" | "Other";
 export type TaskStatus = "Unscheduled" | "Scheduled" | "In Progress" | "Completed" | "Canceled";
@@ -77,6 +77,7 @@ export interface RecurringTaskCreateParams {
   dueDate: Date;
   recurrencePattern: RecurrencePattern;
   status?: TaskStatus;
+  isActive: boolean; // Add isActive field which was missing
 }
 
 // Parameters for creating an ad-hoc task

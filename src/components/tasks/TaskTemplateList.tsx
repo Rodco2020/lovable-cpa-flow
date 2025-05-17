@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { TaskTemplate, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 import { 
@@ -175,7 +174,8 @@ const TaskTemplateList: React.FC = () => {
           defaultEstimatedHours: formData.defaultEstimatedHours!,
           requiredSkills: formData.requiredSkills as SkillType[],
           defaultPriority: formData.defaultPriority as TaskPriority,
-          category: formData.category as TaskCategory
+          category: formData.category as TaskCategory,
+          isArchived: false // Add the missing field
         });
         
         if (!newTemplate) {

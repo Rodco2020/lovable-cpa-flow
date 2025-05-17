@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -120,7 +119,8 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
         estimatedHours: data.estimatedHours,
         priority: data.priority,
         dueDate: new Date(data.dueDate), 
-        recurrencePattern
+        recurrencePattern,
+        isActive: task.isActive // Preserve the isActive property
       });
 
       if (updated) {

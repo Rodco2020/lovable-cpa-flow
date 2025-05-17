@@ -1,341 +1,497 @@
-
 import React, { useState, useEffect } from 'react';
-import { TaskTemplate, RecurringTask, SkillType } from '@/types/task';
-import { Client } from '@/types/client';
-import { getTaskTemplates } from '@/services/taskService';
-import { getAllClients } from '@/services/clientService';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar } from "@/components/ui/calendar"
+import { CalendarIcon } from "lucide-react"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import {
+  RecurringTaskCreateParams,
+  RecurrencePattern,
+  SkillType,
+  TaskCategory,
+  TaskPriority
+} from '@/types/task';
+import { getAllTaskTemplates } from '@/services/taskTemplateService';
+import { createTaskTemplate } from '@/services/taskTemplateService';
+import { getAllClients } from '@/services/clientService';
 import { createRecurringTask, createAdHocTask } from '@/services/taskService';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader, CheckCircle2 } from 'lucide-react';
-import TaskBasicInfoForm from './TaskBasicInfoForm';
-import RecurrenceSettingsForm from './RecurrenceSettingsForm';
-import TaskDateSelector from './TaskDateSelector';
-import TaskSummary from './TaskSummary';
-import useTaskForm from '@/hooks/useTaskForm';
+
+const taskFormSchema = z.object({
+  name: z.string().min(3, {
+    message: "Task name must be at least 3 characters.",
+  }),
+  description: z.string().optional(),
+  estimatedHours: z.number().min(0, {
+    message: "Estimated hours must be a positive number.",
+  }),
+  requiredSkills: z.array(z.string()).nonempty({
+    message: "At least one skill is required.",
+  }),
+  priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
+  category: z.enum(['Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping', 'Other']),
+  dueDate: z.date(),
+});
+
+const recurrencePatternSchema = z.object({
+  type: z.enum(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'Custom']),
+  interval: z.number().min(1, {
+    message: "Interval must be at least 1.",
+  }).default(1),
+  weekdays: z.array(z.number()).optional(),
+  dayOfMonth: z.number().min(1, {
+    message: "Day of month must be between 1 and 31.",
+  }).max(31, {
+    message: "Day of month must be between 1 and 31.",
+  }).optional(),
+  monthOfYear: z.number().min(1, {
+    message: "Month of year must be between 1 and 12.",
+  }).max(12, {
+    message: "Month of year must be between 1 and 12.",
+  }).optional(),
+  endDate: z.date().optional(),
+  customOffsetDays: z.number().optional(),
+});
 
 interface TaskFormProps {
-  onClose: () => void;
-  onSuccess?: (task: RecurringTask) => void;
+  clientId?: string;
+  clientName?: string;
 }
 
-/**
- * TaskForm Component
- * 
- * A comprehensive form for creating new client-assigned tasks, both ad-hoc and recurring.
- * This component handles the entire workflow from template selection to task submission,
- * including validation, error handling, and success notifications.
- * 
- * @param {Object} props - Component props
- * @param {Function} props.onClose - Function to call when the form is closed
- * @param {Function} props.onSuccess - Optional callback when a task is created successfully
- */
-const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
-  // Use the task form custom hook for form state and logic
-  const {
-    taskForm,
-    selectedTemplate,
-    formErrors,
-    isRecurring,
-    setIsRecurring,
-    handleInputChange,
-    handleTemplateSelect,
-    handleClientChange,
-    handleWeekdayChange,
-    validateForm,
-    resetForm,
-    setFormErrors,
-    buildRecurrencePattern
-  } = useTaskForm();
-  
-  // Component state
-  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  /**
-   * Load task templates and clients when component mounts
-   */
+const TaskForm: React.FC<TaskFormProps> = ({ clientId: initialClientId, clientName: initialClientName }) => {
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(initialClientId || null);
+  const [taskType, setTaskType] = useState<'recurring' | 'adHoc'>('recurring');
+  const [templates, setTemplates] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [isRecurrenceEnabled, setIsRecurrenceEnabled] = useState(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    description: '',
+    defaultEstimatedHours: 1,
+    requiredSkills: [],
+    defaultPriority: 'Medium',
+    category: 'Tax',
+  });
+  const navigate = useNavigate();
+
+  const form = useForm<z.infer<typeof taskFormSchema>>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      estimatedHours: 1,
+      requiredSkills: [],
+      priority: 'Medium',
+      category: 'Tax',
+      dueDate: new Date(),
+    },
+  });
+
+  const recurrenceForm = useForm<z.infer<typeof recurrencePatternSchema>>({
+    resolver: zodResolver(recurrencePatternSchema),
+    defaultValues: {
+      type: 'Monthly',
+      interval: 1,
+    },
+  });
+
+  const { watch } = form;
+  const basicInfo = watch();
+  const recurrencePattern = recurrenceForm.watch();
+
   useEffect(() => {
-    loadResources();
+    const fetchTemplates = async () => {
+      const templates = await getAllTaskTemplates();
+      setTemplates(templates);
+    };
+
+    const fetchClients = async () => {
+      const clients = await getAllClients();
+      setClients(clients);
+    };
+
+    fetchTemplates();
+    fetchClients();
   }, []);
-  
-  /**
-   * Fetches templates and clients data from API
-   */
-  const loadResources = async () => {
-    setIsLoading(true);
-    try {
-      // Load both resources in parallel for better performance
-      const [templateData, clientData] = await Promise.all([
-        getTaskTemplates(),
-        getAllClients()
-      ]);
-      
-      setTaskTemplates(templateData);
-      setClients(clientData);
-    } catch (error) {
-      console.error('Error loading resources:', error);
-      toast.error("Failed to load necessary data. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTemplateId(e.target.value);
   };
-  
-  /**
-   * Handles changes to recurrence type select element
-   */
-  const handleRecurrenceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    handleInputChange(e);
+
+  const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setClientId(e.target.value);
   };
-  
-  /**
-   * Handles form submission to create a task
-   * Validates form, creates task via API, and shows appropriate notifications
-   */
-  const handleSubmit = async () => {
-    // Validate the form
-    if (!validateForm()) {
-      // Show a toast for validation errors
-      toast.error("Please fix the form errors before submitting");
-      
-      // Scroll to the first error if any
-      const firstErrorField = Object.keys(formErrors)[0];
-      const errorElement = document.getElementById(firstErrorField);
-      if (errorElement) {
-        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-    
-    if (!selectedTemplate) {
-      toast.error("Please select a task template");
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
+
+  const handleTaskTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTaskType(e.target.value as 'recurring' | 'adHoc');
+  };
+
+  const handleCreateTemplate = async () => {
     try {
-      // Show in-progress toast with ID for later reference
-      const loadingToastId = toast.loading(
-        isRecurring ? "Creating recurring task..." : "Creating ad-hoc task..."
-      );
-      
-      let newTask;
-      
-      // Convert string[] to SkillType[] - ensuring the values are valid SkillType values
-      const requiredSkills = taskForm.requiredSkills.filter((skill): skill is SkillType => {
-        return ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'].includes(skill);
-      });
-      
-      if (isRecurring) {
-        // Create recurring task
-        const recurrencePattern = buildRecurrencePattern();
-        
-        newTask = await createRecurringTask({
-          templateId: selectedTemplate.id,
-          clientId: taskForm.clientId,
-          name: taskForm.name,
-          description: taskForm.description,
-          estimatedHours: taskForm.estimatedHours,
-          requiredSkills, // Using the filtered SkillType array
-          priority: taskForm.priority,
-          category: taskForm.category,
-          dueDate: new Date(taskForm.dueDate),
-          recurrencePattern,
-          status: 'Unscheduled' // Add the status field
-        });
+      if (!clientId || !templateId || !basicInfo || !recurrencePattern) return;
+
+      const recurringTaskParams: RecurringTaskCreateParams = {
+        templateId,
+        clientId,
+        name: basicInfo.name,
+        description: basicInfo.description,
+        estimatedHours: basicInfo.estimatedHours,
+        requiredSkills: basicInfo.requiredSkills,
+        priority: basicInfo.priority,
+        category: basicInfo.category,
+        dueDate: basicInfo.dueDate,
+        recurrencePattern,
+        status: 'Unscheduled',
+        isActive: true
+      };
+
+      const createdTask = await createRecurringTask(recurringTaskParams);
+
+      if (createdTask) {
+        toast.success('Recurring task created successfully');
+        navigate('/tasks');
       } else {
-        // Create ad-hoc task
-        newTask = await createAdHocTask({
-          templateId: selectedTemplate.id,
-          clientId: taskForm.clientId,
-          name: taskForm.name,
-          description: taskForm.description,
-          estimatedHours: taskForm.estimatedHours,
-          requiredSkills, // Using the filtered SkillType array
-          priority: taskForm.priority,
-          category: taskForm.category,
-          dueDate: new Date(taskForm.dueDate),
-          status: 'Unscheduled' // Add the status field for ad-hoc tasks too
-        });
-      }
-      
-      // Dismiss loading toast
-      toast.dismiss(loadingToastId);
-      
-      if (newTask) {
-        // Show success toast with checkmark icon
-        toast.success(
-          isRecurring ? "Recurring task created successfully!" : "Ad-hoc task created successfully!",
-          {
-            icon: <CheckCircle2 className="h-5 w-5 text-green-500" />
-          }
-        );
-        
-        // Call onSuccess if provided
-        if (onSuccess && isRecurring) {
-          onSuccess(newTask as RecurringTask);
-        }
-        
-        // Reset form and close dialog
-        resetForm();
-        onClose();
-      } else {
-        toast.error("Failed to create task. Please try again.");
+        toast.error('Failed to create recurring task');
       }
     } catch (error) {
-      console.error('Error creating task:', error);
-      toast.error(
-        "An error occurred while creating the task", 
-        { 
-          description: error instanceof Error ? error.message : "Please try again or contact support",
-          icon: <AlertCircle className="h-5 w-5 text-red-500" />
-        }
-      );
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error creating recurring task:', error);
+      toast.error('Failed to create recurring task');
     }
   };
-  
-  /**
-   * Handler for template selection that calls the hook's handler
-   */
-  const onTemplateSelectHandler = (templateId: string) => {
-    handleTemplateSelect(templateId, taskTemplates);
+
+  const handleCreateAdHocTask = async () => {
+    try {
+      if (!clientId || !templateId || !basicInfo) return;
+
+      const adHocTaskParams = {
+        templateId,
+        clientId,
+        name: basicInfo.name,
+        description: basicInfo.description,
+        estimatedHours: basicInfo.estimatedHours,
+        requiredSkills: basicInfo.requiredSkills,
+        priority: basicInfo.priority,
+        category: basicInfo.category,
+        dueDate: basicInfo.dueDate,
+        status: 'Unscheduled',
+      };
+
+      const createdTask = await createAdHocTask(adHocTaskParams);
+
+      if (createdTask) {
+        toast.success('Ad-hoc task created successfully');
+        navigate('/tasks');
+      } else {
+        toast.error('Failed to create ad-hoc task');
+      }
+    } catch (error) {
+      console.error('Error creating ad-hoc task:', error);
+      toast.error('Failed to create ad-hoc task');
+    }
   };
-  
-  // Show loading state while resources are being fetched
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8">
-        <Loader className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-sm text-muted-foreground">Loading resources...</p>
-      </div>
-    );
-  }
-  
+
+  const onSubmit = () => {
+    if (taskType === 'recurring') {
+      handleCreateTemplate();
+    } else {
+      handleCreateAdHocTask();
+    }
+  };
+
   return (
-    <div className="space-y-4" role="form" aria-label="Task Creation Form">
-      {/* Basic Information Form */}
-      <TaskBasicInfoForm 
-        taskTemplates={taskTemplates}
-        clients={clients}
-        selectedTemplate={selectedTemplate}
-        taskForm={taskForm}
-        formErrors={formErrors}
-        isSubmitting={isSubmitting}
-        onTemplateSelect={onTemplateSelectHandler}
-        onClientChange={handleClientChange}
-        onInputChange={handleInputChange}
-      />
-      
-      {selectedTemplate && (
-        <>
-          {/* Recurring Task Toggle */}
-          <div className="border-t pt-4 space-y-2">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isRecurring"
-                checked={isRecurring}
-                onChange={(e) => setIsRecurring(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                disabled={isSubmitting}
-                aria-label="Enable recurring task"
-              />
-              <label htmlFor="isRecurring" className="text-sm font-medium">
-                This is a recurring task
-              </label>
-            </div>
-          </div>
-          
-          {/* Due Date and Recurrence */}
-          <div className="grid grid-cols-2 gap-4">
-            <TaskDateSelector 
-              isRecurring={isRecurring}
-              dueDate={taskForm.dueDate}
-              formErrors={formErrors}
-              isSubmitting={isSubmitting}
-              onInputChange={handleInputChange}
+    <div className="container mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-6">Create New Task</h1>
+
+      <div className="mb-4">
+        <Label htmlFor="taskType" className="block text-sm font-medium text-gray-700">Task Type</Label>
+        <div className="mt-2">
+          <label className="inline-flex items-center mr-4">
+            <input
+              type="radio"
+              className="form-radio h-5 w-5 text-blue-600"
+              name="taskType"
+              value="recurring"
+              checked={taskType === 'recurring'}
+              onChange={handleTaskTypeChange}
             />
-            
-            {isRecurring && (
-              <div className="space-y-2">
-                <label htmlFor="recurrenceType" className="text-sm font-medium">
-                  Recurrence Pattern
-                </label>
-                <select
-                  id="recurrenceType"
-                  name="recurrenceType"
-                  value={taskForm.recurrenceType}
-                  onChange={handleRecurrenceTypeChange}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  disabled={isSubmitting}
-                  aria-label="Recurrence Pattern"
-                >
-                  <option value="Daily">Daily</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="Monthly">Monthly</option>
-                  <option value="Quarterly">Quarterly</option>
-                  <option value="Annually">Annually</option>
-                  <option value="Custom">Custom</option>
-                </select>
+            <span className="ml-2 text-gray-900">Recurring</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+              type="radio"
+              className="form-radio h-5 w-5 text-blue-600"
+              name="taskType"
+              value="adHoc"
+              checked={taskType === 'adHoc'}
+              onChange={handleTaskTypeChange}
+            />
+            <span className="ml-2 text-gray-900">Ad-hoc</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Task Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter task name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter task description"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="estimatedHours"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estimated Hours</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Enter estimated hours"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Tax">Tax</SelectItem>
+                          <SelectItem value="Audit">Audit</SelectItem>
+                          <SelectItem value="Advisory">Advisory</SelectItem>
+                          <SelectItem value="Compliance">Compliance</SelectItem>
+                          <SelectItem value="Bookkeeping">Bookkeeping</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Due Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={
+                                format(field.value, 'PPP') ? "w-[240px] justify-start text-left font-normal" : "w-[240px] justify-start text-left font-normal text-muted-foreground"
+                              }
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {format(field.value, 'PPP') ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date < new Date()
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
+
+              <Button type="submit">Create Task</Button>
+            </form>
+          </Form>
+        </div>
+
+        <div>
+          <div className="mb-4">
+            <Label htmlFor="template" className="block text-sm font-medium text-gray-700">Select Template</Label>
+            <select
+              id="template"
+              className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              onChange={handleTemplateChange}
+              defaultValue=""
+            >
+              <option value="" disabled>Select a template</option>
+              {templates.map((template: any) => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
           </div>
-          
-          {/* Recurrence Settings */}
-          {isRecurring && (
-            <RecurrenceSettingsForm 
-              taskForm={taskForm}
-              formErrors={formErrors}
-              isSubmitting={isSubmitting}
-              onInputChange={handleInputChange}
-              handleWeekdayChange={handleWeekdayChange}
-            />
+
+          <div className="mb-4">
+            <Label htmlFor="client" className="block text-sm font-medium text-gray-700">Select Client</Label>
+            <select
+              id="client"
+              className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              onChange={handleClientChange}
+              defaultValue={initialClientId || ""}
+            >
+              <option value="" disabled>Select a client</option>
+              {clients.map((client: any) => (
+                <option key={client.id} value={client.id}>{client.legalName}</option>
+              ))}
+            </select>
+          </div>
+
+          {taskType === 'recurring' && (
+            <div className="space-y-4">
+              <Label htmlFor="recurrence" className="block text-sm font-medium text-gray-700">Recurrence Pattern</Label>
+              <Form {...recurrenceForm}>
+                <form className="space-y-4">
+                  <FormField
+                    control={recurrenceForm.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a recurrence type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Daily">Daily</SelectItem>
+                            <SelectItem value="Weekly">Weekly</SelectItem>
+                            <SelectItem value="Monthly">Monthly</SelectItem>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Annually">Annually</SelectItem>
+                            <SelectItem value="Custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={recurrenceForm.control}
+                    name="interval"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Interval</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Enter interval"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </form>
+              </Form>
+            </div>
           )}
-          
-          {/* Summary before submission */}
-          <TaskSummary 
-            isRecurring={isRecurring}
-            category={taskForm.category}
-            dueDate={taskForm.dueDate}
-            recurrenceType={taskForm.recurrenceType}
-            endDate={taskForm.endDate}
-          />
-          
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose}
-              disabled={isSubmitting}
-              aria-label="Cancel task creation"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting || !selectedTemplate || !taskForm.clientId}
-              aria-label={isRecurring ? "Create recurring task" : "Create ad-hoc task"}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  {isRecurring ? 'Creating Recurring Task...' : 'Creating Ad-hoc Task...'}
-                </>
-              ) : (
-                isRecurring ? 'Create Recurring Task' : 'Create Ad-hoc Task'
-              )}
-            </Button>
-          </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 };

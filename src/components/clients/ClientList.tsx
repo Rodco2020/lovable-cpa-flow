@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllClients, deleteClient } from '@/services/clientService';
@@ -97,18 +96,18 @@ const ClientList: React.FC = () => {
     }
   };
   
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Active':
-        return 'default';
+        return <Badge className="bg-green-500">{status}</Badge>;
       case 'Inactive':
-        return 'secondary';
+        return <Badge variant="secondary">{status}</Badge>;
       case 'Pending':
-        return 'warning';
+        return <Badge className="bg-yellow-500">{status}</Badge>;
       case 'Archived':
-        return 'outline';
+        return <Badge variant="outline">{status}</Badge>;
       default:
-        return 'default';
+        return <Badge>{status}</Badge>;
     }
   };
   
@@ -172,7 +171,7 @@ const ClientList: React.FC = () => {
                   </TableCell>
                   <TableCell>{client.industry}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(client.status)}>
+                    <Badge variant={getStatusBadge(client.status)}>
                       {client.status}
                     </Badge>
                   </TableCell>
