@@ -7,7 +7,7 @@ import ClientDetail from '@/components/clients/ClientDetail';
 import { getClientById } from '@/services/clientService';
 import { getRecurringTasks, getRecurringTaskById, updateRecurringTask, deactivateRecurringTask } from '@/services/taskService';
 import { getTaskInstances } from '@/services/taskService';
-import { RecurringTask } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
 import { toast } from 'sonner';
 
 // Mock all required services
@@ -47,8 +47,8 @@ const mockRecurringTask: RecurringTask = {
   description: 'Review and analyze financial statements',
   estimatedHours: 3,
   requiredSkills: ['CPA'],
-  priority: 'Medium',
-  category: 'Advisory',
+  priority: 'Medium' as TaskPriority,
+  category: 'Advisory' as TaskCategory,
   status: 'Unscheduled',
   dueDate: new Date('2023-06-15'),
   createdAt: new Date('2023-05-01'),
@@ -85,11 +85,10 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
       EditRecurringTaskDialog: ({ onSave }: any) => (
         <div data-testid="mock-edit-dialog">
           <button data-testid="mock-save-button" onClick={() => onSave({
-            id: 'task-1',
             name: 'Updated Task Name',
             estimatedHours: 4,
-            priority: 'High',
-            category: 'Advisory',
+            priority: 'High' as TaskPriority,
+            category: 'Advisory' as TaskCategory,
             recurrencePattern: {
               type: 'Monthly',
               interval: 1,
@@ -124,11 +123,10 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     
     // Verify update process calls the right service with correct parameters
     const updatedTask = {
-      id: 'task-1',
       name: 'Updated Task Name',
       estimatedHours: 4,
-      priority: 'High',
-      category: 'Advisory',
+      priority: 'High' as TaskPriority,
+      category: 'Advisory' as TaskCategory,
       recurrencePattern: {
         type: 'Monthly', 
         interval: 1,
@@ -166,7 +164,6 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     // Try to update and verify error handling
     try {
       await updateRecurringTask('task-1', {
-        id: 'task-1',
         name: 'Test Task'
       });
     } catch (error) {

@@ -111,9 +111,9 @@ export function calculateNextOccurrence(
       case 'Monthly':
         if (!pattern.interval || !pattern.dayOfMonth) return null;
         
-        const currentMonth = baseDate.getMonth();
-        const targetMonth = (currentMonth + pattern.interval) % 12;
-        const targetYear = baseDate.getFullYear() + Math.floor((currentMonth + pattern.interval) / 12);
+        const monthlyCurrentMonth = baseDate.getMonth();
+        const targetMonth = (monthlyCurrentMonth + pattern.interval) % 12;
+        const targetYear = baseDate.getFullYear() + Math.floor((monthlyCurrentMonth + pattern.interval) / 12);
         
         const result = new Date(targetYear, targetMonth, pattern.dayOfMonth);
         return result;
@@ -148,8 +148,8 @@ export function calculateNextOccurrence(
         if (typeof pattern.customOffsetDays !== 'number') return null;
         
         // Calculate month-end and add offset days
-        const currentMonth = baseDate.getMonth();
-        const lastDay = new Date(baseDate.getFullYear(), currentMonth + 1, 0);
+        const customCurrentMonth = baseDate.getMonth();
+        const lastDay = new Date(baseDate.getFullYear(), customCurrentMonth + 1, 0);
         
         lastDay.setDate(lastDay.getDate() + pattern.customOffsetDays);
         return lastDay;
