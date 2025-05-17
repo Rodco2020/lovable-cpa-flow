@@ -60,20 +60,15 @@ export function EditRecurringTaskContainer({
   }, [open]);
 
   // Handle saving the updated task
-  const handleSave = async (updatedTask: Partial<RecurringTask>) => {
+  const handleSave = async (updatedTask: Partial<RecurringTask>): Promise<void> => {
     if (!updatedTask.id) {
       throw new Error("Task ID is required for updating");
     }
     
     try {
-      const result = await updateRecurringTask(updatedTask.id, updatedTask);
-      if (result) {
-        if (onSaveComplete) {
-          onSaveComplete();
-        }
-        return result;
-      } else {
-        throw new Error("Failed to update task");
+      await updateRecurringTask(updatedTask.id, updatedTask);
+      if (onSaveComplete) {
+        onSaveComplete();
       }
     } catch (err) {
       console.error("Error updating task:", err);
