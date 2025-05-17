@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { getRecurringTasks, deactivateRecurringTask } from '@/services/taskService';
 import { RecurringTask } from '@/types/task';
@@ -8,19 +7,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Pencil } from 'lucide-react';
 import TaskListPagination from './TaskListPagination';
 
 interface ClientRecurringTaskListProps {
   clientId: string;
   onRefreshNeeded?: () => void;
   onViewTask?: (taskId: string) => void;
+  onEditTask?: (task: RecurringTask) => void;
 }
 
 const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ 
   clientId, 
   onRefreshNeeded,
-  onViewTask 
+  onViewTask,
+  onEditTask 
 }) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,13 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
     } catch (error) {
       console.error("Error deactivating task:", error);
       toast.error("An error occurred while deactivating the task");
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent, task: RecurringTask) => {
+    e.stopPropagation();
+    if (onEditTask) {
+      onEditTask(task);
     }
   };
 
@@ -172,18 +180,33 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {task.isActive && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeactivate(task.id);
-                      }}
-                    >
-                      Deactivate
-                    </Button>
-                  )}
+                  <div className="flex justify-end gap-2">
+                    {task.isActive && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => handleEdit(e, task)}
+                          aria-label={`Edit ${task.name}`}
+                          className="flex items-center"
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeactivate(task.id);
+                          }}
+                          aria-label={`Deactivate ${task.name}`}
+                        >
+                          Deactivate
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
