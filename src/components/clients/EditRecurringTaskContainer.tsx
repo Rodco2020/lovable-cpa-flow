@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { EditRecurringTaskDialog } from './EditRecurringTaskDialog';
 import { RecurringTask } from '@/types/task';
@@ -20,6 +21,7 @@ export function EditRecurringTaskContainer({
   const [task, setTask] = useState<RecurringTask | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attemptedLoad, setAttemptedLoad] = useState(false);
 
   // Fetch task data when dialog opens and taskId is available
   useEffect(() => {
@@ -29,10 +31,16 @@ export function EditRecurringTaskContainer({
       
       const fetchTask = async () => {
         try {
+          console.log(`Fetching task with ID: ${taskId}`);
           const taskData = await getRecurringTaskById(taskId);
+          
           if (taskData) {
+            console.log('Task loaded successfully:', taskData);
             setTask(taskData);
+            // Reset error state in case there was a previous error
+            setError(null);
           } else {
+            console.error(`Task with ID ${taskId} not found`);
             setError(`Task with ID ${taskId} not found`);
             toast.error("Failed to load task data");
           }
@@ -42,6 +50,7 @@ export function EditRecurringTaskContainer({
           toast.error("Failed to load task data");
         } finally {
           setIsLoading(false);
+          setAttemptedLoad(true);
         }
       };
       
@@ -54,7 +63,11 @@ export function EditRecurringTaskContainer({
     if (!open) {
       // Keep task data briefly to avoid flickering if dialog reopens
       setTimeout(() => {
-        if (!open) setTask(null);
+        if (!open) {
+          setTask(null);
+          setError(null);
+          setAttemptedLoad(false);
+        }
       }, 300);
     }
   }, [open]);
@@ -66,7 +79,10 @@ export function EditRecurringTaskContainer({
     }
     
     try {
+      console.log("Updating task:", updatedTask);
       await updateRecurringTask(updatedTask.id, updatedTask);
+      
+      // Display success message
       toast.success("Task updated successfully");
       
       // Call the onSaveComplete callback to trigger refresh in parent components
@@ -75,7 +91,14 @@ export function EditRecurringTaskContainer({
       }
     } catch (err) {
       console.error("Error updating task:", err);
-      throw err;
+      
+      // Format error message for display
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : "An unexpected error occurred while updating the task";
+      
+      toast.error("Failed to update task");
+      throw new Error(errorMessage);
     }
   };
 
@@ -86,6 +109,8 @@ export function EditRecurringTaskContainer({
       task={task}
       onSave={handleSave}
       isLoading={isLoading}
+      loadError={error}
+      attemptedLoad={attemptedLoad}
     />
   );
 }

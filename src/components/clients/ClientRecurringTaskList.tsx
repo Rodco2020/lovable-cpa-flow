@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock, Pencil } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Pencil, RefreshCw } from 'lucide-react';
 import TaskListPagination from './TaskListPagination';
 import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
 
@@ -25,22 +25,32 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
 }) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingTaskId, setEditingTaskId] = useState<string | undefined>(undefined);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const tasksPerPage = 5;
 
-  const loadTasks = async () => {
-    setLoading(true);
+  const loadTasks = async (showLoadingState: boolean = true) => {
+    if (showLoadingState) setLoading(true);
+    else setIsRefreshing(true);
+    
+    setError(null);
+    
     try {
+      console.log("Fetching recurring tasks for client:", clientId);
       const allTasks = await getRecurringTasks(false);
       const clientTasks = allTasks.filter(task => task.clientId === clientId);
+      console.log(`Found ${clientTasks.length} recurring tasks for client ${clientId}`);
       setTasks(clientTasks);
     } catch (error) {
       console.error("Error loading recurring tasks:", error);
+      setError("Failed to load recurring tasks. Please try again.");
       toast.error("Failed to load recurring tasks");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -53,7 +63,7 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
       const success = await deactivateRecurringTask(taskId);
       if (success) {
         toast.success("Task deactivated successfully");
-        loadTasks();
+        loadTasks(false); // Refresh without full loading state
         if (onRefreshNeeded) onRefreshNeeded();
       } else {
         toast.error("Failed to deactivate task");
@@ -64,6 +74,10 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
     }
   };
 
+  const handleRetryLoad = () => {
+    loadTasks();
+  };
+
   const handleEditClick = (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click event
     setEditingTaskId(taskId);
@@ -72,9 +86,11 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
 
   const handleSaveComplete = () => {
     // Refresh the task list after a successful edit
-    loadTasks();
+    loadTasks(false); // Don't show loading spinner, just refresh in the background
+    
     // Also notify parent components that a refresh might be needed
     if (onRefreshNeeded) onRefreshNeeded();
+    
     // Reset the UI state
     setEditingTaskId(undefined);
   };
@@ -129,6 +145,30 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            Recurring Tasks
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold text-destructive">Error Loading Tasks</p>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={handleRetryLoad} className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (tasks.length === 0) {
     return (
       <Card>
@@ -151,11 +191,17 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center">
           <Clock className="mr-2 h-5 w-5" />
           Recurring Tasks ({tasks.length})
         </CardTitle>
+        {isRefreshing && (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+            Refreshing...
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <Table>

@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -12,10 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Calendar as CalendarIcon, AlertCircle, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -46,6 +45,8 @@ interface EditRecurringTaskDialogProps {
   task: RecurringTask | null;
   onSave: (updatedTask: Partial<RecurringTask>) => Promise<void>;
   isLoading?: boolean; 
+  loadError?: string | null;
+  attemptedLoad?: boolean;
 }
 
 export function EditRecurringTaskDialog({ 
@@ -53,13 +54,16 @@ export function EditRecurringTaskDialog({
   onOpenChange, 
   task, 
   onSave,
-  isLoading = false
+  isLoading = false,
+  loadError = null,
+  attemptedLoad = false
 }: EditRecurringTaskDialogProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showUnsavedChangesAlert, setShowUnsavedChangesAlert] = useState(false);
   const formTitleRef = useRef<HTMLHeadingElement>(null);
   const initialFormRef = useRef<any>(null);
+  const [retryLoading, setRetryLoading] = useState(false);
   
   // Initialize form with task data when available
   const form = useForm<EditTaskFormValues>({
@@ -195,7 +199,9 @@ export function EditRecurringTaskDialog({
         priority: data.priority,
         category: data.category,
         dueDate: data.dueDate,
-        recurrencePattern: recurrencePattern
+        recurrencePattern: recurrencePattern,
+        // Preserve isActive status from original task
+        isActive: task.isActive
       };
 
       // Call save function passed from parent
@@ -210,6 +216,20 @@ export function EditRecurringTaskDialog({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Handle retry loading after an error
+  const handleRetryLoad = () => {
+    if (!open) return;
+    
+    setRetryLoading(true);
+    // Trigger a re-render which will cause the useEffect to run again
+    // This is cleaner than duplicating the loading logic
+    onOpenChange(false);
+    setTimeout(() => {
+      onOpenChange(true);
+      setRetryLoading(false);
+    }, 100);
   };
 
   return (
@@ -228,19 +248,51 @@ export function EditRecurringTaskDialog({
         >
           <DialogHeader>
             <DialogTitle id="edit-task-title" ref={formTitleRef} tabIndex={-1}>
-              Edit Recurring Task
+              Edit Recurring Task {task?.isActive === false && <span className="ml-2 text-sm text-muted-foreground">(Inactive)</span>}
             </DialogTitle>
           </DialogHeader>
           
+          {/* Loading State */}
           {isLoading && (
-            <div className="flex items-center justify-center py-8" aria-live="polite">
+            <div className="flex items-center justify-center py-8" aria-live="polite" role="status">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" 
-                   role="status" aria-label="Loading">
+                   aria-hidden="true">
               </div>
               <span className="ml-2">Loading task data...</span>
             </div>
           )}
           
+          {/* Error State with Retry */}
+          {loadError && attemptedLoad && !isLoading && (
+            <Alert variant="destructive" className="mb-4">
+              <XCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col gap-2">
+                <div>{loadError}</div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRetryLoad} 
+                  disabled={retryLoading}
+                  className="w-fit"
+                  aria-label="Retry loading task data"
+                >
+                  {retryLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Form Error State */}
           {formError && !isLoading && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
@@ -248,7 +300,18 @@ export function EditRecurringTaskDialog({
             </Alert>
           )}
           
-          {task && !isLoading && (
+          {/* Task Status Warning for Inactive Tasks */}
+          {task && task.isActive === false && !isLoading && !loadError && (
+            <Alert variant="warning" className="mb-4 border-yellow-500 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                You are editing an inactive task. The task will remain inactive after updates.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Successful Form Render */}
+          {task && !isLoading && !loadError && (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" id="edit-task-form">
                 <div id="edit-task-description" className="sr-only">
@@ -321,6 +384,7 @@ export function EditRecurringTaskDialog({
                     )}
                   />
 
+                  {/* Category FormField */}
                   <FormField
                     control={form.control}
                     name="category"
@@ -395,12 +459,12 @@ export function EditRecurringTaskDialog({
                                 ) : (
                                   <span>Pick a date</span>
                                 )}
-                                <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
+                            <Calendar
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
@@ -520,8 +584,8 @@ export function EditRecurringTaskDialog({
                   />
                 )}
 
-                {/* Monthly and Annually recurrence settings */}
-                {['Monthly', 'Annually'].includes(recurrenceType || '') && (
+                {/* Monthly and related recurrence settings */}
+                {['Monthly', 'Quarterly', 'Annually'].includes(recurrenceType || '') && (
                   <FormField
                     control={form.control}
                     name="dayOfMonth"
@@ -627,7 +691,7 @@ export function EditRecurringTaskDialog({
                               ) : (
                                 <span>No end date</span>
                               )}
-                              <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -643,7 +707,7 @@ export function EditRecurringTaskDialog({
                               Clear date
                             </Button>
                           </div>
-                          <CalendarComponent
+                          <Calendar
                             mode="single"
                             selected={field.value || undefined}
                             onSelect={field.onChange}
@@ -718,4 +782,3 @@ export function EditRecurringTaskDialog({
     </>
   );
 }
-
