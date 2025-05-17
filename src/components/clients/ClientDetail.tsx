@@ -42,6 +42,7 @@ import { useToast } from '@/components/ui/use-toast';
 // Import the task list components
 import ClientRecurringTaskList from './ClientRecurringTaskList';
 import ClientAdHocTaskList from './ClientAdHocTaskList';
+import EditRecurringTaskDialog from './EditRecurringTaskDialog';
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -248,8 +249,26 @@ const ClientDetail: React.FC = () => {
     task.dueDate && task.dueDate < new Date()
   );
   
+  // State for edit task dialog
+  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
+
+  // Handle edit task
+  const handleEditTask = (task: RecurringTask) => {
+    setSelectedTask(task);
+    setIsEditTaskDialogOpen(true);
+  };
+
+  // Handle task updated
+  const handleTaskUpdated = () => {
+    // Refresh data to show the updated task
+    if (refreshData) {
+      refreshData();
+    }
+  };
+
   return (
-    <div className="container mx-auto py-6 space-y-6 max-w-4xl">
+    <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <Button 
@@ -529,8 +548,10 @@ const ClientDetail: React.FC = () => {
           <CardContent>
             <TabsContent value="recurring" className="space-y-4">
               <ClientRecurringTaskList 
-                clientId={client.id}
-                onViewTask={handleViewRecurringTask}
+                clientId={client.id} 
+                onRefreshNeeded={refreshData}
+                onViewTask={handleViewTask}
+                onEditTask={handleEditTask}
               />
             </TabsContent>
             
@@ -557,6 +578,14 @@ const ClientDetail: React.FC = () => {
           </CardFooter>
         </Tabs>
       </Card>
+      
+      {/* Edit Recurring Task Dialog */}
+      <EditRecurringTaskDialog
+        open={isEditTaskDialogOpen}
+        task={selectedTask}
+        onOpenChange={setIsEditTaskDialogOpen}
+        onTaskUpdated={handleTaskUpdated}
+      />
     </div>
   );
 };
