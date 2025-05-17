@@ -154,6 +154,21 @@ export const createTaskTemplate = async (template: Omit<TaskTemplate, 'id' | 'cr
 
 export const updateTaskTemplate = async (id: string, updates: Partial<Omit<TaskTemplate, 'id' | 'createdAt' | 'version'>>): Promise<TaskTemplate | null> => {
   try {
+    console.log(`Updating task template ${id} with data:`, JSON.stringify(updates, null, 2));
+    
+    // Validate required fields if they're being updated
+    if (updates.name !== undefined && (updates.name.trim() === '')) {
+      throw new Error('Task name cannot be empty');
+    }
+    
+    if (updates.defaultEstimatedHours !== undefined && (isNaN(updates.defaultEstimatedHours) || updates.defaultEstimatedHours <= 0)) {
+      throw new Error('Estimated hours must be a positive number');
+    }
+    
+    if (updates.requiredSkills !== undefined && (!Array.isArray(updates.requiredSkills) || updates.requiredSkills.length === 0)) {
+      throw new Error('At least one required skill must be specified');
+    }
+    
     // First get the current template to determine the version
     const currentTemplate = await getTaskTemplateById(id);
     if (!currentTemplate) {
@@ -398,6 +413,70 @@ export const createRecurringTask = async (task: Omit<RecurringTask, 'id' | 'crea
 
 export const updateRecurringTask = async (id: string, updates: Partial<Omit<RecurringTask, 'id' | 'createdAt'>>): Promise<RecurringTask | null> => {
   try {
+    console.log(`Updating recurring task ${id} with data:`, JSON.stringify(updates, null, 2));
+    
+    // Validate required fields if they're being updated
+    if (updates.name !== undefined && (updates.name.trim() === '')) {
+      throw new Error('Task name cannot be empty');
+    }
+    
+    if (updates.estimatedHours !== undefined && (isNaN(updates.estimatedHours) || updates.estimatedHours <= 0)) {
+      throw new Error('Estimated hours must be a positive number');
+    }
+    
+    if (updates.requiredSkills !== undefined && (!Array.isArray(updates.requiredSkills) || updates.requiredSkills.length === 0)) {
+      throw new Error('At least one required skill must be specified');
+    }
+    
+    // Validate recurrence pattern updates
+    if (updates.recurrencePattern) {
+      if (updates.recurrencePattern.type === undefined && updates.recurrencePattern) {
+        // If we're updating parts of the recurrence pattern but not the type,
+        // we need to fetch the current pattern to validate against the type
+        const currentTask = await getRecurringTaskById(id);
+        if (!currentTask) {
+          throw new Error('Task not found');
+        }
+        
+        const recurrenceType = currentTask.recurrencePattern.type;
+        
+        // Type-specific validations
+        if (recurrenceType === 'Weekly' && 
+            updates.recurrencePattern.weekdays !== undefined && 
+            (!updates.recurrencePattern.weekdays || updates.recurrencePattern.weekdays.length === 0)) {
+          throw new Error('Weekdays must be specified for weekly recurrence');
+        }
+        
+        if (['Monthly', 'Quarterly', 'Annually'].includes(recurrenceType) && 
+            updates.recurrencePattern.dayOfMonth !== undefined &&
+            (updates.recurrencePattern.dayOfMonth < 1 || updates.recurrencePattern.dayOfMonth > 31)) {
+          throw new Error('Day of month must be between 1 and 31');
+        }
+        
+        if (recurrenceType === 'Annually' && 
+            updates.recurrencePattern.monthOfYear !== undefined &&
+            (updates.recurrencePattern.monthOfYear < 1 || updates.recurrencePattern.monthOfYear > 12)) {
+          throw new Error('Month of year must be between 1 and 12');
+        }
+      } else if (updates.recurrencePattern.type) {
+        // If we're updating the type, validate the required fields for that type
+        if (updates.recurrencePattern.type === 'Weekly' && 
+            (!updates.recurrencePattern.weekdays || updates.recurrencePattern.weekdays.length === 0)) {
+          throw new Error('Weekdays must be specified for weekly recurrence');
+        }
+        
+        if (['Monthly', 'Quarterly', 'Annually'].includes(updates.recurrencePattern.type) && 
+            !updates.recurrencePattern.dayOfMonth) {
+          throw new Error('Day of month must be specified for monthly, quarterly, or annual recurrence');
+        }
+        
+        if (updates.recurrencePattern.type === 'Annually' && !updates.recurrencePattern.monthOfYear) {
+          console.warn('Month of year not specified for annual recurrence, defaulting to January');
+          updates.recurrencePattern.monthOfYear = 1;
+        }
+      }
+    }
+    
     // Prepare the update data for Supabase
     const updateData: any = {};
     
@@ -432,6 +511,8 @@ export const updateRecurringTask = async (id: string, updates: Partial<Omit<Recu
       updateData.last_generated_date = updates.lastGeneratedDate ? updates.lastGeneratedDate.toISOString() : null;
     }
     
+    console.log('Sending update data to Supabase:', JSON.stringify(updateData, null, 2));
+    
     const { data, error } = await supabase
       .from('recurring_tasks')
       .update(updateData)
@@ -439,11 +520,16 @@ export const updateRecurringTask = async (id: string, updates: Partial<Omit<Recu
       .select()
       .single();
     
-    if (error || !data) {
+    if (error) {
       console.error('Error updating recurring task:', error);
-      return null;
+      throw new Error(`Failed to update recurring task: ${error.message}`);
     }
     
+    if (!data) {
+      throw new Error('No data returned from recurring task update');
+    }
+    
+    console.log('Successfully updated recurring task:', data.id);
     return mapSupabaseToRecurringTask(data);
   } catch (err) {
     console.error('Unexpected error updating recurring task:', err);
