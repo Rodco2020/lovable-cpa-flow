@@ -1,1202 +1,475 @@
-import { v4 as uuidv4 } from 'uuid';
-import { 
-  format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, 
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, 
-  endOfQuarter, startOfYear, endOfYear, differenceInDays, differenceInWeeks,
-  differenceInMonths, differenceInYears, isWithinInterval, getDay,
-  isSameMonth, getDaysInMonth, isLeapYear
-} from 'date-fns';
 
 import { 
-  ForecastParameters, 
-  ForecastResult, 
-  ForecastData, 
-  DateRange,
-  SkillHours,
-  FinancialProjection,
-  GranularityType,
+  RecurringTask, 
+  TaskInstance, 
+  SkillType 
+} from '@/types/task';
+
+import { 
+  StaffAvailability, 
+  StaffMember, 
+  TimeSlot 
+} from '@/types/staff';
+
+import {
+  ForecastData,
+  ForecastCapacity,
+  ForecastDemand,
+  ForecastGap,
+  ForecastHorizon,
   ForecastMode,
-  ForecastTimeframe,
-  SkillAllocationStrategy,
-  ClientTaskBreakdown,
-  TaskBreakdownItem
+  FinancialProjection,
+  SkillDemandData,
+  SkillBreakdown,
+  GapAnalysis
 } from '@/types/forecasting';
-import { SkillType, RecurringTask } from '@/types/task';
-import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
-import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
-import { getClientById } from '@/services/clientService';
 
-// Cache for forecast results to avoid recalculating the same forecast
-let forecastCache: Record<string, ForecastResult> = {};
+import { Client } from '@/types/client';
 
-// Debug mode is now controlled by the local storage setting
-const getDebugMode = (): boolean => {
-  return localStorage.getItem('forecast_debug_mode') === 'true';
-};
+import { getActiveClients } from '@/services/clientService';
+import { getAllStaffMembers, getStaffAvailability } from '@/services/staffService';
+import { getTaskInstances } from '@/services/taskService';
 
-// Debug logger function that checks debug mode before logging
-const debugLog = (message: string, data?: any): void => {
-  if (getDebugMode()) {
-    if (data) {
-      console.log(`[Forecast Debug] ${message}`, data);
-    } else {
-      console.log(`[Forecast Debug] ${message}`);
-    }
-  }
+// Cache for expensive data
+let forecastCache: {
+  data: ForecastData | null;
+  expiry: Date | null;
+} = {
+  data: null,
+  expiry: null
 };
 
 /**
- * Generate a forecast based on the provided parameters
+ * Calculate forecast data for a given horizon
+ * @param horizon Forecast time horizon
+ * @param mode Forecast mode (virtual or actual)
+ * @param useCache Whether to use cached data if available
+ * @returns Promise with forecast data
  */
-export const generateForecast = async (parameters: ForecastParameters): Promise<ForecastResult> => {
-  // Generate a cache key based on the parameters
-  const cacheKey = JSON.stringify(parameters);
-  
-  debugLog(`Generating forecast with parameters:`, parameters);
-  
-  // Return cached result if available and not older than 5 minutes
-  if (forecastCache[cacheKey]) {
-    const cachedResult = forecastCache[cacheKey];
-    const cacheAge = Date.now() - cachedResult.generatedAt.getTime();
-    if (cacheAge < 5 * 60 * 1000) { // 5 minutes in milliseconds
-      debugLog(`Using cached forecast result, age: ${cacheAge}ms`);
-      return cachedResult;
-    }
-    debugLog(`Cache expired (age: ${cacheAge}ms), regenerating forecast`);
-  } else {
-    debugLog(`No cached result found, generating new forecast`);
+export const calculateForecast = async (
+  horizon: ForecastHorizon,
+  mode: ForecastMode = 'virtual',
+  useCache: boolean = true
+): Promise<ForecastData> => {
+  // Check if we have valid cached data
+  const now = new Date();
+  if (
+    useCache && 
+    forecastCache.data && 
+    forecastCache.expiry && 
+    forecastCache.expiry > now &&
+    forecastCache.data.horizon === horizon &&
+    forecastCache.data.mode === mode
+  ) {
+    return forecastCache.data;
   }
   
-  // Validate parameters
-  validateForecastParameters(parameters);
+  // Calculate start and end dates for the forecast period
+  const { startDate, endDate } = calculateForecastDates(horizon);
   
-  // Set up the date range based on the timeframe
-  const dateRange = parameters.timeframe === 'custom'
-    ? parameters.dateRange
-    : getDateRangeFromTimeframe(parameters.timeframe);
-
-  debugLog(`Date range for forecast: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
-
-  // Calculate forecast periods based on granularity
-  const periods = calculatePeriods(dateRange, parameters.granularity);
-  debugLog(`Calculated ${periods.length} periods based on ${parameters.granularity} granularity`);
+  // Fetch all required data in parallel
+  const [clients, staff, tasks] = await Promise.all([
+    getActiveClients(),
+    getAllStaffMembers(),
+    getTaskInstances()
+  ]);
   
-  // Generate the forecast data for each period
-  const forecastData = await Promise.all(periods.map(async period => {
-    debugLog(`Calculating forecast for period: ${period}`);
-    
-    const periodRange = getPeriodDateRange(period, parameters.granularity);
-    debugLog(`Period date range: ${periodRange.startDate.toISOString()} to ${periodRange.endDate.toISOString()}`);
-    
-    // Fetch demand hours by skill for this period
-    const demand = await calculateDemand(
-      periodRange,
-      parameters.mode,
-      parameters.includeSkills,
-      parameters.skillAllocationStrategy || 'duplicate' // Default to existing behavior
-    );
-    
-    // Fetch capacity hours by skill for this period
-    const capacity = await calculateCapacity(
-      periodRange,
-      parameters.mode,
-      parameters.includeSkills
-    );
-    
-    debugLog(`Period ${period} calculation complete`, { demand, capacity });
-    
-    return {
-      period,
-      demand,
-      capacity
-    } as ForecastData;
-  }));
+  // Calculate demand and capacity
+  const demand = await calculateDemand(tasks, startDate, endDate, mode);
+  const capacity = await calculateCapacity(staff, startDate, endDate, mode);
   
-  // Generate financial projections
-  const financials = await generateFinancialProjections(forecastData, parameters);
-  debugLog(`Financial projections generated`, financials);
+  // Calculate gaps between demand and capacity
+  const gap = calculateGap(demand, capacity);
   
-  // Calculate summary metrics
-  const summary = calculateSummary(forecastData, financials);
-  debugLog(`Summary metrics calculated`, summary);
+  // Calculate financial projections
+  const financials = calculateFinancialProjections(clients, demand, capacity);
   
-  // Create the complete forecast result
-  const result: ForecastResult = {
-    parameters,
-    data: forecastData,
+  // Create the forecast data object
+  const forecastData: ForecastData = {
+    horizon,
+    mode,
+    timeframe: {
+      startDate,
+      endDate
+    },
+    demand,
+    capacity,
+    gap,
     financials,
-    summary,
-    generatedAt: new Date()
+    timestamp: now
   };
   
-  // Validate the forecast result before caching
-  try {
-    validateForecastResult(result);
-    debugLog(`Forecast result validated successfully`);
-  } catch (error) {
-    console.error('[Forecast Validation Error]', error);
-    throw new Error(`Forecast validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-  
-  // Cache the result
-  forecastCache[cacheKey] = result;
-  debugLog(`Forecast result cached with key: ${cacheKey.substring(0, 30)}...`);
-  
-  return result;
-};
-
-/**
- * Validate forecast parameters to ensure they are valid
- */
-const validateForecastParameters = (parameters: ForecastParameters): void => {
-  // Validate mode
-  if (!['virtual', 'actual'].includes(parameters.mode)) {
-    throw new Error(`Invalid forecast mode: ${parameters.mode}`);
-  }
-  
-  // Validate timeframe
-  if (!['week', 'month', 'quarter', 'year', 'custom'].includes(parameters.timeframe)) {
-    throw new Error(`Invalid forecast timeframe: ${parameters.timeframe}`);
-  }
-  
-  // Validate custom date range if timeframe is custom
-  if (parameters.timeframe === 'custom') {
-    if (!parameters.dateRange || !parameters.dateRange.startDate || !parameters.dateRange.endDate) {
-      throw new Error('Custom timeframe requires valid dateRange with startDate and endDate');
-    }
-    
-    if (parameters.dateRange.endDate < parameters.dateRange.startDate) {
-      throw new Error('End date cannot be before start date');
-    }
-    
-    // Check if date range is too large (e.g., more than 1 year)
-    const daysDiff = differenceInDays(parameters.dateRange.endDate, parameters.dateRange.startDate);
-    if (daysDiff > 366) {
-      debugLog(`Warning: Large date range detected (${daysDiff} days), forecast may take longer to calculate`);
-    }
-  }
-  
-  // Validate granularity
-  if (!['daily', 'weekly', 'monthly'].includes(parameters.granularity)) {
-    throw new Error(`Invalid forecast granularity: ${parameters.granularity}`);
-  }
-  
-  // Validate skill allocation strategy if provided
-  if (parameters.skillAllocationStrategy && 
-      !['duplicate', 'distribute'].includes(parameters.skillAllocationStrategy)) {
-    throw new Error(`Invalid skill allocation strategy: ${parameters.skillAllocationStrategy}`);
-  }
-  
-  debugLog('Forecast parameters validated successfully');
-};
-
-/**
- * Validate forecast result to ensure it contains expected data
- */
-const validateForecastResult = (result: ForecastResult): void => {
-  // Validate that data array exists and has at least one item
-  if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
-    throw new Error('Forecast result must contain data array with at least one item');
-  }
-  
-  // Check if summary metrics are reasonable
-  if (result.summary.totalCapacity < 0 || result.summary.totalDemand < 0) {
-    throw new Error(`Negative values found in summary: capacity=${result.summary.totalCapacity}, demand=${result.summary.totalDemand}`);
-  }
-  
-  // Check for unusually high values that might indicate calculation errors
-  const MAX_REASONABLE_HOURS = 10000; // For example, 10,000 hours is extremely high for a forecast period
-  if (result.summary.totalCapacity > MAX_REASONABLE_HOURS || 
-      result.summary.totalDemand > MAX_REASONABLE_HOURS) {
-    debugLog(`Warning: Unusually high values in forecast summary`, result.summary);
-  }
-  
-  // Verify that each period has both demand and capacity data
-  result.data.forEach((periodData, index) => {
-    if (!periodData.period) {
-      throw new Error(`Period identifier missing in data[${index}]`);
-    }
-    
-    if (!Array.isArray(periodData.demand)) {
-      throw new Error(`Demand data missing or invalid in period ${periodData.period}`);
-    }
-    
-    if (!Array.isArray(periodData.capacity)) {
-      throw new Error(`Capacity data missing or invalid in period ${periodData.period}`);
-    }
-  });
-};
-
-/**
- * Calculate demand hours by skill for a specified period
- */
-const calculateDemand = async (
-  dateRange: DateRange,
-  mode: ForecastMode,
-  includeSkills: SkillType[] | "all",
-  skillAllocationStrategy: SkillAllocationStrategy = 'duplicate'
-): Promise<SkillHours[]> => {
-  const skillHoursMap = {} as Record<SkillType, number>;
-  
-  debugLog(`Calculating ${mode} demand for date range: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
-  debugLog(`Using skill allocation strategy: ${skillAllocationStrategy}`);
-  
-  if (mode === 'virtual') {
-    // Virtual demand is based on recurring tasks
-    const recurringTasks = await getRecurringTasks();
-    
-    debugLog(`Found ${recurringTasks.length} recurring tasks for virtual demand calculation`);
-    
-    // For each recurring task, calculate expected hours in the period
-    recurringTasks.forEach(task => {
-      // Skip tasks with skills not in the filter if specific skills are requested
-      if (includeSkills !== "all" && 
-          !task.requiredSkills.some(skill => includeSkills.includes(skill))) {
-        debugLog(`Skipping task ${task.id}: required skills don't match filter`, {
-          taskSkills: task.requiredSkills,
-          filterSkills: includeSkills
-        });
-        return;
-      }
-      
-      // Estimate how many instances would fall in the date range
-      const instanceCount = estimateRecurringTaskInstances(task, dateRange);
-      const totalTaskHours = task.estimatedHours * instanceCount;
-      
-      debugLog(`Task ${task.id} (${task.name}): ${instanceCount} instances × ${task.estimatedHours}h = ${totalTaskHours}h total`);
-      
-      if (task.requiredSkills.length === 0) {
-        debugLog(`Warning: Task ${task.id} (${task.name}) has no required skills, skipping demand calculation`);
-        return;
-      }
-      
-      // Allocate hours to all required skills based on strategy
-      if (skillAllocationStrategy === 'distribute' && task.requiredSkills.length > 0) {
-        // Distribute hours evenly across all required skills
-        const hoursPerSkill = totalTaskHours / task.requiredSkills.length;
-        
-        debugLog(`Distributing ${totalTaskHours}h across ${task.requiredSkills.length} skills (${hoursPerSkill}h per skill)`);
-        
-        task.requiredSkills.forEach(skill => {
-          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
-          debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skill}`);
-        });
-      } else {
-        // Duplicate hours for each required skill (original behavior)
-        task.requiredSkills.forEach(skill => {
-          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalTaskHours;
-          debugLog(`  - Duplicated ${totalTaskHours}h to skill ${skill}`);
-        });
-      }
-    });
-  } else {
-    // Actual demand is based on task instances that have been generated
-    const taskInstances = await getTaskInstances({
-      dueAfter: dateRange.startDate,
-      dueBefore: dateRange.endDate
-    });
-    
-    debugLog(`Found ${taskInstances.length} task instances for actual demand calculation`);
-    
-    // For each task instance, add its hours to the demand using the selected strategy
-    taskInstances.forEach(task => {
-      // Skip tasks with skills not in the filter if specific skills are requested
-      if (includeSkills !== "all" && 
-          !task.requiredSkills.some(skill => includeSkills.includes(skill))) {
-        return;
-      }
-      
-      const totalTaskHours = task.estimatedHours;
-      
-      if (task.requiredSkills.length === 0) {
-        debugLog(`Warning: Task instance ${task.id} has no required skills, skipping demand calculation`);
-        return;
-      }
-      
-      if (skillAllocationStrategy === 'distribute' && task.requiredSkills.length > 0) {
-        // Distribute hours evenly across all required skills
-        const hoursPerSkill = totalTaskHours / task.requiredSkills.length;
-        
-        task.requiredSkills.forEach(skill => {
-          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
-        });
-      } else {
-        // Duplicate hours for each required skill (original behavior)
-        task.requiredSkills.forEach(skill => {
-          skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalTaskHours;
-        });
-      }
-    });
-  }
-  
-  // Convert map to array of SkillHours
-  const result = Object.entries(skillHoursMap).map(([skill, hours]) => ({
-    skill: skill as SkillType,
-    hours
-  }));
-  
-  debugLog(`Demand calculation complete, results:`, result);
-  
-  return result;
-};
-
-/**
- * Calculate capacity hours by skill for a specified period
- */
-const calculateCapacity = async (
-  dateRange: DateRange,
-  mode: ForecastMode,
-  includeSkills: SkillType[] | "all"
-): Promise<SkillHours[]> => {
-  // Get all staff members
-  const allStaff = await getAllStaff();
-  const skillHoursMap = {} as Record<SkillType, number>;
-  
-  // For each staff member
-  for (const staff of allStaff) {
-    // Skip staff with skills not in the filter if specific skills are requested
-    if (includeSkills !== "all" && 
-        !staff.skills.some(skillId => includeSkills.includes(skillId as SkillType))) {
-      continue;
-    }
-    
-    // Get weekly availability for this staff member
-    const weeklyAvailability = await getWeeklyAvailabilityByStaff(staff.id);
-    
-    // Calculate total weekly available hours
-    let totalWeeklyHours = 0;
-    weeklyAvailability.forEach(slot => {
-      if (slot.isAvailable) {
-        const startParts = slot.startTime.split(':');
-        const endParts = slot.endTime.split(':');
-        
-        const startHours = parseInt(startParts[0]) + parseInt(startParts[1]) / 60;
-        const endHours = parseInt(endParts[0]) + parseInt(endParts[1]) / 60;
-        
-        totalWeeklyHours += (endHours - startHours);
-      }
-    });
-    
-    // Calculate number of weeks in the period (simplified for now)
-    const millisecondsInDay = 24 * 60 * 60 * 1000;
-    const daysInPeriod = (dateRange.endDate.getTime() - dateRange.startDate.getTime()) / millisecondsInDay;
-    const weeksInPeriod = daysInPeriod / 7;
-    
-    // Calculate total hours for this staff member in the period
-    const totalHours = totalWeeklyHours * weeksInPeriod;
-    
-    // Allocate hours to all skills of this staff member
-    staff.skills.forEach(skillId => {
-      const skill = skillId as SkillType;
-      skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalHours;
-    });
-  }
-  
-  // Convert map to array of SkillHours
-  return Object.entries(skillHoursMap).map(([skill, hours]) => ({
-    skill: skill as SkillType,
-    hours
-  }));
-};
-
-/**
- * Generate financial projections based on forecast data
- */
-const generateFinancialProjections = async (
-  forecastData: ForecastData[],
-  parameters: ForecastParameters
-): Promise<FinancialProjection[]> => {
-  const financials: FinancialProjection[] = [];
-  
-  // Get all staff for cost calculations
-  const allStaff = await getAllStaff();
-  
-  // Calculate average cost per hour for each skill type
-  const skillCostMap: Record<string, number> = {};
-  allStaff.forEach(staff => {
-    staff.skills.forEach(skillId => {
-      if (!skillCostMap[skillId]) {
-        skillCostMap[skillId] = staff.costPerHour;
-      } else {
-        // Take average if multiple staff have the same skill
-        skillCostMap[skillId] = (skillCostMap[skillId] + staff.costPerHour) / 2;
-      }
-    });
-  });
-  
-  // For each period in the forecast data
-  for (const periodData of forecastData) {
-    // Calculate cost based on demand hours * cost per hour
-    let periodCost = 0;
-    periodData.demand.forEach(skillHours => {
-      periodCost += skillHours.hours * (skillCostMap[skillHours.skill] || 0);
-    });
-    
-    // Calculate revenue (simplified for now - based on client monthly revenue)
-    // In a real implementation, this would be more sophisticated
-    let periodRevenue = 0;
-    
-    // Get tasks in this period
-    const periodRange = getPeriodDateRange(periodData.period, parameters.granularity);
-    const tasksInPeriod = await getTaskInstances({
-      dueAfter: periodRange.startDate,
-      dueBefore: periodRange.endDate
-    });
-    
-    // Track clients we've already counted
-    const countedClients = new Set<string>();
-    
-    // For each task, add the client's expected monthly revenue if not already counted
-    for (const task of tasksInPeriod) {
-      if (!countedClients.has(task.clientId)) {
-        // This is a mock - in a real app you'd fetch actual client data
-        // const client = await getClientById(task.clientId);
-        // if (client) {
-        //   periodRevenue += client.expectedMonthlyRevenue;
-        //   countedClients.add(task.clientId);
-        // }
-        
-        // For now, let's simulate some revenue
-        periodRevenue += 5000; // Dummy value
-        countedClients.add(task.clientId);
-      }
-    }
-    
-    financials.push({
-      period: periodData.period,
-      revenue: periodRevenue,
-      cost: periodCost,
-      profit: periodRevenue - periodCost
-    });
-  }
-  
-  return financials;
-};
-
-/**
- * Calculate summary metrics for the forecast
- */
-const calculateSummary = (
-  forecastData: ForecastData[],
-  financials: FinancialProjection[]
-) => {
-  // Initialize summary values
-  let totalDemand = 0;
-  let totalCapacity = 0;
-  let totalRevenue = 0;
-  let totalCost = 0;
-  
-  // Sum up demand and capacity hours
-  forecastData.forEach(periodData => {
-    periodData.demand.forEach(skillHours => {
-      totalDemand += skillHours.hours;
-    });
-    periodData.capacity.forEach(skillHours => {
-      totalCapacity += skillHours.hours;
-    });
-  });
-  
-  // Sum up financial projections
-  financials.forEach(financial => {
-    totalRevenue += financial.revenue;
-    totalCost += financial.cost;
-  });
-  
-  return {
-    totalDemand,
-    totalCapacity,
-    gap: totalCapacity - totalDemand,
-    totalRevenue,
-    totalCost,
-    totalProfit: totalRevenue - totalCost
+  // Cache the result for 30 minutes
+  const cacheExpiry = new Date();
+  cacheExpiry.setMinutes(cacheExpiry.getMinutes() + 30);
+  forecastCache = {
+    data: forecastData,
+    expiry: cacheExpiry
   };
+  
+  return forecastData;
 };
 
 /**
- * Helper function to estimate how many instances of a recurring task would occur in a date range
- * Enhanced with more accurate date calculations and validation
+ * Calculate start and end dates for the forecast period
+ * @param horizon Forecast time horizon
+ * @returns Object with start and end dates
  */
-export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: DateRange): number => {
-  const pattern = task.recurrencePattern;
-  let instanceCount = 0;
-  
-  // Validate inputs
-  if (!pattern || !pattern.type) {
-    debugLog(`Invalid recurrence pattern for task: ${task.name}`);
-    return 0;
-  }
-  
-  // Get start and end dates for calculation
-  const startDate = new Date(Math.max(
-    dateRange.startDate.getTime(),
-    task.createdAt.getTime()
-  ));
-  
-  const endDate = pattern.endDate && pattern.endDate < dateRange.endDate 
-    ? pattern.endDate 
-    : dateRange.endDate;
-  
-  // If end date is before start date, no instances will occur
-  if (endDate < startDate) {
-    debugLog(`No instances for task ${task.id} (${task.name}): end date (${endDate.toISOString()}) is before start date (${startDate.toISOString()})`);
-    return 0;
-  }
-  
-  debugLog(`Calculating instances for task ${task.id} (${task.name}):`, {
-    patternType: pattern.type, 
-    interval: pattern.interval || 1,
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString()
-  });
-  
-  switch (pattern.type) {
-    case 'Daily':
-      // Accurate count of days in the range considering the interval
-      const daysDiff = differenceInDays(endDate, startDate) + 1; // +1 to include both start and end days
-      instanceCount = Math.ceil(daysDiff / (pattern.interval || 1));
-      break;
-      
-    case 'Weekly':
-      if (pattern.weekdays && pattern.weekdays.length > 0) {
-        // Count specific weekdays within the period
-        instanceCount = 0;
-        
-        // Calculate full weeks in the range
-        const fullWeeks = Math.floor(differenceInDays(endDate, startDate) / 7);
-        const remainingDays = differenceInDays(endDate, addDays(startDate, fullWeeks * 7));
-        
-        // Count instances for full weeks
-        instanceCount += fullWeeks * pattern.weekdays.length / (pattern.interval || 1);
-        
-        // Count instances for remaining days
-        let currentDay = addDays(startDate, fullWeeks * 7);
-        for (let i = 0; i <= remainingDays; i++) {
-          const dayOfWeek = getDay(currentDay); // 0 = Sunday, 1 = Monday, etc.
-          if (pattern.weekdays.includes(dayOfWeek)) {
-            instanceCount++;
-          }
-          currentDay = addDays(currentDay, 1);
-        }
-        
-        // Apply interval
-        instanceCount = instanceCount / (pattern.interval || 1);
-      } else {
-        // Simple weekly recurrence (every X weeks)
-        instanceCount = (differenceInDays(endDate, startDate) + 1) / 7 / (pattern.interval || 1);
-      }
-      break;
-      
-    case 'Monthly':
-      // Calculate months between start and end, considering day of month
-      const monthsDiff = differenceInMonths(endDate, startDate);
-      
-      if (pattern.dayOfMonth) {
-        // If specific day of month is specified
-        instanceCount = 0;
-        
-        // For each month in the range
-        for (let i = 0; i <= monthsDiff; i++) {
-          const currentMonth = addDays(startDate, i * 30); // Approximation
-          const daysInCurrentMonth = getDaysInMonth(currentMonth);
-          
-          // Check if the day exists in this month and falls within our range
-          if (pattern.dayOfMonth <= daysInCurrentMonth) {
-            const instanceDate = new Date(
-              currentMonth.getFullYear(),
-              currentMonth.getMonth(),
-              pattern.dayOfMonth
-            );
-            
-            if (instanceDate >= startDate && instanceDate <= endDate) {
-              instanceCount++;
-            }
-          }
-        }
-      } else {
-        // Simple monthly recurrence (same day each month)
-        instanceCount = monthsDiff + 1; // +1 to include both start and end months
-      }
-      
-      // Apply interval
-      instanceCount = instanceCount / (pattern.interval || 1);
-      break;
-      
-    case 'Quarterly':
-      // Each quarter is 3 months
-      instanceCount = Math.ceil(differenceInMonths(endDate, startDate) / 3 / (pattern.interval || 1));
-      break;
-      
-    case 'Annually':
-      // Count years, handling partial years
-      const yearsDiff = differenceInYears(endDate, startDate);
-      const extraMonths = differenceInMonths(endDate, addDays(startDate, yearsDiff * 365)) > 0 ? 1 : 0;
-      instanceCount = (yearsDiff + extraMonths) / (pattern.interval || 1);
-      break;
-      
-    case 'Custom':
-      // For custom patterns, estimate based on custom offset days
-      if (pattern.customOffsetDays && pattern.customOffsetDays > 0) {
-        instanceCount = Math.ceil(differenceInDays(endDate, startDate) / pattern.customOffsetDays);
-      } else {
-        instanceCount = 1; // Default to one instance if no custom logic applies
-      }
-      break;
-      
-    default:
-      // For unknown patterns, use a default estimate of one instance
-      debugLog(`Warning: Unknown recurrence pattern type "${pattern.type}" for task ${task.id} (${task.name})`);
-      instanceCount = 1;
-      break;
-  }
-  
-  // Ensure we always return a non-negative integer
-  instanceCount = Math.max(0, Math.round(instanceCount));
-  
-  debugLog(`Final instance count for task ${task.id} (${task.name}): ${instanceCount}`);
-  
-  return instanceCount;
-};
-
-/**
- * Helper function to convert a timeframe to a date range
- */
-const getDateRangeFromTimeframe = (timeframe: ForecastTimeframe): DateRange => {
+function calculateForecastDates(horizon: ForecastHorizon): { startDate: Date, endDate: Date } {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   
-  switch (timeframe) {
+  const startDate = new Date(today);
+  const endDate = new Date(today);
+  
+  switch (horizon) {
     case 'week':
-      return {
-        startDate: startOfWeek(today, { weekStartsOn: 1 }),
-        endDate: endOfWeek(today, { weekStartsOn: 1 })
-      };
-      
+      // Next 7 days
+      endDate.setDate(endDate.getDate() + 7);
+      break;
     case 'month':
-      return {
-        startDate: startOfMonth(today),
-        endDate: endOfMonth(today)
-      };
-      
+      // Next 30 days
+      endDate.setDate(endDate.getDate() + 30);
+      break;
     case 'quarter':
-      return {
-        startDate: startOfQuarter(today),
-        endDate: endOfQuarter(today)
-      };
-      
+      // Next 90 days
+      endDate.setDate(endDate.getDate() + 90);
+      break;
     case 'year':
-      return {
-        startDate: startOfYear(today),
-        endDate: endOfYear(today)
-      };
-      
-    default:
-      // Default to next 30 days for unknown timeframes
-      return {
-        startDate: today,
-        endDate: addDays(today, 30)
-      };
-  }
-};
-
-/**
- * Helper function to calculate period strings based on granularity
- */
-const calculatePeriods = (dateRange: DateRange, granularity: GranularityType): string[] => {
-  const periods: string[] = [];
-  
-  switch (granularity) {
-    case 'daily':
-      eachDayOfInterval({
-        start: dateRange.startDate,
-        end: dateRange.endDate
-      }).forEach(date => {
-        periods.push(format(date, 'yyyy-MM-dd'));
-      });
+      // Next 365 days
+      endDate.setDate(endDate.getDate() + 365);
       break;
-      
-    case 'weekly':
-      eachWeekOfInterval({
-        start: dateRange.startDate,
-        end: dateRange.endDate
-      }, { weekStartsOn: 1 }).forEach(date => {
-        periods.push(format(date, 'yyyy-\'W\'ww'));
-      });
-      break;
-      
-    case 'monthly':
-      eachMonthOfInterval({
-        start: dateRange.startDate,
-        end: dateRange.endDate
-      }).forEach(date => {
-        periods.push(format(date, 'yyyy-MM'));
-      });
-      break;
-  }
-  
-  return periods;
-};
-
-/**
- * Helper function to convert a period string to a date range
- */
-const getPeriodDateRange = (period: string, granularity: GranularityType): DateRange => {
-  let startDate, endDate;
-  
-  switch (granularity) {
-    case 'daily':
-      startDate = new Date(period + 'T00:00:00');
-      endDate = new Date(period + 'T23:59:59');
-      break;
-      
-    case 'weekly':
-      // Parse 'yyyy-'W'ww' format
-      const [yearStrWeekly, weekStr] = period.split('-W');
-      const yearWeekly = parseInt(yearStrWeekly);
-      const week = parseInt(weekStr);
-      
-      // Calculate the first day of the week (Monday)
-      startDate = new Date(yearWeekly, 0, 1);
-      startDate.setDate(startDate.getDate() + (week - 1) * 7);
-      while (startDate.getDay() !== 1) {
-        startDate.setDate(startDate.getDate() - 1);
-      }
-      
-      // End date is Sunday
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 6);
-      endDate.setHours(23, 59, 59, 999);
-      break;
-      
-    case 'monthly':
-      // Parse 'yyyy-MM' format
-      const [yearMonthly, month] = period.split('-').map(Number);
-      startDate = new Date(yearMonthly, month - 1, 1);
-      endDate = new Date(yearMonthly, month, 0, 23, 59, 59, 999);
-      break;
-      
-    default:
-      // Fallback to current day
-      startDate = new Date();
-      endDate = new Date();
+    case 'custom':
+      // Default to next 30 days for custom
+      endDate.setDate(endDate.getDate() + 30);
       break;
   }
   
   return { startDate, endDate };
+}
+
+/**
+ * Calculate demand forecast based on tasks
+ * @param tasks List of task instances
+ * @param startDate Start date of the forecast period
+ * @param endDate End date of the forecast period
+ * @param mode Forecast mode
+ * @returns Promise with demand forecast
+ */
+async function calculateDemand(
+  tasks: TaskInstance[],
+  startDate: Date,
+  endDate: Date,
+  mode: ForecastMode
+): Promise<ForecastDemand> {
+  // Filter tasks to those within the time period
+  const inPeriodTasks = tasks.filter(task => {
+    const taskDate = task.dueDate;
+    return taskDate && taskDate >= startDate && taskDate <= endDate;
+  });
+  
+  // Initialize demand object with skill breakdowns
+  const totalHours = inPeriodTasks.reduce((sum, task) => sum + task.estimatedHours, 0);
+  
+  // Group by skill
+  const skillBreakdowns: Record<SkillType, SkillBreakdown> = {} as Record<SkillType, SkillBreakdown>;
+  
+  const skillList: SkillType[] = ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'];
+  
+  // Initialize skill breakdowns
+  skillList.forEach(skill => {
+    skillBreakdowns[skill] = {
+      skillType: skill,
+      hours: 0,
+      taskCount: 0,
+      percentage: 0,
+      tasks: []
+    };
+  });
+  
+  // Calculate hours and task count by skill
+  inPeriodTasks.forEach(task => {
+    task.requiredSkills.forEach(skill => {
+      if (skillBreakdowns[skill]) {
+        // Evenly distribute hours among required skills
+        const hoursPerSkill = task.estimatedHours / task.requiredSkills.length;
+        skillBreakdowns[skill].hours += hoursPerSkill;
+        skillBreakdowns[skill].taskCount += 1;
+        skillBreakdowns[skill].tasks.push({
+          id: task.id,
+          name: task.name,
+          hours: hoursPerSkill,
+          dueDate: task.dueDate!
+        });
+      }
+    });
+  });
+  
+  // Calculate percentages
+  if (totalHours > 0) {
+    Object.keys(skillBreakdowns).forEach(skill => {
+      const typedSkill = skill as SkillType;
+      skillBreakdowns[typedSkill].percentage = 
+        (skillBreakdowns[typedSkill].hours / totalHours) * 100;
+    });
+  }
+  
+  // Group by time period (week, day, or month depending on horizon)
+  const timeBreakdown: SkillDemandData[] = [];
+  
+  // Create simplified time breakdown (just for demo)
+  // In a real app, this would be grouped by time periods
+  Object.keys(skillBreakdowns).forEach(skill => {
+    const typedSkill = skill as SkillType;
+    if (skillBreakdowns[typedSkill].hours > 0) {
+      timeBreakdown.push({
+        skillType: typedSkill,
+        hours: skillBreakdowns[typedSkill].hours,
+        startDate: startDate,
+        endDate: endDate
+      });
+    }
+  });
+  
+  return {
+    totalHours,
+    taskCount: inPeriodTasks.length,
+    skillBreakdowns,
+    timeBreakdown
+  };
+}
+
+/**
+ * Calculate capacity forecast based on staff availability
+ * @param staff List of staff members
+ * @param startDate Start date of the forecast period
+ * @param endDate End date of the forecast period
+ * @param mode Forecast mode
+ * @returns Promise with capacity forecast
+ */
+async function calculateCapacity(
+  staff: StaffMember[],
+  startDate: Date,
+  endDate: Date,
+  mode: ForecastMode
+): Promise<ForecastCapacity> {
+  // Get all staff availability
+  let totalHours = 0;
+  const skillBreakdowns: Record<SkillType, SkillBreakdown> = {} as Record<SkillType, SkillBreakdown>;
+  
+  const skillList: SkillType[] = ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'];
+  
+  // Initialize skill breakdowns
+  skillList.forEach(skill => {
+    skillBreakdowns[skill] = {
+      skillType: skill,
+      hours: 0,
+      taskCount: 0, // For capacity, this is staff count
+      percentage: 0,
+      tasks: []
+    };
+  });
+  
+  // Process each staff member
+  for (const member of staff) {
+    // For demo purposes, we're just going to estimate capacity
+    // In a real app, we'd query the availability data
+    
+    // Assume 8 hours per workday, 5 days per week
+    const workdaysInPeriod = getWorkdaysInPeriod(startDate, endDate);
+    const staffHours = workdaysInPeriod * 8 * 0.8; // 80% availability to account for breaks, meetings, etc.
+    
+    // Distribute hours evenly among the staff's skills
+    const hoursPerSkill = staffHours / member.skills.length;
+    
+    member.skills.forEach(skill => {
+      if (skillBreakdowns[skill]) {
+        skillBreakdowns[skill].hours += hoursPerSkill;
+        skillBreakdowns[skill].taskCount += 1; // Count of staff with this skill
+      }
+    });
+    
+    totalHours += staffHours;
+  }
+  
+  // Calculate percentages
+  if (totalHours > 0) {
+    Object.keys(skillBreakdowns).forEach(skill => {
+      const typedSkill = skill as SkillType;
+      skillBreakdowns[typedSkill].percentage = 
+        (skillBreakdowns[typedSkill].hours / totalHours) * 100;
+    });
+  }
+  
+  // Group by time period (week, day, or month depending on horizon)
+  const timeBreakdown: SkillDemandData[] = [];
+  
+  // Create simplified time breakdown (just for demo)
+  Object.keys(skillBreakdowns).forEach(skill => {
+    const typedSkill = skill as SkillType;
+    if (skillBreakdowns[typedSkill].hours > 0) {
+      timeBreakdown.push({
+        skillType: typedSkill,
+        hours: skillBreakdowns[typedSkill].hours,
+        startDate: startDate,
+        endDate: endDate
+      });
+    }
+  });
+  
+  return {
+    totalHours,
+    staffCount: staff.length,
+    skillBreakdowns,
+    timeBreakdown
+  };
+}
+
+/**
+ * Calculate gaps between demand and capacity
+ * @param demand Demand forecast
+ * @param capacity Capacity forecast
+ * @returns Gap analysis
+ */
+function calculateGap(demand: ForecastDemand, capacity: ForecastCapacity): ForecastGap {
+  const totalGap = capacity.totalHours - demand.totalHours;
+  const skillGaps: Record<SkillType, GapAnalysis> = {} as Record<SkillType, GapAnalysis>;
+  
+  // Calculate gap for each skill
+  const skillList: SkillType[] = ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'];
+  
+  skillList.forEach(skill => {
+    const demandHours = demand.skillBreakdowns[skill]?.hours || 0;
+    const capacityHours = capacity.skillBreakdowns[skill]?.hours || 0;
+    const gapHours = capacityHours - demandHours;
+    const utilizationPercentage = demandHours > 0 && capacityHours > 0 
+      ? (demandHours / capacityHours) * 100
+      : 0;
+    
+    skillGaps[skill] = {
+      skillType: skill,
+      demandHours,
+      capacityHours,
+      gapHours,
+      isSurplus: gapHours >= 0,
+      utilizationPercentage,
+      status: getGapStatus(gapHours, capacityHours)
+    };
+  });
+  
+  return {
+    totalGap,
+    hasSurplus: totalGap >= 0,
+    utilizationPercentage: capacity.totalHours > 0 
+      ? (demand.totalHours / capacity.totalHours) * 100
+      : 0,
+    skillGaps
+  };
+}
+
+/**
+ * Determine the status of a capacity gap
+ * @param gapHours Hours gap (positive for surplus, negative for shortage)
+ * @param capacityHours Total capacity hours
+ * @returns Gap status string
+ */
+function getGapStatus(gapHours: number, capacityHours: number): 'critical' | 'warning' | 'healthy' | 'excess' {
+  if (capacityHours === 0) return 'critical';
+  
+  const gapPercentage = (gapHours / capacityHours) * 100;
+  
+  if (gapPercentage < -20) return 'critical';
+  if (gapPercentage < 0) return 'warning';
+  if (gapPercentage < 20) return 'healthy';
+  return 'excess';
+}
+
+/**
+ * Calculate financial projections based on clients and forecasts
+ * @param clients List of active clients
+ * @param demand Demand forecast
+ * @param capacity Capacity forecast
+ * @returns Financial projections
+ */
+function calculateFinancialProjections(
+  clients: Client[],
+  demand: ForecastDemand,
+  capacity: ForecastCapacity
+): FinancialProjection {
+  // Calculate expected revenue from all active clients
+  const monthlyRevenue = clients.reduce((sum, client) => {
+    return sum + client.expectedMonthlyRevenue;
+  }, 0);
+  
+  // For simplicity, we'll assume costs are based on capacity
+  // In a real app, this would be based on staff costs per hour
+  const averageCostPerHour = 75; // Example average cost per hour
+  const projectedCost = capacity.totalHours * averageCostPerHour;
+  
+  // Calculate expected revenue for the demand
+  // In a real app, this would be more complex based on billing rates
+  const averageBillingRate = 150; // Example average billing rate
+  const projectedRevenue = demand.totalHours * averageBillingRate;
+  
+  // Calculate profit
+  const projectedProfit = projectedRevenue - projectedCost;
+  const profitMargin = projectedRevenue > 0 
+    ? (projectedProfit / projectedRevenue) * 100
+    : 0;
+  
+  return {
+    monthlyRecurringRevenue: monthlyRevenue,
+    projectedRevenue,
+    projectedCost,
+    projectedProfit,
+    profitMargin,
+    revenueAtRisk: 0, // This would be calculated based on at-risk clients
+    skillBreakdown: {} // This would break down financials by skill
+  };
+}
+
+/**
+ * Helper function to count workdays in a period
+ * @param startDate Start date
+ * @param endDate End date
+ * @returns Number of workdays in the period
+ */
+function getWorkdaysInPeriod(startDate: Date, endDate: Date): number {
+  let workdays = 0;
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) { // Skip weekends (0 = Sunday, 6 = Saturday)
+      workdays++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workdays;
+}
+
+/**
+ * Get the cached forecast data
+ * @returns The cached forecast data or null if not available
+ */
+export const getCachedForecast = (): ForecastData | null => {
+  const now = new Date();
+  
+  if (forecastCache.data && forecastCache.expiry && forecastCache.expiry > now) {
+    return forecastCache.data;
+  }
+  
+  return null;
 };
 
 /**
  * Clear the forecast cache
+ * @returns Void
  */
-export const clearForecastCache = () => {
-  debugLog('Clearing forecast cache');
-  forecastCache = {};
-};
-
-/**
- * Get a forecast from the cache or generate a new one if not cached
- */
-export const getForecast = async (parameters: ForecastParameters): Promise<ForecastResult> => {
-  try {
-    debugLog('Attempting to get forecast', parameters);
-    return await generateForecast(parameters);
-  } catch (error) {
-    console.error('Error generating forecast:', error);
-    throw error;
-  }
-};
-
-/**
- * Enable or disable debug mode for forecast calculations
- */
-export const setForecastDebugMode = (enabled: boolean): void => {
-  localStorage.setItem('forecast_debug_mode', enabled ? 'true' : 'false');
-  debugLog(`Debug mode ${enabled ? 'enabled' : 'disabled'}`);
-};
-
-/**
- * Check if forecast debug mode is enabled
- */
-export const isForecastDebugModeEnabled = (): boolean => {
-  return localStorage.getItem('forecast_debug_mode') === 'true';
-};
-
-/**
- * Set the skill allocation strategy for forecast calculations
- */
-export const setSkillAllocationStrategy = (strategy: SkillAllocationStrategy): void => {
-  localStorage.setItem('forecast_skill_allocation_strategy', strategy);
-  debugLog(`Skill allocation strategy set to: ${strategy}`);
-};
-
-/**
- * Get the current skill allocation strategy
- */
-export const getSkillAllocationStrategy = (): SkillAllocationStrategy => {
-  return (localStorage.getItem('forecast_skill_allocation_strategy') as SkillAllocationStrategy) || 'duplicate';
-};
-
-/**
- * Run validation checks on the forecasting system
- * Returns a list of any issues found, empty array if all checks pass
- */
-export const validateForecastSystem = async (): Promise<string[]> => {
-  const issues: string[] = [];
-  
-  debugLog('Running forecast system validation checks');
-  
-  // Check 1: Verify recurring tasks have valid recurrence patterns
-  const recurringTasks = await getRecurringTasks();
-  recurringTasks.forEach(task => {
-    if (!task.recurrencePattern || !task.recurrencePattern.type) {
-      issues.push(`Task ${task.id} (${task.name}) has invalid recurrence pattern`);
-    }
-    if (!task.requiredSkills || task.requiredSkills.length === 0) {
-      issues.push(`Task ${task.id} (${task.name}) has no required skills`);
-    }
-  });
-  
-  // Check 2: Verify staff have skills assigned
-  const staff = await getAllStaff();
-  staff.forEach(member => {
-    if (!member.skills || member.skills.length === 0) {
-      issues.push(`Staff member ${member.id} (${member.fullName}) has no assigned skills`);
-    }
-  });
-  
-  // Check 3: Verify that the forecast can be generated
-  try {
-    const testParams: ForecastParameters = {
-      mode: 'virtual',
-      timeframe: 'week',
-      dateRange: {
-        startDate: new Date(),
-        endDate: addDays(new Date(), 7)
-      },
-      granularity: 'daily',
-      includeSkills: 'all'
-    };
-    
-    await generateForecast(testParams);
-  } catch (error) {
-    issues.push(`Failed to generate test forecast: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-  
-  debugLog(`Validation complete. Found ${issues.length} issues:`, issues);
-  
-  return issues;
-};
-
-/**
- * Gets task breakdown data for the forecast period
- * Used to provide detailed hover information in the UI
- */
-export const getTaskBreakdown = async (params: ForecastParameters): Promise<TaskBreakdownItem[]> => {
-  try {
-    // This is a mock implementation - in a real system, this would query
-    // the database for actual task instances within the date range
-    const mockTasks: TaskBreakdownItem[] = [
-      {
-        id: "task1",
-        name: "Quarterly Tax Filing",
-        clientName: "Acme Corp",
-        clientId: "client1",
-        skill: "Tax" as SkillType,  // Fixed casing to match SkillType enum
-        hours: 8,
-        dueDate: "2025-07-15",
-        status: "scheduled"
-      },
-      {
-        id: "task2",
-        name: "Financial Statement Review",
-        clientName: "Globex Industries",
-        clientId: "client2",
-        skill: "Audit" as SkillType,  // Fixed casing to match SkillType enum
-        hours: 12,
-        dueDate: "2025-07-10",
-        status: "scheduled"
-      },
-      {
-        id: "task3",
-        name: "Bookkeeping",
-        clientName: "Sterling LLC",
-        clientId: "client3",
-        skill: "Bookkeeping" as SkillType,  // Fixed casing to match SkillType enum
-        hours: 6,
-        dueDate: "2025-07-05",
-        status: "scheduled"
-      },
-      {
-        id: "task4",
-        name: "Strategic Planning Session",
-        clientName: "Tech Innovations",
-        clientId: "client4",
-        skill: "Advisory" as SkillType,  // Fixed casing to match SkillType enum
-        hours: 4,
-        dueDate: "2025-07-20",
-        status: "scheduled"
-      }
-    ];
-    
-    // In a real implementation, you would filter tasks based on the date range
-    // and other parameters from the forecast parameters
-    // This is just a placeholder for demonstration
-    
-    // Log for debug mode
-    if (getDebugMode()) {
-      console.log(`[Forecast Debug] Retrieved ${mockTasks.length} tasks for breakdown`);
-    }
-    
-    return mockTasks;
-  } catch (error) {
-    console.error("Error getting task breakdown:", error);
-    return [];
-  }
-};
-
-/**
- * Calculate client tasks data for a given client
- */
-export const calculateClientTasksData = async (clientId: string): Promise<ClientTaskBreakdown> => {
-  try {
-    const recurringTasks = await getRecurringTasks(true);
-    const clientRecurringTasks = recurringTasks.filter(task => task.clientId === clientId);
-    
-    let totalHours = 0;
-    let tasksByCategory: Record<string, number> = {};
-    
-    clientRecurringTasks.forEach(task => {
-      // Calculate monthly hours for this task based on recurrence pattern
-      const monthlyHours = estimateMonthlyHoursForTask(task);
-      totalHours += monthlyHours;
-      
-      // Aggregate by category
-      if (!tasksByCategory[task.category]) {
-        tasksByCategory[task.category] = 0;
-      }
-      tasksByCategory[task.category] += monthlyHours;
-    });
-    
-    return {
-      totalMonthlyHours: totalHours,
-      categoryBreakdown: tasksByCategory
-    };
-  } catch (error) {
-    console.error(`Error calculating task data for client ${clientId}:`, error);
-    return {
-      totalMonthlyHours: 0,
-      categoryBreakdown: {},
-    };
-  }
-};
-
-/**
- * Calculate total demand for a skill within a date range
- */
-export const calculateTotalDemandForSkill = async (
-  skillId: string,
-  startDate?: Date,
-  endDate?: Date
-): Promise<number> => {
-  try {
-    let totalDemand = 0;
-    const recurringTasks = await getRecurringTasks(true);
-    
-    for (const task of recurringTasks) {
-      if (task.requiredSkills.includes(skillId as any)) {
-        // Calculate demand for this task within the date range
-        const demand = await calculateDemandForTask(task, startDate, endDate);
-        totalDemand += demand;
-      }
-    }
-    
-    return totalDemand;
-  } catch (error) {
-    console.error(`Error calculating demand for skill ${skillId}:`, error);
-    return 0;
-  }
-};
-
-/**
- * Calculate demand for a specific task within a date range
- */
-const calculateDemandForTask = async (
-  task: RecurringTask,
-  startDate?: Date,
-  endDate?: Date
-): Promise<number> => {
-  const pattern = task.recurrencePattern;
-  
-  if (!pattern || !pattern.type) {
-    debugLog(`Invalid recurrence pattern for task: ${task.name}`);
-    return 0;
-  }
-  
-  const startDateForCalc = startDate || task.createdAt;
-  const endDateForCalc = endDate || task.recurrencePattern.endDate;
-  
-  let instanceCount = 0;
-  
-  switch (pattern.type) {
-    case 'Daily':
-      // Accurate count of days in the range considering the interval
-      const daysDiff = differenceInDays(endDateForCalc, startDateForCalc) + 1; // +1 to include both start and end days
-      instanceCount = Math.ceil(daysDiff / (pattern.interval || 1));
-      break;
-      
-    case 'Weekly':
-      if (pattern.weekdays && pattern.weekdays.length > 0) {
-        // Count specific weekdays within the period
-        instanceCount = 0;
-        
-        // Calculate full weeks in the range
-        const fullWeeks = Math.floor(differenceInDays(endDateForCalc, startDateForCalc) / 7);
-        const remainingDays = differenceInDays(endDateForCalc, addDays(startDateForCalc, fullWeeks * 7));
-        
-        // Count instances for full weeks
-        instanceCount += fullWeeks * pattern.weekdays.length / (pattern.interval || 1);
-        
-        // Count instances for remaining days
-        let currentDay = addDays(startDateForCalc, fullWeeks * 7);
-        for (let i = 0; i <= remainingDays; i++) {
-          const dayOfWeek = getDay(currentDay); // 0 = Sunday, 1 = Monday, etc.
-          if (pattern.weekdays.includes(dayOfWeek)) {
-            instanceCount++;
-          }
-          currentDay = addDays(currentDay, 1);
-        }
-        
-        // Apply interval
-        instanceCount = instanceCount / (pattern.interval || 1);
-      } else {
-        // Simple weekly recurrence (every X weeks)
-        instanceCount = (differenceInDays(endDateForCalc, startDateForCalc) + 1) / 7 / (pattern.interval || 1);
-      }
-      break;
-      
-    case 'Monthly':
-      // Calculate months between start and end, considering day of month
-      const monthsDiff = differenceInMonths(endDateForCalc, startDateForCalc);
-      
-      if (pattern.dayOfMonth) {
-        // If specific day of month is specified
-        instanceCount = 0;
-        
-        // For each month in the range
-        for (let i = 0; i <= monthsDiff; i++) {
-          const currentMonth = addDays(startDateForCalc, i * 30); // Approximation
-          const daysInCurrentMonth = getDaysInMonth(currentMonth);
-          
-          // Check if the day exists in this month and falls within our range
-          if (pattern.dayOfMonth <= daysInCurrentMonth) {
-            const instanceDate = new Date(
-              currentMonth.getFullYear(),
-              currentMonth.getMonth(),
-              pattern.dayOfMonth
-            );
-            
-            if (instanceDate >= startDateForCalc && instanceDate <= endDateForCalc) {
-              instanceCount++;
-            }
-          }
-        }
-      } else {
-        // Simple monthly recurrence (same day each month)
-        instanceCount = monthsDiff + 1; // +1 to include both start and end months
-      }
-      
-      // Apply interval
-      instanceCount = instanceCount / (pattern.interval || 1);
-      break;
-      
-    case 'Quarterly':
-      // Each quarter is 3 months
-      instanceCount = Math.ceil(differenceInMonths(endDateForCalc, startDateForCalc) / 3 / (pattern.interval || 1));
-      break;
-      
-    case 'Annually':
-      // Count years, handling partial years
-      const yearsDiff = differenceInYears(endDateForCalc, startDateForCalc);
-      const extraMonths = differenceInMonths(endDateForCalc, addDays(startDateForCalc, yearsDiff * 365)) > 0 ? 1 : 0;
-      instanceCount = (yearsDiff + extraMonths) / (pattern.interval || 1);
-      break;
-      
-    case 'Custom':
-      // For custom patterns, estimate based on custom offset days
-      if (pattern.customOffsetDays && pattern.customOffsetDays > 0) {
-        instanceCount = Math.ceil(differenceInDays(endDateForCalc, startDateForCalc) / pattern.customOffsetDays);
-      } else {
-        instanceCount = 1; // Default to one instance if no custom logic applies
-      }
-      break;
-      
-    default:
-      // For unknown patterns, use a default estimate of one instance
-      debugLog(`Warning: Unknown recurrence pattern type "${pattern.type}" for task ${task.id} (${task.name})`);
-      instanceCount = 1;
-      break;
-  }
-  
-  // Ensure we always return a non-negative integer
-  instanceCount = Math.max(0, Math.round(instanceCount));
-  
-  debugLog(`Final instance count for task ${task.id} (${task.name}): ${instanceCount}`);
-  
-  return instanceCount;
-};
-
-/**
- * Estimate monthly hours for a recurring task
- */
-const estimateMonthlyHoursForTask = (task: RecurringTask): number => {
-  const pattern = task.recurrencePattern;
-  
-  if (!pattern || !pattern.type) {
-    debugLog(`Invalid recurrence pattern for task: ${task.name}`);
-    return 0;
-  }
-  
-  let monthlyHours = 0;
-  
-  switch (pattern.type) {
-    case 'Daily':
-      // Estimate hours per day and multiply by 30 (approximation)
-      monthlyHours = task.estimatedHours * 30;
-      break;
-      
-    case 'Weekly':
-      // Estimate hours per week and multiply by 4 (approximation)
-      monthlyHours = task.estimatedHours * 4;
-      break;
-      
-    case 'Monthly':
-      // Use the estimated hours directly
-      monthlyHours = task.estimatedHours;
-      break;
-      
-    case 'Quarterly':
-      // Estimate hours per quarter and multiply by 3 (approximation)
-      monthlyHours = task.estimatedHours * 3;
-      break;
-      
-    case 'Annually':
-      // Estimate hours per year and multiply by 1 (approximation)
-      monthlyHours = task.estimatedHours;
-      break;
-      
-    case 'Custom':
-      // For custom patterns, estimate based on custom offset days
-      if (pattern.customOffsetDays && pattern.customOffsetDays > 0) {
-        monthlyHours = task.estimatedHours * (pattern.customOffsetDays / 30);
-      } else {
-        monthlyHours = task.estimatedHours; // Default to full estimated hours
-      }
-      break;
-      
-    default:
-      // For unknown patterns, use a default estimate of one instance
-      debugLog(`Warning: Unknown recurrence pattern type "${pattern.type}" for task ${task.id} (${task.name})`);
-      monthlyHours = task.estimatedHours;
-      break;
-  }
-  
-  return monthlyHours;
+export const clearForecastCache = (): void => {
+  forecastCache = {
+    data: null,
+    expiry: null
+  };
 };

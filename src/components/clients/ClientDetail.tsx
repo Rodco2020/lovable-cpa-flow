@@ -65,6 +65,10 @@ const ClientDetail: React.FC = () => {
     completedTasksCount: 0
   });
   
+  // State for edit task dialog - moved this up to ensure consistent hook order
+  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
+  
   // Calculate task analytics
   useEffect(() => {
     if (recurringTasks.length || adHocTasks.length) {
@@ -169,6 +173,18 @@ const ClientDetail: React.FC = () => {
       });
     }
   };
+
+  // Handle edit task
+  const handleEditTask = (task: RecurringTask) => {
+    setSelectedTask(task);
+    setIsEditTaskDialogOpen(true);
+  };
+
+  // Handle task updated
+  const handleTaskUpdated = () => {
+    // Refresh data to show the updated task
+    fetchClientData();
+  };
   
   // Show loading state
   if (isLoading) {
@@ -251,22 +267,6 @@ const ClientDetail: React.FC = () => {
     task.dueDate && task.dueDate < new Date()
   );
   
-  // State for edit task dialog
-  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
-
-  // Handle edit task
-  const handleEditTask = (task: RecurringTask) => {
-    setSelectedTask(task);
-    setIsEditTaskDialogOpen(true);
-  };
-
-  // Handle task updated
-  const handleTaskUpdated = () => {
-    // Refresh data to show the updated task
-    fetchClientData();
-  };
-
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">

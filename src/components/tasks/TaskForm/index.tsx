@@ -158,7 +158,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
           requiredSkills, // Using the filtered SkillType array
           priority: taskForm.priority,
           category: taskForm.category,
-          dueDate: new Date(taskForm.dueDate)
+          dueDate: new Date(taskForm.dueDate),
+          status: 'Unscheduled' // Add the status field for ad-hoc tasks too
         });
       }
       
