@@ -7,7 +7,7 @@ import ClientDetail from '@/components/clients/ClientDetail';
 import { getClientById } from '@/services/clientService';
 import { getRecurringTasks, getRecurringTaskById, updateRecurringTask, deactivateRecurringTask } from '@/services/taskService';
 import { getTaskInstances } from '@/services/taskService';
-import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory, RecurrencePattern } from '@/types/task';
 import { toast } from 'sonner';
 
 // Mock all required services
@@ -90,7 +90,7 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
             priority: 'High' as TaskPriority,
             category: 'Advisory' as TaskCategory,
             recurrencePattern: {
-              type: 'Monthly',
+              type: 'Monthly' as RecurrencePattern['type'],
               interval: 1,
               dayOfMonth: 20
             }
@@ -128,7 +128,7 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
       priority: 'High' as TaskPriority,
       category: 'Advisory' as TaskCategory,
       recurrencePattern: {
-        type: 'Monthly', 
+        type: 'Monthly' as RecurrencePattern['type'],
         interval: 1,
         dayOfMonth: 20
       }
