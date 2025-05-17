@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Pencil } from 'lucide-react';
 import TaskListPagination from './TaskListPagination';
+import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
 
 interface ClientRecurringTaskListProps {
   clientId: string;
@@ -25,6 +26,8 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingTaskId, setEditingTaskId] = useState<string | undefined>(undefined);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const tasksPerPage = 5;
 
   const loadTasks = async () => {
@@ -59,6 +62,17 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
       console.error("Error deactivating task:", error);
       toast.error("An error occurred while deactivating the task");
     }
+  };
+
+  const handleEditClick = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click event
+    setEditingTaskId(taskId);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveComplete = () => {
+    loadTasks();
+    if (onRefreshNeeded) onRefreshNeeded();
   };
 
   // Get current tasks for pagination
@@ -172,18 +186,28 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {task.isActive && (
+                  <div className="flex justify-end gap-2">
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeactivate(task.id);
-                      }}
+                      onClick={(e) => handleEditClick(task.id, e)}
                     >
-                      Deactivate
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
                     </Button>
-                  )}
+                    {task.isActive && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeactivate(task.id);
+                        }}
+                      >
+                        Deactivate
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -199,6 +223,14 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
             />
           </div>
         )}
+        
+        {/* Edit Task Dialog */}
+        <EditRecurringTaskContainer
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          taskId={editingTaskId}
+          onSaveComplete={handleSaveComplete}
+        />
       </CardContent>
     </Card>
   );

@@ -1,9 +1,19 @@
+
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom'; // Add this import to extend Jest matchers
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
 import ClientAdHocTaskList from '@/components/clients/ClientAdHocTaskList';
 import { RecurringTask, TaskInstance } from '@/types/task';
+
+// Mock the components used by ClientRecurringTaskList
+jest.mock('@/components/clients/EditRecurringTaskContainer', () => ({
+  EditRecurringTaskContainer: ({ open, onOpenChange, taskId }) => (
+    <div data-testid="edit-task-dialog" data-open={open} data-task-id={taskId}>
+      <button onClick={() => onOpenChange(false)}>Close</button>
+    </div>
+  )
+}));
 
 // Mock the taskService module
 jest.mock('@/services/taskService', () => ({
@@ -146,8 +156,8 @@ describe('ClientRecurringTaskList', () => {
     await screen.findByText('Monthly Bookkeeping');
     
     // Find and click the deactivate button
-    const deactivateButton = screen.getAllByText('Deactivate')[0];
-    fireEvent.click(deactivateButton);
+    const deactivateButtons = screen.getAllByText('Deactivate');
+    fireEvent.click(deactivateButtons[0]);
     
     expect(deactivateRecurringTask).toHaveBeenCalledWith('task1');
   });
@@ -194,6 +204,37 @@ describe('ClientRecurringTaskList', () => {
     await screen.findByText('Task 0');
     
     expect(screen.getByTestId('pagination')).toBeInTheDocument();
+  });
+
+  test('opens edit dialog when Edit button is clicked', async () => {
+    render(<ClientRecurringTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Monthly Bookkeeping');
+    
+    // Find and click the edit button
+    const editButtons = await screen.findAllByText('Edit');
+    fireEvent.click(editButtons[0]);
+    
+    // Check if edit dialog is open with correct task ID
+    const editDialog = screen.getByTestId('edit-task-dialog');
+    expect(editDialog).toHaveAttribute('data-open', 'true');
+    expect(editDialog).toHaveAttribute('data-task-id', 'task1');
+  });
+  
+  test('clicking Edit button stops event propagation', async () => {
+    const mockViewTask = jest.fn();
+    render(<ClientRecurringTaskList clientId="client1" onViewTask={mockViewTask} />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Monthly Bookkeeping');
+    
+    // Find and click the edit button
+    const editButtons = await screen.findAllByText('Edit');
+    fireEvent.click(editButtons[0]);
+    
+    // onViewTask should not be called when edit button is clicked
+    expect(mockViewTask).not.toHaveBeenCalled();
   });
 });
 
