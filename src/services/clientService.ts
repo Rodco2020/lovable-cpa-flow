@@ -1,18 +1,19 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { Client, ClientCreateParams, ClientUpdateParams, IndustryType, PaymentTerms } from '@/types/client';
-import { RecurringTask, TaskInstance, TaskCategory } from '@/types/task';
+import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency, ClientCreateParams, ClientUpdateParams } from '@/types/client';
+import { TaskCategory, RecurringTask } from '@/types/task';
+import { createRecurringTask } from '@/services/taskService';
 
-// Simulated client database
-let clients: Client[] = [
+// Mock client data
+const clients: Client[] = [
   {
     id: '1',
     legalName: 'Acme Corporation',
     primaryContact: 'John Doe',
-    email: 'john@acmecorp.com',
+    email: 'john@acme.com',
     phone: '555-123-4567',
-    billingAddress: '123 Main St\nSuite 100\nNew York, NY 10001',
-    industry: 'Manufacturing',
+    billingAddress: '123 Main St, Business City, CA 90210',
+    industry: 'Technology',
     status: 'Active',
     expectedMonthlyRevenue: 5000,
     paymentTerms: 'Net30',
@@ -22,306 +23,182 @@ let clients: Client[] = [
       emailReminders: true,
       taskNotifications: true
     },
-    createdAt: new Date(2022, 5, 15),
-    updatedAt: new Date(2023, 1, 10)
+    createdAt: new Date('2023-01-15'),
+    updatedAt: new Date('2023-04-20')
   },
   {
     id: '2',
-    legalName: 'Globex Corporation',
+    legalName: 'Globex Industries',
     primaryContact: 'Jane Smith',
     email: 'jane@globex.com',
     phone: '555-987-6543',
-    billingAddress: '456 Tech Blvd\nSan Francisco, CA 94105',
-    industry: 'Technology',
+    billingAddress: '456 Commerce Ave, Metro City, NY 10001',
+    industry: 'Manufacturing',
     status: 'Active',
     expectedMonthlyRevenue: 7500,
     paymentTerms: 'Net15',
-    billingFrequency: 'Monthly',
+    billingFrequency: 'Quarterly',
     defaultTaskPriority: 'High',
     notificationPreferences: {
       emailReminders: true,
       taskNotifications: false
     },
-    createdAt: new Date(2021, 8, 22),
-    updatedAt: new Date(2023, 0, 5)
+    createdAt: new Date('2023-02-10'),
+    updatedAt: new Date('2023-05-05')
   },
   {
     id: '3',
-    legalName: 'Oceanic Airlines',
-    primaryContact: 'Kate Austin',
-    email: 'kate@oceanic.com',
-    phone: '555-111-2222',
-    billingAddress: '789 Sky Lane\nLos Angeles, CA 90045',
-    industry: 'Other',
+    legalName: 'Sunshine Transportation',
+    primaryContact: 'Bob Johnson',
+    email: 'bob@sunshine.com',
+    phone: '555-456-7890',
+    billingAddress: '789 Logistics Pkwy, Harbor City, FL 33101',
+    industry: 'Transportation',
     status: 'Inactive',
-    expectedMonthlyRevenue: 12000,
+    expectedMonthlyRevenue: 3000,
     paymentTerms: 'Net45',
-    billingFrequency: 'Quarterly',
-    defaultTaskPriority: 'Medium',
+    billingFrequency: 'Monthly',
+    defaultTaskPriority: 'Low',
     notificationPreferences: {
       emailReminders: false,
       taskNotifications: false
     },
-    createdAt: new Date(2020, 3, 8),
-    updatedAt: new Date(2022, 11, 15)
+    createdAt: new Date('2022-11-05'),
+    updatedAt: new Date('2023-03-15')
   }
 ];
 
-// Sample recurring tasks (would come from task service in real app)
-let clientRecurringTasks: Record<string, RecurringTask[]> = {
-  '1': [
-    {
-      id: 'rt-1',
-      templateId: '1',
-      clientId: '1',
-      name: 'Monthly Bookkeeping',
-      description: 'Complete monthly bookkeeping tasks including reconciliation',
-      estimatedHours: 3,
-      requiredSkills: ['Bookkeeping'],
-      priority: 'Medium',
-      category: 'Bookkeeping',
-      dueDate: new Date(2023, 5, 15),
-      recurrencePattern: { type: 'Monthly', dayOfMonth: 15 },
-      status: 'Unscheduled',
-      lastGeneratedDate: new Date(2023, 4, 15),
-      isActive: true,
-      createdAt: new Date(2022, 0, 1),
-      updatedAt: new Date(2022, 0, 1)
-    },
-    {
-      id: 'rt-2',
-      templateId: '2',
-      clientId: '1',
-      name: 'Quarterly Tax Filing',
-      description: 'Prepare and file quarterly tax returns',
-      estimatedHours: 5,
-      requiredSkills: ['CPA', 'Tax Specialist'],
-      priority: 'High',
-      category: 'Tax',
-      dueDate: new Date(2023, 6, 15),
-      recurrencePattern: { type: 'Quarterly', dayOfMonth: 15 },
-      status: 'Unscheduled',
-      lastGeneratedDate: new Date(2023, 3, 15),
-      isActive: true,
-      createdAt: new Date(2022, 0, 1),
-      updatedAt: new Date(2022, 0, 1)
-    }
-  ],
-  '2': [
-    {
-      id: 'rt-3',
-      templateId: '3',
-      clientId: '2',
-      name: 'Annual Audit',
-      description: 'Conduct annual financial audit',
-      estimatedHours: 20,
-      requiredSkills: ['CPA', 'Audit'],
-      priority: 'Medium',
-      category: 'Audit',
-      dueDate: new Date(2023, 11, 1),
-      recurrencePattern: { type: 'Annually', monthOfYear: 11, dayOfMonth: 1 },
-      status: 'Unscheduled',
-      lastGeneratedDate: null,
-      isActive: true,
-      createdAt: new Date(2022, 0, 1),
-      updatedAt: new Date(2022, 0, 1)
-    }
-  ]
-};
-
-// Sample ad-hoc tasks (would come from task service in real app)
-let clientAdHocTasks: Record<string, TaskInstance[]> = {
-  '1': [
-    {
-      id: 'task-1',
-      templateId: '4',
-      clientId: '1',
-      recurringTaskId: null,
-      name: 'Financial Statement Preparation',
-      description: 'Prepare financial statements for stakeholders',
-      estimatedHours: 8,
-      requiredSkills: ['CPA'],
-      priority: 'High',
-      category: 'Bookkeeping',
-      dueDate: new Date(2023, 5, 30),
-      status: 'Unscheduled',
-      assignedStaffId: null,
-      scheduledStartTime: null,
-      scheduledEndTime: null,
-      completedAt: null,
-      createdAt: new Date(2023, 5, 1),
-      updatedAt: new Date(2023, 5, 1)
-    }
-  ],
-  '2': [
-    {
-      id: 'task-2',
-      templateId: '5',
-      clientId: '2',
-      recurringTaskId: null,
-      name: 'Business Advisory Meeting',
-      description: 'Strategic planning and business advisory session',
-      estimatedHours: 2,
-      requiredSkills: ['Advisory'],
-      priority: 'Medium',
-      category: 'Advisory',
-      dueDate: new Date(2023, 5, 15),
-      status: 'Scheduled',
-      assignedStaffId: 'staff-1',
-      scheduledStartTime: new Date(2023, 5, 15, 10, 0),
-      scheduledEndTime: new Date(2023, 5, 15, 12, 0),
-      completedAt: null,
-      createdAt: new Date(2023, 5, 1),
-      updatedAt: new Date(2023, 5, 1)
-    },
-    {
-      id: 'task-3',
-      templateId: '1',
-      clientId: '2',
-      recurringTaskId: null,
-      name: 'Special Bookkeeping Review',
-      description: 'Review bookkeeping for the acquisition',
-      estimatedHours: 4,
-      requiredSkills: ['Bookkeeping', 'CPA'],
-      priority: 'Urgent',
-      category: 'Bookkeeping',
-      dueDate: new Date(2023, 5, 10),
-      status: 'Completed',
-      assignedStaffId: 'staff-2',
-      scheduledStartTime: new Date(2023, 5, 8, 9, 0),
-      scheduledEndTime: new Date(2023, 5, 8, 13, 0),
-      completedAt: new Date(2023, 5, 8, 12, 30),
-      createdAt: new Date(2023, 5, 5),
-      updatedAt: new Date(2023, 5, 8)
-    }
-  ]
-};
-
-/**
- * Get all clients
- * @returns Promise with array of clients
- */
-export const getAllClients = async (): Promise<Client[]> => {
-  return Promise.resolve(clients);
-};
-
-/**
- * Get all clients with optional filtering
- * @param filters Optional filters for clients
- * @returns Promise with filtered array of clients
- */
-export const getClients = async (filters?: { 
-  status?: string[],
-  industry?: string[]
-}): Promise<Client[]> => {
-  let filteredClients = [...clients];
-  
-  if (filters?.status && filters.status.length > 0) {
-    filteredClients = filteredClients.filter(client => 
-      filters.status.includes(client.status)
-    );
+// Get all clients (with optional filtering)
+export const getAllClients = async (activeOnly = false): Promise<Client[]> => {
+  if (activeOnly) {
+    return clients.filter(client => client.status === 'Active');
   }
-  
-  if (filters?.industry && filters.industry.length > 0) {
-    filteredClients = filteredClients.filter(client => 
-      filters.industry.includes(client.industry)
-    );
-  }
-  
-  return Promise.resolve(filteredClients);
+  return [...clients];
 };
 
-/**
- * Get a specific client by ID
- * @param id Client ID to retrieve
- * @returns Promise with the client or null if not found
- */
+// Get active clients
+export const getActiveClients = async (): Promise<Client[]> => {
+  return clients.filter(client => client.status === 'Active');
+};
+
+// Get client by ID
 export const getClientById = async (id: string): Promise<Client | null> => {
   const client = clients.find(c => c.id === id);
-  return Promise.resolve(client || null);
+  return client || null;
 };
 
-/**
- * Create a new client
- * @param clientData Data for the new client
- * @returns Promise with the created client
- */
+// Create a new client
 export const createClient = async (clientData: ClientCreateParams): Promise<Client> => {
-  const now = new Date();
-  
   const newClient: Client = {
+    ...clientData,
     id: uuidv4(),
-    ...clientData,
-    createdAt: now,
-    updatedAt: now
-  };
-  
-  clients.push(newClient);
-  clientRecurringTasks[newClient.id] = [];
-  clientAdHocTasks[newClient.id] = [];
-  
-  return Promise.resolve(newClient);
-};
-
-/**
- * Update an existing client
- * @param id Client ID to update
- * @param clientData Updated client data
- * @returns Promise with the updated client
- */
-export const updateClient = async (id: string, clientData: ClientUpdateParams): Promise<Client | null> => {
-  const clientIndex = clients.findIndex(c => c.id === id);
-  
-  if (clientIndex === -1) {
-    return Promise.resolve(null);
-  }
-  
-  clients[clientIndex] = {
-    ...clients[clientIndex],
-    ...clientData,
+    createdAt: new Date(),
     updatedAt: new Date()
   };
   
-  return Promise.resolve(clients[clientIndex]);
-};
-
-/**
- * Delete a client
- * @param id Client ID to delete
- * @returns Promise with boolean indicating success
- */
-export const deleteClient = async (id: string): Promise<boolean> => {
-  const initialLength = clients.length;
-  clients = clients.filter(c => c.id !== id);
+  clients.push(newClient);
   
-  delete clientRecurringTasks[id];
-  delete clientAdHocTasks[id];
+  // Create default recurring tasks for the new client (example)
+  await createRecurringTask({
+    templateId: '1',
+    clientId: newClient.id,
+    name: 'Monthly Bookkeeping',
+    description: 'Regular monthly bookkeeping service',
+    status: 'Unscheduled',
+    estimatedHours: 4,
+    requiredSkills: ['Bookkeeping'],
+    priority: newClient.defaultTaskPriority,
+    category: 'Bookkeeping',
+    recurrenceType: 'monthly',
+    recurrenceInterval: 1,
+    dayOfMonth: 15
+  });
   
-  return Promise.resolve(clients.length < initialLength);
+  return newClient;
 };
 
-/**
- * Get recurring tasks for a specific client
- * @param clientId Client ID to get tasks for
- * @returns Promise with array of recurring tasks
- */
-export const getClientRecurringTasks = async (clientId: string): Promise<RecurringTask[]> => {
-  return Promise.resolve(clientRecurringTasks[clientId] || []);
+// Update an existing client
+export const updateClient = async (id: string, updates: ClientUpdateParams): Promise<Client | null> => {
+  const index = clients.findIndex(c => c.id === id);
+  
+  if (index === -1) {
+    return null;
+  }
+  
+  clients[index] = {
+    ...clients[index],
+    ...updates,
+    updatedAt: new Date()
+  };
+  
+  return clients[index];
 };
 
-/**
- * Get ad-hoc tasks for a specific client
- * @param clientId Client ID to get tasks for
- * @returns Promise with array of ad-hoc tasks
- */
-export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstance[]> => {
-  return Promise.resolve(clientAdHocTasks[clientId] || []);
+// Archive a client (set status to Archived)
+export const archiveClient = async (id: string): Promise<Client | null> => {
+  const index = clients.findIndex(c => c.id === id);
+  
+  if (index === -1) {
+    return null;
+  }
+  
+  clients[index] = {
+    ...clients[index],
+    status: 'Archived',
+    updatedAt: new Date()
+  };
+  
+  return clients[index];
 };
 
-/**
- * Get all active clients
- * @returns Promise with array of active clients
- */
-export const getActiveClients = async (): Promise<Client[]> => {
-  return Promise.resolve(clients.filter(client => client.status === 'Active'));
+// Get client finance summary
+export const getClientFinanceSummary = async (id: string) => {
+  const client = await getClientById(id);
+  
+  if (!client) {
+    return null;
+  }
+  
+  // Just mock data for now - would be calculated from actual invoices/payments
+  return {
+    clientId: client.id,
+    totalRevenue: client.expectedMonthlyRevenue * 12, // Annualized
+    outstandingAmount: client.expectedMonthlyRevenue * 0.75,
+    averagePaymentTime: 22, // days
+    revenueHistory: [
+      { month: 'Jan', amount: client.expectedMonthlyRevenue * 0.9 },
+      { month: 'Feb', amount: client.expectedMonthlyRevenue * 1.1 },
+      { month: 'Mar', amount: client.expectedMonthlyRevenue * 0.95 }
+    ]
+  };
+};
+
+// Search for clients
+export const searchClients = async (query: string): Promise<Client[]> => {
+  const lowerQuery = query.toLowerCase();
+  
+  return clients.filter(
+    client =>
+      client.legalName.toLowerCase().includes(lowerQuery) ||
+      client.primaryContact.toLowerCase().includes(lowerQuery) ||
+      client.email.toLowerCase().includes(lowerQuery)
+  );
+};
+
+// Get all industries as choices for UI
+export const getIndustryChoices = (): IndustryType[] => {
+  return [
+    'Retail',
+    'Healthcare',
+    'Manufacturing',
+    'Technology',
+    'Financial Services',
+    'Professional Services',
+    'Construction',
+    'Hospitality',
+    'Education',
+    'Non-Profit',
+    'Transportation',
+    'Other'
+  ];
 };

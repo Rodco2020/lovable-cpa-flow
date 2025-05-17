@@ -1,7 +1,7 @@
 
 export type ClientStatus = "Active" | "Inactive" | "Pending" | "Archived";
 export type PaymentTerms = "Net30" | "Net15" | "Net45" | "Net60" | "Due on Receipt";
-export type BillingFrequency = "Monthly" | "Quarterly" | "Annually" | "Biweekly";
+export type BillingFrequency = "Monthly" | "Quarterly" | "Annually" | "Biweekly" | "Project-Based";
 export type IndustryType = 
   | "Retail" 
   | "Healthcare" 
@@ -12,7 +12,8 @@ export type IndustryType =
   | "Construction" 
   | "Hospitality" 
   | "Education" 
-  | "Non-Profit" 
+  | "Non-Profit"
+  | "Transportation"
   | "Other";
 
 export interface NotificationPreferences {

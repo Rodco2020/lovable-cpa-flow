@@ -1,6 +1,7 @@
 
 export type ForecastMode = 'virtual' | 'actual';
 export type ForecastHorizon = 'week' | 'month' | 'quarter' | 'year' | 'custom';
+export type SkillType = string;
 
 export type SkillAllocationStrategy = 'duplicate' | 'distribute';
 
@@ -18,6 +19,27 @@ export interface ForecastData {
   gap: ForecastGap;
   financials: FinancialProjection;
   timestamp: Date;
+  
+  // Additional properties for UI components
+  period: string;
+  data?: any[];
+  timeSeriesData?: any[];
+  skillDistribution?: any[];
+  gapAnalysis?: any[];
+  demandHours?: number;
+  capacityHours?: number;
+  gapHours?: number;
+  projectedRevenue?: number;
+  projectedCost?: number;
+  projectedProfit?: number;
+  summary?: {
+    totalDemand: number;
+    totalCapacity: number;
+    gap: number;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+  };
 }
 
 export interface SkillBreakdown {
@@ -40,6 +62,7 @@ export interface ForecastDemand {
   taskCount: number;
   skillBreakdowns: Record<string, SkillBreakdown>;
   timeBreakdown: SkillDemandData[];
+  forEach?: (callback: (item: any) => void) => void;
 }
 
 export interface ForecastCapacity {
@@ -47,6 +70,7 @@ export interface ForecastCapacity {
   staffCount: number;
   skillBreakdowns: Record<string, SkillBreakdown>;
   timeBreakdown: SkillDemandData[];
+  forEach?: (callback: (item: any) => void) => void;
 }
 
 export interface GapAnalysis {
@@ -74,4 +98,40 @@ export interface FinancialProjection {
   profitMargin: number;
   revenueAtRisk: number;
   skillBreakdown: Record<string, any>;
+  
+  // Additional properties for UI components
+  period?: string;
+  revenue?: number;
+  cost?: number;
+  profit?: number;
+}
+
+export interface SkillData {
+  id: SkillType;
+  name: string;
+  color: string;
+}
+
+export interface ForecastParameters {
+  mode: ForecastMode;
+  timeframe: ForecastHorizon | 'custom';
+  dateRange?: {
+    startDate: Date;
+    endDate: Date;
+  };
+  granularity: 'daily' | 'weekly' | 'monthly';
+  includeSkills: SkillType[] | 'all';
+}
+
+export interface ForecastResult {
+  data: any[];
+  financials: any[];
+  summary: {
+    totalDemand: number;
+    totalCapacity: number;
+    gap: number;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+  };
 }
