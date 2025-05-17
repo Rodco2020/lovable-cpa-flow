@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
-import { getClients, deleteClient } from '@/services/clientService';
+import { getAllClients, getClients, deleteClient } from '@/services/clientService';
 import { 
   Card, 
   CardHeader, 
@@ -90,20 +90,20 @@ const ClientList: React.FC = () => {
         });
         
         // First fetch all clients with no filters for debugging
-        const allClients = await getClients();
+        const allClients = await getAllClients();
         console.log("Debug - All clients without filters:", allClients);
         setUnfilteredClients(allClients);
         
         // Now fetch with filters if enabled
         const filtersToApply = (filtersEnabled && (statusFilter !== 'all' || industryFilter !== 'all')) 
           ? {
-              status: statusFilter !== 'all' ? [statusFilter] : undefined,
-              industry: industryFilter !== 'all' ? [industryFilter] : undefined
+              status: statusFilter !== 'all' ? [statusFilter as ClientStatus] : undefined,
+              industry: industryFilter !== 'all' ? [industryFilter as IndustryType] : undefined
             }
           : undefined;
         
         console.log("Debug - Filters to apply:", filtersToApply);
-        const fetchedClients = await getClients(filtersToApply);
+        const fetchedClients = filtersToApply ? await getClients(filtersToApply) : await getAllClients();
         console.log("Debug - Filtered clients result:", fetchedClients);
         
         setClients(fetchedClients);

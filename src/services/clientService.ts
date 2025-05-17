@@ -1,7 +1,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { Client, ClientCreateParams, ClientUpdateParams } from '@/types/client';
-import { RecurringTask, TaskInstance } from '@/types/task';
+import { Client, ClientCreateParams, ClientUpdateParams, IndustryType, PaymentTerms } from '@/types/client';
+import { RecurringTask, TaskInstance, TaskCategory } from '@/types/task';
 
 // Simulated client database
 let clients: Client[] = [
@@ -15,7 +15,7 @@ let clients: Client[] = [
     industry: 'Manufacturing',
     status: 'Active',
     expectedMonthlyRevenue: 5000,
-    paymentTerms: 'Net 30',
+    paymentTerms: 'Net30',
     billingFrequency: 'Monthly',
     defaultTaskPriority: 'Medium',
     notificationPreferences: {
@@ -35,7 +35,7 @@ let clients: Client[] = [
     industry: 'Technology',
     status: 'Active',
     expectedMonthlyRevenue: 7500,
-    paymentTerms: 'Net 15',
+    paymentTerms: 'Net15',
     billingFrequency: 'Monthly',
     defaultTaskPriority: 'High',
     notificationPreferences: {
@@ -52,10 +52,10 @@ let clients: Client[] = [
     email: 'kate@oceanic.com',
     phone: '555-111-2222',
     billingAddress: '789 Sky Lane\nLos Angeles, CA 90045',
-    industry: 'Transportation',
+    industry: 'Other',
     status: 'Inactive',
     expectedMonthlyRevenue: 12000,
-    paymentTerms: 'Net 45',
+    paymentTerms: 'Net45',
     billingFrequency: 'Quarterly',
     defaultTaskPriority: 'Medium',
     notificationPreferences: {
@@ -79,7 +79,7 @@ let clientRecurringTasks: Record<string, RecurringTask[]> = {
       estimatedHours: 3,
       requiredSkills: ['Bookkeeping'],
       priority: 'Medium',
-      category: 'Accounting',
+      category: 'Bookkeeping',
       dueDate: new Date(2023, 5, 15),
       recurrencePattern: { type: 'Monthly', dayOfMonth: 15 },
       status: 'Unscheduled',
@@ -119,7 +119,7 @@ let clientRecurringTasks: Record<string, RecurringTask[]> = {
       priority: 'Medium',
       category: 'Audit',
       dueDate: new Date(2023, 11, 1),
-      recurrencePattern: { type: 'Annually', month: 11, dayOfMonth: 1 },
+      recurrencePattern: { type: 'Annually', monthOfYear: 11, dayOfMonth: 1 },
       status: 'Unscheduled',
       lastGeneratedDate: null,
       isActive: true,
@@ -142,7 +142,7 @@ let clientAdHocTasks: Record<string, TaskInstance[]> = {
       estimatedHours: 8,
       requiredSkills: ['CPA'],
       priority: 'High',
-      category: 'Accounting',
+      category: 'Bookkeeping',
       dueDate: new Date(2023, 5, 30),
       status: 'Unscheduled',
       assignedStaffId: null,
@@ -184,7 +184,7 @@ let clientAdHocTasks: Record<string, TaskInstance[]> = {
       estimatedHours: 4,
       requiredSkills: ['Bookkeeping', 'CPA'],
       priority: 'Urgent',
-      category: 'Accounting',
+      category: 'Bookkeeping',
       dueDate: new Date(2023, 5, 10),
       status: 'Completed',
       assignedStaffId: 'staff-2',
@@ -203,6 +203,32 @@ let clientAdHocTasks: Record<string, TaskInstance[]> = {
  */
 export const getAllClients = async (): Promise<Client[]> => {
   return Promise.resolve(clients);
+};
+
+/**
+ * Get all clients with optional filtering
+ * @param filters Optional filters for clients
+ * @returns Promise with filtered array of clients
+ */
+export const getClients = async (filters?: { 
+  status?: string[],
+  industry?: string[]
+}): Promise<Client[]> => {
+  let filteredClients = [...clients];
+  
+  if (filters?.status && filters.status.length > 0) {
+    filteredClients = filteredClients.filter(client => 
+      filters.status.includes(client.status)
+    );
+  }
+  
+  if (filters?.industry && filters.industry.length > 0) {
+    filteredClients = filteredClients.filter(client => 
+      filters.industry.includes(client.industry)
+    );
+  }
+  
+  return Promise.resolve(filteredClients);
 };
 
 /**

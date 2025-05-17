@@ -1,95 +1,35 @@
+import { v4 as uuidv4 } from 'uuid';
+import { StaffMember } from '@/types/staff';
+import { TaskInstance } from '@/types/task';
+import { getUnscheduledTaskInstances } from '@/services/taskService';
 
-import { v4 as uuidv4 } from "uuid";
-import { 
-  updateTaskInstance, 
-  getTaskInstances 
-} from "@/services/taskService";
-import { 
-  getTimeSlotsByStaffAndDate,
-  updateTimeSlot 
-} from "@/services/staffService";
-import { TaskInstance } from "@/types/task";
-
-/**
- * Schedule a task for a specific staff member and time slot
- */
-export const scheduleTask = async (
-  taskId: string,
-  staffId: string,
-  date: string, // ISO date string
-  startTime: string, // HH:MM format
-  endTime: string, // HH:MM format
-): Promise<TaskInstance> => {
-  try {
-    // Get the time slots for the staff member on the given date
-    const staffTimeSlots = await getTimeSlotsByStaffAndDate(staffId, date);
-    
-    // Find the starting time slot
-    const startSlot = staffTimeSlots.find(slot => 
-      slot.isAvailable && slot.startTime === startTime && !slot.taskId
-    );
-    
-    if (!startSlot) {
-      throw new Error("The selected time slot is not available");
+// Simulated scheduling logic - replace with a real scheduling algorithm
+export const scheduleTasks = async (staff: StaffMember[]): Promise<TaskInstance[]> => {
+  const unscheduledTasks = await getUnscheduledTaskInstances();
+  const scheduledTasks: TaskInstance[] = [];
+  
+  // Basic scheduling logic: assign tasks to the first available staff member
+  for (const task of unscheduledTasks) {
+    for (const member of staff) {
+      // Check if the staff member has the required skills
+      const hasSkills = task.requiredSkills.every(skill => member.skills.includes(skill));
+      
+      if (hasSkills) {
+        // Assign the task to the staff member
+        task.assignedStaffId = member.id;
+        task.status = 'Scheduled';
+        task.scheduledStartTime = new Date(); // Placeholder
+        task.scheduledEndTime = new Date();   // Placeholder
+        
+        scheduledTasks.push(task);
+        break; // Task assigned, move to the next task
+      }
     }
-    
-    // Create a Date object for the start time
-    const startDate = new Date(`${date}T${startTime}:00`);
-    
-    // Create a Date object for the end time
-    const endDate = new Date(`${date}T${endTime}:00`);
-    
-    // Update the task with the scheduling information
-    const updatedTask = await updateTaskInstance(taskId, {
-      status: 'Scheduled',
-      assignedStaffId: staffId,
-      scheduledStartTime: startDate,
-      scheduledEndTime: endDate
-    });
-    
-    // Mark the time slot as assigned to this task
-    await updateTimeSlot(startSlot.id, {
-      taskId: taskId,
-      isAvailable: false
-    });
-    
-    return updatedTask;
-  } catch (error) {
-    console.error("Error scheduling task:", error);
-    throw error;
   }
-};
-
-/**
- * Get all unscheduled tasks
- */
-export const getUnscheduledTasks = async (): Promise<TaskInstance[]> => {
-  try {
-    // Get all task instances
-    const allTasks = await getTaskInstances();
-    
-    // Filter to only unscheduled tasks
-    return allTasks.filter(task => task.status === 'Unscheduled');
-  } catch (error) {
-    console.error("Error fetching unscheduled tasks:", error);
-    throw error;
-  }
-};
-
-/**
- * Find suitable staff members for a task based on required skills
- */
-export const findSuitableStaffForTask = async (
-  taskId: string
-): Promise<string[]> => {
-  // This is a placeholder implementation
-  // In a real app, this would query the database to find staff
-  // with the required skills for the task
-  return [];
+  
+  return scheduledTasks;
 };
 
 export default {
-  scheduleTask,
-  findSuitableStaffForTask,
-  getUnscheduledTasks
+  scheduleTasks
 };

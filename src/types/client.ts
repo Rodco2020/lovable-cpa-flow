@@ -1,5 +1,7 @@
 
 export type ClientStatus = "Active" | "Inactive" | "Pending" | "Archived";
+export type PaymentTerms = "Net30" | "Net15" | "Net45" | "Net60" | "Due on Receipt";
+export type BillingFrequency = "Monthly" | "Quarterly" | "Annually" | "Biweekly";
 export type IndustryType = 
   | "Retail" 
   | "Healthcare" 
@@ -10,11 +12,13 @@ export type IndustryType =
   | "Construction" 
   | "Hospitality" 
   | "Education" 
-  | "Non-Profit"
+  | "Non-Profit" 
   | "Other";
 
-export type PaymentTerms = "Net15" | "Net30" | "Net45" | "Net60";
-export type BillingFrequency = "Monthly" | "Quarterly" | "Annually" | "Project-Based";
+export interface NotificationPreferences {
+  emailReminders: boolean;
+  taskNotifications: boolean;
+}
 
 export interface Client {
   id: string;
@@ -28,11 +32,11 @@ export interface Client {
   expectedMonthlyRevenue: number;
   paymentTerms: PaymentTerms;
   billingFrequency: BillingFrequency;
-  defaultTaskPriority: string;
-  notificationPreferences: {
-    emailReminders: boolean;
-    taskNotifications: boolean;
-  };
+  defaultTaskPriority: "Low" | "Medium" | "High" | "Urgent";
+  notificationPreferences: NotificationPreferences;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type ClientCreateParams = Omit<Client, "id" | "createdAt" | "updatedAt">;
+export type ClientUpdateParams = Partial<Omit<Client, "id" | "createdAt" | "updatedAt">>;

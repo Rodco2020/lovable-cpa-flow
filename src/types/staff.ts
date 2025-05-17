@@ -1,51 +1,46 @@
 
-export type StaffStatus = "active" | "inactive";
+import { SkillType } from './task';
 
-export interface Staff {
+export interface StaffMember {
   id: string;
   fullName: string;
-  roleTitle: string;
-  skills: string[]; // References to skill IDs
-  costPerHour: number;
+  roleTitle?: string;
   email: string;
-  phone: string;
-  status: StaffStatus;
-  createdAt: string;
-  updatedAt: string;
+  phone?: string;
+  skills: SkillType[];
+  costPerHour: number;
+  status: 'Active' | 'Inactive' | 'On Leave';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TimeSlot {
   id: string;
   staffId: string;
-  date: string; // ISO date string
-  startTime: string; // HH:MM format
-  endTime: string; // HH:MM format
+  startTime: Date;
+  endTime: Date;
   isAvailable: boolean;
-  taskId?: string; // If assigned to a task
 }
 
-// Enhanced for the weekly availability matrix
-export interface WeeklyAvailability {
+export interface StaffAvailabilitySlot {
+  id: string;
   staffId: string;
-  dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 6 = Saturday
-  startTime: string; // HH:MM format
-  endTime: string; // HH:MM format
+  dayOfWeek: number; // 0-6, where 0 is Sunday
+  timeSlot: string;
   isAvailable: boolean;
 }
 
-// Enhanced interface for availability summaries with more detailed metrics
-export interface AvailabilitySummary {
-  dailySummaries: { 
-    day: number; 
-    totalHours: number; 
-    slots: { startTime: string; endTime: string }[]; // Added slot details for more granular analysis
-  }[];
-  weeklyTotal: number;
-  // Added metrics for capacity analysis
-  averageDailyHours: number; 
-  peakDay: { day: number; hours: number } | null;
-  distribution: { [key: string]: number }; // Morning/afternoon/evening distribution
+export interface DailyAvailability {
+  date: Date;
+  slots: TimeSlot[];
+  totalHours: number;
 }
 
-// New type for tracking capacity in different time segments
-export type TimeSegment = 'morning' | 'afternoon' | 'evening';
+export interface WeeklyAvailability {
+  startDate: Date;
+  endDate: Date;
+  days: DailyAvailability[];
+  totalHours: number;
+}
+
+export type StaffAvailability = WeeklyAvailability[];

@@ -5,7 +5,8 @@ import {
   RecurringTask, 
   RecurringTaskCreateParams,
   TaskInstance, 
-  AdHocTaskCreateParams
+  AdHocTaskCreateParams,
+  TaskCategory
 } from '@/types/task';
 
 // Simulated database of task templates
@@ -15,50 +16,65 @@ let taskTemplates: TaskTemplate[] = [
     name: 'Monthly Bookkeeping',
     description: 'Complete monthly bookkeeping tasks including reconciliation',
     defaultEstimatedHours: 3,
-    defaultRequiredSkills: ['Bookkeeping'],
-    category: 'Accounting',
+    requiredSkills: ['Bookkeeping'],
+    defaultPriority: "Medium",
+    category: "Bookkeeping",
+    isArchived: false,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    version: 1
   },
   {
     id: '2',
     name: 'Quarterly Tax Filing',
     description: 'Prepare and file quarterly tax returns',
     defaultEstimatedHours: 5,
-    defaultRequiredSkills: ['CPA', 'Tax Specialist'],
-    category: 'Tax',
+    requiredSkills: ['CPA', 'Tax Specialist'],
+    defaultPriority: "High",
+    category: "Tax",
+    isArchived: false,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    version: 1
   },
   {
     id: '3',
     name: 'Annual Audit',
     description: 'Conduct annual financial audit',
     defaultEstimatedHours: 20,
-    defaultRequiredSkills: ['CPA', 'Audit'],
-    category: 'Audit',
+    requiredSkills: ['CPA', 'Audit'],
+    defaultPriority: "Medium",
+    category: "Audit",
+    isArchived: false,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    version: 1
   },
   {
     id: '4',
     name: 'Financial Statement Preparation',
     description: 'Prepare financial statements for stakeholders',
     defaultEstimatedHours: 8,
-    defaultRequiredSkills: ['CPA'],
-    category: 'Accounting',
+    requiredSkills: ['CPA'],
+    defaultPriority: "High",
+    category: "Bookkeeping",
+    isArchived: false,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    version: 1
   },
   {
     id: '5',
     name: 'Business Advisory Meeting',
     description: 'Strategic planning and business advisory session',
     defaultEstimatedHours: 2,
-    defaultRequiredSkills: ['Advisory'],
-    category: 'Advisory',
+    requiredSkills: ['Advisory'],
+    defaultPriority: "Medium",
+    category: "Advisory",
+    isArchived: false,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    version: 1
   }
 ];
 
@@ -353,6 +369,93 @@ export const generateTaskInstances = async (): Promise<TaskInstance[]> => {
   return Promise.resolve(newInstances);
 };
 
+/**
+ * Get all recurring tasks
+ * 
+ * @param activeOnly If true, only returns active recurring tasks
+ * @returns Promise with array of recurring tasks
+ */
+export const getRecurringTasks = async (activeOnly: boolean = false): Promise<RecurringTask[]> => {
+  if (activeOnly) {
+    return Promise.resolve(recurringTasks.filter(task => task.isActive));
+  }
+  return Promise.resolve(recurringTasks);
+};
+
+/**
+ * Deactivate a recurring task
+ * 
+ * @param taskId ID of the task to deactivate
+ * @returns Promise with boolean indicating success
+ */
+export const deactivateRecurringTask = async (taskId: string): Promise<boolean> => {
+  const taskIndex = recurringTasks.findIndex(t => t.id === taskId);
+  
+  if (taskIndex === -1) {
+    return Promise.resolve(false);
+  }
+  
+  recurringTasks[taskIndex].isActive = false;
+  recurringTasks[taskIndex].updatedAt = new Date();
+  
+  return Promise.resolve(true);
+};
+
+/**
+ * Create a task template
+ */
+export const createTaskTemplate = async (template: Omit<TaskTemplate, 'id' | 'createdAt' | 'updatedAt' | 'version'>): Promise<TaskTemplate> => {
+  const now = new Date();
+  const newTemplate: TaskTemplate = {
+    ...template,
+    id: uuidv4(),
+    createdAt: now,
+    updatedAt: now,
+    version: 1
+  };
+  
+  taskTemplates.push(newTemplate);
+  return Promise.resolve(newTemplate);
+};
+
+/**
+ * Update a task template
+ */
+export const updateTaskTemplate = async (id: string, updates: Partial<Omit<TaskTemplate, 'id' | 'createdAt' | 'updatedAt' | 'version'>>): Promise<TaskTemplate | null> => {
+  const templateIndex = taskTemplates.findIndex(t => t.id === id);
+  
+  if (templateIndex === -1) {
+    return Promise.resolve(null);
+  }
+  
+  const oldVersion = taskTemplates[templateIndex].version;
+  
+  taskTemplates[templateIndex] = {
+    ...taskTemplates[templateIndex],
+    ...updates,
+    updatedAt: new Date(),
+    version: oldVersion + 1
+  };
+  
+  return Promise.resolve(taskTemplates[templateIndex]);
+};
+
+/**
+ * Archive a task template
+ */
+export const archiveTaskTemplate = async (id: string): Promise<boolean> => {
+  const templateIndex = taskTemplates.findIndex(t => t.id === id);
+  
+  if (templateIndex === -1) {
+    return Promise.resolve(false);
+  }
+  
+  taskTemplates[templateIndex].isArchived = true;
+  taskTemplates[templateIndex].updatedAt = new Date();
+  
+  return Promise.resolve(true);
+};
+
 export default {
   getTaskTemplates,
   getTaskTemplate,
@@ -363,5 +466,10 @@ export default {
   getTaskInstance,
   updateTaskInstance,
   getUnscheduledTaskInstances,
-  generateTaskInstances
+  generateTaskInstances,
+  getRecurringTasks,
+  deactivateRecurringTask,
+  createTaskTemplate,
+  updateTaskTemplate,
+  archiveTaskTemplate
 };

@@ -63,3 +63,32 @@ export interface TaskInstance extends BaseTask {
   scheduledStartTime?: Date;
   scheduledEndTime?: Date;
 }
+
+// Parameters for creating a recurring task
+export interface RecurringTaskCreateParams {
+  templateId: string;
+  clientId: string;
+  name: string;
+  description: string;
+  estimatedHours: number;
+  requiredSkills: SkillType[];
+  priority: TaskPriority;
+  category: TaskCategory;
+  dueDate: Date;
+  recurrencePattern: RecurrencePattern;
+  status?: TaskStatus;
+}
+
+// Parameters for creating an ad-hoc task
+export interface AdHocTaskCreateParams {
+  templateId: string;
+  clientId: string;
+  name: string;
+  description: string;
+  estimatedHours: number;
+  requiredSkills: SkillType[];
+  priority: TaskPriority;
+  category: TaskCategory;
+  dueDate: Date;
+  status?: TaskStatus;
+}
