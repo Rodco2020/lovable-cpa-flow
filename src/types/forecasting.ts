@@ -1,134 +1,66 @@
 
-export type ForecastMode = 'virtual' | 'actual';
-export type ForecastHorizon = 'week' | 'month' | 'quarter' | 'year' | 'custom';
-export type SkillType = string;
+import { SkillType } from "./task";
 
-export type SkillAllocationStrategy = 'duplicate' | 'distribute';
+export type ForecastTimeframe = "week" | "month" | "quarter" | "year" | "custom";
+export type ForecastMode = "virtual" | "actual";
+export type GranularityType = "daily" | "weekly" | "monthly";
+export type SkillAllocationStrategy = "duplicate" | "distribute";
 
-export interface ForecastTimeframe {
+export interface DateRange {
   startDate: Date;
   endDate: Date;
 }
 
-export interface ForecastData {
-  horizon?: ForecastHorizon;
-  mode?: ForecastMode;
-  timeframe?: ForecastTimeframe;
-  demand: ForecastDemand;
-  capacity: ForecastCapacity;
-  gap?: ForecastGap;
-  financials?: FinancialProjection;
-  timestamp?: Date;
-  
-  // Additional properties for UI components
-  period?: string;
-  data?: any[];
-  timeSeriesData?: any[];
-  skillDistribution?: any[];
-  gapAnalysis?: any[];
-  demandHours?: number;
-  capacityHours?: number;
-  gapHours?: number;
-  projectedRevenue?: number;
-  projectedCost?: number;
-  projectedProfit?: number;
-  financialProjections?: FinancialProjection[];
-  summary?: {
-    totalDemand: number;
-    totalCapacity: number;
-    gap: number;
-    totalRevenue: number;
-    totalCost: number;
-    totalProfit: number;
-  };
-}
-
-export interface SkillBreakdown {
-  skillType: string;
+export interface SkillHours {
+  skill: SkillType;
   hours: number;
-  taskCount: number;
-  percentage: number;
-  tasks: any[];
 }
 
-export interface SkillDemandData {
-  skillType: string;
-  hours: number;
-  startDate: Date;
-  endDate: Date;
-}
-
-export interface ForecastDemand {
-  totalHours: number;
-  taskCount: number;
-  skillBreakdowns: Record<string, SkillBreakdown>;
-  timeBreakdown: SkillDemandData[];
-  forEach?: (callback: (item: any) => void) => void;
-  find?: (predicate: (value: any) => boolean) => any;
-}
-
-export interface ForecastCapacity {
-  totalHours: number;
-  staffCount: number;
-  skillBreakdowns: Record<string, SkillBreakdown>;
-  timeBreakdown: SkillDemandData[];
-  forEach?: (callback: (item: any) => void) => void;
-  find?: (predicate: (value: any) => boolean) => any;
-}
-
-export interface GapAnalysis {
-  skillType: string;
-  demandHours: number;
-  capacityHours: number;
-  gapHours: number;
-  isSurplus: boolean;
-  utilizationPercentage: number;
-  status: 'critical' | 'warning' | 'healthy' | 'excess';
-}
-
-export interface ForecastGap {
-  totalGap: number;
-  hasSurplus: boolean;
-  utilizationPercentage: number;
-  skillGaps: Record<string, GapAnalysis>;
-}
-
-export interface FinancialProjection {
-  monthlyRecurringRevenue?: number;
-  projectedRevenue: number;
-  projectedCost: number;
-  projectedProfit: number;
-  profitMargin: number;
-  revenueAtRisk?: number;
-  skillBreakdown?: Record<string, any>;
-  
-  // Additional properties for UI components
-  period?: string;
-  revenue?: number;
-  cost?: number;
-  profit?: number;
-}
-
+// Adding SkillData interface for UI display
 export interface SkillData {
   id: SkillType;
   name: string;
   color: string;
 }
 
+export interface ForecastData {
+  period: string; // Format depends on granularity: "2023-05-15" for daily, "2023-W20" for weekly, "2023-05" for monthly
+  demand: SkillHours[];
+  capacity: SkillHours[];
+  // Additional derived data properties for components
+  timeSeriesData?: any[];
+  skillDistribution?: any[];
+  gapAnalysis?: any[];
+  financialProjections?: FinancialProjection[];
+  // Summary fields
+  demandHours?: number;
+  capacityHours?: number;
+  gapHours?: number;
+  projectedRevenue?: number;
+  projectedCost?: number;
+  projectedProfit?: number;
+}
+
+export interface FinancialProjection {
+  period: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+}
+
 export interface ForecastParameters {
   mode: ForecastMode;
-  timeframe: ForecastHorizon | 'custom';
-  dateRange?: {
-    startDate: Date;
-    endDate: Date;
-  };
-  granularity: 'daily' | 'weekly' | 'monthly';
-  includeSkills: SkillType[] | 'all';
+  timeframe: ForecastTimeframe;
+  dateRange: DateRange;
+  granularity: GranularityType;
+  includeSkills: SkillType[] | "all";
+  skillAllocationStrategy?: SkillAllocationStrategy; // New parameter for hour allocation strategy
 }
 
 export interface ForecastResult {
-  data: any[];
-  financials: any[];
+  parameters: ForecastParameters;
+  data: ForecastData[];
+  financials: FinancialProjection[];
   summary: {
     totalDemand: number;
     totalCapacity: number;
@@ -137,4 +69,26 @@ export interface ForecastResult {
     totalCost: number;
     totalProfit: number;
   };
+  generatedAt: Date;
 }
+
+// Task breakdown interface for hover details
+export interface TaskBreakdownItem {
+  id: string;
+  name: string;
+  clientName: string;
+  clientId: string;
+  skill: SkillType;
+  hours: number;
+  dueDate?: string;
+  status?: string;
+}
+
+// Adding ClientTaskBreakdown interface
+export interface ClientTaskBreakdown {
+  totalMonthlyHours: number;
+  categoryBreakdown: Record<string, number>;
+}
+
+// Re-export SkillType using 'export type' for TypeScript with isolatedModules
+export type { SkillType };

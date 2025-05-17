@@ -24,16 +24,7 @@ import {
 } from '@/services/forecastingService';
 import { runRecurrenceTests } from '@/utils/forecastTestingUtils';
 import useAppEvent from '@/hooks/useAppEvent';
-import { 
-  ForecastData, 
-  ForecastMode, 
-  ForecastParameters, 
-  ForecastResult, 
-  SkillData, 
-  SkillType,
-  ForecastDemand,
-  ForecastCapacity
-} from '@/types/forecasting';
+import { ForecastData, ForecastParameters, ForecastResult, SkillType } from '@/types/forecasting';
 
 // Define skill data type for UI display
 interface SkillData {
@@ -87,7 +78,7 @@ const ForecastDashboard: React.FC = () => {
         
         // Create forecast parameters
         const params: ForecastParameters = {
-          mode: forecastType as ForecastMode,
+          mode: forecastType as any,
           timeframe: 'custom',
           dateRange: {
             startDate: new Date(),
@@ -100,26 +91,11 @@ const ForecastDashboard: React.FC = () => {
         // Get forecast data
         const result = await getForecast(params);
         
-        // Create proper demand and capacity objects
-        const demandData: ForecastDemand = {
-          totalHours: result.summary.totalDemand,
-          taskCount: 0,
-          skillBreakdowns: {},
-          timeBreakdown: [],
-        };
-        
-        const capacityData: ForecastCapacity = {
-          totalHours: result.summary.totalCapacity,
-          staffCount: 0,
-          skillBreakdowns: {},
-          timeBreakdown: [],
-        };
-        
         // Process the result into the format expected by components
         const processedData: ForecastData = {
           period: 'current',
-          demand: demandData,
-          capacity: capacityData,
+          demand: result.data.flatMap(d => d.demand),
+          capacity: result.data.flatMap(d => d.capacity),
           
           // Additional data for charts and tables
           timeSeriesData: result.data,
@@ -140,7 +116,7 @@ const ForecastDashboard: React.FC = () => {
         
         // Get task breakdown for tooltips
         if (forecastType === 'actual') {
-          const breakdown = await getTaskBreakdown();
+          const breakdown = await getTaskBreakdown(params);
           setTaskBreakdown(breakdown);
         } else {
           setTaskBreakdown([]);
@@ -236,7 +212,7 @@ const ForecastDashboard: React.FC = () => {
         
         // Create forecast parameters
         const params: ForecastParameters = {
-          mode: forecastType as ForecastMode,
+          mode: forecastType as any,
           timeframe: 'custom',
           dateRange: {
             startDate: new Date(),
@@ -249,26 +225,11 @@ const ForecastDashboard: React.FC = () => {
         // Get forecast data
         const result = await getForecast(params);
         
-        // Create proper demand and capacity objects
-        const demandData: ForecastDemand = {
-          totalHours: result.summary.totalDemand,
-          taskCount: 0,
-          skillBreakdowns: {},
-          timeBreakdown: [],
-        };
-        
-        const capacityData: ForecastCapacity = {
-          totalHours: result.summary.totalCapacity,
-          staffCount: 0,
-          skillBreakdowns: {},
-          timeBreakdown: [],
-        };
-        
-        // Process result
+        // Process result (same as in useEffect)
         const processedData: ForecastData = {
           period: 'current',
-          demand: demandData,
-          capacity: capacityData,
+          demand: result.data.flatMap(d => d.demand),
+          capacity: result.data.flatMap(d => d.capacity),
           timeSeriesData: result.data,
           skillDistribution: result.data,
           gapAnalysis: result.data,
@@ -285,7 +246,7 @@ const ForecastDashboard: React.FC = () => {
         
         // Get task breakdown
         if (forecastType === 'actual') {
-          const breakdown = await getTaskBreakdown();
+          const breakdown = await getTaskBreakdown(params);
           setTaskBreakdown(breakdown);
         } else {
           setTaskBreakdown([]);
@@ -314,7 +275,7 @@ const ForecastDashboard: React.FC = () => {
         const days = getSelectedWindowDays();
         
         const params: ForecastParameters = {
-          mode: forecastType as ForecastMode,
+          mode: forecastType as any,
           timeframe: 'custom',
           dateRange: {
             startDate: new Date(),
@@ -326,25 +287,10 @@ const ForecastDashboard: React.FC = () => {
         
         const result = await getForecast(params);
         
-        // Create proper demand and capacity objects
-        const demandData: ForecastDemand = {
-          totalHours: result.summary.totalDemand,
-          taskCount: 0,
-          skillBreakdowns: {},
-          timeBreakdown: [],
-        };
-        
-        const capacityData: ForecastCapacity = {
-          totalHours: result.summary.totalCapacity,
-          staffCount: 0,
-          skillBreakdowns: {},
-          timeBreakdown: [],
-        };
-        
         const processedData: ForecastData = {
           period: 'current',
-          demand: demandData,
-          capacity: capacityData,
+          demand: result.data.flatMap(d => d.demand),
+          capacity: result.data.flatMap(d => d.capacity),
           timeSeriesData: result.data,
           skillDistribution: result.data,
           gapAnalysis: result.data,
@@ -361,7 +307,7 @@ const ForecastDashboard: React.FC = () => {
         
         // Get task breakdown
         if (forecastType === 'actual') {
-          const breakdown = await getTaskBreakdown();
+          const breakdown = await getTaskBreakdown(params);
           setTaskBreakdown(breakdown);
         } else {
           setTaskBreakdown([]);
@@ -428,8 +374,8 @@ const ForecastDashboard: React.FC = () => {
               title="Forecast Type"
               content={
                 <div className="space-y-2">
-                  <p><strong>Virtual Forecast:</strong> Projection based on recurring task templates and standard availability.</p>
-                  <p><strong>Actual Forecast:</strong> Based on scheduled tasks and actual availability including exceptions.</p>
+                  <p><strong>Virtual Forecast:</strong> Projection based on recurring task templates and standard staff availability.</p>
+                  <p><strong>Actual Forecast:</strong> Based on scheduled tasks and actual staff availability including exceptions.</p>
                 </div>
               }
             />
@@ -499,6 +445,7 @@ const ForecastDashboard: React.FC = () => {
                           tasks={taskBreakdown}
                           title="Tasks Contributing to Demand"
                         >
+                          {/* Convert the React node to a simple number */}
                           {forecastData.demandHours || 0}
                         </TaskBreakdownHoverCard>
                       }

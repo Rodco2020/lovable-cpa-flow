@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
 import { getClientById, getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
@@ -43,7 +42,6 @@ import { useToast } from '@/components/ui/use-toast';
 // Import the task list components
 import ClientRecurringTaskList from './ClientRecurringTaskList';
 import ClientAdHocTaskList from './ClientAdHocTaskList';
-import EditRecurringTaskDialog from './EditRecurringTaskDialog';
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,10 +62,6 @@ const ClientDetail: React.FC = () => {
     pendingTasksCount: 0,
     completedTasksCount: 0
   });
-  
-  // State for edit task dialog - moved this up to ensure consistent hook order
-  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
   
   // Calculate task analytics
   useEffect(() => {
@@ -102,56 +96,55 @@ const ClientDetail: React.FC = () => {
   }, [recurringTasks, adHocTasks]);
   
   // Fetch client data
-  const fetchClientData = useCallback(async () => {
-    if (!id) {
-      navigate('/clients');
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Fetch client
-      const clientData = await getClientById(id);
-      if (!clientData) {
-        toast({
-          title: "Client not found",
-          description: `Unable to find client with ID ${id}`,
-          variant: "destructive"
-        });
+  useEffect(() => {
+    const fetchClientData = async () => {
+      if (!id) {
         navigate('/clients');
         return;
       }
       
-      setClient(clientData);
-      
-      // Fetch tasks
-      const [recurringTasksData, adHocTasksData] = await Promise.all([
-        getClientRecurringTasks(clientData.id),
-        getClientAdHocTasks(clientData.id)
-      ]);
-      
-      setRecurringTasks(recurringTasksData);
-      setAdHocTasks(adHocTasksData);
-    } catch (error) {
-      console.error("Error fetching client data:", error);
-      setError("Failed to load client details. Please try again later.");
-      
-      toast({
-        title: "Error",
-        description: "Failed to load client details",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id, navigate, toast]);
-  
-  // Initial data fetch
-  useEffect(() => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch client
+        const clientData = await getClientById(id);
+        if (!clientData) {
+          toast({
+            title: "Client not found",
+            description: `Unable to find client with ID ${id}`,
+            variant: "destructive"
+          });
+          navigate('/clients');
+          return;
+        }
+        
+        setClient(clientData);
+        
+        // Fetch tasks
+        const [recurringTasksData, adHocTasksData] = await Promise.all([
+          getClientRecurringTasks(clientData.id),
+          getClientAdHocTasks(clientData.id)
+        ]);
+        
+        setRecurringTasks(recurringTasksData);
+        setAdHocTasks(adHocTasksData);
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+        setError("Failed to load client details. Please try again later.");
+        
+        toast({
+          title: "Error",
+          description: "Failed to load client details",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
     fetchClientData();
-  }, [fetchClientData]);
+  }, [id, navigate, toast]);
   
   // Handle task view navigation
   const handleViewRecurringTask = (taskId: string) => {
@@ -172,18 +165,6 @@ const ClientDetail: React.FC = () => {
         } 
       });
     }
-  };
-
-  // Handle edit task
-  const handleEditTask = (task: RecurringTask) => {
-    setSelectedTask(task);
-    setIsEditTaskDialogOpen(true);
-  };
-
-  // Handle task updated
-  const handleTaskUpdated = () => {
-    // Refresh data to show the updated task
-    fetchClientData();
   };
   
   // Show loading state
@@ -268,7 +249,7 @@ const ClientDetail: React.FC = () => {
   );
   
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <Button 
@@ -548,10 +529,8 @@ const ClientDetail: React.FC = () => {
           <CardContent>
             <TabsContent value="recurring" className="space-y-4">
               <ClientRecurringTaskList 
-                clientId={client.id} 
-                onRefreshNeeded={fetchClientData}
+                clientId={client.id}
                 onViewTask={handleViewRecurringTask}
-                onEditTask={handleEditTask}
               />
             </TabsContent>
             
@@ -578,14 +557,6 @@ const ClientDetail: React.FC = () => {
           </CardFooter>
         </Tabs>
       </Card>
-      
-      {/* Edit Recurring Task Dialog */}
-      <EditRecurringTaskDialog
-        open={isEditTaskDialogOpen}
-        task={selectedTask}
-        onOpenChange={setIsEditTaskDialogOpen}
-        onTaskUpdated={handleTaskUpdated}
-      />
     </div>
   );
 };

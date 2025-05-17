@@ -1,5 +1,5 @@
 
-export type SkillType = "Junior" | "Senior" | "CPA" | "Tax Specialist" | "Audit" | "Advisory" | "Bookkeeping" | string;
+export type SkillType = "Junior" | "Senior" | "CPA" | "Tax Specialist" | "Audit" | "Advisory" | "Bookkeeping";
 export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TaskCategory = "Tax" | "Audit" | "Advisory" | "Compliance" | "Bookkeeping" | "Other";
 export type TaskStatus = "Unscheduled" | "Scheduled" | "In Progress" | "Completed" | "Canceled";
@@ -62,34 +62,4 @@ export interface TaskInstance extends BaseTask {
   assignedStaffId?: string;
   scheduledStartTime?: Date;
   scheduledEndTime?: Date;
-}
-
-// Parameters for creating a recurring task
-export interface RecurringTaskCreateParams {
-  templateId: string;
-  clientId: string;
-  name: string;
-  description: string;
-  estimatedHours: number;
-  requiredSkills: SkillType[];
-  priority: TaskPriority;
-  category: TaskCategory;
-  dueDate: Date;
-  recurrencePattern: RecurrencePattern;
-  status?: TaskStatus;
-  isActive: boolean; // Add isActive field which was missing
-}
-
-// Parameters for creating an ad-hoc task
-export interface AdHocTaskCreateParams {
-  templateId: string;
-  clientId: string;
-  name: string;
-  description: string;
-  estimatedHours: number;
-  requiredSkills: SkillType[];
-  priority: TaskPriority;
-  category: TaskCategory;
-  dueDate: Date;
-  status?: TaskStatus;
 }

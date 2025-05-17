@@ -1,226 +1,194 @@
 
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { format, parseISO, isEqual } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { getTimeSlotsByStaffAndDate, getStaffById } from '@/services/staffService';
-import { StaffMember, TimeSlot } from '@/types/staff';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
+import { format, addDays, parse, isToday } from "date-fns";
+import { getTimeSlotsByStaffAndDate, getStaffById } from "@/services/staffService";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface DailyPlannerProps {
-  staffId: string;
-  selectedDate?: Date;
-  onDateChange?: (date: Date) => void;
-}
-
-const DailyPlanner: React.FC<DailyPlannerProps> = ({ 
-  staffId, 
-  selectedDate = new Date(), 
-  onDateChange 
-}) => {
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [staff, setStaff] = useState<StaffMember | null>(null);
+const DailyPlanner: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const [date, setDate] = useState<Date>(new Date());
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
-  // Load time slots for the selected date and staff
-  useEffect(() => {
-    const fetchTimeSlots = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Ensure we have a proper Date object
-        const dateToUse = selectedDate instanceof Date 
-          ? selectedDate 
-          : new Date(selectedDate);
-        
-        const [slotsData, staffData] = await Promise.all([
-          getTimeSlotsByStaffAndDate(staffId, dateToUse),
-          getStaffById(staffId)
-        ]);
-        
-        setTimeSlots(slotsData);
-        setStaff(staffData);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching time slots:", err);
-        setError("Failed to load daily schedule");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchTimeSlots();
-  }, [staffId, selectedDate]);
+  // Format date as YYYY-MM-DD for API calls
+  const formattedDate = format(date, "yyyy-MM-dd");
   
-  // Calculate schedule summary
-  const scheduleSummary = timeSlots.reduce((summary, slot) => {
-    const updatedSummary = { ...summary };
-    
-    if (slot.isAvailable && !slot.taskId) {
-      updatedSummary.availableSlots += 1;
-      updatedSummary.availableHours += 0.5; // Each slot is 30 minutes
-    } else if (!slot.isAvailable) {
-      updatedSummary.unavailableSlots += 1;
-    }
-    
-    if (slot.taskId) {
-      updatedSummary.assignedSlots += 1;
-      updatedSummary.assignedHours += 0.5;
-    }
-    
-    return updatedSummary;
-  }, { 
-    availableSlots: 0, 
-    availableHours: 0, 
-    unavailableSlots: 0, 
-    assignedSlots: 0, 
-    assignedHours: 0 
+  const { data: staff } = useQuery({
+    queryKey: ["staff", id],
+    queryFn: () => getStaffById(id || ""),
+    enabled: !!id,
   });
   
-  // Helper to format time from a date object
-  const formatTime = (date: Date): string => {
-    return date instanceof Date ? format(date, 'h:mm a') : '';
+  const { data: timeSlots, isLoading } = useQuery({
+    queryKey: ["timeSlots", id, formattedDate],
+    queryFn: () => getTimeSlotsByStaffAndDate(id || "", formattedDate),
+    enabled: !!id,
+  });
+  
+  const navigateDay = (direction: number) => {
+    setDate(addDays(date, direction));
   };
   
-  // Group slots by hour for better visual organization
-  const groupedTimeSlots = timeSlots.reduce((groups: Record<string, TimeSlot[]>, slot) => {
-    // Format the hour as a key (e.g. "9:00 AM")
-    const hourKey = format(slot.startTime, 'h:00 a');
-    
-    if (!groups[hourKey]) {
-      groups[hourKey] = [];
-    }
-    
-    groups[hourKey].push(slot);
-    return groups;
-  }, {});
+  // Generate time slots for display
+  const timeLabels = Array.from({ length: 18 }, (_, i) => {
+    const hour = Math.floor(i / 2) + 8; // Start at 8 AM
+    const minutes = i % 2 === 0 ? "00" : "30";
+    return `${hour}:${minutes}`;
+  });
   
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <p>Loading daily schedule...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+  if (!id || isLoading) {
+    return <div className="flex justify-center p-8">Loading schedule data...</div>;
   }
-  
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 text-red-500 justify-center py-8">
-            <AlertCircle className="h-5 w-5" />
-            <p>{error}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-  
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-semibold flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            <span>Daily Planner</span>
-          </CardTitle>
-          
-          <div className="text-sm text-muted-foreground">
-            {format(
-              selectedDate instanceof Date ? selectedDate : new Date(selectedDate), 
-              'EEEE, MMMM d, yyyy'
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        {/* Schedule summary */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-md p-3">
-            <div className="text-sm text-muted-foreground">Available</div>
-            <div className="text-2xl font-semibold">{scheduleSummary.availableHours} hrs</div>
-          </div>
-          
-          <div className="bg-green-50 rounded-md p-3">
-            <div className="text-sm text-muted-foreground">Assigned</div>
-            <div className="text-2xl font-semibold">{scheduleSummary.assignedHours} hrs</div>
-          </div>
-          
-          <div className="bg-gray-50 rounded-md p-3">
-            <div className="text-sm text-muted-foreground">Utilization</div>
-            <div className="text-2xl font-semibold">
-              {scheduleSummary.availableHours + scheduleSummary.assignedHours > 0
-                ? Math.round((scheduleSummary.assignedHours / (scheduleSummary.availableHours + scheduleSummary.assignedHours)) * 100)
-                : 0}%
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">
+          {staff?.fullName}'s Schedule
+        </h1>
         
-        {/* Time slots */}
-        <div className="space-y-4">
-          {Object.entries(groupedTimeSlots).map(([hour, slots]) => (
-            <div key={hour}>
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-medium text-sm">{hour}</h3>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateDay(-1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start text-left font-normal w-[200px]",
+                  !date && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(date) => {
+                  if (date) {
+                    setDate(date);
+                    setIsCalendarOpen(false);
+                  }
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateDay(1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => setDate(new Date())}
+            className="ml-2"
+          >
+            Today
+          </Button>
+        </div>
+      </div>
+      
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="grid grid-cols-[80px_1fr] divide-x">
+            <div className="bg-slate-50 text-slate-500">
+              {/* Time labels column */}
+              <div className="h-12 border-b flex items-center justify-center font-medium">
+                Time
+              </div>
+              {timeLabels.map((time, index) => (
+                <div 
+                  key={time}
+                  className={cn(
+                    "h-16 flex items-center justify-center text-sm",
+                    index % 2 === 0 ? "bg-slate-50" : "bg-slate-100"
+                  )}
+                >
+                  {time}
+                </div>
+              ))}
+            </div>
+            
+            <div>
+              {/* Schedule column */}
+              <div className="h-12 border-b flex items-center justify-center font-medium">
+                {format(date, "EEEE, MMMM d")}
+                {isToday(date) && (
+                  <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                    Today
+                  </span>
+                )}
               </div>
               
-              <div className="grid grid-cols-1 gap-2">
-                {slots.map(slot => (
+              {timeLabels.map((time, index) => {
+                // Find time slot for this time
+                const timeStart = parse(time, "H:mm", new Date()).getHours() + 
+                                 (parse(time, "H:mm", new Date()).getMinutes() / 60);
+                const slot = timeSlots?.find(s => {
+                  const slotStart = parseInt(s.startTime.split(':')[0]) + 
+                                   (parseInt(s.startTime.split(':')[1]) / 60);
+                  return Math.abs(slotStart - timeStart) < 0.01; // Account for floating point comparison
+                });
+                
+                return (
                   <div 
-                    key={slot.id}
-                    className={`p-3 rounded-md border ${
-                      slot.taskId
-                        ? 'bg-green-50 border-green-200'
-                        : slot.isAvailable
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-gray-50 border-gray-200'
-                    }`}
+                    key={time}
+                    className={cn(
+                      "h-16 p-1 border-b",
+                      index % 2 === 0 ? "bg-white" : "bg-slate-50",
+                      !slot?.isAvailable && "bg-gray-100"
+                    )}
                   >
-                    <div className="flex justify-between">
-                      <div className="font-medium text-sm">
-                        {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                    {slot?.isAvailable && !slot.taskId && (
+                      <div className="h-full bg-green-50 border border-green-200 rounded-md p-2 flex flex-col">
+                        <span className="text-xs text-green-700 font-medium">Available</span>
                       </div>
-                      
-                      <Badge variant={
-                        slot.taskId ? "default" : 
-                        slot.isAvailable ? "outline" : "secondary"
-                      }>
-                        {slot.taskId ? "Assigned" : 
-                          slot.isAvailable ? "Available" : "Unavailable"}
-                      </Badge>
-                    </div>
+                    )}
                     
-                    {slot.taskId && (
-                      <div className="mt-1 text-sm text-muted-foreground flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-green-600" />
-                        <span>Task assigned</span>
+                    {slot?.taskId && (
+                      <div className="h-full bg-blue-50 border border-blue-200 rounded-md p-2 flex flex-col">
+                        <span className="text-xs text-blue-800 font-medium">Task #{slot.taskId.substring(0, 8)}</span>
+                        <span className="text-xs text-blue-600 truncate">Client Meeting</span>
+                      </div>
+                    )}
+                    
+                    {slot && !slot.isAvailable && !slot.taskId && (
+                      <div className="h-full bg-slate-100 border border-slate-200 rounded-md p-2 flex flex-col">
+                        <span className="text-xs text-slate-500 font-medium">Unavailable</span>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-              
-              <Separator className="my-4" />
+                );
+              })}
             </div>
-          ))}
-          
-          {Object.keys(groupedTimeSlots).length === 0 && (
-            <div className="py-8 text-center text-muted-foreground">
-              No time slots available for this day.
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="flex justify-end space-x-3">
+        <Button variant="outline">Print Schedule</Button>
+        <Button>Add Task</Button>
+      </div>
+    </div>
   );
 };
 

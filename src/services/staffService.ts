@@ -1,217 +1,454 @@
+import { v4 as uuidv4 } from "uuid";
+import { Staff, TimeSlot, WeeklyAvailability, AvailabilitySummary } from "@/types/staff";
+import { supabase } from "@/integrations/supabase/client";
 
-import { v4 as uuidv4 } from 'uuid';
-import { add, format, startOfWeek, addDays, isEqual, parseISO } from 'date-fns';
-import { StaffMember, StaffStatus, StaffAvailability, StaffAvailabilitySlot, AvailabilitySummary, TimeSlot, WeeklyAvailability } from '@/types/staff';
-import { SkillType } from '@/types/task';
-
-// Get all staff members
-export async function getAllStaff(): Promise<StaffMember[]> {
-  // Mock implementation
-  const staff: StaffMember[] = [];
+// Staff CRUD operations
+export const getAllStaff = async (): Promise<Staff[]> => {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*');
   
-  for (let i = 0; i < 5; i++) {
-    staff.push({
-      id: uuidv4(),
-      fullName: `Staff Member ${i + 1}`,
-      roleTitle: ['Junior Accountant', 'Senior Accountant', 'Tax Specialist', 'Audit Manager', 'Partner'][i],
-      email: `staff${i + 1}@example.com`,
-      phone: `(555) 123-${1000 + i}`,
-      skills: ['Tax', 'Bookkeeping', 'Advisory', 'Audit'].slice(0, i + 1) as SkillType[],
-      costPerHour: 50 + (i * 25),
-      status: i < 4 ? 'Active' as StaffStatus : 'Inactive' as StaffStatus,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-  }
-  
-  return staff;
-}
-
-// Get staff member by ID
-export async function getStaffById(id: string): Promise<StaffMember | null> {
-  try {
-    const allStaff = await getAllStaff();
-    return allStaff.find(staff => staff.id === id) || null;
-  } catch (error) {
+  if (error) {
     console.error("Error fetching staff:", error);
-    return null;
+    throw error;
   }
-}
-
-// Create a new staff member
-export async function createStaff(staff: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<StaffMember> {
-  // Mock implementation
-  const newStaff: StaffMember = {
-    ...staff,
-    id: uuidv4(),
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
   
-  console.log("Created new staff member:", newStaff);
-  return newStaff;
-}
+  // Map the database fields to our Staff model
+  return data.map(item => ({
+    id: item.id,
+    fullName: item.full_name,
+    roleTitle: item.role_title || "",
+    skills: item.assigned_skills || [],
+    costPerHour: item.cost_per_hour,
+    email: item.email,
+    phone: item.phone || "",
+    status: item.status === "active" ? "active" : "inactive",
+    createdAt: item.created_at,
+    updatedAt: item.updated_at
+  }));
+};
 
-// Update a staff member
-export async function updateStaff(id: string, updates: Partial<Omit<StaffMember, 'id' | 'createdAt'>>): Promise<StaffMember | null> {
-  // Mock implementation
-  try {
-    const staffMember = await getStaffById(id);
-    
-    if (!staffMember) {
-      console.error(`Staff member with ID ${id} not found`);
-      return null;
+export const getStaffById = async (id: string): Promise<Staff | undefined> => {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    if (error.code === 'PGRST116') { // No rows returned
+      return undefined;
     }
-    
-    const updatedStaff: StaffMember = {
-      ...staffMember,
-      ...updates,
-      updatedAt: new Date()
-    };
-    
-    console.log("Updated staff member:", updatedStaff);
-    return updatedStaff;
-  } catch (error) {
-    console.error("Error updating staff:", error);
-    return null;
+    console.error("Error fetching staff by ID:", error);
+    throw error;
   }
-}
-
-// Get staff availability for a specific day
-export async function getStaffAvailabilityByDay(staffId: string, date: Date): Promise<TimeSlot[]> {
-  // Mock implementation
-  const dayOfWeek = date.getDay(); // 0-6, where 0 is Sunday
-  const weeklyAvailability = await getWeeklyAvailabilityByStaff(staffId);
-  
-  // Convert the availability template into actual time slots for the day
-  const slots: TimeSlot[] = [];
-  const baseDate = date;
-  
-  // Generate time slots for standard business hours (9 AM to 5 PM)
-  for (let hour = 9; hour < 17; hour++) {
-    // Two 30-minute slots per hour
-    for (let minute = 0; minute < 60; minute += 30) {
-      const startTime = new Date(baseDate);
-      startTime.setHours(hour, minute, 0, 0);
-      
-      const endTime = new Date(baseDate);
-      endTime.setHours(hour, minute + 30, 0, 0);
-      
-      // Default availability based on day of week and time
-      // (e.g., more likely available during middle of day, less at edges)
-      let isAvailable = true;
-      
-      // Randomize some unavailability
-      if (hour === 12 || (Math.random() > 0.8)) {
-        isAvailable = false;
-      }
-      
-      slots.push({
-        id: uuidv4(),
-        staffId,
-        startTime,
-        endTime,
-        isAvailable,
-        taskId: isAvailable ? (Math.random() > 0.7 ? uuidv4() : undefined) : undefined
-      });
-    }
-  }
-  
-  return slots;
-}
-
-// Get time slots for a specific date and staff
-export async function getTimeSlotsByStaffAndDate(staffId: string, date: Date): Promise<TimeSlot[]> {
-  // Ensure we have a proper date
-  const dateToUse = date instanceof Date ? date : new Date(date);
-  return getStaffAvailabilityByDay(staffId, dateToUse);
-}
-
-// Get availability for all staff on a specific date
-export async function getTimeSlotsByDate(staffId: string, date: Date): Promise<TimeSlot[]> {
-  // Ensure date is a Date object
-  const dateToUse = date instanceof Date ? date : new Date(date);
-  return getStaffAvailabilityByDay(staffId, dateToUse);
-}
-
-// Get weekly availability for a staff member
-export async function getWeeklyAvailabilityByStaff(staffId: string): Promise<StaffAvailability> {
-  // Mock implementation that returns a week's worth of availability
-  const today = new Date();
-  const startOfCurrentWeek = startOfWeek(today);
-  
-  const weeklyAvail: WeeklyAvailability = {
-    startDate: startOfCurrentWeek,
-    endDate: addDays(startOfCurrentWeek, 6),
-    days: [],
-    totalHours: 0,
-  };
-  
-  // Generate daily availability for each day of the week
-  for (let i = 0; i < 7; i++) {
-    const currentDay = addDays(startOfCurrentWeek, i);
-    const dailySlots = await getStaffAvailabilityByDay(staffId, currentDay);
-    
-    // Calculate total available hours
-    const availableHours = dailySlots.filter(slot => slot.isAvailable).length * 0.5; // Each slot is 30 minutes
-    
-    weeklyAvail.days.push({
-      date: currentDay,
-      slots: dailySlots,
-      totalHours: availableHours
-    });
-    
-    weeklyAvail.totalHours += availableHours;
-  }
-  
-  return [weeklyAvail];
-}
-
-// Get availability summary for a staff member
-export async function getAvailabilitySummary(staffId: string): Promise<AvailabilitySummary> {
-  // Calculate a summary of availability based on the weekly template
-  const weeklyAvail = await getWeeklyAvailabilityByStaff(staffId);
-  
-  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const dailyBreakdown: { [day: string]: number } = {};
-  
-  // Initialize with zeros
-  daysOfWeek.forEach(day => {
-    dailyBreakdown[day] = 0;
-  });
-  
-  // Fill in actual values
-  weeklyAvail[0].days.forEach(day => {
-    const dayName = format(day.date, 'EEEE');
-    dailyBreakdown[dayName] = day.totalHours;
-  });
-  
-  const totalWeeklyHours = weeklyAvail[0].totalHours;
-  
-  // Assuming a standard 40-hour workweek
-  const utilizationPercentage = Math.min(100, (totalWeeklyHours / 40) * 100);
   
   return {
-    totalWeeklyHours,
-    dailyBreakdown,
-    utilizationPercentage,
-    weeklyTotal: totalWeeklyHours,
-    dailySummaries: dailyBreakdown,
-    averageDailyHours: totalWeeklyHours / 5, // Assuming 5 workdays
+    id: data.id,
+    fullName: data.full_name,
+    roleTitle: data.role_title || "",
+    skills: data.assigned_skills || [],
+    costPerHour: data.cost_per_hour,
+    email: data.email,
+    phone: data.phone || "",
+    status: data.status === "active" ? "active" : "inactive",
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
   };
-}
+};
 
-// Batch update weekly availability
-export async function batchUpdateWeeklyAvailability(
-  availabilitySlots: StaffAvailabilitySlot[]
-): Promise<boolean> {
-  try {
-    // Mock implementation
-    console.log("Updating availability slots:", availabilitySlots);
-    
-    return true;
-  } catch (error) {
-    console.error("Error updating availability:", error);
-    return false;
+export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "updatedAt">): Promise<Staff> => {
+  const { data, error } = await supabase
+    .from('staff')
+    .insert({
+      full_name: staffData.fullName,
+      role_title: staffData.roleTitle,
+      assigned_skills: staffData.skills,
+      cost_per_hour: staffData.costPerHour,
+      email: staffData.email,
+      phone: staffData.phone,
+      status: staffData.status
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error creating staff:", error);
+    throw error;
   }
-}
+  
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    roleTitle: data.role_title || "",
+    skills: data.assigned_skills || [],
+    costPerHour: data.cost_per_hour,
+    email: data.email,
+    phone: data.phone || "",
+    status: data.status === "active" ? "active" : "inactive",
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
+};
+
+export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id" | "createdAt">>): Promise<Staff | undefined> => {
+  // Map the Staff model fields to database fields
+  const dbData: any = {};
+  
+  if (staffData.fullName !== undefined) dbData.full_name = staffData.fullName;
+  if (staffData.roleTitle !== undefined) dbData.role_title = staffData.roleTitle;
+  if (staffData.skills !== undefined) dbData.assigned_skills = staffData.skills;
+  if (staffData.costPerHour !== undefined) dbData.cost_per_hour = staffData.costPerHour;
+  if (staffData.email !== undefined) dbData.email = staffData.email;
+  if (staffData.phone !== undefined) dbData.phone = staffData.phone;
+  if (staffData.status !== undefined) dbData.status = staffData.status;
+  
+  const { data, error } = await supabase
+    .from('staff')
+    .update(dbData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error updating staff:", error);
+    throw error;
+  }
+  
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    roleTitle: data.role_title || "",
+    skills: data.assigned_skills || [],
+    costPerHour: data.cost_per_hour,
+    email: data.email,
+    phone: data.phone || "",
+    status: data.status === "active" ? "active" : "inactive",
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
+};
+
+export const deleteStaff = async (id: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('staff')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error("Error deleting staff:", error);
+    throw error;
+  }
+  
+  return true;
+};
+
+// For now, we'll keep the mock implementations for TimeSlot operations,
+// but we can implement them with Supabase in a future update
+
+// Mock timeslots for the current day
+const generateMockTimeSlots = (date: string): TimeSlot[] => {
+  const slots: TimeSlot[] = [];
+  const startHour = 8; // 8 AM
+  const endHour = 17; // 5 PM
+
+  // Instead of using mockStaff, let's fetch the actual staff list
+  // This is just a placeholder for now - we'll use fixed IDs for the mock data
+  const mockStaffIds = [
+    'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c', 
+    'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d'
+  ];
+
+  mockStaffIds.forEach(staffId => {
+    for (let hour = startHour; hour < endHour; hour++) {
+      // Create two 30-minute slots per hour
+      for (let minutes of [0, 30]) {
+        slots.push({
+          id: uuidv4(),
+          staffId: staffId,
+          date,
+          startTime: `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+          endTime: minutes === 0 
+            ? `${hour.toString().padStart(2, '0')}:30` 
+            : `${(hour + 1).toString().padStart(2, '0')}:00`,
+          isAvailable: Math.random() > 0.3, // 70% chance of being available
+        });
+      }
+    }
+  });
+
+  return slots;
+};
+
+// Mock weekly availability
+const mockWeeklyAvailability: WeeklyAvailability[] = [
+  // Mock data for first staff member
+  ...[1, 2, 3, 4, 5].flatMap(day => [
+    {
+      staffId: 'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "09:00",
+      endTime: "12:00",
+      isAvailable: true,
+    },
+    {
+      staffId: 'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "13:00",
+      endTime: "17:00",
+      isAvailable: true,
+    }
+  ]),
+  // Mock data for second staff member
+  ...[1, 2, 3, 4, 5].flatMap(day => [
+    {
+      staffId: 'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "09:00",
+      endTime: "12:00",
+      isAvailable: true,
+    },
+    {
+      staffId: 'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d',
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "13:00",
+      endTime: "17:00",
+      isAvailable: true,
+    }
+  ])
+];
+
+// TimeSlot operations
+export const getTimeSlotsByDate = async (date: string): Promise<TimeSlot[]> => {
+  return Promise.resolve(generateMockTimeSlots(date));
+};
+
+export const getTimeSlotsByStaffAndDate = async (staffId: string, date: string): Promise<TimeSlot[]> => {
+  const allSlots = await getTimeSlotsByDate(date);
+  return allSlots.filter(slot => slot.staffId === staffId);
+};
+
+export const updateTimeSlot = async (
+  id: string, 
+  data: Partial<Omit<TimeSlot, "id" | "staffId" | "date">>
+): Promise<TimeSlot | undefined> => {
+  // In a real app, this would update the database
+  // For this mock service, we'll just return a modified slot
+  const slots = await getTimeSlotsByDate(new Date().toISOString().split('T')[0]);
+  const slotIndex = slots.findIndex(slot => slot.id === id);
+  
+  if (slotIndex === -1) {
+    return Promise.resolve(undefined);
+  }
+  
+  const updatedSlot = {
+    ...slots[slotIndex],
+    ...data,
+  };
+  
+  return Promise.resolve(updatedSlot);
+};
+
+// Weekly availability operations
+export const getWeeklyAvailabilityByStaff = async (staffId: string): Promise<WeeklyAvailability[]> => {
+  const { data, error } = await supabase
+    .from('staff_availability')
+    .select('*')
+    .eq('staff_id', staffId);
+  
+  if (error) {
+    console.error("Error fetching staff availability:", error);
+    throw error;
+  }
+  
+  // If no data is found, return empty array
+  if (!data || data.length === 0) {
+    return [];
+  }
+  
+  // Map the database records to our WeeklyAvailability model
+  return data.map(item => {
+    // Parse time_slot format which might be "09:00-12:00" to get start and end times
+    const [startTime, endTime] = item.time_slot.split('-');
+    
+    return {
+      staffId: item.staff_id,
+      dayOfWeek: item.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: startTime,
+      endTime: endTime,
+      isAvailable: item.is_available,
+    };
+  });
+};
+
+export const updateWeeklyAvailability = async (
+  staffId: string,
+  dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6,
+  availabilities: Omit<WeeklyAvailability, "staffId" | "dayOfWeek">[]
+): Promise<WeeklyAvailability[]> => {
+  // First, get existing availabilities for this staff and day
+  const { data: existingData, error: fetchError } = await supabase
+    .from('staff_availability')
+    .select('id')
+    .eq('staff_id', staffId)
+    .eq('day_of_week', dayOfWeek);
+  
+  if (fetchError) {
+    console.error("Error fetching existing staff availability:", fetchError);
+    throw fetchError;
+  }
+  
+  // Delete existing records for this staff and day
+  if (existingData && existingData.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('staff_availability')
+      .delete()
+      .eq('staff_id', staffId)
+      .eq('day_of_week', dayOfWeek);
+    
+    if (deleteError) {
+      console.error("Error deleting existing staff availability:", deleteError);
+      throw deleteError;
+    }
+  }
+  
+  // Prepare records for insertion
+  const recordsToInsert = availabilities.map(avail => ({
+    staff_id: staffId,
+    day_of_week: dayOfWeek,
+    time_slot: `${avail.startTime}-${avail.endTime}`,
+    is_available: avail.isAvailable,
+  }));
+  
+  // Insert new availability records
+  const { data: insertedData, error: insertError } = await supabase
+    .from('staff_availability')
+    .insert(recordsToInsert)
+    .select();
+  
+  if (insertError) {
+    console.error("Error inserting staff availability:", insertError);
+    throw insertError;
+  }
+  
+  // Return the newly created availability records
+  return insertedData.map(item => ({
+    staffId: item.staff_id,
+    dayOfWeek: item.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+    startTime: item.time_slot.split('-')[0],
+    endTime: item.time_slot.split('-')[1],
+    isAvailable: item.is_available,
+  }));
+};
+
+// New batch operations for availability
+export const batchUpdateWeeklyAvailability = async (
+  staffId: string,
+  availabilities: WeeklyAvailability[]
+): Promise<WeeklyAvailability[]> => {
+  // Group availabilities by day of week
+  const availabilitiesByDay = availabilities.reduce<Record<string, Omit<WeeklyAvailability, "staffId" | "dayOfWeek">[]>>(
+    (acc, avail) => {
+      const day = avail.dayOfWeek.toString();
+      if (!acc[day]) {
+        acc[day] = [];
+      }
+      acc[day].push({
+        startTime: avail.startTime,
+        endTime: avail.endTime,
+        isAvailable: avail.isAvailable,
+      });
+      return acc;
+    },
+    {}
+  );
+  
+  // Update each day's availabilities
+  const results: WeeklyAvailability[] = [];
+  for (const [day, dayAvailabilities] of Object.entries(availabilitiesByDay)) {
+    const dayOfWeek = parseInt(day) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    const updatedAvailabilities = await updateWeeklyAvailability(
+      staffId,
+      dayOfWeek,
+      dayAvailabilities
+    );
+    results.push(...updatedAvailabilities);
+  }
+  
+  return results;
+};
+
+// New function to calculate daily and weekly availability summaries with more detailed metrics
+export const calculateAvailabilitySummary = async (
+  staffId: string
+): Promise<AvailabilitySummary> => {
+  const availabilities = await getWeeklyAvailabilityByStaff(staffId);
+  
+  // Calculate hours for each time slot and group by day
+  const dailySummaries = Array.from({ length: 7 }, (_, i) => ({ 
+    day: i, 
+    totalHours: 0,
+    slots: [] as { startTime: string; endTime: string }[] 
+  }));
+  
+  // Distribution by time of day
+  const distribution: { [key: string]: number } = {
+    morning: 0,   // 6:00 AM - 12:00 PM
+    afternoon: 0, // 12:00 PM - 5:00 PM
+    evening: 0    // 5:00 PM - 10:00 PM
+  };
+  
+  for (const avail of availabilities) {
+    if (avail.isAvailable) {
+      // Calculate hours in this time slot
+      const startParts = avail.startTime.split(':').map(Number);
+      const endParts = avail.endTime.split(':').map(Number);
+      
+      const startHours = startParts[0] + startParts[1] / 60;
+      const endHours = endParts[0] + endParts[1] / 60;
+      
+      const hours = endHours - startHours;
+      dailySummaries[avail.dayOfWeek].totalHours += hours;
+      
+      // Track detailed slot information
+      dailySummaries[avail.dayOfWeek].slots.push({
+        startTime: avail.startTime,
+        endTime: avail.endTime
+      });
+      
+      // Calculate distribution by time of day
+      // This is a simplified algorithm - in reality we'd need to split slots that cross boundaries
+      if (startHours >= 6 && startHours < 12) {
+        distribution.morning += hours;
+      } else if (startHours >= 12 && startHours < 17) {
+        distribution.afternoon += hours;
+      } else if (startHours >= 17 && startHours < 22) {
+        distribution.evening += hours;
+      }
+    }
+  }
+  
+  // Calculate weekly total
+  const weeklyTotal = dailySummaries.reduce((sum, day) => sum + day.totalHours, 0);
+  
+  // Calculate average daily hours (only counting days with any availability)
+  const daysWithAvailability = dailySummaries.filter(day => day.totalHours > 0).length;
+  const averageDailyHours = daysWithAvailability > 0 
+    ? weeklyTotal / daysWithAvailability 
+    : 0;
+  
+  // Find peak day (day with most hours)
+  const peakDay = dailySummaries.reduce((peak, day) => {
+    return day.totalHours > (peak?.hours || 0) 
+      ? { day: day.day, hours: day.totalHours } 
+      : peak;
+  }, null as { day: number; hours: number } | null);
+  
+  return {
+    dailySummaries,
+    weeklyTotal,
+    averageDailyHours,
+    peakDay,
+    distribution,
+  };
+};

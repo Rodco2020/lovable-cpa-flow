@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency, ClientCreateParams, ClientUpdateParams } from '@/types/client';
+import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { getClientById, createClient, updateClient } from '@/services/clientService';
 import { 
   Card, 
@@ -56,14 +56,13 @@ const clientFormSchema = z.object({
     "Hospitality", 
     "Education", 
     "Non-Profit",
-    "Transportation",
     "Other"
   ] as const),
   status: z.enum(["Active", "Inactive", "Pending", "Archived"] as const),
   expectedMonthlyRevenue: z.coerce.number().positive("Revenue must be positive"),
-  paymentTerms: z.enum(["Net15", "Net30", "Net45", "Net60", "Due on Receipt"] as const),
-  billingFrequency: z.enum(["Monthly", "Quarterly", "Annually", "Biweekly", "Project-Based"] as const),
-  defaultTaskPriority: z.enum(["Low", "Medium", "High", "Urgent"] as const),
+  paymentTerms: z.enum(["Net15", "Net30", "Net45", "Net60"] as const),
+  billingFrequency: z.enum(["Monthly", "Quarterly", "Annually", "Project-Based"] as const),
+  defaultTaskPriority: z.string().min(1, "Default task priority is required"),
   notificationPreferences: z.object({
     emailReminders: z.boolean().default(true),
     taskNotifications: z.boolean().default(true),
@@ -138,11 +137,11 @@ const ClientForm: React.FC = () => {
       email: "",
       phone: "",
       billingAddress: "",
-      industry: "Other",
-      status: "Active",
+      industry: "Other" as IndustryType,
+      status: "Active" as ClientStatus,
       expectedMonthlyRevenue: 0,
-      paymentTerms: "Net30",
-      billingFrequency: "Monthly",
+      paymentTerms: "Net30" as PaymentTerms,
+      billingFrequency: "Monthly" as BillingFrequency,
       defaultTaskPriority: "Medium",
       notificationPreferences: {
         emailReminders: true,
@@ -173,17 +172,17 @@ const ClientForm: React.FC = () => {
     setIsLoading(true);
     
     // Create a properly typed client data object that meets the required interfaces
-    const clientData: ClientCreateParams | ClientUpdateParams = {
+    const clientData = {
       legalName: data.legalName,
       primaryContact: data.primaryContact,
       email: data.email,
       phone: data.phone,
       billingAddress: data.billingAddress, 
-      industry: data.industry,
-      status: data.status,
+      industry: data.industry as IndustryType,
+      status: data.status as ClientStatus,
       expectedMonthlyRevenue: data.expectedMonthlyRevenue,
-      paymentTerms: data.paymentTerms,
-      billingFrequency: data.billingFrequency,
+      paymentTerms: data.paymentTerms as PaymentTerms,
+      billingFrequency: data.billingFrequency as BillingFrequency,
       defaultTaskPriority: data.defaultTaskPriority,
       notificationPreferences: {
         emailReminders: data.notificationPreferences.emailReminders,
@@ -202,7 +201,7 @@ const ClientForm: React.FC = () => {
           navigate('/clients');
         }
       } else {
-        const newClient = await createClient(clientData as ClientCreateParams);
+        const newClient = await createClient(clientData);
         if (newClient) {
           toast({
             title: "Client created",

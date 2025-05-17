@@ -31,7 +31,7 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   const loadTasks = async () => {
     setLoading(true);
     try {
-      const allTasks = await getRecurringTasks();
+      const allTasks = await getRecurringTasks(false);
       const clientTasks = allTasks.filter(task => task.clientId === clientId);
       setTasks(clientTasks);
     } catch (error) {

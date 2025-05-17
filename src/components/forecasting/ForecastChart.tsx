@@ -1,10 +1,10 @@
 
 import React from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SkillData } from '@/types/forecasting';
+import { ForecastData, SkillData } from '@/types/forecasting';
 
 interface ForecastChartProps {
-  data: any[];
+  data: ForecastData[];
   chartType: 'bar' | 'line';
   showDemand: boolean;
   showCapacity: boolean;
@@ -23,8 +23,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     const result: any = { period: period.period };
     
     // Add demand data if needed
-    if (showDemand && period.demand) {
-      period.demand.forEach((skillHours: any) => {
+    if (showDemand) {
+      period.demand.forEach(skillHours => {
         // Check if skill is included in the filter
         if (skills === 'all' || skills.some(s => s.id === skillHours.skill)) {
           result[`demand_${skillHours.skill}`] = skillHours.hours;
@@ -33,8 +33,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     }
     
     // Add capacity data if needed
-    if (showCapacity && period.capacity) {
-      period.capacity.forEach((skillHours: any) => {
+    if (showCapacity) {
+      period.capacity.forEach(skillHours => {
         // Check if skill is included in the filter
         if (skills === 'all' || skills.some(s => s.id === skillHours.skill)) {
           result[`capacity_${skillHours.skill}`] = skillHours.hours;
@@ -54,18 +54,13 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     'Audit': '#0EA5E9', // Ocean Blue
     'Advisory': '#F97316', // Bright Orange
     'Bookkeeping': '#33C3F0', // Sky Blue
-    'Tax': '#4CAF50', // Green
   };
   
   // Flatten skill hours for legend
   const uniqueSkills = new Set<string>();
   data.forEach(period => {
-    if (period.demand) {
-      period.demand.forEach((skillHours: any) => uniqueSkills.add(skillHours.skill));
-    }
-    if (period.capacity) {
-      period.capacity.forEach((skillHours: any) => uniqueSkills.add(skillHours.skill));
-    }
+    period.demand.forEach(skillHours => uniqueSkills.add(skillHours.skill));
+    period.capacity.forEach(skillHours => uniqueSkills.add(skillHours.skill));
   });
   
   // Filter skills based on the skills prop

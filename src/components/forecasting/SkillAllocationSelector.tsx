@@ -3,10 +3,7 @@ import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { SkillAllocationStrategy } from '@/types/forecasting';
-
-// Stub functions to be implemented later in forecastingService
-const getSkillAllocationStrategy = (): SkillAllocationStrategy => 'duplicate';
-const setSkillAllocationStrategy = (strategy: SkillAllocationStrategy) => {};
+import { setSkillAllocationStrategy, getSkillAllocationStrategy } from '@/services/forecastingService';
 
 interface SkillAllocationSelectorProps {
   onChange?: (strategy: SkillAllocationStrategy) => void;

@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { FinancialProjection } from '@/types/forecasting';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   Table,
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/table';
 
 export interface FinancialProjectionsProps {
-  data: any[];
+  data: FinancialProjection[];
   view: 'chart' | 'table';
 }
 

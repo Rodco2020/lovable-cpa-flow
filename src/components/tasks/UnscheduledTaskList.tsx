@@ -1,74 +1,138 @@
 
-import React, { useEffect, useState } from 'react';
-import { TaskInstance } from '@/types/task';
+import React, { useState, useEffect } from 'react';
 import { getUnscheduledTaskInstances } from '@/services/taskService';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { TaskInstance } from '@/types/task';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { BriefcaseBusiness, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const UnscheduledTaskList = () => {
+const UnscheduledTaskList: React.FC = () => {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getUnscheduledTaskInstances();
-        setTasks(data);
-        setError(null);
-      } catch (err) {
-        console.error("Error loading unscheduled tasks:", err);
-        setError("Failed to load unscheduled tasks");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
     
-    loadTasks();
+    try {
+      const unscheduledTasks = await getUnscheduledTaskInstances();
+      setTasks(unscheduledTasks);
+      // Show success toast only if refreshing, not on initial load
+      if (!loading) {
+        toast.success("Tasks refreshed successfully");
+      }
+    } catch (error) {
+      console.error('Error fetching unscheduled tasks:', error);
+      setError("Failed to load unscheduled tasks. Please try again.");
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
   }, []);
-  
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="flex items-center p-4 bg-destructive/10 rounded-md text-destructive">
-        <AlertCircle className="h-5 w-5 mr-2" />
-        <p>{error}</p>
-      </div>
-    );
-  }
-  
-  if (tasks.length === 0) {
-    return (
-      <div className="text-center p-8 text-muted-foreground">
-        No unscheduled tasks found.
-      </div>
-    );
-  }
-  
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Low': return 'bg-gray-100 text-gray-800';
+      case 'Medium': return 'bg-blue-100 text-blue-800';
+      case 'High': return 'bg-orange-100 text-orange-800';
+      case 'Urgent': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">Unscheduled Tasks ({tasks.length})</h2>
-      <ul className="space-y-2">
-        {tasks.map(task => (
-          <li key={task.id} className="border p-4 rounded-md">
-            <div className="font-medium">{task.name}</div>
-            <div className="text-sm text-muted-foreground">
-              Due: {task.dueDate?.toLocaleDateString()}
-            </div>
-            <div className="text-sm">
-              Client ID: {task.clientId}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" /> 
+            Unscheduled Tasks
+          </CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchTasks}
+            disabled={loading}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full"></div>
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No unscheduled tasks found.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Task Name</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Est. Hours</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Skills</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map((task) => (
+                <TableRow key={task.id}>
+                  <TableCell className="font-medium">{task.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <BriefcaseBusiness className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                      {task.clientId}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'No date'}
+                  </TableCell>
+                  <TableCell>{task.estimatedHours}</TableCell>
+                  <TableCell>
+                    <Badge className={getPriorityColor(task.priority)}>
+                      {task.priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {task.requiredSkills.map((skill, index) => (
+                        <Badge variant="outline" key={index}>
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

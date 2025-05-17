@@ -1,379 +1,290 @@
 
-import { supabase } from '@/lib/supabaseClient';
-import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
-import { RecurringTask, TaskInstance, RecurrencePattern } from '@/types/task';
 import { v4 as uuidv4 } from 'uuid';
+import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
+import { supabase } from '@/integrations/supabase/client';
+import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
+import { RecurringTask, TaskInstance } from '@/types/task';
 
-// Type definitions for client creation and update
-export type ClientCreateParams = Omit<Client, "id" | "createdAt" | "updatedAt">;
-export type ClientUpdateParams = Partial<Omit<Client, "id" | "createdAt" | "updatedAt">>;
+// Local memory storage as fallback when Supabase is not connected
+let clients: Client[] = [];
+
+// Map Supabase data to our Client model
+const mapSupabaseDataToClient = (data: any): Client => {
+  if (!data) throw new Error("Invalid data from Supabase");
+  
+  console.log("Raw client data from Supabase:", data);
+  
+  const mappedClient = {
+    id: data.id || "",
+    legalName: data.legal_name || "",
+    primaryContact: data.primary_contact || "",
+    email: data.email || "",
+    phone: data.phone || "",
+    billingAddress: data.billing_address || "",
+    industry: (data.industry || "Other") as IndustryType,
+    status: (data.status || "Active") as ClientStatus,
+    expectedMonthlyRevenue: data.expected_monthly_revenue || 0,
+    paymentTerms: (data.payment_terms || "Net30") as PaymentTerms,
+    billingFrequency: (data.billing_frequency || "Monthly") as BillingFrequency,
+    defaultTaskPriority: data.default_task_priority || "Medium",
+    notificationPreferences: data.notification_preferences || {
+      emailReminders: true,
+      taskNotifications: true,
+    },
+    createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+    updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
+  };
+  
+  console.log("Mapped client:", mappedClient);
+  return mappedClient;
+};
+
+// Map our Client model to Supabase data
+const mapClientToSupabaseData = (client: Partial<Client>) => {
+  return {
+    legal_name: client.legalName,
+    primary_contact: client.primaryContact,
+    email: client.email,
+    phone: client.phone,
+    billing_address: client.billingAddress,
+    industry: client.industry,
+    status: client.status,
+    expected_monthly_revenue: client.expectedMonthlyRevenue,
+    payment_terms: client.paymentTerms,
+    billing_frequency: client.billingFrequency,
+    default_task_priority: client.defaultTaskPriority,
+    notification_preferences: client.notificationPreferences,
+  };
+};
+
+// Get all clients (renamed to match the usage in ClientList.tsx)
+export const getClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
+  return getAllClients(filters);
+};
 
 // Get all clients
-export async function getAllClients(): Promise<Client[]> {
+export const getAllClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
   try {
-    // In a real application, this would fetch from the database
-    // For now, return mock data
-    return getMockClients();
+    console.log("Fetching clients from Supabase with filters:", JSON.stringify(filters, null, 2));
+    let query = supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (filters?.status && filters.status.length > 0) {
+      console.log("Applying status filter:", filters.status);
+      query = query.in('status', filters.status);
+    }
+    
+    if (filters?.industry && filters.industry.length > 0) {
+      console.log("Applying industry filter:", filters.industry);
+      query = query.in('industry', filters.industry);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching clients from Supabase:', error);
+      return clients; // Fallback to in-memory
+    }
+
+    console.log("Raw data from Supabase query:", data);
+    
+    if (!data || data.length === 0) {
+      console.log("No clients found in Supabase, returning empty array");
+      return [];
+    }
+    
+    // Log each client data to check values
+    data.forEach(client => {
+      console.log("Client from Supabase:", {
+        id: client.id,
+        legal_name: client.legal_name,
+        status: client.status, 
+        industry: client.industry
+      });
+    });
+    
+    const mappedClients = data.map(mapSupabaseDataToClient);
+    console.log("All mapped clients:", mappedClients);
+    return mappedClients;
   } catch (error) {
     console.error('Error fetching clients:', error);
-    return [];
+    
+    // Apply filters to in-memory clients if needed
+    let filteredClients = clients;
+    
+    if (filters?.status && filters.status.length > 0) {
+      filteredClients = filteredClients.filter(c => filters.status?.includes(c.status));
+    }
+    
+    if (filters?.industry && filters.industry.length > 0) {
+      filteredClients = filteredClients.filter(c => filters.industry?.includes(c.industry));
+    }
+    
+    return filteredClients;
   }
-}
+};
 
-// Alias for getAllClients for backward compatibility
-export const getClients = getAllClients;
-
-// Get client by ID
-export async function getClientById(id: string): Promise<Client | null> {
+// Get a client by ID
+export const getClientById = async (id: string): Promise<Client> => {
   try {
-    const clients = getMockClients();
-    const client = clients.find(c => c.id === id);
-    return client || null;
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      throw error;
+    }
+    
+    return mapSupabaseDataToClient(data);
   } catch (error) {
-    console.error('Error fetching client:', error);
-    return null;
+    console.error(`Error fetching client ${id} from Supabase:`, error);
+    const client = clients.find(client => client.id === id);
+    if (!client) {
+      throw new Error(`Client with ID ${id} not found`);
+    }
+    return client;
   }
-}
+};
 
-// Create client
-export async function createClient(client: ClientCreateParams): Promise<Client | null> {
+// Create a new client
+export const createClient = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client> => {
+  // Create a new client object with ID and timestamps
+  const newClient: Client = {
+    ...clientData,
+    id: uuidv4(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  
   try {
-    // In a real application, this would create a record in the database
-    const newClient: Client = {
-      id: uuidv4(),
-      ...client,
-      createdAt: new Date(),
-      updatedAt: new Date()
+    // Map client data to Supabase format
+    const supabaseData = {
+      id: newClient.id,
+      ...mapClientToSupabaseData(newClient),
+      created_at: newClient.createdAt.toISOString(),
+      updated_at: newClient.updatedAt.toISOString(),
     };
     
-    console.log('Created client:', newClient);
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([supabaseData])
+      .select()
+      .single();
+    
+    if (error) {
+      throw error;
+    }
+    
+    return mapSupabaseDataToClient(data);
+  } catch (error) {
+    console.error('Error creating client in Supabase:', error);
+    // Fall back to in-memory storage
+    clients.push(newClient);
     return newClient;
-  } catch (error) {
-    console.error('Error creating client:', error);
-    return null;
   }
-}
+};
 
-// Update client
-export async function updateClient(id: string, updates: ClientUpdateParams): Promise<Client | null> {
+// Update an existing client
+export const updateClient = async (id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Client> => {
+  const updatedData = {
+    ...clientData,
+    updatedAt: new Date(),
+  };
+  
   try {
-    const client = await getClientById(id);
-    if (!client) return null;
-    
-    const updatedClient: Client = {
-      ...client,
-      ...updates,
-      updatedAt: new Date()
+    // Map client data to Supabase format
+    const supabaseData = {
+      ...mapClientToSupabaseData(updatedData),
+      updated_at: updatedData.updatedAt?.toISOString(),
     };
     
-    console.log('Updated client:', updatedClient);
-    return updatedClient;
+    const { data, error } = await supabase
+      .from('clients')
+      .update(supabaseData)
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      throw error;
+    }
+    
+    return mapSupabaseDataToClient(data);
   } catch (error) {
-    console.error('Error updating client:', error);
-    return null;
+    console.error(`Error updating client ${id} in Supabase:`, error);
+    // Fall back to in-memory storage
+    const index = clients.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Client with ID ${id} not found`);
+    }
+    
+    clients[index] = {
+      ...clients[index],
+      ...updatedData,
+    };
+    
+    return clients[index];
   }
-}
+};
 
-// Delete client
-export async function deleteClient(id: string): Promise<boolean> {
+// Delete a client
+export const deleteClient = async (id: string): Promise<boolean> => {
   try {
-    // In a real application, this would delete the client from the database
-    console.log('Deleted client:', id);
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      throw error;
+    }
+    
+    // Also remove from local array to keep in sync
+    clients = clients.filter(c => c.id !== id);
     return true;
   } catch (error) {
-    console.error('Error deleting client:', error);
-    return false;
+    console.error(`Error deleting client ${id} from Supabase:`, error);
+    // Fall back to in-memory storage
+    clients = clients.filter(c => c.id !== id);
+    return true;
   }
-}
+};
 
-// Get client recurring tasks
-export async function getClientRecurringTasks(clientId: string): Promise<RecurringTask[]> {
+// Get linked task IDs for a client
+export const getClientTaskIds = async (clientId: string): Promise<string[]> => {
+  // This is a stub - in the future, it would query tasks associated with this client
+  return [];
+};
+
+// Get recurring tasks for a client
+export const getClientRecurringTasks = async (clientId: string): Promise<RecurringTask[]> => {
   try {
-    const allRecurringTasks = await getRecurringTasks(false);
+    // Use the task service to get all recurring tasks and filter by client ID
+    const allRecurringTasks = await getRecurringTasks(false); // Include both active and inactive tasks
     return allRecurringTasks.filter(task => task.clientId === clientId);
   } catch (error) {
-    console.error('Error fetching client recurring tasks:', error);
-    return [];
+    console.error(`Error fetching recurring tasks for client ${clientId}:`, error);
+    return []; // Return empty array on error
   }
-}
+};
 
-// Get client ad-hoc tasks
-export async function getClientAdHocTasks(clientId: string): Promise<TaskInstance[]> {
+// Get ad-hoc tasks for a client
+export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstance[]> => {
   try {
-    const taskInstances = await getTaskInstances({ clientId });
-    return taskInstances.filter(task => !task.recurringTaskId);
-  } catch (error) {
-    console.error('Error fetching client ad-hoc tasks:', error);
-    return [];
-  }
-}
-
-// Define stub functions to satisfy import usage
-async function getRecurringTasks(includeInactive: boolean = false): Promise<RecurringTask[]> {
-  try {
-    // Mock data for recurring tasks
-    const tasks: RecurringTask[] = [
-      {
-        id: '1',
-        templateId: '1',
-        clientId: 'client1',
-        name: 'Monthly Bookkeeping - ABC Corp',
-        description: 'Reconcile accounts and prepare monthly financial statements',
-        estimatedHours: 3,
-        requiredSkills: ['Bookkeeping'],
-        priority: 'Medium',
-        category: 'Bookkeeping',
-        status: 'Unscheduled',
-        dueDate: new Date('2023-06-15'),
-        createdAt: new Date('2023-05-15'),
-        updatedAt: new Date('2023-05-15'),
-        recurrencePattern: {
-          type: 'Monthly',
-          dayOfMonth: 15
-        },
-        lastGeneratedDate: null,
-        isActive: true
-      },
-      {
-        id: '2',
-        templateId: '2',
-        clientId: 'client1',
-        name: 'Quarterly Tax Filing - ABC Corp',
-        description: 'Prepare and submit quarterly tax returns',
-        estimatedHours: 5,
-        requiredSkills: ['Tax'],
-        priority: 'High',
-        category: 'Tax',
-        status: 'Unscheduled',
-        dueDate: new Date('2023-07-15'),
-        createdAt: new Date('2023-05-15'),
-        updatedAt: new Date('2023-05-15'),
-        recurrencePattern: {
-          type: 'Quarterly',
-          dayOfMonth: 15
-        },
-        lastGeneratedDate: null,
-        isActive: true
-      },
-      {
-        id: '3',
-        templateId: '1',
-        clientId: 'client2',
-        name: 'Monthly Bookkeeping - XYZ Inc',
-        description: 'Reconcile accounts and prepare monthly financial statements',
-        estimatedHours: 4,
-        requiredSkills: ['Bookkeeping'],
-        priority: 'Medium',
-        category: 'Bookkeeping',
-        status: 'Unscheduled',
-        dueDate: new Date('2023-06-20'),
-        createdAt: new Date('2023-05-15'),
-        updatedAt: new Date('2023-05-15'),
-        recurrencePattern: {
-          type: 'Monthly',
-          dayOfMonth: 20
-        },
-        lastGeneratedDate: null,
-        isActive: false
-      }
-    ];
-    
-    return includeInactive ? tasks : tasks.filter(t => t.isActive);
-  } catch (error) {
-    console.error('Error fetching recurring tasks:', error);
-    return [];
-  }
-}
-
-async function getTaskInstances(filter: { clientId?: string, status?: string }): Promise<TaskInstance[]> {
-  try {
-    // Mock data for task instances
-    const tasks: TaskInstance[] = [
-      {
-        id: '1',
-        templateId: '1',
-        clientId: filter.clientId || 'client1',
-        name: 'May Bookkeeping - ABC Corp',
-        description: 'Reconcile accounts and prepare monthly financial statements for May',
-        estimatedHours: 3,
-        requiredSkills: ['Bookkeeping'],
-        priority: 'Medium',
-        category: 'Bookkeeping',
-        status: 'Completed',
-        dueDate: new Date('2023-05-15'),
-        createdAt: new Date('2023-05-01'),
-        updatedAt: new Date('2023-05-16'),
-        completedAt: new Date('2023-05-14'),
-        recurringTaskId: '1'
-      },
-      {
-        id: '2',
-        templateId: '1',
-        clientId: filter.clientId || 'client1',
-        name: 'June Bookkeeping - ABC Corp',
-        description: 'Reconcile accounts and prepare monthly financial statements for June',
-        estimatedHours: 3,
-        requiredSkills: ['Bookkeeping'],
-        priority: 'Medium',
-        category: 'Bookkeeping',
-        status: 'Scheduled',
-        dueDate: new Date('2023-06-15'),
-        createdAt: new Date('2023-06-01'),
-        updatedAt: new Date('2023-06-01'),
-        recurringTaskId: '1',
-        assignedStaffId: 'staff1',
-        scheduledStartTime: new Date('2023-06-14T10:00:00'),
-        scheduledEndTime: new Date('2023-06-14T13:00:00')
-      },
-      {
-        id: '3',
-        templateId: '2',
-        clientId: filter.clientId || 'client1',
-        name: 'Q2 Tax Filing - ABC Corp',
-        description: 'Prepare and submit Q2 tax returns',
-        estimatedHours: 5,
-        requiredSkills: ['Tax'],
-        priority: 'High',
-        category: 'Tax',
-        status: 'Unscheduled',
-        dueDate: new Date('2023-07-15'),
-        createdAt: new Date('2023-06-15'),
-        updatedAt: new Date('2023-06-15'),
-        recurringTaskId: '2'
-      },
-      {
-        id: '4',
-        templateId: '3',
-        clientId: filter.clientId || 'client1',
-        name: 'Special Advisory Project',
-        description: 'One-time strategic advisory session',
-        estimatedHours: 10,
-        requiredSkills: ['Advisory'],
-        priority: 'Medium',
-        category: 'Advisory',
-        status: 'Scheduled',
-        dueDate: new Date('2023-06-20'),
-        createdAt: new Date('2023-06-01'),
-        updatedAt: new Date('2023-06-02'),
-        assignedStaffId: 'staff2',
-        scheduledStartTime: new Date('2023-06-19T09:00:00'),
-        scheduledEndTime: new Date('2023-06-19T19:00:00')
-      }
-    ];
-    
-    return tasks.filter(t => {
-      if (filter.clientId && t.clientId !== filter.clientId) return false;
-      if (filter.status && t.status !== filter.status) return false;
-      return true;
+    // Use the task service to get task instances that aren't generated from recurring tasks
+    // and filter by client ID
+    const allTaskInstances = await getTaskInstances({
+      clientId: clientId
     });
+    
+    // Filter out tasks that were generated from recurring tasks
+    return allTaskInstances.filter(task => !task.recurringTaskId);
   } catch (error) {
-    console.error('Error fetching task instances:', error);
-    return [];
+    console.error(`Error fetching ad-hoc tasks for client ${clientId}:`, error);
+    return []; // Return empty array on error
   }
-}
-
-// Mock data and utility functions for client list
-export function getMockClients(): Client[] {
-  return [
-    {
-      id: '1',
-      legalName: 'Acme Corp',
-      primaryContact: 'John Doe',
-      email: 'john.doe@acme.com',
-      phone: '555-123-4567',
-      billingAddress: '123 Main St, Anytown, USA',
-      industry: 'Technology',
-      status: 'Active',
-      expectedMonthlyRevenue: 50000,
-      paymentTerms: 'Net30',
-      billingFrequency: 'Monthly',
-      defaultTaskPriority: 'Medium',
-      notificationPreferences: {
-        emailReminders: true,
-        taskNotifications: true
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: '2',
-      legalName: 'Beta Industries',
-      primaryContact: 'Jane Smith',
-      email: 'jane.smith@beta.com',
-      phone: '555-987-6543',
-      billingAddress: '456 Elm St, Anytown, USA',
-      industry: 'Manufacturing',
-      status: 'Inactive',
-      expectedMonthlyRevenue: 25000,
-      paymentTerms: 'Net15',
-      billingFrequency: 'Quarterly',
-      defaultTaskPriority: 'Low',
-      notificationPreferences: {
-        emailReminders: false,
-        taskNotifications: false
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: '3',
-      legalName: 'Gamma Solutions',
-      primaryContact: 'Alice Johnson',
-      email: 'alice.johnson@gamma.com',
-      phone: '555-246-1357',
-      billingAddress: '789 Oak St, Anytown, USA',
-      industry: 'Financial Services',
-      status: 'Pending',
-      expectedMonthlyRevenue: 75000,
-      paymentTerms: 'Net45',
-      billingFrequency: 'Annually',
-      defaultTaskPriority: 'High',
-      notificationPreferences: {
-        emailReminders: true,
-        taskNotifications: false
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: '4',
-      legalName: 'Delta Corp',
-      primaryContact: 'Bob Williams',
-      email: 'bob.williams@delta.com',
-      phone: '555-864-2468',
-      billingAddress: '101 Pine St, Anytown, USA',
-      industry: 'Healthcare',
-      status: 'Active',
-      expectedMonthlyRevenue: 60000,
-      paymentTerms: 'Net30',
-      billingFrequency: 'Monthly',
-      defaultTaskPriority: 'Medium',
-      notificationPreferences: {
-        emailReminders: true,
-        taskNotifications: true
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: '5',
-      legalName: 'Epsilon Systems',
-      primaryContact: 'Carol Davis',
-      email: 'carol.davis@epsilon.com',
-      phone: '555-369-8521',
-      billingAddress: '222 Cedar St, Anytown, USA',
-      industry: 'Technology',
-      status: 'Active',
-      expectedMonthlyRevenue: 90000,
-      paymentTerms: 'Net15',
-      billingFrequency: 'Monthly',
-      defaultTaskPriority: 'Urgent',
-      notificationPreferences: {
-        emailReminders: true,
-        taskNotifications: true
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  ];
-}
+};
