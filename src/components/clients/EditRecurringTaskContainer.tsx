@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { EditRecurringTaskDialog } from './EditRecurringTaskDialog';
 import { RecurringTask } from '@/types/task';
@@ -67,6 +68,9 @@ export function EditRecurringTaskContainer({
     
     try {
       await updateRecurringTask(updatedTask.id, updatedTask);
+      toast.success("Task updated successfully");
+      
+      // Call the onSaveComplete callback to trigger refresh in parent components
       if (onSaveComplete) {
         onSaveComplete();
       }

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom'; // Add this import to extend Jest matchers
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
 import ClientAdHocTaskList from '@/components/clients/ClientAdHocTaskList';
@@ -8,9 +7,12 @@ import { RecurringTask, TaskInstance } from '@/types/task';
 
 // Mock the components used by ClientRecurringTaskList
 jest.mock('@/components/clients/EditRecurringTaskContainer', () => ({
-  EditRecurringTaskContainer: ({ open, onOpenChange, taskId }) => (
+  EditRecurringTaskContainer: ({ open, onOpenChange, taskId, onSaveComplete }) => (
     <div data-testid="edit-task-dialog" data-open={open} data-task-id={taskId}>
       <button onClick={() => onOpenChange(false)}>Close</button>
+      <button onClick={() => onSaveComplete && onSaveComplete()} data-testid="trigger-save-complete">
+        Save Complete
+      </button>
     </div>
   )
 }));
@@ -19,7 +21,9 @@ jest.mock('@/components/clients/EditRecurringTaskContainer', () => ({
 jest.mock('@/services/taskService', () => ({
   getRecurringTasks: jest.fn().mockResolvedValue([]),
   deactivateRecurringTask: jest.fn().mockResolvedValue(true),
-  getTaskInstances: jest.fn().mockResolvedValue([])
+  getTaskInstances: jest.fn().mockResolvedValue([]),
+  getRecurringTaskById: jest.fn().mockResolvedValue(null),
+  updateRecurringTask: jest.fn().mockResolvedValue(true)
 }));
 
 // Import the mock functions for easier assertions
@@ -235,6 +239,35 @@ describe('ClientRecurringTaskList', () => {
     
     // onViewTask should not be called when edit button is clicked
     expect(mockViewTask).not.toHaveBeenCalled();
+  });
+
+  test('refreshes task list after successful edit', async () => {
+    const mockRefreshNeeded = jest.fn();
+    render(<ClientRecurringTaskList clientId="client1" onRefreshNeeded={mockRefreshNeeded} />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Monthly Bookkeeping');
+    
+    // Clear mock to ensure we only capture calls after the edit
+    (getRecurringTasks as jest.Mock).mockClear();
+    
+    // Find and click the edit button
+    const editButtons = await screen.findAllByText('Edit');
+    fireEvent.click(editButtons[0]);
+    
+    // Check if edit dialog is open
+    const editDialog = screen.getByTestId('edit-task-dialog');
+    expect(editDialog).toHaveAttribute('data-open', 'true');
+    
+    // Simulate successful save
+    const saveCompleteButton = screen.getByTestId('trigger-save-complete');
+    fireEvent.click(saveCompleteButton);
+    
+    // Verify task list refresh was triggered
+    expect(getRecurringTasks).toHaveBeenCalledTimes(1);
+    
+    // Verify parent refresh callback was called
+    expect(mockRefreshNeeded).toHaveBeenCalledTimes(1);
   });
 });
 

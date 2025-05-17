@@ -71,8 +71,12 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   };
 
   const handleSaveComplete = () => {
+    // Refresh the task list after a successful edit
     loadTasks();
+    // Also notify parent components that a refresh might be needed
     if (onRefreshNeeded) onRefreshNeeded();
+    // Reset the UI state
+    setEditingTaskId(undefined);
   };
 
   // Get current tasks for pagination
