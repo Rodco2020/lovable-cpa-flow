@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Client } from '@/types/client';
 import { getClientById, getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
@@ -97,55 +98,56 @@ const ClientDetail: React.FC = () => {
   }, [recurringTasks, adHocTasks]);
   
   // Fetch client data
-  useEffect(() => {
-    const fetchClientData = async () => {
-      if (!id) {
+  const fetchClientData = useCallback(async () => {
+    if (!id) {
+      navigate('/clients');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch client
+      const clientData = await getClientById(id);
+      if (!clientData) {
+        toast({
+          title: "Client not found",
+          description: `Unable to find client with ID ${id}`,
+          variant: "destructive"
+        });
         navigate('/clients');
         return;
       }
       
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Fetch client
-        const clientData = await getClientById(id);
-        if (!clientData) {
-          toast({
-            title: "Client not found",
-            description: `Unable to find client with ID ${id}`,
-            variant: "destructive"
-          });
-          navigate('/clients');
-          return;
-        }
-        
-        setClient(clientData);
-        
-        // Fetch tasks
-        const [recurringTasksData, adHocTasksData] = await Promise.all([
-          getClientRecurringTasks(clientData.id),
-          getClientAdHocTasks(clientData.id)
-        ]);
-        
-        setRecurringTasks(recurringTasksData);
-        setAdHocTasks(adHocTasksData);
-      } catch (error) {
-        console.error("Error fetching client data:", error);
-        setError("Failed to load client details. Please try again later.");
-        
-        toast({
-          title: "Error",
-          description: "Failed to load client details",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchClientData();
+      setClient(clientData);
+      
+      // Fetch tasks
+      const [recurringTasksData, adHocTasksData] = await Promise.all([
+        getClientRecurringTasks(clientData.id),
+        getClientAdHocTasks(clientData.id)
+      ]);
+      
+      setRecurringTasks(recurringTasksData);
+      setAdHocTasks(adHocTasksData);
+    } catch (error) {
+      console.error("Error fetching client data:", error);
+      setError("Failed to load client details. Please try again later.");
+      
+      toast({
+        title: "Error",
+        description: "Failed to load client details",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [id, navigate, toast]);
+  
+  // Initial data fetch
+  useEffect(() => {
+    fetchClientData();
+  }, [fetchClientData]);
   
   // Handle task view navigation
   const handleViewRecurringTask = (taskId: string) => {
@@ -262,9 +264,7 @@ const ClientDetail: React.FC = () => {
   // Handle task updated
   const handleTaskUpdated = () => {
     // Refresh data to show the updated task
-    if (refreshData) {
-      refreshData();
-    }
+    fetchClientData();
   };
 
   return (
@@ -549,8 +549,8 @@ const ClientDetail: React.FC = () => {
             <TabsContent value="recurring" className="space-y-4">
               <ClientRecurringTaskList 
                 clientId={client.id} 
-                onRefreshNeeded={refreshData}
-                onViewTask={handleViewTask}
+                onRefreshNeeded={fetchClientData}
+                onViewTask={handleViewRecurringTask}
                 onEditTask={handleEditTask}
               />
             </TabsContent>

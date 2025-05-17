@@ -1,3 +1,4 @@
+
 import { TaskTemplate, RecurringTask, TaskInstance, SkillType, TaskPriority, TaskCategory } from '@/types/task';
 
 /**
@@ -164,7 +165,7 @@ export async function updateRecurringTask(taskId: string, taskData: Partial<Recu
     // For this example, simulate API call with local data update
     
     // Get all tasks
-    const allTasks = await getRecurringTasks(false);
+    const allTasks = await getRecurringTasks(true);
     const taskIndex = allTasks.findIndex(task => task.id === taskId);
     
     if (taskIndex === -1) {
@@ -236,6 +237,15 @@ export async function getTaskInstances(): Promise<TaskInstance[]> {
 }
 
 /**
+ * Fetches all unscheduled task instances from local storage.
+ * @returns Promise resolving to an array of unscheduled task instances.
+ */
+export async function getUnscheduledTaskInstances(): Promise<TaskInstance[]> {
+  const tasks = await getTaskInstances();
+  return tasks.filter(task => task.status === 'Unscheduled');
+}
+
+/**
  * Fetches a single task instance by its ID.
  * @param id The ID of the task instance to retrieve.
  * @returns Promise resolving to the task instance or null if not found.
@@ -300,4 +310,15 @@ export async function deleteTaskInstance(id: string): Promise<boolean> {
   tasks.splice(taskIndex, 1);
   localStorage.setItem('taskInstances', JSON.stringify(tasks));
   return true;
+}
+
+/**
+ * Generates task instances from recurring tasks based on their recurrence pattern.
+ * @returns Promise resolving to number of tasks generated
+ */
+export async function generateTaskInstances(): Promise<number> {
+  // This is a placeholder implementation
+  // In a real app, this would analyze recurring tasks and generate instances
+  // based on their recurrence patterns
+  return 0;
 }

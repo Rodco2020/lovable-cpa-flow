@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getUnscheduledTaskInstances } from '@/services/taskService';
+import { getTaskInstances } from '@/services/taskService';
 import { TaskInstance } from '@/types/task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,7 +21,8 @@ const UnscheduledTaskList: React.FC = () => {
     setError(null);
     
     try {
-      const unscheduledTasks = await getUnscheduledTaskInstances();
+      const allTasks = await getTaskInstances();
+      const unscheduledTasks = allTasks.filter(task => task.status === 'Unscheduled');
       setTasks(unscheduledTasks);
       // Show success toast only if refreshing, not on initial load
       if (!loading) {

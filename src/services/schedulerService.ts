@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { 
   updateTaskInstance, 
-  getUnscheduledTaskInstances 
+  getTaskInstances 
 } from "@/services/taskService";
 import { 
   getTimeSlotsByStaffAndDate,
@@ -61,6 +61,22 @@ export const scheduleTask = async (
 };
 
 /**
+ * Get all unscheduled tasks
+ */
+export const getUnscheduledTasks = async (): Promise<TaskInstance[]> => {
+  try {
+    // Get all task instances
+    const allTasks = await getTaskInstances();
+    
+    // Filter to only unscheduled tasks
+    return allTasks.filter(task => task.status === 'Unscheduled');
+  } catch (error) {
+    console.error("Error fetching unscheduled tasks:", error);
+    throw error;
+  }
+};
+
+/**
  * Find suitable staff members for a task based on required skills
  */
 export const findSuitableStaffForTask = async (
@@ -74,5 +90,6 @@ export const findSuitableStaffForTask = async (
 
 export default {
   scheduleTask,
-  findSuitableStaffForTask
+  findSuitableStaffForTask,
+  getUnscheduledTasks
 };

@@ -144,7 +144,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
           priority: taskForm.priority,
           category: taskForm.category,
           dueDate: new Date(taskForm.dueDate),
-          recurrencePattern
+          recurrencePattern,
+          status: 'Unscheduled' // Add the status field
         });
       } else {
         // Create ad-hoc task
