@@ -14,12 +14,18 @@ export interface StaffMember {
   updatedAt: Date;
 }
 
+// Alias for StaffMember for backward compatibility
+export type Staff = StaffMember;
+
+export type StaffStatus = 'Active' | 'Inactive' | 'On Leave';
+
 export interface TimeSlot {
   id: string;
   staffId: string;
   startTime: Date;
   endTime: Date;
   isAvailable: boolean;
+  taskId?: string; // Add taskId property for DailyPlanner component
 }
 
 export interface StaffAvailabilitySlot {
@@ -28,6 +34,8 @@ export interface StaffAvailabilitySlot {
   dayOfWeek: number; // 0-6, where 0 is Sunday
   timeSlot: string;
   isAvailable: boolean;
+  startTime?: string; // Add properties needed in WeeklyAvailabilityMatrix
+  endTime?: string;
 }
 
 export interface DailyAvailability {
@@ -41,6 +49,17 @@ export interface WeeklyAvailability {
   endDate: Date;
   days: DailyAvailability[];
   totalHours: number;
+  dayOfWeek?: number; // Add properties needed in WeeklyAvailabilityMatrix
+  isAvailable?: boolean;
+  startTime?: string;
+  endTime?: string;
+  staffId?: string;
 }
 
 export type StaffAvailability = WeeklyAvailability[];
+
+export interface AvailabilitySummary {
+  totalWeeklyHours: number;
+  dailyBreakdown: { [day: string]: number };
+  utilizationPercentage: number;
+}

@@ -11,17 +11,17 @@ export interface ForecastTimeframe {
 }
 
 export interface ForecastData {
-  horizon: ForecastHorizon;
-  mode: ForecastMode;
-  timeframe: ForecastTimeframe;
+  horizon?: ForecastHorizon;
+  mode?: ForecastMode;
+  timeframe?: ForecastTimeframe;
   demand: ForecastDemand;
   capacity: ForecastCapacity;
-  gap: ForecastGap;
-  financials: FinancialProjection;
-  timestamp: Date;
+  gap?: ForecastGap;
+  financials?: FinancialProjection;
+  timestamp?: Date;
   
   // Additional properties for UI components
-  period: string;
+  period?: string;
   data?: any[];
   timeSeriesData?: any[];
   skillDistribution?: any[];
@@ -32,6 +32,7 @@ export interface ForecastData {
   projectedRevenue?: number;
   projectedCost?: number;
   projectedProfit?: number;
+  financialProjections?: any[];
   summary?: {
     totalDemand: number;
     totalCapacity: number;
@@ -48,6 +49,7 @@ export interface SkillBreakdown {
   taskCount: number;
   percentage: number;
   tasks: any[];
+  find?: (predicate: (value: any) => boolean) => any;
 }
 
 export interface SkillDemandData {
@@ -63,6 +65,7 @@ export interface ForecastDemand {
   skillBreakdowns: Record<string, SkillBreakdown>;
   timeBreakdown: SkillDemandData[];
   forEach?: (callback: (item: any) => void) => void;
+  find?: (predicate: (value: any) => boolean) => any;
 }
 
 export interface ForecastCapacity {
@@ -71,6 +74,7 @@ export interface ForecastCapacity {
   skillBreakdowns: Record<string, SkillBreakdown>;
   timeBreakdown: SkillDemandData[];
   forEach?: (callback: (item: any) => void) => void;
+  find?: (predicate: (value: any) => boolean) => any;
 }
 
 export interface GapAnalysis {
@@ -91,13 +95,13 @@ export interface ForecastGap {
 }
 
 export interface FinancialProjection {
-  monthlyRecurringRevenue: number;
+  monthlyRecurringRevenue?: number;
   projectedRevenue: number;
   projectedCost: number;
   projectedProfit: number;
   profitMargin: number;
-  revenueAtRisk: number;
-  skillBreakdown: Record<string, any>;
+  revenueAtRisk?: number;
+  skillBreakdown?: Record<string, any>;
   
   // Additional properties for UI components
   period?: string;
