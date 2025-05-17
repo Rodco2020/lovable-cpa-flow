@@ -1,378 +1,364 @@
+
 import { v4 as uuidv4 } from 'uuid';
-import { StaffMember, StaffAvailability, AvailabilitySummary, WeeklyAvailability, DailyAvailability, TimeSlot } from '@/types/staff';
+import { StaffMember, StaffAvailability, AvailabilitySummary, TimeSlot, DailyAvailability, WeeklyAvailability, StaffAvailabilitySlot } from '@/types/staff';
 import { SkillType } from '@/types/task';
-import { supabase } from '@/lib/supabaseClient';
-import { addDays, format, addMinutes } from 'date-fns';
 
 // Get all staff members
-export const getAllStaffMembers = async (): Promise<StaffMember[]> => {
+export async function getAllStaffMembers(): Promise<StaffMember[]> {
   try {
-    const { data, error } = await supabase
-      .from('staff')
-      .select('*')
-      .eq('status', 'Active')
-      .order('full_name');
-      
-    if (error) throw error;
-    
-    return data.map(staff => ({
-      id: staff.id,
-      fullName: staff.full_name,
-      roleTitle: staff.role_title,
-      email: staff.email,
-      phone: staff.phone,
-      skills: staff.assigned_skills,
-      costPerHour: staff.cost_per_hour,
-      status: staff.status,
-      createdAt: new Date(staff.created_at),
-      updatedAt: new Date(staff.updated_at)
-    }));
+    // Mock data for staff members
+    return getMockStaff();
   } catch (error) {
-    console.error('Error fetching staff members:', error);
+    console.error('Error fetching staff:', error);
     return [];
   }
-};
+}
+
+// Alias for getAllStaffMembers for backward compatibility
+export const getAllStaff = getAllStaffMembers;
 
 // Get staff member by ID
-export const getStaffMember = async (id: string): Promise<StaffMember | null> => {
+export async function getStaffById(id: string): Promise<StaffMember | null> {
   try {
-    const { data, error } = await supabase
-      .from('staff')
-      .select('*')
-      .eq('id', id)
-      .single();
-      
-    if (error) throw error;
-    if (!data) return null;
-    
-    return {
-      id: data.id,
-      fullName: data.full_name,
-      roleTitle: data.role_title,
-      email: data.email,
-      phone: data.phone,
-      skills: data.assigned_skills,
-      costPerHour: data.cost_per_hour,
-      status: data.status,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
-    };
+    const allStaff = await getAllStaffMembers();
+    const staff = allStaff.find(s => s.id === id);
+    return staff || null;
   } catch (error) {
     console.error('Error fetching staff member:', error);
     return null;
   }
-};
+}
 
-// Create staff member
-export const createStaffMember = async (staff: Omit<StaffMember, "id" | "createdAt" | "updatedAt">): Promise<StaffMember | null> => {
+// Create new staff member
+export async function createStaff(staffData: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<StaffMember | null> {
   try {
-    const { data, error } = await supabase
-      .from('staff')
-      .insert([
-        {
-          full_name: staff.fullName,
-          role_title: staff.roleTitle,
-          email: staff.email,
-          phone: staff.phone,
-          assigned_skills: staff.skills,
-          cost_per_hour: staff.costPerHour,
-          status: staff.status
-        }
-      ])
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return {
-      id: data.id,
-      fullName: data.full_name,
-      roleTitle: data.role_title,
-      email: data.email,
-      phone: data.phone,
-      skills: data.assigned_skills,
-      costPerHour: data.cost_per_hour,
-      status: data.status,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
+    // Convert status if lowercase
+    const statusMap: Record<string, StaffMember['status']> = {
+      'active': 'Active',
+      'inactive': 'Inactive',
+      'on leave': 'On Leave'
     };
+    
+    const status = typeof staffData.status === 'string' && 
+      statusMap[staffData.status.toLowerCase()] ? 
+      statusMap[staffData.status.toLowerCase()] : 
+      staffData.status;
+    
+    const skills = Array.isArray(staffData.skills) ? 
+      staffData.skills.map(skill => typeof skill === 'string' ? skill : String(skill)) as SkillType[] :
+      [];
+    
+    const newStaff: StaffMember = {
+      id: uuidv4(),
+      fullName: staffData.fullName,
+      roleTitle: staffData.roleTitle || '',
+      email: staffData.email,
+      phone: staffData.phone || '',
+      skills: skills,
+      costPerHour: staffData.costPerHour,
+      status: status,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // In a real app, this would save to the database
+    console.log('Created new staff member:', newStaff);
+    return newStaff;
   } catch (error) {
     console.error('Error creating staff member:', error);
     return null;
   }
-};
+}
 
 // Update staff member
-export const updateStaffMember = async (id: string, updates: Partial<Omit<StaffMember, "id" | "createdAt" | "updatedAt">>): Promise<StaffMember | null> => {
+export async function updateStaff(id: string, updates: Partial<Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>>): Promise<StaffMember | null> {
   try {
-    const updateData: Record<string, any> = {};
+    const staff = await getStaffById(id);
+    if (!staff) return null;
     
-    if (updates.fullName !== undefined) updateData.full_name = updates.fullName;
-    if (updates.roleTitle !== undefined) updateData.role_title = updates.roleTitle;
-    if (updates.email !== undefined) updateData.email = updates.email;
-    if (updates.phone !== undefined) updateData.phone = updates.phone;
-    if (updates.skills !== undefined) updateData.assigned_skills = updates.skills;
-    if (updates.costPerHour !== undefined) updateData.cost_per_hour = updates.costPerHour;
-    if (updates.status !== undefined) updateData.status = updates.status;
-    
-    const { data, error } = await supabase
-      .from('staff')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return {
-      id: data.id,
-      fullName: data.full_name,
-      roleTitle: data.role_title,
-      email: data.email,
-      phone: data.phone,
-      skills: data.assigned_skills,
-      costPerHour: data.cost_per_hour,
-      status: data.status,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
+    // Convert status if lowercase
+    const statusMap: Record<string, StaffMember['status']> = {
+      'active': 'Active',
+      'inactive': 'Inactive',
+      'on leave': 'On Leave'
     };
+    
+    const status = typeof updates.status === 'string' && 
+      statusMap[updates.status.toLowerCase()] ? 
+      statusMap[updates.status.toLowerCase()] : 
+      updates.status;
+    
+    const skills = updates.skills && Array.isArray(updates.skills) ? 
+      updates.skills.map(skill => typeof skill === 'string' ? skill : String(skill)) as SkillType[] :
+      staff.skills;
+    
+    const updatedStaff: StaffMember = {
+      ...staff,
+      fullName: updates.fullName ?? staff.fullName,
+      roleTitle: updates.roleTitle ?? staff.roleTitle,
+      email: updates.email ?? staff.email,
+      phone: updates.phone ?? staff.phone,
+      skills: skills,
+      costPerHour: updates.costPerHour ?? staff.costPerHour,
+      status: status ?? staff.status,
+      updatedAt: new Date()
+    };
+    
+    // In a real app, this would update the database
+    console.log('Updated staff member:', updatedStaff);
+    return updatedStaff;
   } catch (error) {
     console.error('Error updating staff member:', error);
     return null;
   }
-};
+}
 
-// Delete staff member
-export const deleteStaffMember = async (id: string): Promise<boolean> => {
+// Get time slots for a specific staff member and date
+export async function getTimeSlotsByStaffAndDate(
+  staffId: string,
+  date: Date
+): Promise<TimeSlot[]> {
   try {
-    const { error } = await supabase
-      .from('staff')
-      .update({ status: 'Inactive' })
-      .eq('id', id);
-      
-    if (error) throw error;
+    // Mock time slots data
+    const slots: TimeSlot[] = [];
+    const startOfDay = new Date(date);
+    startOfDay.setHours(9, 0, 0, 0); // Start at 9 AM
     
-    return true;
+    const endOfDay = new Date(date);
+    endOfDay.setHours(17, 0, 0, 0); // End at 5 PM
+    
+    let currentSlot = new Date(startOfDay);
+    
+    while (currentSlot < endOfDay) {
+      const slotEnd = new Date(currentSlot);
+      slotEnd.setMinutes(currentSlot.getMinutes() + 30); // 30-minute slots
+      
+      const isAvailable = Math.random() > 0.3; // 70% chance of availability
+      
+      slots.push({
+        id: uuidv4(),
+        staffId,
+        startTime: new Date(currentSlot),
+        endTime: new Date(slotEnd),
+        isAvailable,
+        taskId: isAvailable ? undefined : (Math.random() > 0.5 ? uuidv4() : undefined)
+      });
+      
+      currentSlot = slotEnd;
+    }
+    
+    return slots;
   } catch (error) {
-    console.error('Error deleting staff member:', error);
-    return false;
+    console.error('Error fetching time slots:', error);
+    return [];
   }
-};
+}
 
-// Get staff availability
-export const getStaffAvailability = async (staffId: string): Promise<WeeklyAvailability[]> => {
+// Get time slots for a specific date (all staff)
+export async function getTimeSlotsByDate(date: Date): Promise<Record<string, TimeSlot[]>> {
   try {
-    // Convert StaffAvailabilitySlot[] to WeeklyAvailability[]
-    const now = new Date();
-    const startDate = now;
-    const endDate = addDays(now, 7);
+    const staff = await getAllStaffMembers();
+    const staffTimeSlots: Record<string, TimeSlot[]> = {};
     
-    // Create daily slots from 9am to 5pm
-    const createDailySlots = (date: Date): TimeSlot[] => {
-      const slots: TimeSlot[] = [];
-      const dayStart = new Date(date);
-      dayStart.setHours(9, 0, 0, 0);
-      
-      for (let i = 0; i < 16; i++) { // 30-minute slots for 8 hours
-        const slotStart = addMinutes(dayStart, i * 30);
-        const slotEnd = addMinutes(slotStart, 30);
-        
-        slots.push({
+    for (const s of staff) {
+      staffTimeSlots[s.id] = await getTimeSlotsByStaffAndDate(s.id, date);
+    }
+    
+    return staffTimeSlots;
+  } catch (error) {
+    console.error('Error fetching time slots by date:', error);
+    return {};
+  }
+}
+
+// Get weekly availability for a specific staff member
+export async function getWeeklyAvailabilityByStaff(staffId: string): Promise<StaffAvailabilitySlot[]> {
+  try {
+    // Mock weekly availability data
+    const days = [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
+    const availability: StaffAvailabilitySlot[] = [];
+    
+    days.forEach(day => {
+      // Morning slots (9 AM - 12 PM)
+      for (let hour = 9; hour < 12; hour++) {
+        availability.push({
           id: uuidv4(),
-          staffId,
-          startTime: slotStart,
-          endTime: slotEnd,
-          isAvailable: Math.random() > 0.2 // 80% chance of being available
+          staffId: staffId,
+          dayOfWeek: day,
+          timeSlot: `${hour}:00-${hour}:30`,
+          isAvailable: day !== 0 && day !== 6, // Unavailable on weekends
+          startTime: `${hour}:00`,
+          endTime: `${hour}:30`
+        });
+        
+        availability.push({
+          id: uuidv4(),
+          staffId: staffId,
+          dayOfWeek: day,
+          timeSlot: `${hour}:30-${hour+1}:00`,
+          isAvailable: day !== 0 && day !== 6, // Unavailable on weekends
+          startTime: `${hour}:30`,
+          endTime: `${hour+1}:00`
         });
       }
       
-      return slots;
-    };
+      // Afternoon slots (1 PM - 5 PM)
+      for (let hour = 13; hour < 17; hour++) {
+        availability.push({
+          id: uuidv4(),
+          staffId: staffId,
+          dayOfWeek: day,
+          timeSlot: `${hour}:00-${hour}:30`,
+          isAvailable: day !== 0 && day !== 6, // Unavailable on weekends
+          startTime: `${hour}:00`,
+          endTime: `${hour}:30`
+        });
+        
+        availability.push({
+          id: uuidv4(),
+          staffId: staffId,
+          dayOfWeek: day,
+          timeSlot: `${hour}:30-${hour+1}:00`,
+          isAvailable: day !== 0 && day !== 6, // Unavailable on weekends
+          startTime: `${hour}:30`,
+          endTime: `${hour+1}:00`
+        });
+      }
+    });
     
-    // Create daily availability for each day
-    const dailyAvailabilities: DailyAvailability[] = [];
-    let currentDate = new Date(startDate);
-    
-    while (currentDate <= endDate) {
-      const slots = createDailySlots(currentDate);
-      dailyAvailabilities.push({
-        date: new Date(currentDate),
-        slots,
-        totalHours: slots.filter(s => s.isAvailable).length * 0.5 // 30 minutes = 0.5 hours
-      });
-      
-      currentDate = addDays(currentDate, 1);
-    }
-    
-    // Create weekly availability
-    return [{
-      startDate,
-      endDate,
-      days: dailyAvailabilities,
-      totalHours: dailyAvailabilities.reduce((sum, day) => sum + day.totalHours, 0)
-    }];
+    return availability;
   } catch (error) {
-    console.error('Error fetching staff availability:', error);
+    console.error('Error fetching weekly availability:', error);
     return [];
   }
-};
+}
 
-// Get availability summary
-export const getAvailabilitySummary = async (staffId: string): Promise<AvailabilitySummary> => {
+// Update weekly availability in batch
+export async function batchUpdateWeeklyAvailability(
+  availabilitySlots: StaffAvailabilitySlot[]
+): Promise<boolean> {
   try {
-    const availability = await getStaffAvailability(staffId);
+    // In a real app, this would update the database
+    console.log('Updating availability slots:', availabilitySlots);
+    return true;
+  } catch (error) {
+    console.error('Error updating availability slots:', error);
+    return false;
+  }
+}
+
+// Calculate availability summary for a staff member
+export async function getAvailabilitySummary(staffId: string): Promise<AvailabilitySummary> {
+  try {
+    const availability = await getWeeklyAvailabilityByStaff(staffId);
     
-    // Calculate total weekly hours
-    const totalWeeklyHours = availability[0].totalHours;
+    // Group by day of week
+    const dayGroups: Record<number, StaffAvailabilitySlot[]> = {};
+    for (const slot of availability) {
+      if (!dayGroups[slot.dayOfWeek]) {
+        dayGroups[slot.dayOfWeek] = [];
+      }
+      dayGroups[slot.dayOfWeek].push(slot);
+    }
     
-    // Create daily breakdown
-    const dailyBreakdown: { [day: string]: number } = {};
+    // Calculate hours by day
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dailyBreakdown: Record<string, number> = {};
+    let totalWeeklyHours = 0;
     
-    availability[0].days.forEach(day => {
-      const dayName = dayNames[day.date.getDay()];
-      dailyBreakdown[dayName] = day.totalHours;
-    });
+    for (let i = 0; i < 7; i++) {
+      const daySlots = dayGroups[i] || [];
+      const availableSlots = daySlots.filter(slot => slot.isAvailable);
+      const dayHours = availableSlots.length * 0.5; // Each slot is 30 minutes
+      
+      dailyBreakdown[dayNames[i]] = dayHours;
+      totalWeeklyHours += dayHours;
+    }
+    
+    // Calculate utilization (assuming 40-hour work week is 100%)
+    const utilizationPercentage = (totalWeeklyHours / 40) * 100;
     
     return {
       totalWeeklyHours,
       dailyBreakdown,
-      utilizationPercentage: (totalWeeklyHours / 40) * 100 // 40 hours per week is full utilization
+      utilizationPercentage,
+      dailySummaries: dailyBreakdown
     };
   } catch (error) {
     console.error('Error calculating availability summary:', error);
     return {
       totalWeeklyHours: 0,
       dailyBreakdown: {},
-      utilizationPercentage: 0
+      utilizationPercentage: 0,
+      dailySummaries: {}
     };
   }
-};
+}
 
-// Save staff availability matrix
-export const saveStaffAvailabilityMatrix = async (
-  staffId: string,
-  availabilityData: {
-    dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6;
-    startTime: string;
-    endTime: string;
-    isAvailable: boolean;
-  }[]
-): Promise<boolean> => {
-  try {
-    // Convert to correct format for database
-    const availabilityRecords = availabilityData.map(slot => ({
-      staff_id: staffId,
-      day_of_week: slot.dayOfWeek,
-      time_slot: `${slot.startTime}-${slot.endTime}`,
-      is_available: slot.isAvailable
-    }));
-    
-    // Delete existing records
-    await supabase
-      .from('staff_availability')
-      .delete()
-      .eq('staff_id', staffId);
-    
-    // Insert new records
-    const { error } = await supabase
-      .from('staff_availability')
-      .insert(availabilityRecords);
-      
-    if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error('Error saving staff availability matrix:', error);
-    return false;
-  }
-};
+// Alias for getAvailabilitySummary for backward compatibility
+export const calculateAvailabilitySummary = getAvailabilitySummary;
 
-// Get all available staff for skills
-export const getAvailableStaffForSkills = async (
-  skills: SkillType[],
-  startTime: Date,
-  endTime: Date
-): Promise<StaffMember[]> => {
-  try {
-    // This would query for staff with matching skills and check availability
-    // For now, return mock data
-    
-    // Get all staff with the required skills
-    const allStaff = await getAllStaffMembers();
-    const matchingStaff = allStaff.filter(staff => 
-      staff.skills.some(skill => skills.includes(skill))
-    );
-    
-    // Filter to those available at the required time
-    // For this mock, just return a random subset
-    return matchingStaff.filter(() => Math.random() > 0.3);
-  } catch (error) {
-    console.error('Error finding available staff:', error);
-    return [];
-  }
-};
-
-// Mock data
-export const mockStaffList: StaffMember[] = [
-  {
-    id: '1',
-    fullName: 'John Smith',
-    roleTitle: 'Senior Tax Accountant',
-    email: 'john.smith@example.com',
-    phone: '555-123-4567',
-    skills: ['Tax', 'Advisory'],
-    costPerHour: 85,
-    status: 'Active',
-    createdAt: new Date('2023-01-15'),
-    updatedAt: new Date('2023-05-22')
-  },
-  {
-    id: '2',
-    fullName: 'Alice Johnson',
-    roleTitle: 'Audit Manager',
-    email: 'alice.johnson@example.com',
-    phone: '555-987-6543',
-    skills: ['Audit'],
-    costPerHour: 95,
-    status: 'Active',
-    createdAt: new Date('2022-11-01'),
-    updatedAt: new Date('2023-06-10')
-  },
-  {
-    id: '3',
-    fullName: 'Bob Williams',
-    roleTitle: 'Bookkeeping Specialist',
-    email: 'bob.williams@example.com',
-    phone: '555-246-8012',
-    skills: ['Bookkeeping'],
-    costPerHour: 65,
-    status: 'Active',
-    createdAt: new Date('2023-03-01'),
-    updatedAt: new Date('2023-07-01')
-  },
-  {
-    id: '4',
-    fullName: 'Emily Davis',
-    roleTitle: 'Tax Associate',
-    email: 'emily.davis@example.com',
-    phone: '555-789-3456',
-    skills: ['Tax'],
-    costPerHour: 75,
-    status: 'Active',
-    createdAt: new Date('2023-04-10'),
-    updatedAt: new Date('2023-08-15')
-  },
-  {
-    id: '5',
-    fullName: 'Charlie Brown',
-    roleTitle: 'Financial Advisor',
-    email: 'charlie.brown@example.com',
-    phone: '555-456-7890',
-    skills: ['Advisory'],
-    costPerHour: 110,
-    status: 'Active',
-    createdAt: new Date('2022-09-20'),
-    updatedAt: new Date('2023-09-01')
-  }
-];
+function getMockStaff(): StaffMember[] {
+  return [
+    {
+      id: '1',
+      fullName: 'John Smith',
+      roleTitle: 'Senior Accountant',
+      email: 'john.smith@example.com',
+      phone: '555-123-4567',
+      skills: ['Tax', 'Advisory'],
+      costPerHour: 120,
+      status: 'Active',
+      createdAt: new Date('2023-01-15'),
+      updatedAt: new Date('2023-03-10')
+    },
+    {
+      id: '2',
+      fullName: 'Jane Doe',
+      roleTitle: 'Tax Specialist',
+      email: 'jane.doe@example.com',
+      phone: '555-987-6543',
+      skills: ['Tax', 'Compliance'],
+      costPerHour: 110,
+      status: 'Active',
+      createdAt: new Date('2023-02-10'),
+      updatedAt: new Date('2023-02-10')
+    },
+    {
+      id: '3',
+      fullName: 'Robert Johnson',
+      roleTitle: 'Bookkeeper',
+      email: 'robert.johnson@example.com',
+      phone: '555-456-7890',
+      skills: ['Bookkeeping'],
+      costPerHour: 75,
+      status: 'Active',
+      createdAt: new Date('2022-11-05'),
+      updatedAt: new Date('2023-01-20')
+    },
+    {
+      id: '4',
+      fullName: 'Sarah Williams',
+      roleTitle: 'Audit Manager',
+      email: 'sarah.williams@example.com',
+      phone: '555-234-5678',
+      skills: ['Audit', 'Compliance'],
+      costPerHour: 130,
+      status: 'Active',
+      createdAt: new Date('2022-10-12'),
+      updatedAt: new Date('2023-03-05')
+    },
+    {
+      id: '5',
+      fullName: 'Michael Brown',
+      roleTitle: 'Junior Accountant',
+      email: 'michael.brown@example.com',
+      phone: '555-876-5432',
+      skills: ['Bookkeeping', 'Tax'],
+      costPerHour: 65,
+      status: 'On Leave',
+      createdAt: new Date('2023-03-01'),
+      updatedAt: new Date('2023-04-10')
+    }
+  ];
+}

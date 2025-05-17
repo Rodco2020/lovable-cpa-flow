@@ -110,3 +110,7 @@ export async function getStaffSchedule(
     return [];
   }
 }
+
+// Added missing functions used by components
+export const getUnscheduledTaskInstances = getUnscheduledTasks;
+

@@ -25,7 +25,7 @@ export interface TimeSlot {
   startTime: Date;
   endTime: Date;
   isAvailable: boolean;
-  taskId?: string; // Add taskId property for DailyPlanner component
+  taskId?: string; // Added taskId property for DailyPlanner component
 }
 
 export interface StaffAvailabilitySlot {
@@ -34,7 +34,7 @@ export interface StaffAvailabilitySlot {
   dayOfWeek: number; // 0-6, where 0 is Sunday
   timeSlot: string;
   isAvailable: boolean;
-  startTime?: string; // Add properties needed in WeeklyAvailabilityMatrix
+  startTime?: string; // Added properties needed in WeeklyAvailabilityMatrix
   endTime?: string;
 }
 
@@ -49,7 +49,7 @@ export interface WeeklyAvailability {
   endDate: Date;
   days: DailyAvailability[];
   totalHours: number;
-  dayOfWeek?: number; // Add properties needed in WeeklyAvailabilityMatrix
+  dayOfWeek?: number; // Added properties needed in WeeklyAvailabilityMatrix
   isAvailable?: boolean;
   startTime?: string;
   endTime?: string;
@@ -62,4 +62,5 @@ export interface AvailabilitySummary {
   totalWeeklyHours: number;
   dailyBreakdown: { [day: string]: number };
   utilizationPercentage: number;
+  dailySummaries?: { [day: string]: number }; // Added for AvailabilitySummaryPanel
 }

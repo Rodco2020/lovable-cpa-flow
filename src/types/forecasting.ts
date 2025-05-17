@@ -32,7 +32,7 @@ export interface ForecastData {
   projectedRevenue?: number;
   projectedCost?: number;
   projectedProfit?: number;
-  financialProjections?: any[];
+  financialProjections?: FinancialProjection[];
   summary?: {
     totalDemand: number;
     totalCapacity: number;
@@ -49,7 +49,6 @@ export interface SkillBreakdown {
   taskCount: number;
   percentage: number;
   tasks: any[];
-  find?: (predicate: (value: any) => boolean) => any;
 }
 
 export interface SkillDemandData {
