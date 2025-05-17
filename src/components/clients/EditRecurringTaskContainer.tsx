@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { EditRecurringTaskDialog } from './EditRecurringTaskDialog';
 import { RecurringTask } from '@/types/task';
