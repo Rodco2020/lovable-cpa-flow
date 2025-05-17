@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -43,15 +42,18 @@ interface EditRecurringTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   task: RecurringTask | null;
   onSave: (updatedTask: Partial<RecurringTask>) => Promise<void>;
+  isLoading?: boolean; // New prop to indicate if data is still loading
 }
 
 export function EditRecurringTaskDialog({ 
   open, 
   onOpenChange, 
   task, 
-  onSave 
+  onSave,
+  isLoading = false
 }: EditRecurringTaskDialogProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Initialize form with task data when available
   const form = useForm<EditTaskFormValues>({
@@ -105,6 +107,8 @@ export function EditRecurringTaskDialog({
         endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
         customOffsetDays: task.recurrencePattern.customOffsetDays
       });
+      // Clear any previous form errors when task changes
+      setFormError(null);
     }
   }, [task, form]);
 
@@ -113,9 +117,14 @@ export function EditRecurringTaskDialog({
   
   // Handle form submission
   const onSubmit = async (data: EditTaskFormValues) => {
-    if (!task) return;
+    if (!task) {
+      setFormError("No task data available to update");
+      return;
+    }
     
     setIsSaving(true);
+    setFormError(null);
+    
     try {
       // Build recurrence pattern from form data
       const recurrencePattern = {
@@ -146,6 +155,7 @@ export function EditRecurringTaskDialog({
       toast.success("Task updated successfully");
     } catch (error) {
       console.error("Error saving task:", error);
+      setFormError(error instanceof Error ? error.message : "Failed to update task");
       toast.error("Failed to update task");
     } finally {
       setIsSaving(false);
@@ -159,7 +169,20 @@ export function EditRecurringTaskDialog({
           <DialogTitle>Edit Recurring Task</DialogTitle>
         </DialogHeader>
         
-        {task && (
+        {isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-2">Loading task data...</span>
+          </div>
+        )}
+        
+        {formError && !isLoading && (
+          <div className="bg-destructive/15 text-destructive px-4 py-2 rounded-md mb-4">
+            {formError}
+          </div>
+        )}
+        
+        {task && !isLoading && (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Task Name */}
