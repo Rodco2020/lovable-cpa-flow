@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -86,8 +86,8 @@ export function EditRecurringTaskDialog({
     }
   });
 
-  // Reset form when task changes
-  useState(() => {
+  // Reset form when task changes - replacing the useState call that was incorrect
+  useEffect(() => {
     if (task) {
       form.reset({
         name: task.name,
