@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -11,11 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar } from 'lucide-react';
+import { Calendar, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Form schema for validation
 const EditTaskSchema = z.object({
@@ -131,7 +133,7 @@ export function EditRecurringTaskDialog({
         type: data.recurrenceType!,
         interval: data.interval,
         weekdays: data.recurrenceType === 'Weekly' ? data.weekdays : undefined,
-        dayOfMonth: ['Monthly', 'Annually'].includes(data.recurrenceType!) ? data.dayOfMonth : undefined,
+        dayOfMonth: ['Monthly', 'Quarterly', 'Annually'].includes(data.recurrenceType!) ? data.dayOfMonth : undefined,
         monthOfYear: data.recurrenceType === 'Annually' ? data.monthOfYear : undefined,
         endDate: data.endDate || undefined,
         customOffsetDays: data.recurrenceType === 'Custom' ? data.customOffsetDays : undefined
@@ -177,9 +179,10 @@ export function EditRecurringTaskDialog({
         )}
         
         {formError && !isLoading && (
-          <div className="bg-destructive/15 text-destructive px-4 py-2 rounded-md mb-4">
-            {formError}
-          </div>
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
         )}
         
         {task && !isLoading && (
@@ -559,7 +562,12 @@ export function EditRecurringTaskDialog({
 
               {/* Form Actions */}
               <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+                <Button 
+                  variant="outline" 
+                  type="button" 
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSaving}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSaving}>
