@@ -55,7 +55,7 @@ const ForecastSummary: React.FC<ForecastSummaryProps> = ({
             </div>
           </div>
           <div className="mt-2 text-sm text-gray-500">
-            <div>Demand: {typeof totalDemand === 'number' ? formatHours(totalDemand) : totalDemand} hrs</div>
+            <div>Demand: {typeof totalDemand === 'number' ? `${formatHours(totalDemand)} hrs` : totalDemand}</div>
             <div>Capacity: {formatHours(totalCapacity)} hrs</div>
           </div>
         </CardContent>

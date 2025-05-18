@@ -93,7 +93,7 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
       periodRange,
       parameters.mode,
       parameters.includeSkills,
-      parameters.skillAllocationStrategy || 'duplicate' // Default to existing behavior
+      parameters.skillAllocationStrategy || getSkillAllocationStrategy()
     );
     
     // Fetch capacity hours by skill for this period
@@ -101,7 +101,7 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
       periodRange,
       parameters.mode,
       parameters.includeSkills,
-      parameters.skillAllocationStrategy || 'distribute' // Default to distribute for capacity
+      parameters.skillAllocationStrategy || getSkillAllocationStrategy()
     );
     
     debugLog(`Period ${period} calculation complete`, { demand, capacity });
@@ -348,7 +348,7 @@ const calculateCapacity = async (
   dateRange: DateRange,
   mode: ForecastMode,
   includeSkills: SkillType[] | "all",
-  skillAllocationStrategy: SkillAllocationStrategy = 'distribute' // Default to distribute for capacity
+  skillAllocationStrategy: SkillAllocationStrategy = 'distribute'
 ): Promise<SkillHours[]> => {
   // Get all staff members
   const allStaff = await getAllStaff();
@@ -877,6 +877,8 @@ export const isForecastDebugModeEnabled = (): boolean => {
 export const setSkillAllocationStrategy = (strategy: SkillAllocationStrategy): void => {
   localStorage.setItem('forecast_skill_allocation_strategy', strategy);
   debugLog(`Skill allocation strategy set to: ${strategy}`);
+  // Clear the cache when the strategy changes to force recalculation
+  clearForecastCache();
 };
 
 /**

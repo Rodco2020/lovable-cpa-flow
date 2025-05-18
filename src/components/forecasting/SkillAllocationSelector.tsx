@@ -28,7 +28,12 @@ const SkillAllocationSelector: React.FC = () => {
               <Badge variant="outline" className="ml-2 text-xs">Default</Badge>
             </div>
           </SelectItem>
-          <SelectItem value="duplicate">Duplicate</SelectItem>
+          <SelectItem value="duplicate">
+            <div className="flex items-center">
+              <span>Duplicate</span>
+              <Badge variant="secondary" className="ml-2 text-xs">Inflated</Badge>
+            </div>
+          </SelectItem>
         </SelectContent>
       </Select>
       
@@ -40,8 +45,8 @@ const SkillAllocationSelector: React.FC = () => {
           <TooltipContent className="max-w-[300px]">
             <p className="font-medium">Skill Allocation Strategy:</p>
             <ul className="list-disc pl-4 mt-1 text-sm">
-              <li><b>Distribute:</b> Divide hours equally among required skills (more accurate for capacity planning)</li>
-              <li><b>Duplicate:</b> Count full hours for each required skill (useful for skill-specific analysis)</li>
+              <li><b>Distribute:</b> Divide hours equally among required skills (accurate capacity planning)</li>
+              <li><b>Duplicate:</b> Count full hours for each required skill (shows inflated totals)</li>
             </ul>
           </TooltipContent>
         </Tooltip>
