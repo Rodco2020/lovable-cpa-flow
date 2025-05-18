@@ -1,12 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { getAllStaff } from "@/services/staffService";
-import { Staff } from "@/types/staff";
+import { getAllStaff, calculateAvailabilitySummary } from "@/services/staffService";
+import { Staff, AvailabilitySummary } from "@/types/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, UserCog } from "lucide-react";
+import { PlusCircle, Search, UserCog, Calendar } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -19,11 +19,49 @@ import { CustomBadge } from "@/components/ui/custom-badge";
 
 const StaffList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [staffAvailability, setStaffAvailability] = useState<Record<string, AvailabilitySummary>>({});
   
   const { data: staffList, isLoading, error } = useQuery({
     queryKey: ["staff"],
     queryFn: getAllStaff,
   });
+
+  // Fetch availability summaries for each staff member
+  useEffect(() => {
+    const fetchAvailabilitySummaries = async () => {
+      if (!staffList || staffList.length === 0) return;
+      
+      const availabilitySummaries: Record<string, AvailabilitySummary> = {};
+      
+      // Process staff in batches to avoid overwhelming the system
+      const batchSize = 5;
+      for (let i = 0; i < staffList.length; i += batchSize) {
+        const batch = staffList.slice(i, i + batchSize);
+        const summariesPromises = batch.map(staff => 
+          calculateAvailabilitySummary(staff.id)
+            .then(summary => ({ staffId: staff.id, summary }))
+            .catch(err => {
+              console.error(`Failed to fetch availability for staff ${staff.id}:`, err);
+              return { staffId: staff.id, summary: null };
+            })
+        );
+        
+        const results = await Promise.all(summariesPromises);
+        
+        results.forEach(({ staffId, summary }) => {
+          if (summary) {
+            availabilitySummaries[staffId] = summary;
+          }
+        });
+      }
+      
+      setStaffAvailability(availabilitySummaries);
+    };
+    
+    if (staffList && staffList.length > 0) {
+      fetchAvailabilitySummaries();
+    }
+  }, [staffList]);
 
   const filteredStaff = staffList?.filter(
     (staff) =>
@@ -31,6 +69,11 @@ const StaffList: React.FC = () => {
       staff.roleTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       staff.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Helper function to format weekly hours
+  const formatWeeklyHours = (hours: number): string => {
+    return hours % 1 === 0 ? `${hours} hrs/week` : `${hours.toFixed(1)} hrs/week`;
+  };
 
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading staff data...</div>;
@@ -62,7 +105,7 @@ const StaffList: React.FC = () => {
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -70,6 +113,7 @@ const StaffList: React.FC = () => {
               <TableHead>Role / Title</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Cost/Hour</TableHead>
+              <TableHead>Weekly Hours</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -77,7 +121,7 @@ const StaffList: React.FC = () => {
           <TableBody>
             {filteredStaff?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No staff members found
                 </TableCell>
               </TableRow>
@@ -88,6 +132,15 @@ const StaffList: React.FC = () => {
                   <TableCell>{staff.roleTitle}</TableCell>
                   <TableCell>{staff.email}</TableCell>
                   <TableCell>${staff.costPerHour.toFixed(2)}</TableCell>
+                  <TableCell>
+                    {staffAvailability[staff.id] ? (
+                      <span className={`${staffAvailability[staff.id].weeklyTotal < 20 ? 'text-amber-600' : 'text-green-600'} font-medium`}>
+                        {formatWeeklyHours(staffAvailability[staff.id].weeklyTotal)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">Not set</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <CustomBadge variant={staff.status === "active" ? "success" : "destructive"} className="capitalize">
                       {staff.status}
@@ -102,8 +155,9 @@ const StaffList: React.FC = () => {
                         </Link>
                       </Button>
                       <Button variant="outline" size="sm" asChild>
-                        <Link to={`/staff/${staff.id}/schedule`}>
-                          Schedule
+                        <Link to={`/staff/${staff.id}/availability`}>
+                          <Calendar className="h-4 w-4 mr-1" />
+                          Availability
                         </Link>
                       </Button>
                     </div>
