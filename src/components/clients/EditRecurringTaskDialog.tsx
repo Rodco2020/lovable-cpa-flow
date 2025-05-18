@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -18,6 +19,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 
 // Form schema for validation
 const EditTaskSchema = z.object({
@@ -28,6 +30,7 @@ const EditTaskSchema = z.object({
   category: z.enum(['Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping', 'Other'] as const),
   dueDate: z.date().optional(),
   isRecurring: z.boolean(),
+  requiredSkills: z.array(z.string()).min(1, 'At least one skill is required'),
   recurrenceType: z.enum(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'Custom'] as const).optional(),
   interval: z.number().positive('Interval must be positive').min(1, 'Minimum interval is 1').optional(),
   weekdays: z.array(z.number().min(0).max(6)).optional(),
@@ -64,6 +67,13 @@ export function EditRecurringTaskDialog({
   const formTitleRef = useRef<HTMLHeadingElement>(null);
   const initialFormRef = useRef<any>(null);
   const [retryLoading, setRetryLoading] = useState(false);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  
+  // Available skills for selection
+  const availableSkills: SkillType[] = [
+    "Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory", "Bookkeeping"
+  ];
   
   // Initialize form with task data when available
   const form = useForm<EditTaskFormValues>({
@@ -76,6 +86,7 @@ export function EditRecurringTaskDialog({
       category: task.category,
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
       isRecurring: true,
+      requiredSkills: task.requiredSkills || [],
       recurrenceType: task.recurrencePattern.type,
       interval: task.recurrencePattern.interval || 1,
       weekdays: task.recurrencePattern.weekdays || [],
@@ -90,6 +101,7 @@ export function EditRecurringTaskDialog({
       priority: 'Medium' as TaskPriority,
       category: 'Other' as TaskCategory,
       isRecurring: true,
+      requiredSkills: [],
       interval: 1,
       weekdays: [],
       dayOfMonth: 15,
@@ -97,6 +109,14 @@ export function EditRecurringTaskDialog({
       customOffsetDays: 0
     }
   });
+
+  // Update selected skills state when form values change
+  useEffect(() => {
+    if (task?.requiredSkills) {
+      setSelectedSkills(task.requiredSkills);
+      form.setValue('requiredSkills', task.requiredSkills);
+    }
+  }, [task, form]);
 
   // Store initial form values for detecting changes
   useEffect(() => {
@@ -125,6 +145,7 @@ export function EditRecurringTaskDialog({
         category: task.category,
         dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
         isRecurring: true,
+        requiredSkills: task.requiredSkills || [],
         recurrenceType: task.recurrencePattern.type,
         interval: task.recurrencePattern.interval || 1,
         weekdays: task.recurrencePattern.weekdays || [],
@@ -133,8 +154,10 @@ export function EditRecurringTaskDialog({
         endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
         customOffsetDays: task.recurrencePattern.customOffsetDays
       });
+      setSelectedSkills(task.requiredSkills || []);
       // Clear any previous form errors when task changes
       setFormError(null);
+      setSkillsError(null);
     }
   }, [task, form]);
 
@@ -168,10 +191,35 @@ export function EditRecurringTaskDialog({
     }
   };
   
+  // Handle skill selection
+  const toggleSkill = (skill: string) => {
+    let updatedSkills: string[];
+    
+    if (selectedSkills.includes(skill)) {
+      updatedSkills = selectedSkills.filter(s => s !== skill);
+    } else {
+      updatedSkills = [...selectedSkills, skill];
+    }
+    
+    setSelectedSkills(updatedSkills);
+    form.setValue('requiredSkills', updatedSkills);
+    
+    if (updatedSkills.length === 0) {
+      setSkillsError('At least one skill is required');
+    } else {
+      setSkillsError(null);
+    }
+  };
+  
   // Handle form submission
   const onSubmit = async (data: EditTaskFormValues) => {
     if (!task) {
       setFormError("No task data available to update");
+      return;
+    }
+    
+    if (selectedSkills.length === 0) {
+      setSkillsError('At least one skill is required');
       return;
     }
     
@@ -199,6 +247,7 @@ export function EditRecurringTaskDialog({
         priority: data.priority,
         category: data.category,
         dueDate: data.dueDate,
+        requiredSkills: selectedSkills as SkillType[],
         recurrencePattern: recurrencePattern,
         // Preserve isActive status from original task
         isActive: task.isActive
@@ -366,7 +415,7 @@ export function EditRecurringTaskDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel htmlFor="task-priority">Priority</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger id="task-priority" aria-label="Select priority">
                               <SelectValue placeholder="Select priority" />
@@ -391,7 +440,7 @@ export function EditRecurringTaskDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel htmlFor="task-category">Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger id="task-category" aria-label="Select category">
                               <SelectValue placeholder="Select category" />
@@ -411,6 +460,47 @@ export function EditRecurringTaskDialog({
                     )}
                   />
                 </div>
+
+                {/* Required Skills */}
+                <FormItem>
+                  <FormLabel>Required Skills</FormLabel>
+                  <div className="border rounded-md p-3 space-y-2">
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {availableSkills.map((skill) => (
+                        <Badge
+                          key={skill}
+                          variant={selectedSkills.includes(skill) ? "default" : "outline"}
+                          className={cn(
+                            "cursor-pointer hover:bg-secondary transition-colors",
+                            selectedSkills.includes(skill) 
+                              ? "bg-primary text-primary-foreground" 
+                              : "bg-background text-foreground"
+                          )}
+                          onClick={() => toggleSkill(skill)}
+                        >
+                          {skill}
+                          {selectedSkills.includes(skill) && (
+                            <span className="ml-1 text-xs">✓</span>
+                          )}
+                        </Badge>
+                      ))}
+                    </div>
+                    {selectedSkills.length > 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        Selected: {selectedSkills.join(', ')}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">
+                        Click to select required skills
+                      </div>
+                    )}
+                    {skillsError && (
+                      <div className="text-sm font-medium text-destructive" role="alert">
+                        {skillsError}
+                      </div>
+                    )}
+                  </div>
+                </FormItem>
 
                 {/* Estimated Hours and Due Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -486,7 +576,7 @@ export function EditRecurringTaskDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel htmlFor="recurrence-type">Recurrence Pattern</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger id="recurrence-type" aria-label="Select recurrence pattern">
                             <SelectValue placeholder="Select recurrence pattern" />
@@ -619,7 +709,7 @@ export function EditRecurringTaskDialog({
                         <FormLabel htmlFor="month-of-year">Month</FormLabel>
                         <Select 
                           onValueChange={(value) => field.onChange(parseInt(value))} 
-                          defaultValue={field.value?.toString()}
+                          value={field.value?.toString()}
                         >
                           <FormControl>
                             <SelectTrigger id="month-of-year" aria-label="Select month">
