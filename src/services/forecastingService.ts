@@ -29,6 +29,9 @@ import { getClientById } from '@/services/clientService';
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
 
+// Clear the forecast cache on startup to ensure fresh calculations
+clearForecastCache();
+
 // Debug mode is now controlled by the local storage setting
 const getDebugMode = (): boolean => {
   return localStorage.getItem('forecast_debug_mode') === 'true';
@@ -97,11 +100,12 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
     );
     
     // Fetch capacity hours by skill for this period
+    // IMPORTANT: Always use 'distribute' strategy for capacity calculations for accurate numbers
     const capacity = await calculateCapacity(
       periodRange,
       parameters.mode,
-      parameters.includeSkills,
-      parameters.skillAllocationStrategy || getSkillAllocationStrategy()
+      parameters.includeSkills
+      // No skillAllocationStrategy parameter - we'll hardcode 'distribute' in the function
     );
     
     debugLog(`Period ${period} calculation complete`, { demand, capacity });
@@ -343,19 +347,20 @@ const calculateDemand = async (
 
 /**
  * Calculate capacity hours by skill for a specified period
+ * IMPORTANT: Always uses 'distribute' strategy for accurate capacity numbers
  */
 const calculateCapacity = async (
   dateRange: DateRange,
   mode: ForecastMode,
-  includeSkills: SkillType[] | "all",
-  skillAllocationStrategy: SkillAllocationStrategy = 'distribute'
+  includeSkills: SkillType[] | "all"
+  // No skillAllocationStrategy parameter - we always use 'distribute' for capacity
 ): Promise<SkillHours[]> => {
   // Get all staff members
   const allStaff = await getAllStaff();
   const skillHoursMap = {} as Record<SkillType, number>;
   
   debugLog(`Calculating capacity for date range: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
-  debugLog(`Using skill allocation strategy: ${skillAllocationStrategy}`);
+  debugLog(`Using skill allocation strategy: distribute (hardcoded for accuracy)`);
   
   // For each staff member
   for (const staff of allStaff) {
@@ -401,11 +406,8 @@ const calculateCapacity = async (
     const startTime = dateRange.startDate.getTime();
     const endTime = dateRange.endDate.getTime();
     
-    // Add one day to include the end date in the calculation
-    const daysToAdd = 1;
-    const msToAdd = daysToAdd * 24 * 60 * 60 * 1000;
-    
-    const exactWeeksInPeriod = (endTime - startTime + msToAdd) / millisecondsInWeek;
+    // FIXED: Removed the extra day adjustment that was causing inflated numbers
+    const exactWeeksInPeriod = (endTime - startTime) / millisecondsInWeek;
     
     debugLog(`Exact weeks in period for ${staff.fullName}: ${exactWeeksInPeriod.toFixed(4)}`);
     
@@ -414,8 +416,8 @@ const calculateCapacity = async (
     
     debugLog(`Total capacity hours for ${staff.fullName}: ${totalHours.toFixed(2)}`);
     
-    // Allocate hours to skills based on strategy
-    if (skillAllocationStrategy === 'distribute' && staff.skills.length > 0) {
+    // IMPORTANT: Always distribute hours evenly across skills for accurate capacity calculation
+    if (staff.skills.length > 0) {
       // Distribute hours evenly across all skills
       const hoursPerSkill = totalHours / staff.skills.length;
       
@@ -425,13 +427,6 @@ const calculateCapacity = async (
         const skill = skillId as SkillType;
         skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
         debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skill}`);
-      });
-    } else {
-      // Duplicate hours for each skill (original behavior)
-      staff.skills.forEach(skillId => {
-        const skill = skillId as SkillType;
-        skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalHours;
-        debugLog(`  - Duplicated ${totalHours}h to skill ${skill}`);
       });
     }
   }
