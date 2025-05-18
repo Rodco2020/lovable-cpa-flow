@@ -29,9 +29,6 @@ import { getClientById } from '@/services/clientService';
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
 
-// Clear the forecast cache on startup to ensure fresh calculations
-clearForecastCache();
-
 // Debug mode is now controlled by the local storage setting
 const getDebugMode = (): boolean => {
   return localStorage.getItem('forecast_debug_mode') === 'true';
@@ -47,6 +44,17 @@ const debugLog = (message: string, data?: any): void => {
     }
   }
 };
+
+/**
+ * Clear the forecast cache
+ */
+export const clearForecastCache = () => {
+  debugLog('Clearing forecast cache');
+  forecastCache = {};
+};
+
+// Clear the forecast cache on startup to ensure fresh calculations
+clearForecastCache();
 
 /**
  * Generate a forecast based on the provided parameters
@@ -828,14 +836,6 @@ const getPeriodDateRange = (period: string, granularity: GranularityType): DateR
   }
   
   return { startDate, endDate };
-};
-
-/**
- * Clear the forecast cache
- */
-export const clearForecastCache = () => {
-  debugLog('Clearing forecast cache');
-  forecastCache = {};
 };
 
 /**
