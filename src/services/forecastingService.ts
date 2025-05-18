@@ -100,7 +100,8 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
     const capacity = await calculateCapacity(
       periodRange,
       parameters.mode,
-      parameters.includeSkills
+      parameters.includeSkills,
+      parameters.skillAllocationStrategy || 'distribute' // Default to distribute for capacity
     );
     
     debugLog(`Period ${period} calculation complete`, { demand, capacity });
@@ -346,13 +347,15 @@ const calculateDemand = async (
 const calculateCapacity = async (
   dateRange: DateRange,
   mode: ForecastMode,
-  includeSkills: SkillType[] | "all"
+  includeSkills: SkillType[] | "all",
+  skillAllocationStrategy: SkillAllocationStrategy = 'distribute' // Default to distribute for capacity
 ): Promise<SkillHours[]> => {
   // Get all staff members
   const allStaff = await getAllStaff();
   const skillHoursMap = {} as Record<SkillType, number>;
   
   debugLog(`Calculating capacity for date range: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
+  debugLog(`Using skill allocation strategy: ${skillAllocationStrategy}`);
   
   // For each staff member
   for (const staff of allStaff) {
@@ -411,11 +414,26 @@ const calculateCapacity = async (
     
     debugLog(`Total capacity hours for ${staff.fullName}: ${totalHours.toFixed(2)}`);
     
-    // Allocate hours to all skills of this staff member
-    staff.skills.forEach(skillId => {
-      const skill = skillId as SkillType;
-      skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalHours;
-    });
+    // Allocate hours to skills based on strategy
+    if (skillAllocationStrategy === 'distribute' && staff.skills.length > 0) {
+      // Distribute hours evenly across all skills
+      const hoursPerSkill = totalHours / staff.skills.length;
+      
+      debugLog(`Distributing ${totalHours}h across ${staff.skills.length} skills (${hoursPerSkill}h per skill)`);
+      
+      staff.skills.forEach(skillId => {
+        const skill = skillId as SkillType;
+        skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
+        debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skill}`);
+      });
+    } else {
+      // Duplicate hours for each skill (original behavior)
+      staff.skills.forEach(skillId => {
+        const skill = skillId as SkillType;
+        skillHoursMap[skill] = (skillHoursMap[skill] || 0) + totalHours;
+        debugLog(`  - Duplicated ${totalHours}h to skill ${skill}`);
+      });
+    }
   }
   
   // Convert map to array of SkillHours
@@ -865,7 +883,7 @@ export const setSkillAllocationStrategy = (strategy: SkillAllocationStrategy): v
  * Get the current skill allocation strategy
  */
 export const getSkillAllocationStrategy = (): SkillAllocationStrategy => {
-  return (localStorage.getItem('forecast_skill_allocation_strategy') as SkillAllocationStrategy) || 'duplicate';
+  return (localStorage.getItem('forecast_skill_allocation_strategy') as SkillAllocationStrategy) || 'distribute';
 };
 
 /**
