@@ -352,11 +352,23 @@ const calculateCapacity = async (
   const allStaff = await getAllStaff();
   const skillHoursMap = {} as Record<SkillType, number>;
   
+  debugLog(`Calculating capacity for date range: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
+  
   // For each staff member
   for (const staff of allStaff) {
+    // Skip inactive staff
+    if (staff.status !== "active") {
+      debugLog(`Skipping inactive staff member ${staff.id} (${staff.fullName})`);
+      continue;
+    }
+    
     // Skip staff with skills not in the filter if specific skills are requested
     if (includeSkills !== "all" && 
         !staff.skills.some(skillId => includeSkills.includes(skillId as SkillType))) {
+      debugLog(`Skipping staff ${staff.id} (${staff.fullName}): skills don't match filter`, {
+        staffSkills: staff.skills,
+        filterSkills: includeSkills
+      });
       continue;
     }
     
@@ -367,23 +379,37 @@ const calculateCapacity = async (
     let totalWeeklyHours = 0;
     weeklyAvailability.forEach(slot => {
       if (slot.isAvailable) {
-        const startParts = slot.startTime.split(':');
-        const endParts = slot.endTime.split(':');
+        const startParts = slot.startTime.split(':').map(Number);
+        const endParts = slot.endTime.split(':').map(Number);
         
-        const startHours = parseInt(startParts[0]) + parseInt(startParts[1]) / 60;
-        const endHours = parseInt(endParts[0]) + parseInt(endParts[1]) / 60;
+        const startHours = startParts[0] + startParts[1] / 60;
+        const endHours = endParts[0] + endParts[1] / 60;
         
-        totalWeeklyHours += (endHours - startHours);
+        // Calculate hours for this slot, ensure it's positive
+        const slotHours = Math.max(0, endHours - startHours);
+        totalWeeklyHours += slotHours;
       }
     });
     
-    // Calculate number of weeks in the period (simplified for now)
-    const millisecondsInDay = 24 * 60 * 60 * 1000;
-    const daysInPeriod = (dateRange.endDate.getTime() - dateRange.startDate.getTime()) / millisecondsInDay;
-    const weeksInPeriod = daysInPeriod / 7;
+    debugLog(`Staff ${staff.id} (${staff.fullName}) weekly availability: ${totalWeeklyHours.toFixed(2)} hours`);
+    
+    // Calculate number of weeks in the period (more precise calculation)
+    const millisecondsInWeek = 7 * 24 * 60 * 60 * 1000;
+    const startTime = dateRange.startDate.getTime();
+    const endTime = dateRange.endDate.getTime();
+    
+    // Add one day to include the end date in the calculation
+    const daysToAdd = 1;
+    const msToAdd = daysToAdd * 24 * 60 * 60 * 1000;
+    
+    const exactWeeksInPeriod = (endTime - startTime + msToAdd) / millisecondsInWeek;
+    
+    debugLog(`Exact weeks in period for ${staff.fullName}: ${exactWeeksInPeriod.toFixed(4)}`);
     
     // Calculate total hours for this staff member in the period
-    const totalHours = totalWeeklyHours * weeksInPeriod;
+    const totalHours = totalWeeklyHours * exactWeeksInPeriod;
+    
+    debugLog(`Total capacity hours for ${staff.fullName}: ${totalHours.toFixed(2)}`);
     
     // Allocate hours to all skills of this staff member
     staff.skills.forEach(skillId => {
@@ -393,10 +419,18 @@ const calculateCapacity = async (
   }
   
   // Convert map to array of SkillHours
-  return Object.entries(skillHoursMap).map(([skill, hours]) => ({
+  const result = Object.entries(skillHoursMap).map(([skill, hours]) => ({
     skill: skill as SkillType,
     hours
   }));
+  
+  debugLog(`Capacity calculation complete, results:`, result);
+  
+  // Calculate total capacity
+  const totalCapacity = result.reduce((sum, item) => sum + item.hours, 0);
+  debugLog(`Total capacity across all skills: ${totalCapacity.toFixed(2)} hours`);
+  
+  return result;
 };
 
 /**

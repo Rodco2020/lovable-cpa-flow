@@ -30,7 +30,8 @@ const ForecastSummary: React.FC<ForecastSummaryProps> = ({
   };
   
   const formatHours = (value: number) => {
-    return Math.round(value * 10) / 10; // Round to 1 decimal place
+    // Round to 1 decimal place for more accurate display
+    return Math.round(value * 10) / 10;
   };
   
   // Calculate utilization from totalDemand if it's a number, otherwise use 0

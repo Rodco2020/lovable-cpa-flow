@@ -20,7 +20,7 @@ const EnhancedForecastSummary: React.FC<EnhancedForecastSummaryProps> = ({
   totalCost,
   totalProfit
 }) => {
-  // Format numbers for display
+  // Format numbers for display - ensure we show 1 decimal place for hours
   const formatHours = (hours: number) => `${hours.toFixed(1)} hours`;
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { 
     style: 'currency', 
