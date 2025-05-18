@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { AlertCircle, CheckCircle, Clock, Pencil, RefreshCw } from 'lucide-react';
 import TaskListPagination from './TaskListPagination';
 import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
+import { useSkillNames } from '@/hooks/useSkillNames';
 
 interface ClientRecurringTaskListProps {
   clientId: string;
@@ -31,6 +32,10 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const tasksPerPage = 5;
+  
+  // Get all skill IDs from all tasks to fetch their names
+  const allSkillIds = tasks.flatMap(task => task.requiredSkills);
+  const { skillsMap, isLoading: loadingSkills } = useSkillNames(allSkillIds);
 
   const loadTasks = async (showLoadingState: boolean = true) => {
     if (showLoadingState) setLoading(true);
@@ -204,65 +209,85 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
         )}
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Recurrence</TableHead>
-              <TableHead>Next Due</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentTasks.map(task => (
-              <TableRow 
-                key={task.id} 
-                className={onViewTask ? "cursor-pointer hover:bg-muted/50" : ""}
-                onClick={() => onViewTask ? onViewTask(task.id) : null}
-              >
-                <TableCell className="font-medium">{task.name}</TableCell>
-                <TableCell>{formatRecurrencePattern(task.recurrencePattern)}</TableCell>
-                <TableCell>
-                  {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'Not set'}
-                </TableCell>
-                <TableCell>
-                  {task.isActive ? (
-                    <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
-                      <CheckCircle className="mr-1 h-3 w-3" /> Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Inactive</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={(e) => handleEditClick(task.id, e)}
-                    >
-                      <Pencil className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    {task.isActive && (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Recurrence</TableHead>
+                <TableHead>Next Due</TableHead>
+                <TableHead>Hours</TableHead>
+                <TableHead>Skills</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentTasks.map(task => (
+                <TableRow 
+                  key={task.id} 
+                  className={onViewTask ? "cursor-pointer hover:bg-muted/50" : ""}
+                  onClick={() => onViewTask ? onViewTask(task.id) : null}
+                >
+                  <TableCell className="font-medium">{task.name}</TableCell>
+                  <TableCell>{formatRecurrencePattern(task.recurrencePattern)}</TableCell>
+                  <TableCell>
+                    {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'Not set'}
+                  </TableCell>
+                  <TableCell>
+                    {task.estimatedHours}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {task.requiredSkills && task.requiredSkills.length > 0 ? (
+                        task.requiredSkills.map((skillId, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {skillId}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-xs">None</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {task.isActive ? (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
+                        <CheckCircle className="mr-1 h-3 w-3" /> Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Inactive</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeactivate(task.id);
-                        }}
+                        onClick={(e) => handleEditClick(task.id, e)}
                       >
-                        Deactivate
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
                       </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {task.isActive && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeactivate(task.id);
+                          }}
+                        >
+                          Deactivate
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
         {totalPages > 1 && (
           <div className="mt-4">
