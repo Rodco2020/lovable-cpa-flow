@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, 
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, 
+  format, addDays, addMonths, addYears, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
+  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter,
   endOfQuarter, startOfYear, endOfYear, differenceInDays, differenceInWeeks,
   differenceInMonths, differenceInYears, isWithinInterval, getDay,
   isSameMonth, getDaysInMonth, isLeapYear
@@ -690,7 +690,7 @@ export const estimateRecurringTaskInstances = (task: RecurringTask, dateRange: D
     case 'Annually':
       // Count years, handling partial years
       const yearsDiff = differenceInYears(endDate, startDate);
-      const extraMonths = differenceInMonths(endDate, addDays(startDate, yearsDiff * 365)) > 0 ? 1 : 0;
+      const extraMonths = differenceInMonths(endDate, addYears(startDate, yearsDiff)) > 0 ? 1 : 0;
       instanceCount = (yearsDiff + extraMonths) / (pattern.interval || 1);
       break;
       
@@ -1137,7 +1137,7 @@ const calculateDemandForTask = async (
         
         // For each month in the range
         for (let i = 0; i <= monthsDiff; i++) {
-          const currentMonth = addDays(startDateForCalc, i * 30); // Approximation
+          const currentMonth = addMonths(startDateForCalc, i);
           const daysInCurrentMonth = getDaysInMonth(currentMonth);
           
           // Check if the day exists in this month and falls within our range
@@ -1170,7 +1170,7 @@ const calculateDemandForTask = async (
     case 'Annually':
       // Count years, handling partial years
       const yearsDiff = differenceInYears(endDateForCalc, startDateForCalc);
-      const extraMonths = differenceInMonths(endDateForCalc, addDays(startDateForCalc, yearsDiff * 365)) > 0 ? 1 : 0;
+      const extraMonths = differenceInMonths(endDateForCalc, addYears(startDateForCalc, yearsDiff)) > 0 ? 1 : 0;
       instanceCount = (yearsDiff + extraMonths) / (pattern.interval || 1);
       break;
       
