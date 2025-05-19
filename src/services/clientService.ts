@@ -126,7 +126,7 @@ export const getAllClients = async (filters?: { status?: ClientStatus[]; industr
   }
 };
 
-// Get active clients only
+// Get only active clients
 export const getActiveClients = async (): Promise<Client[]> => {
   try {
     return await getAllClients({ status: ['Active'] });
