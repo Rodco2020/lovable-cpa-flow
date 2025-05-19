@@ -46,10 +46,13 @@ const ForecastDashboard: React.FC = () => {
   const { toast } = useToast();
   
   const availableSkills: SkillData[] = [
-    { id: 'Tax' as SkillType, name: 'Tax Preparation', color: '#4CAF50' },
-    { id: 'Audit' as SkillType, name: 'Audit', color: '#2196F3' },
-    { id: 'Advisory' as SkillType, name: 'Advisory', color: '#9C27B0' },
-    { id: 'Bookkeeping' as SkillType, name: 'Bookkeeping', color: '#FF9800' }
+    { id: 'Junior' as SkillType, name: 'Junior', color: '#9b87f5' },
+    { id: 'Senior' as SkillType, name: 'Senior', color: '#7E69AB' },
+    { id: 'CPA' as SkillType, name: 'CPA', color: '#6E59A5' },
+    { id: 'Tax Specialist' as SkillType, name: 'Tax Specialist', color: '#D946EF' },
+    { id: 'Audit' as SkillType, name: 'Audit', color: '#0EA5E9' },
+    { id: 'Advisory' as SkillType, name: 'Advisory', color: '#F97316' },
+    { id: 'Bookkeeping' as SkillType, name: 'Bookkeeping', color: '#33C3F0' }
   ];
   
   // Add debug mode state

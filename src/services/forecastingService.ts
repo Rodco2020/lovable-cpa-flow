@@ -954,7 +954,7 @@ export const getTaskBreakdown = async (params: ForecastParameters): Promise<Task
         name: "Quarterly Tax Filing",
         clientName: "Acme Corp",
         clientId: "client1",
-        skill: "Tax" as SkillType,  // Fixed casing to match SkillType enum
+        skill: "Tax Specialist" as SkillType,
         hours: 8,
         dueDate: "2025-07-15",
         status: "scheduled"
