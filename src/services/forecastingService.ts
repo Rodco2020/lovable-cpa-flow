@@ -470,16 +470,21 @@ const generateFinancialProjections = async (
   const allStaff = await getAllStaff();
   
   // Calculate average cost per hour for each skill type
-  const skillCostMap: Record<string, number> = {};
+  const skillCostData: Record<string, { sum: number; count: number }> = {};
   allStaff.forEach(staff => {
     staff.skills.forEach(skillId => {
-      if (!skillCostMap[skillId]) {
-        skillCostMap[skillId] = staff.costPerHour;
+      if (!skillCostData[skillId]) {
+        skillCostData[skillId] = { sum: staff.costPerHour, count: 1 };
       } else {
-        // Take average if multiple staff have the same skill
-        skillCostMap[skillId] = (skillCostMap[skillId] + staff.costPerHour) / 2;
+        skillCostData[skillId].sum += staff.costPerHour;
+        skillCostData[skillId].count += 1;
       }
     });
+  });
+
+  const skillCostMap: Record<string, number> = {};
+  Object.entries(skillCostData).forEach(([skillId, { sum, count }]) => {
+    skillCostMap[skillId] = sum / count;
   });
   
   // For each period in the forecast data
