@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { 
+import {
   format, addDays, addMonths, addYears, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter,
   endOfQuarter, startOfYear, endOfYear, differenceInDays, differenceInWeeks,
-  differenceInMonths, differenceInYears, isWithinInterval, getDay,
-  isSameMonth, getDaysInMonth, isLeapYear
+  differenceInMonths, differenceInYears,
+  isWithinInterval, getDay, isSameMonth, getDaysInMonth, isLeapYear
 } from 'date-fns';
 
 import { 
@@ -24,7 +24,7 @@ import {
 import { SkillType, RecurringTask } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
-import { getClientById } from '@/services/clientService';
+import { getClientById, getActiveClients } from '@/services/clientService';
 
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
@@ -456,8 +456,16 @@ const calculateCapacity = async (
   // Calculate total capacity
   const totalCapacity = result.reduce((sum, item) => sum + item.hours, 0);
   debugLog(`Total capacity across all skills: ${totalCapacity.toFixed(2)} hours`);
-  
+
   return result;
+};
+
+/**
+ * Calculate fractional months between two dates using days/30
+ */
+const calculateMonthsInPeriod = (startDate: Date, endDate: Date): number => {
+  const days = differenceInDays(endDate, startDate) + 1;
+  return days / 30;
 };
 
 /**
@@ -499,8 +507,7 @@ const generateFinancialProjections = async (
     // Calculate the number of months in this period (for revenue calculation)
     const startDate = periodRange.startDate;
     const endDate = periodRange.endDate;
-    const millisecondsInMonth = 30.44 * 24 * 60 * 60 * 1000; // Average month in milliseconds
-    const monthsInPeriod = (endDate.getTime() - startDate.getTime()) / millisecondsInMonth;
+    const monthsInPeriod = calculateMonthsInPeriod(startDate, endDate);
     
     // Get tasks in this period to identify unique clients
     const tasksInPeriod = await getTaskInstances({
@@ -534,23 +541,17 @@ const generateFinancialProjections = async (
       }
     }
     
-    // If no clients were found with tasks in this period, try to include all active clients
+    // If no clients were found with tasks in this period, include all active clients
     if (countedClients.size === 0) {
       try {
-        // This would need to be implemented in clientService.ts to get all active clients
-        // For now, we'll use a simplified approach to demonstrate the concept
-        const dummyClientId = tasksInPeriod.length > 0 ? tasksInPeriod[0].clientId : null;
-        
-        if (dummyClientId) {
-          const client = await getClientById(dummyClientId);
-          if (client && client.status === "Active") {
-            const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
-            periodRevenue += clientRevenue;
-            debugLog(`No tasks found, using active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
-          }
-        }
+        const activeClients = await getActiveClients();
+        activeClients.forEach(client => {
+          const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
+          periodRevenue += clientRevenue;
+          debugLog(`No tasks found, using active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
+        });
       } catch (error) {
-        console.error('Error fetching clients for revenue calculation:', error);
+        console.error('Error fetching active clients for revenue calculation:', error);
       }
     }
     
