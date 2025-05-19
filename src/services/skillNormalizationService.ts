@@ -1,4 +1,3 @@
-
 import { SkillType } from '@/types/task';
 
 /**
@@ -6,21 +5,79 @@ import { SkillType } from '@/types/task';
  * Maps various skill naming variations to standardized skill types
  */
 export const STANDARD_SKILL_MAPPING: Record<string, SkillType[]> = {
+  // Tax related skills
   'tax': ['Junior', 'Senior'],
+  'tax preparation': ['Junior', 'Senior'],
+  'tax planning': ['Senior', 'CPA'],
+  'tax compliance': ['Junior', 'Senior'],
+  'individual tax': ['Junior', 'Senior'],
+  'corporate tax': ['Senior', 'CPA'],
+  
+  // Audit related skills
   'audit': ['Junior', 'Senior'],
+  'auditing': ['Junior', 'Senior'],
+  'audit review': ['Senior', 'CPA'],
+  'financial audit': ['Junior', 'Senior'],
+  
+  // Advisory related skills
   'advisory': ['Senior', 'CPA'],
+  'consulting': ['Senior', 'CPA'],
+  'business advisory': ['Senior', 'CPA'],
+  
+  // Bookkeeping related skills
   'bookkeeping': ['Junior'],
+  'accounting': ['Junior', 'Senior'],
+  'accounts': ['Junior'],
+  'financial statements': ['Junior', 'Senior'],
+  
+  // Compliance related skills
   'compliance': ['Junior', 'Senior'],
+  'regulatory': ['Senior', 'CPA'],
+  
+  // Professional designations
   'cpa': ['CPA'],
+  'certified public accountant': ['CPA'],
+  'ea': ['Senior'],
+  'enrolled agent': ['Senior'],
+  
+  // Generic skill levels - CRITICAL for mapping staff with generic roles
   'junior': ['Junior'],
   'senior': ['Senior'],
-  // Generic role mappings
-  'staff': ['Junior'],
-  'intern': ['Junior'],
   'manager': ['Senior'],
-  'senior manager': ['Senior'],
+  'director': ['CPA'],
   'partner': ['CPA'],
-  // Add more mappings as needed
+  
+  // Generic role mappings - IMPORTANT: ensure all staff roles map to something
+  'staff': ['Junior'],  // Map generic "Staff" title to Junior by default
+  'staff accountant': ['Junior'],
+  'intern': ['Junior'],
+  'senior manager': ['Senior'],
+  'senior staff': ['Senior'],
+  'associate': ['Junior'],
+  'senior associate': ['Senior'],
+  'supervisor': ['Senior'],
+  'experienced associate': ['Senior'],
+  
+  // Catch-all for administrative or support roles
+  'administrative': ['Junior'],
+  'assistant': ['Junior'],
+  'admin': ['Junior'],
+  'support': ['Junior'],
+};
+
+/**
+ * Debug mode for skill normalization
+ * When enabled, logs detailed information about skill mapping
+ */
+const DEBUG_SKILL_NORMALIZATION = true;
+
+/**
+ * Log a debug message for skill normalization
+ */
+const debugLog = (message: string, data?: any) => {
+  if (DEBUG_SKILL_NORMALIZATION) {
+    console.log(`[Skill Normalization] ${message}`, data || '');
+  }
 };
 
 /**
@@ -31,27 +88,63 @@ export const normalizeSkills = (skills: string[]): SkillType[] => {
   // Create a set to avoid duplicates
   const standardizedSkills = new Set<SkillType>();
   
+  debugLog(`Normalizing skills: ${skills.join(', ')}`);
+  
+  // If no skills provided, default to Junior to prevent zero capacity
+  if (!skills || skills.length === 0) {
+    debugLog('No skills provided, defaulting to Junior');
+    return ['Junior'];
+  }
+  
   // Map each skill to standard forecast skills
   skills.forEach(skill => {
-    const skillLower = skill.toLowerCase();
+    if (!skill) return;
+    
+    const skillLower = skill.toLowerCase().trim();
+    debugLog(`Processing skill "${skill}" (normalized to "${skillLower}")`);
     
     // If there's a direct mapping, use it
     if (STANDARD_SKILL_MAPPING[skillLower]) {
+      debugLog(`Found direct mapping for "${skillLower}": ${STANDARD_SKILL_MAPPING[skillLower].join(', ')}`);
       STANDARD_SKILL_MAPPING[skillLower].forEach(s => standardizedSkills.add(s));
     } else {
       // Check if the skill itself is a standard skill type
       const normalizedSkill = capitalizeFirstLetter(skill);
       if (isStandardSkillType(normalizedSkill)) {
+        debugLog(`Skill "${skill}" is a standard skill type: ${normalizedSkill}`);
         standardizedSkills.add(normalizedSkill as SkillType);
       } else {
-        // For unrecognized skills, log and default to Junior
-        console.warn(`[Skill Normalization] Unrecognized skill "${skill}", defaulting to Junior`);
-        standardizedSkills.add('Junior');
+        // For unrecognized skills, check for partial matches
+        let matched = false;
+        
+        // Try to find partial matches in mapping keys
+        for (const mappingKey of Object.keys(STANDARD_SKILL_MAPPING)) {
+          if (skillLower.includes(mappingKey) || mappingKey.includes(skillLower)) {
+            debugLog(`Found partial match: "${skillLower}" matches "${mappingKey}"`);
+            STANDARD_SKILL_MAPPING[mappingKey].forEach(s => standardizedSkills.add(s));
+            matched = true;
+          }
+        }
+        
+        // If still no match, default to Junior
+        if (!matched) {
+          debugLog(`No match found for "${skill}", defaulting to Junior`);
+          standardizedSkills.add('Junior');
+        }
       }
     }
   });
   
-  return Array.from(standardizedSkills);
+  const result = Array.from(standardizedSkills);
+  debugLog(`Final normalized skills: ${result.join(', ')}`);
+  
+  // If still empty after all processing, default to Junior
+  if (result.length === 0) {
+    debugLog('No skills mapped after processing, defaulting to Junior');
+    return ['Junior'];
+  }
+  
+  return result;
 };
 
 /**
@@ -83,4 +176,21 @@ export const getStandardSkillTypes = (): SkillType[] => {
  */
 export const getAllSkillsWithMappings = (): Record<string, SkillType[]> => {
   return { ...STANDARD_SKILL_MAPPING };
+};
+
+/**
+ * Analyze staff skills and determine their representation in standard skill types
+ * Useful for debugging skill distribution
+ */
+export const analyzeStaffSkills = (staffSkills: string[]) => {
+  const normalizedSkills = normalizeSkills(staffSkills);
+  
+  return {
+    originalSkills: staffSkills,
+    mappedSkills: normalizedSkills,
+    hasCPA: normalizedSkills.includes('CPA'),
+    hasSenior: normalizedSkills.includes('Senior'),
+    hasJunior: normalizedSkills.includes('Junior'),
+    defaultedToJunior: staffSkills.length > 0 && normalizedSkills.length === 1 && normalizedSkills[0] === 'Junior'
+  };
 };

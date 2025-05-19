@@ -14,6 +14,13 @@ export interface DateRange {
 export interface SkillHours {
   skill: SkillType;
   hours: number;
+  // Added metadata for additional context during calculation and rendering
+  metadata?: {
+    staffCount?: number;
+    staffIds?: string[];
+    hoursBreakdown?: Record<string, number>; // staffId -> hours
+    calculationNotes?: string;
+  };
 }
 
 // Adding SkillData interface for UI display

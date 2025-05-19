@@ -374,7 +374,12 @@ const calculateCapacity = async (
 ): Promise<SkillHours[]> => {
   // Get all staff members
   const allStaff = await getAllStaff();
-  const skillHoursMap = {} as Record<SkillType, number>;
+  const skillHoursMap = {} as Record<SkillType, {
+    hours: number,
+    staffCount: number,
+    staffIds: string[],
+    hoursBreakdown: Record<string, number>
+  }>;
   
   debugLog(`Calculating capacity for date range: ${dateRange.startDate.toISOString()} to ${dateRange.endDate.toISOString()}`);
   debugLog(`Using skill allocation strategy: distribute (hardcoded for accuracy)`);
@@ -391,7 +396,11 @@ const calculateCapacity = async (
     debugLog(`Staff ${staff.fullName} raw skills: ${staff.skills.join(', ')}`);
 
     // Normalize staff skills to standard forecast skills (Junior, Senior, CPA)
+    // This is the critical step where staff skills are mapped to forecast skill types
     const normalizedSkills = await mapStaffSkillsToForecastSkills(staff.id);
+    
+    // Debug log the staff's normalized skills
+    debugLog(`Staff ${staff.fullName} normalized skills: ${normalizedSkills.join(', ')}`);
     
     // Skip staff with skills not in the filter if specific skills are requested
     if (includeSkills !== "all" && 
@@ -432,7 +441,6 @@ const calculateCapacity = async (
     });
     
     debugLog(`Staff ${staff.id} (${staff.fullName}) weekly availability: ${totalWeeklyHours.toFixed(2)} hours`);
-    debugLog(`Staff ${staff.id} (${staff.fullName}) normalized skills: ${normalizedSkills.join(', ')}`);
     
     // Calculate number of weeks in the period (more precise calculation)
     const daysInPeriod = differenceInDays(dateRange.endDate, dateRange.startDate) + 1; // +1 to include both start and end date
@@ -452,23 +460,46 @@ const calculateCapacity = async (
 
       debugLog(`Distributing ${totalHours}h across ${normalizedSkills.length} normalized skills (${hoursPerSkill}h per skill)`);
 
-      const distributedHours: Record<SkillType, number> = {} as Record<SkillType, number>;
-
       normalizedSkills.forEach(skill => {
         const skillType = skill as SkillType;
-        skillHoursMap[skillType] = (skillHoursMap[skillType] || 0) + hoursPerSkill;
-        distributedHours[skillType] = (distributedHours[skillType] || 0) + hoursPerSkill;
-        debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skillType}`);
+        
+        // Initialize the skill hours map if it doesn't exist
+        if (!skillHoursMap[skillType]) {
+          skillHoursMap[skillType] = {
+            hours: 0,
+            staffCount: 0,
+            staffIds: [],
+            hoursBreakdown: {}
+          };
+        }
+        
+        // Add hours to the skill's total
+        skillHoursMap[skillType].hours += hoursPerSkill;
+        
+        // Track staff count for this skill (avoid duplicates)
+        if (!skillHoursMap[skillType].staffIds.includes(staff.id)) {
+          skillHoursMap[skillType].staffCount += 1;
+          skillHoursMap[skillType].staffIds.push(staff.id);
+        }
+        
+        // Track individual staff contribution
+        skillHoursMap[skillType].hoursBreakdown[staff.id] = 
+          (skillHoursMap[skillType].hoursBreakdown[staff.id] || 0) + hoursPerSkill;
+        
+        debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skillType} for ${staff.fullName}`);
       });
-
-      debugLog(`Distributed hours by skill for ${staff.fullName}:`, distributedHours);
     }
   }
   
-  // Convert map to array of SkillHours
-  const result = Object.entries(skillHoursMap).map(([skill, hours]) => ({
+  // Convert map to array of SkillHours with metadata
+  const result = Object.entries(skillHoursMap).map(([skill, data]) => ({
     skill: skill as SkillType,
-    hours
+    hours: data.hours,
+    metadata: {
+      staffCount: data.staffCount,
+      staffIds: data.staffIds,
+      hoursBreakdown: data.hoursBreakdown
+    }
   }));
   
   debugLog(`Capacity calculation complete, results:`, result);
