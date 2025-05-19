@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { getAllStaff, calculateAvailabilitySummary } from "@/services/staffService";
+import { getAllStaff, calculateAvailabilitySummary, ensureStaffHasAvailability } from "@/services/staffService";
 import { Staff, AvailabilitySummary } from "@/types/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CustomBadge } from "@/components/ui/custom-badge";
+import { toast } from "@/components/ui/use-toast";
 
 const StaffList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [staffAvailability, setStaffAvailability] = useState<Record<string, AvailabilitySummary>>({});
+  const [isEnsuringAvailability, setIsEnsuringAvailability] = useState(false);
   
   const { data: staffList, isLoading, error } = useQuery({
     queryKey: ["staff"],
@@ -63,6 +65,54 @@ const StaffList: React.FC = () => {
     }
   }, [staffList]);
 
+  // New function to ensure all staff members have availability templates
+  const handleEnsureAllAvailability = async () => {
+    if (!staffList || staffList.length === 0) return;
+    
+    setIsEnsuringAvailability(true);
+    
+    try {
+      const results = await Promise.all(
+        staffList.map(staff => ensureStaffHasAvailability(staff.id))
+      );
+      
+      const totalTemplates = results.reduce((sum, templates) => sum + templates.length, 0);
+      
+      toast({
+        title: "Availability Templates Updated",
+        description: `Ensured availability templates for ${staffList.length} staff members (${totalTemplates} total templates)`,
+      });
+      
+      // Refresh availability summaries
+      const availabilitySummaries: Record<string, AvailabilitySummary> = {};
+      
+      const summariesPromises = staffList.map(staff => 
+        calculateAvailabilitySummary(staff.id)
+          .then(summary => ({ staffId: staff.id, summary }))
+      );
+      
+      const summariesResults = await Promise.all(summariesPromises);
+      
+      summariesResults.forEach(({ staffId, summary }) => {
+        if (summary) {
+          availabilitySummaries[staffId] = summary;
+        }
+      });
+      
+      setStaffAvailability(availabilitySummaries);
+      
+    } catch (error) {
+      console.error("Failed to ensure availability templates:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update some availability templates",
+        variant: "destructive",
+      });
+    }
+    
+    setIsEnsuringAvailability(false);
+  };
+
   const filteredStaff = staffList?.filter(
     (staff) =>
       staff.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -87,12 +137,21 @@ const StaffList: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Staff List</h1>
-        <Button asChild>
-          <Link to="/staff/new">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Staff
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleEnsureAllAvailability}
+            disabled={isEnsuringAvailability}
+          >
+            {isEnsuringAvailability ? "Updating..." : "Ensure All Availability Templates"}
+          </Button>
+          <Button asChild>
+            <Link to="/staff/new">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add New Staff
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="relative">

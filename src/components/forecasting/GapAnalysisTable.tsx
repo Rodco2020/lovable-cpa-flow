@@ -9,6 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { AlertCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GapAnalysisTableProps {
   data: ForecastData[];
@@ -70,6 +72,9 @@ const GapAnalysisTable: React.FC<GapAnalysisTableProps> = ({ data, skills }) => 
             ? ((total.demand / total.capacity) * 100).toFixed(1)
             : '0.0';
           
+          // Determine if this skill has zero capacity (which is a problem)
+          const isZeroCapacity = total.capacity === 0;
+          
           return (
             <TableRow key={skill}>
               <TableCell className="font-medium">{skill}</TableCell>
@@ -77,7 +82,26 @@ const GapAnalysisTable: React.FC<GapAnalysisTableProps> = ({ data, skills }) => 
                 {Math.round(total.demand * 10) / 10}
               </TableCell>
               <TableCell className="text-right">
-                {Math.round(total.capacity * 10) / 10}
+                {isZeroCapacity ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="inline-flex items-center text-amber-600">
+                          {Math.round(total.capacity * 10) / 10}
+                          <AlertCircle className="h-4 w-4 ml-1" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          Zero capacity detected! Ensure staff members have this skill assigned and 
+                          check that weekly availability templates are configured.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  Math.round(total.capacity * 10) / 10
+                )}
               </TableCell>
               <TableCell className={`text-right ${total.gap >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {Math.round(Math.abs(total.gap) * 10) / 10} 

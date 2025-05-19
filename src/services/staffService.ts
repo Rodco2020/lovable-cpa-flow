@@ -452,3 +452,84 @@ export const calculateAvailabilitySummary = async (
     distribution,
   };
 };
+
+// Enhanced function to ensure staff have availability templates
+export const ensureStaffHasAvailability = async (staffId: string): Promise<WeeklyAvailability[]> {
+  // First, check if staff member already has availability templates
+  const existingAvailability = await getWeeklyAvailabilityByStaff(staffId);
+  
+  // If availability exists, return it
+  if (existingAvailability && existingAvailability.length > 0) {
+    console.log(`Staff ${staffId} already has ${existingAvailability.length} availability entries`);
+    return existingAvailability;
+  }
+  
+  console.log(`Creating default availability template for staff ${staffId}`);
+  
+  // Create default availability for weekdays (9am-5pm, Monday-Friday)
+  const defaultAvailability: WeeklyAvailability[] = [];
+  
+  // For each weekday (1-5 = Monday-Friday)
+  for (let day = 1; day <= 5; day++) {
+    defaultAvailability.push({
+      staffId,
+      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      startTime: "09:00",
+      endTime: "17:00",
+      isAvailable: true
+    });
+  }
+  
+  // Save the default availability to the database
+  try {
+    const result = await batchUpdateWeeklyAvailability(staffId, defaultAvailability);
+    console.log(`Created ${result.length} default availability entries for staff ${staffId}`);
+    return result;
+  } catch (error) {
+    console.error(`Failed to create default availability for staff ${staffId}:`, error);
+    
+    // Return the default availability even if saving failed
+    // This ensures capacity calculation can proceed
+    return defaultAvailability;
+  }
+};
+
+// Function to standardize skill mapping for staff members
+export const mapStaffSkillsToForecastSkills = async (staffId: string): Promise<string[]> {
+  const staff = await getStaffById(staffId);
+  
+  if (!staff) {
+    console.error(`Staff member ${staffId} not found`);
+    return [];
+  }
+  
+  // Create a mapping between existing skills and standard forecast skills
+  const skillMapping: Record<string, string[]> = {
+    'tax': ['Junior', 'Senior'],
+    'audit': ['Junior', 'Senior'],
+    'advisory': ['Senior', 'CPA'],
+    'bookkeeping': ['Junior'],
+    'compliance': ['Junior', 'Senior'],
+    'cpa': ['CPA'],
+    'junior': ['Junior'],
+    'senior': ['Senior']
+  };
+  
+  // Create a set to avoid duplicates
+  const standardizedSkills = new Set<string>();
+  
+  // Map each staff skill to standard forecast skills
+  staff.skills.forEach(skill => {
+    const skillLower = skill.toLowerCase();
+    
+    // If there's a direct mapping, use it
+    if (skillMapping[skillLower]) {
+      skillMapping[skillLower].forEach(s => standardizedSkills.add(s));
+    } else {
+      // Otherwise, keep the original skill
+      standardizedSkills.add(skill);
+    }
+  });
+  
+  return Array.from(standardizedSkills);
+};
