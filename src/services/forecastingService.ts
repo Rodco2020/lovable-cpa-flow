@@ -95,13 +95,19 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
   // Generate the forecast data for each period
   const forecastData = await Promise.all(periods.map(async period => {
     debugLog(`Calculating forecast for period: ${period}`);
-    
+
     const periodRange = getPeriodDateRange(period, parameters.granularity);
     debugLog(`Period date range: ${periodRange.startDate.toISOString()} to ${periodRange.endDate.toISOString()}`);
-    
+
+    // Clip the period range so it doesn't exceed the overall forecast range
+    const clippedRange: DateRange = {
+      startDate: new Date(Math.max(periodRange.startDate.getTime(), dateRange.startDate.getTime())),
+      endDate: new Date(Math.min(periodRange.endDate.getTime(), dateRange.endDate.getTime()))
+    };
+
     // Fetch demand hours by skill for this period
     const demand = await calculateDemand(
-      periodRange,
+      clippedRange,
       parameters.mode,
       parameters.includeSkills,
       parameters.skillAllocationStrategy || getSkillAllocationStrategy()
@@ -110,7 +116,7 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
     // Fetch capacity hours by skill for this period
     // IMPORTANT: Always use 'distribute' strategy for capacity calculations for accurate numbers
     const capacity = await calculateCapacity(
-      periodRange,
+      clippedRange,
       parameters.mode,
       parameters.includeSkills
       // No skillAllocationStrategy parameter - we'll hardcode 'distribute' in the function
