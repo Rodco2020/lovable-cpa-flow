@@ -24,7 +24,7 @@ import {
 import { SkillType, RecurringTask } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
-import { getClientById } from '@/services/clientService';
+import { getClientById, getActiveClients } from '@/services/clientService';
 
 // Cache for forecast results to avoid recalculating the same forecast
 let forecastCache: Record<string, ForecastResult> = {};
@@ -534,20 +534,14 @@ const generateFinancialProjections = async (
       }
     }
     
-    // If no clients were found with tasks in this period, try to include all active clients
+    // If no clients were found with tasks in this period, include all active clients
     if (countedClients.size === 0) {
       try {
-        // This would need to be implemented in clientService.ts to get all active clients
-        // For now, we'll use a simplified approach to demonstrate the concept
-        const dummyClientId = tasksInPeriod.length > 0 ? tasksInPeriod[0].clientId : null;
-        
-        if (dummyClientId) {
-          const client = await getClientById(dummyClientId);
-          if (client && client.status === "Active") {
-            const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
-            periodRevenue += clientRevenue;
-            debugLog(`No tasks found, using active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
-          }
+        const activeClients = await getActiveClients();
+        for (const client of activeClients) {
+          const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
+          periodRevenue += clientRevenue;
+          debugLog(`No tasks found, adding active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
         }
       } catch (error) {
         console.error('Error fetching clients for revenue calculation:', error);
