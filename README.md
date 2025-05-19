@@ -60,6 +60,14 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Running tests
+
+Jest with ts-jest is configured for TypeScript support. Execute all tests with:
+
+```sh
+npm test
+```
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/cddd36af-4b51-45b1-869a-8fdcfb68c00d) and click on Share -> Publish.
