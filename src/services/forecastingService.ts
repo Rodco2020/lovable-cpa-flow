@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { 
+import {
   format, addDays, addMonths, addYears, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter,
   endOfQuarter, startOfYear, endOfYear, differenceInDays,
@@ -453,8 +453,16 @@ const calculateCapacity = async (
   // Calculate total capacity
   const totalCapacity = result.reduce((sum, item) => sum + item.hours, 0);
   debugLog(`Total capacity across all skills: ${totalCapacity.toFixed(2)} hours`);
-  
+
   return result;
+};
+
+/**
+ * Calculate fractional months between two dates using days/30
+ */
+const calculateMonthsInPeriod = (startDate: Date, endDate: Date): number => {
+  const days = differenceInDays(endDate, startDate) + 1;
+  return days / 30;
 };
 
 /**
@@ -501,8 +509,7 @@ const generateFinancialProjections = async (
     // Calculate the number of months in this period (for revenue calculation)
     const startDate = periodRange.startDate;
     const endDate = periodRange.endDate;
-    const millisecondsInMonth = 30.44 * 24 * 60 * 60 * 1000; // Average month in milliseconds
-    const monthsInPeriod = (endDate.getTime() - startDate.getTime()) / millisecondsInMonth;
+    const monthsInPeriod = calculateMonthsInPeriod(startDate, endDate);
     
     // Get tasks in this period to identify unique clients
     const tasksInPeriod = await getTaskInstances({
@@ -540,11 +547,11 @@ const generateFinancialProjections = async (
     if (countedClients.size === 0) {
       try {
         const activeClients = await getActiveClients();
-        for (const client of activeClients) {
+        activeClients.forEach(client => {
           const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
           periodRevenue += clientRevenue;
-          debugLog(`No tasks found, adding active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
-        }
+          debugLog(`No tasks found, using active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
+        });
       } catch (error) {
         console.error('Error fetching clients for revenue calculation:', error);
       }
