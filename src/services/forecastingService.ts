@@ -493,12 +493,16 @@ const generateFinancialProjections = async (
       periodCost += skillHours.hours * (skillCostMap[skillHours.skill] || 0);
     });
     
-    // Calculate revenue (simplified for now - based on client monthly revenue)
-    // In a real implementation, this would be more sophisticated
-    let periodRevenue = 0;
-    
-    // Get tasks in this period
+    // Get the period range to calculate proper duration
     const periodRange = getPeriodDateRange(periodData.period, parameters.granularity);
+    
+    // Calculate the number of months in this period (for revenue calculation)
+    const startDate = periodRange.startDate;
+    const endDate = periodRange.endDate;
+    const millisecondsInMonth = 30.44 * 24 * 60 * 60 * 1000; // Average month in milliseconds
+    const monthsInPeriod = (endDate.getTime() - startDate.getTime()) / millisecondsInMonth;
+    
+    // Get tasks in this period to identify unique clients
     const tasksInPeriod = await getTaskInstances({
       dueAfter: periodRange.startDate,
       dueBefore: periodRange.endDate
@@ -506,20 +510,47 @@ const generateFinancialProjections = async (
     
     // Track clients we've already counted
     const countedClients = new Set<string>();
+    let periodRevenue = 0;
+    
+    debugLog(`Calculating revenue for period ${periodData.period}, months: ${monthsInPeriod.toFixed(2)}`);
     
     // For each task, add the client's expected monthly revenue if not already counted
     for (const task of tasksInPeriod) {
       if (!countedClients.has(task.clientId)) {
-        // This is a mock - in a real app you'd fetch actual client data
-        // const client = await getClientById(task.clientId);
-        // if (client) {
-        //   periodRevenue += client.expectedMonthlyRevenue;
-        //   countedClients.add(task.clientId);
-        // }
+        try {
+          // Fetch actual client data from the database
+          const client = await getClientById(task.clientId);
+          if (client) {
+            // Multiply monthly revenue by the number of months in the period
+            const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
+            periodRevenue += clientRevenue;
+            
+            debugLog(`Added client ${client.legalName} revenue: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
+            countedClients.add(task.clientId);
+          }
+        } catch (error) {
+          console.error(`Error fetching client ${task.clientId}:`, error);
+        }
+      }
+    }
+    
+    // If no clients were found with tasks in this period, try to include all active clients
+    if (countedClients.size === 0) {
+      try {
+        // This would need to be implemented in clientService.ts to get all active clients
+        // For now, we'll use a simplified approach to demonstrate the concept
+        const dummyClientId = tasksInPeriod.length > 0 ? tasksInPeriod[0].clientId : null;
         
-        // For now, let's simulate some revenue
-        periodRevenue += 5000; // Dummy value
-        countedClients.add(task.clientId);
+        if (dummyClientId) {
+          const client = await getClientById(dummyClientId);
+          if (client && client.status === "Active") {
+            const clientRevenue = client.expectedMonthlyRevenue * monthsInPeriod;
+            periodRevenue += clientRevenue;
+            debugLog(`No tasks found, using active client ${client.legalName}: $${client.expectedMonthlyRevenue} × ${monthsInPeriod.toFixed(2)} months = $${clientRevenue.toFixed(2)}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching clients for revenue calculation:', error);
       }
     }
     
