@@ -6,7 +6,7 @@ import { getAllStaff, calculateAvailabilitySummary, ensureStaffHasAvailability }
 import { Staff, AvailabilitySummary } from "@/types/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, UserCog, Calendar, RefreshCcw } from "lucide-react";
+import { PlusCircle, Search, UserCog, Calendar, RefreshCcw, AlertTriangle } from "lucide-react";
 import {
   Table,
   TableBody,
