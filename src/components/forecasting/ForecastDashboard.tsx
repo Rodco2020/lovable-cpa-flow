@@ -14,14 +14,16 @@ import FinancialProjections from './FinancialProjections';
 import ForecastCalculationBadge from './ForecastCalculationBadge';
 import ForecastInfoTooltip from './ForecastInfoTooltip';
 import TaskBreakdownHoverCard from './TaskBreakdownHoverCard';
-import { 
-  getForecast, 
-  clearForecastCache, 
-  isForecastDebugModeEnabled, 
-  setForecastDebugMode,
+import {
+  getForecast,
+  clearForecastCache,
   validateForecastSystem,
-  getTaskBreakdown
+  getTaskBreakdown,
 } from '@/services/forecastingService';
+import {
+  setForecastDebugMode,
+  isForecastDebugModeEnabled,
+} from '@/services/forecasting/debug';
 import { runRecurrenceTests } from '@/utils/forecastTestingUtils';
 import useAppEvent from '@/hooks/useAppEvent';
 import { ForecastData, ForecastParameters, ForecastResult, SkillType } from '@/types/forecasting';

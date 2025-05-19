@@ -1,9 +1,27 @@
 import {
-  format, addDays, addMonths, addYears, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter,
-  endOfQuarter, startOfYear, endOfYear, differenceInDays,
-  differenceInMonths, differenceInYears, isWithinInterval, getDay,
-  isSameMonth, getDaysInMonth, isLeapYear
+  format,
+  addDays,
+  addMonths,
+  addYears,
+  eachDayOfInterval,
+  eachWeekOfInterval,
+  eachMonthOfInterval,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  endOfQuarter,
+  startOfYear,
+  endOfYear,
+  differenceInDays,
+  differenceInMonths,
+  differenceInYears,
+  isWithinInterval,
+  getDay,
+  isSameMonth,
+  getDaysInMonth,
+  isLeapYear,
 } from 'date-fns';
 
 import { 
@@ -24,33 +42,12 @@ import { SkillType, RecurringTask } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getClientById, getActiveClients } from '@/services/clientService';
-
-// Cache for forecast results to avoid recalculating the same forecast
-let forecastCache: Record<string, ForecastResult> = {};
-
-// Debug mode is now controlled by the local storage setting
-const getDebugMode = (): boolean => {
-  return localStorage.getItem('forecast_debug_mode') === 'true';
-};
-
-// Debug logger function that checks debug mode before logging
-const debugLog = (message: string, data?: any): void => {
-  if (getDebugMode()) {
-    if (data) {
-      console.log(`[Forecast Debug] ${message}`, data);
-    } else {
-      console.log(`[Forecast Debug] ${message}`);
-    }
-  }
-};
-
-/**
- * Clear the forecast cache
- */
-export const clearForecastCache = () => {
-  debugLog('Clearing forecast cache');
-  forecastCache = {};
-};
+import { debugLog, getDebugMode } from './forecasting/debug';
+import {
+  clearForecastCache,
+  getCachedForecast,
+  setCachedForecast,
+} from './forecasting/cache';
 
 // Clear the forecast cache on startup to ensure fresh calculations
 clearForecastCache();
@@ -65,8 +62,8 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
   debugLog(`Generating forecast with parameters:`, parameters);
   
   // Return cached result if available and not older than 5 minutes
-  if (forecastCache[cacheKey]) {
-    const cachedResult = forecastCache[cacheKey];
+  const cachedResult = getCachedForecast(cacheKey);
+  if (cachedResult) {
     const cacheAge = Date.now() - cachedResult.generatedAt.getTime();
     if (cacheAge < 5 * 60 * 1000) { // 5 minutes in milliseconds
       debugLog(`Using cached forecast result, age: ${cacheAge}ms`);
@@ -157,8 +154,7 @@ export const generateForecast = async (parameters: ForecastParameters): Promise<
   }
   
   // Cache the result
-  forecastCache[cacheKey] = result;
-  debugLog(`Forecast result cached with key: ${cacheKey.substring(0, 30)}...`);
+  setCachedForecast(cacheKey, result);
   
   return result;
 };
@@ -893,17 +889,6 @@ export const getForecast = async (parameters: ForecastParameters): Promise<Forec
 /**
  * Enable or disable debug mode for forecast calculations
  */
-export const setForecastDebugMode = (enabled: boolean): void => {
-  localStorage.setItem('forecast_debug_mode', enabled ? 'true' : 'false');
-  debugLog(`Debug mode ${enabled ? 'enabled' : 'disabled'}`);
-};
-
-/**
- * Check if forecast debug mode is enabled
- */
-export const isForecastDebugModeEnabled = (): boolean => {
-  return localStorage.getItem('forecast_debug_mode') === 'true';
-};
 
 /**
  * Set the skill allocation strategy for forecast calculations
