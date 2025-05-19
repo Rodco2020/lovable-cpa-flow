@@ -1,7 +1,7 @@
 
 import { RecurringTask, RecurrencePattern, SkillType, TaskPriority, TaskCategory } from '@/types/task';
 import { DateRange, SkillAllocationStrategy } from '@/types/forecasting';
-import { estimateRecurringTaskInstances } from '@/services/forecastingService';
+import { estimateRecurringTaskInstances } from '@/services/forecasting/demand';
 
 /**
  * Creates a test recurring task with specified parameters
