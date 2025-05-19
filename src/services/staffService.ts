@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { Staff, TimeSlot, WeeklyAvailability, AvailabilitySummary } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeSkills } from "./skillNormalizationService";
+import { SkillType } from "@/types/task";
 
 // Staff CRUD operations
 export const getAllStaff = async (): Promise<Staff[]> => {
@@ -503,33 +505,6 @@ export const mapStaffSkillsToForecastSkills = async (staffId: string) => {
     return [];
   }
   
-  // Create a mapping between existing skills and standard forecast skills
-  const skillMapping: Record<string, string[]> = {
-    'tax': ['Junior', 'Senior'],
-    'audit': ['Junior', 'Senior'],
-    'advisory': ['Senior', 'CPA'],
-    'bookkeeping': ['Junior'],
-    'compliance': ['Junior', 'Senior'],
-    'cpa': ['CPA'],
-    'junior': ['Junior'],
-    'senior': ['Senior']
-  };
-  
-  // Create a set to avoid duplicates
-  const standardizedSkills = new Set<string>();
-  
-  // Map each staff skill to standard forecast skills
-  staff.skills.forEach(skill => {
-    const skillLower = skill.toLowerCase();
-    
-    // If there's a direct mapping, use it
-    if (skillMapping[skillLower]) {
-      skillMapping[skillLower].forEach(s => standardizedSkills.add(s));
-    } else {
-      // Otherwise, keep the original skill
-      standardizedSkills.add(skill);
-    }
-  });
-  
-  return Array.from(standardizedSkills);
+  // Use the centralized skill normalization service
+  return normalizeSkills(staff.skills) as SkillType[];
 };

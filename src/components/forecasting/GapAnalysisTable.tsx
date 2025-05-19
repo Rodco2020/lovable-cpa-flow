@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GapAnalysisTableProps {
@@ -86,15 +86,23 @@ const GapAnalysisTable: React.FC<GapAnalysisTableProps> = ({ data, skills }) => 
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="inline-flex items-center text-amber-600">
+                        <div className="inline-flex items-center text-red-600">
                           {Math.round(total.capacity * 10) / 10}
-                          <AlertCircle className="h-4 w-4 ml-1" />
+                          <AlertTriangle className="h-4 w-4 ml-1" />
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="max-w-xs">
-                          Zero capacity detected! Ensure staff members have this skill assigned and 
-                          check that weekly availability templates are configured.
+                      <TooltipContent className="max-w-xs p-4">
+                        <p className="font-semibold mb-1">Zero Capacity Detected!</p>
+                        <p>
+                          This usually happens because:
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1 mt-1">
+                          <li>Staff with this skill don't have availability templates</li>
+                          <li>No active staff have this skill assigned</li>
+                          <li>Staff skills don't match forecast skill types</li>
+                        </ul>
+                        <p className="mt-2">
+                          Try using the "Ensure All Availability Templates" button in the Staff List.
                         </p>
                       </TooltipContent>
                     </Tooltip>

@@ -6,7 +6,7 @@ import { getAllStaff, calculateAvailabilitySummary, ensureStaffHasAvailability }
 import { Staff, AvailabilitySummary } from "@/types/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, UserCog, Calendar } from "lucide-react";
+import { PlusCircle, Search, UserCog, Calendar, RefreshCcw } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -17,13 +17,14 @@ import {
 } from "@/components/ui/table";
 import { CustomBadge } from "@/components/ui/custom-badge";
 import { toast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const StaffList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [staffAvailability, setStaffAvailability] = useState<Record<string, AvailabilitySummary>>({});
   const [isEnsuringAvailability, setIsEnsuringAvailability] = useState(false);
   
-  const { data: staffList, isLoading, error } = useQuery({
+  const { data: staffList, isLoading, error, refetch } = useQuery({
     queryKey: ["staff"],
     queryFn: getAllStaff,
   });
@@ -65,7 +66,7 @@ const StaffList: React.FC = () => {
     }
   }, [staffList]);
 
-  // New function to ensure all staff members have availability templates
+  // Function to ensure all staff members have availability templates
   const handleEnsureAllAvailability = async () => {
     if (!staffList || staffList.length === 0) return;
     
@@ -101,6 +102,12 @@ const StaffList: React.FC = () => {
       
       setStaffAvailability(availabilitySummaries);
       
+      // Notify the user to refresh forecasts
+      toast({
+        title: "Action Required",
+        description: "Please refresh any open Forecasting views to see updated capacity values",
+      });
+      
     } catch (error) {
       console.error("Failed to ensure availability templates:", error);
       toast({
@@ -125,6 +132,12 @@ const StaffList: React.FC = () => {
     return hours % 1 === 0 ? `${hours} hrs/week` : `${hours.toFixed(1)} hrs/week`;
   };
 
+  // Count staff with zero or low weekly hours
+  const staffWithIssues = staffList?.filter(staff => {
+    const availability = staffAvailability[staff.id];
+    return !availability || availability.weeklyTotal < 20;
+  }).length || 0;
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading staff data...</div>;
   }
@@ -138,13 +151,6 @@ const StaffList: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Staff List</h1>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleEnsureAllAvailability}
-            disabled={isEnsuringAvailability}
-          >
-            {isEnsuringAvailability ? "Updating..." : "Ensure All Availability Templates"}
-          </Button>
           <Button asChild>
             <Link to="/staff/new">
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -153,6 +159,32 @@ const StaffList: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {staffWithIssues > 0 && (
+        <Card className="border-amber-400 bg-amber-50 dark:bg-amber-950 mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-amber-800 dark:text-amber-200 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Availability Issues Found
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardDescription className="text-amber-700 dark:text-amber-300 text-sm">
+              {staffWithIssues} staff member(s) have missing or low weekly availability.
+              This may cause zero capacity in forecasting. Click the button below to fix:
+            </CardDescription>
+            <Button 
+              variant="default"
+              className="mt-3 bg-amber-600 hover:bg-amber-700"
+              onClick={handleEnsureAllAvailability}
+              disabled={isEnsuringAvailability}
+            >
+              <RefreshCcw className={`mr-2 h-4 w-4 ${isEnsuringAvailability ? "animate-spin" : ""}`} />
+              {isEnsuringAvailability ? "Updating..." : "Ensure All Availability Templates"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -197,7 +229,7 @@ const StaffList: React.FC = () => {
                         {formatWeeklyHours(staffAvailability[staff.id].weeklyTotal)}
                       </span>
                     ) : (
-                      <span className="text-gray-400 italic">Not set</span>
+                      <span className="text-red-500 italic">Not set</span>
                     )}
                   </TableCell>
                   <TableCell>

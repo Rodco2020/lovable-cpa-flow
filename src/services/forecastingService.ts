@@ -40,7 +40,12 @@ import {
 } from '@/types/forecasting';
 import { SkillType, RecurringTask } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
-import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
+import { 
+  getAllStaff, 
+  getWeeklyAvailabilityByStaff, 
+  ensureStaffHasAvailability, 
+  mapStaffSkillsToForecastSkills 
+} from '@/services/staffService';
 import { getClientById, getActiveClients } from '@/services/clientService';
 import { debugLog, getDebugMode } from './forecasting/debug';
 import {
@@ -382,18 +387,29 @@ const calculateCapacity = async (
       continue;
     }
     
+    // Normalize staff skills to standard forecast skills (Junior, Senior, CPA)
+    const normalizedSkills = await mapStaffSkillsToForecastSkills(staff.id);
+    
     // Skip staff with skills not in the filter if specific skills are requested
     if (includeSkills !== "all" && 
-        !staff.skills.some(skillId => includeSkills.includes(skillId as SkillType))) {
-      debugLog(`Skipping staff ${staff.id} (${staff.fullName}): skills don't match filter`, {
-        staffSkills: staff.skills,
+        !normalizedSkills.some(skill => includeSkills.includes(skill as SkillType))) {
+      debugLog(`Skipping staff ${staff.id} (${staff.fullName}): normalized skills don't match filter`, {
+        normalizedSkills,
         filterSkills: includeSkills
       });
       continue;
     }
     
+    // Ensure staff has weekly availability - this creates default templates if none exist
+    await ensureStaffHasAvailability(staff.id);
+    
     // Get weekly availability for this staff member
     const weeklyAvailability = await getWeeklyAvailabilityByStaff(staff.id);
+    
+    if (!weeklyAvailability || weeklyAvailability.length === 0) {
+      debugLog(`WARNING: No availability found for staff ${staff.id} (${staff.fullName}) after ensuring availability`);
+      continue; // Skip this staff member if no availability is found even after ensuring
+    }
     
     // Calculate total weekly available hours
     let totalWeeklyHours = 0;
@@ -412,10 +428,10 @@ const calculateCapacity = async (
     });
     
     debugLog(`Staff ${staff.id} (${staff.fullName}) weekly availability: ${totalWeeklyHours.toFixed(2)} hours`);
+    debugLog(`Staff ${staff.id} (${staff.fullName}) normalized skills: ${normalizedSkills.join(', ')}`);
     
     // Calculate number of weeks in the period (more precise calculation)
-    // Calculate the exact number of weeks in the period using date-fns
-    const daysInPeriod = differenceInDays(dateRange.endDate, dateRange.startDate);
+    const daysInPeriod = differenceInDays(dateRange.endDate, dateRange.startDate) + 1; // +1 to include both start and end date
     const exactWeeksInPeriod = daysInPeriod / 7;
     
     debugLog(`Exact weeks in period for ${staff.fullName}: ${exactWeeksInPeriod.toFixed(4)}`);
@@ -426,16 +442,16 @@ const calculateCapacity = async (
     debugLog(`Total capacity hours for ${staff.fullName}: ${totalHours.toFixed(2)}`);
     
     // IMPORTANT: Always distribute hours evenly across skills for accurate capacity calculation
-    if (staff.skills.length > 0) {
+    if (normalizedSkills.length > 0) {
       // Distribute hours evenly across all skills
-      const hoursPerSkill = totalHours / staff.skills.length;
+      const hoursPerSkill = totalHours / normalizedSkills.length;
       
-      debugLog(`Distributing ${totalHours}h across ${staff.skills.length} skills (${hoursPerSkill}h per skill)`);
+      debugLog(`Distributing ${totalHours}h across ${normalizedSkills.length} normalized skills (${hoursPerSkill}h per skill)`);
       
-      staff.skills.forEach(skillId => {
-        const skill = skillId as SkillType;
-        skillHoursMap[skill] = (skillHoursMap[skill] || 0) + hoursPerSkill;
-        debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skill}`);
+      normalizedSkills.forEach(skill => {
+        const skillType = skill as SkillType;
+        skillHoursMap[skillType] = (skillHoursMap[skillType] || 0) + hoursPerSkill;
+        debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skillType}`);
       });
     }
   }
