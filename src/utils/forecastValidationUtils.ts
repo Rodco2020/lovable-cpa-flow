@@ -1,8 +1,6 @@
 
-import { 
-  estimateRecurringTaskInstances, 
-  validateForecastSystem 
-} from '@/services/forecastingService';
+import { validateForecastSystem } from '@/services/forecastingService';
+import { estimateRecurringTaskInstances } from '@/services/forecasting/demand';
 import { RecurringTask } from '@/types/task';
 
 /**
