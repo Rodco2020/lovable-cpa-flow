@@ -386,7 +386,10 @@ const calculateCapacity = async (
       debugLog(`Skipping inactive staff member ${staff.id} (${staff.fullName})`);
       continue;
     }
-    
+
+    // Log raw skills for debugging before normalization
+    debugLog(`Staff ${staff.fullName} raw skills: ${staff.skills.join(', ')}`);
+
     // Normalize staff skills to standard forecast skills (Junior, Senior, CPA)
     const normalizedSkills = await mapStaffSkillsToForecastSkills(staff.id);
     
@@ -405,6 +408,7 @@ const calculateCapacity = async (
     
     // Get weekly availability for this staff member
     const weeklyAvailability = await getWeeklyAvailabilityByStaff(staff.id);
+    debugLog(`Staff ${staff.fullName} availability summary:`, weeklyAvailability);
     
     if (!weeklyAvailability || weeklyAvailability.length === 0) {
       debugLog(`WARNING: No availability found for staff ${staff.id} (${staff.fullName}) after ensuring availability`);
@@ -445,14 +449,19 @@ const calculateCapacity = async (
     if (normalizedSkills.length > 0) {
       // Distribute hours evenly across all skills
       const hoursPerSkill = totalHours / normalizedSkills.length;
-      
+
       debugLog(`Distributing ${totalHours}h across ${normalizedSkills.length} normalized skills (${hoursPerSkill}h per skill)`);
-      
+
+      const distributedHours: Record<SkillType, number> = {} as Record<SkillType, number>;
+
       normalizedSkills.forEach(skill => {
         const skillType = skill as SkillType;
         skillHoursMap[skillType] = (skillHoursMap[skillType] || 0) + hoursPerSkill;
+        distributedHours[skillType] = (distributedHours[skillType] || 0) + hoursPerSkill;
         debugLog(`  - Allocated ${hoursPerSkill}h to skill ${skillType}`);
       });
+
+      debugLog(`Distributed hours by skill for ${staff.fullName}:`, distributedHours);
     }
   }
   
