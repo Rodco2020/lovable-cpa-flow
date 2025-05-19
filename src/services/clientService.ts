@@ -126,6 +126,16 @@ export const getAllClients = async (filters?: { status?: ClientStatus[]; industr
   }
 };
 
+// Get only active clients
+export const getActiveClients = async (): Promise<Client[]> => {
+  try {
+    return await getAllClients({ status: ['Active'] });
+  } catch (error) {
+    console.error('Error fetching active clients:', error);
+    return clients.filter(c => c.status === 'Active');
+  }
+};
+
 // Get a client by ID
 export const getClientById = async (id: string): Promise<Client> => {
   try {
