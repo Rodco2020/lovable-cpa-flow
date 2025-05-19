@@ -1,6 +1,7 @@
 import { generateForecast, clearForecastCache } from '@/services/forecastingService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getRecurringTasks } from '@/services/taskService';
+import { differenceInDays } from 'date-fns';
 import { Staff, WeeklyAvailability } from '@/types/staff';
 import { ForecastParameters } from '@/types/forecasting';
 
@@ -83,7 +84,7 @@ describe('generateForecast capacity calculation', () => {
 
     const result = await generateForecast(params);
 
-    const weeks = (endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000);
+    const weeks = differenceInDays(endDate, startDate) / 7;
     const expected = 40 * weeks * staffMembers.length;
 
     expect(Math.round(result.summary.totalCapacity)).toBeCloseTo(expected, 1);
