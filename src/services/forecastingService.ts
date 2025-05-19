@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { 
   format, addDays, addMonths, addYears, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter,
-  endOfQuarter, startOfYear, endOfYear, differenceInDays, differenceInWeeks,
+  endOfQuarter, startOfYear, endOfYear, differenceInDays,
   differenceInMonths, differenceInYears, isWithinInterval, getDay,
   isSameMonth, getDaysInMonth, isLeapYear
 } from 'date-fns';
@@ -416,12 +416,9 @@ const calculateCapacity = async (
     debugLog(`Staff ${staff.id} (${staff.fullName}) weekly availability: ${totalWeeklyHours.toFixed(2)} hours`);
     
     // Calculate number of weeks in the period (more precise calculation)
-    const millisecondsInWeek = 7 * 24 * 60 * 60 * 1000;
-    const startTime = dateRange.startDate.getTime();
-    const endTime = dateRange.endDate.getTime();
-    
-    // FIXED: Removed the extra day adjustment that was causing inflated numbers
-    const exactWeeksInPeriod = (endTime - startTime) / millisecondsInWeek;
+    // Calculate the exact number of weeks in the period using date-fns
+    const daysInPeriod = differenceInDays(dateRange.endDate, dateRange.startDate);
+    const exactWeeksInPeriod = daysInPeriod / 7;
     
     debugLog(`Exact weeks in period for ${staff.fullName}: ${exactWeeksInPeriod.toFixed(4)}`);
     
