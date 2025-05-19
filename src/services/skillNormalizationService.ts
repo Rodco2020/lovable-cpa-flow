@@ -14,6 +14,12 @@ export const STANDARD_SKILL_MAPPING: Record<string, SkillType[]> = {
   'cpa': ['CPA'],
   'junior': ['Junior'],
   'senior': ['Senior'],
+  // Generic role mappings
+  'staff': ['Junior'],
+  'intern': ['Junior'],
+  'manager': ['Senior'],
+  'senior manager': ['Senior'],
+  'partner': ['CPA'],
   // Add more mappings as needed
 };
 
@@ -38,7 +44,8 @@ export const normalizeSkills = (skills: string[]): SkillType[] => {
       if (isStandardSkillType(normalizedSkill)) {
         standardizedSkills.add(normalizedSkill as SkillType);
       } else {
-        // For unrecognized skills, default to Junior
+        // For unrecognized skills, log and default to Junior
+        console.warn(`[Skill Normalization] Unrecognized skill "${skill}", defaulting to Junior`);
         standardizedSkills.add('Junior');
       }
     }
