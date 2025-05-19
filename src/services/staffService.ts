@@ -454,7 +454,7 @@ export const calculateAvailabilitySummary = async (
 };
 
 // Enhanced function to ensure staff have availability templates
-export const ensureStaffHasAvailability = async (staffId: string): Promise<WeeklyAvailability[]> {
+export const ensureStaffHasAvailability = async (staffId: string) => {
   // First, check if staff member already has availability templates
   const existingAvailability = await getWeeklyAvailabilityByStaff(staffId);
   
@@ -495,7 +495,7 @@ export const ensureStaffHasAvailability = async (staffId: string): Promise<Weekl
 };
 
 // Function to standardize skill mapping for staff members
-export const mapStaffSkillsToForecastSkills = async (staffId: string): Promise<string[]> {
+export const mapStaffSkillsToForecastSkills = async (staffId: string) => {
   const staff = await getStaffById(staffId);
   
   if (!staff) {
