@@ -52,6 +52,9 @@ import {
 // Clear the forecast cache on startup to ensure fresh calculations
 clearForecastCache();
 
+// Export the function from the cache module for external use
+export { clearForecastCache } from './forecasting/cache';
+
 /**
  * Generate a forecast based on the provided parameters
  */

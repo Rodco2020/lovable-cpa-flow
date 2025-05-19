@@ -1,3 +1,4 @@
+
 import { ForecastResult } from '@/types/forecasting';
 import { debugLog } from './debug';
 
