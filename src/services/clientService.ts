@@ -126,6 +126,30 @@ export const getAllClients = async (filters?: { status?: ClientStatus[]; industr
   }
 };
 
+// Get active clients only
+export const getActiveClients = async (): Promise<Client[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('status', 'Active');
+
+    if (error) {
+      console.error('Error fetching active clients from Supabase:', error);
+      return clients.filter(c => c.status === 'Active');
+    }
+
+    if (!data) {
+      return [];
+    }
+
+    return data.map(mapSupabaseDataToClient);
+  } catch (error) {
+    console.error('Error fetching active clients:', error);
+    return clients.filter(c => c.status === 'Active');
+  }
+};
+
 // Get a client by ID
 export const getClientById = async (id: string): Promise<Client> => {
   try {
