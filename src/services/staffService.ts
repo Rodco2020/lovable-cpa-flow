@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from "uuid";
 import { Staff, TimeSlot, WeeklyAvailability, AvailabilitySummary } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +32,7 @@ export const getAllStaff = async (): Promise<Staff[]> => {
       costPerHour: item.cost_per_hour,
       email: item.email,
       phone: item.phone || "",
-      status: item.status,
+      status: (item.status === "active" ? "active" : "inactive") as Staff["status"],
       createdAt: item.created_at,
       updatedAt: item.updated_at
     }));
@@ -66,7 +65,7 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status,
+    status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -100,7 +99,7 @@ export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "u
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status,
+    status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -138,7 +137,7 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status,
+    status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
