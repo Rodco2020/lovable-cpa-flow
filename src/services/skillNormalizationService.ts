@@ -82,6 +82,20 @@ const debugLog = (message: string, data?: any) => {
 };
 
 /**
+ * Staff ID overrides for skill normalization
+ * -----------------------------------------
+ * Some staff members have ambiguous or missing skill information. To ensure
+ * they are represented correctly in forecasting, we manually assign their
+ * normalized skill set based on their unique ID.
+ *
+ * Current mappings:
+ *   - 654242eb-7298-4218-9c3f-a9b9152f712d (Marciano) => ['Senior']
+ */
+const STAFF_ID_SKILL_OVERRIDES: Record<string, SkillType[]> = {
+  '654242eb-7298-4218-9c3f-a9b9152f712d': ['Senior']
+};
+
+/**
  * Normalize a set of skills to the standard forecast skill types
  * This is useful for ensuring consistent skill categorization across the system
  */
@@ -91,10 +105,10 @@ export const normalizeSkills = (skills: string[], staffId?: string): SkillType[]
   
   debugLog(`Normalizing skills: ${skills.join(', ')} for staff ID: ${staffId || 'unknown'}`);
   
-  // Special case for Marciano (specific staff ID)
-  if (staffId === '654242eb-7298-4218-9c3f-a9b9152f712d') {
-    debugLog('Special case: Marciano detected - assigning Senior skill');
-    return ['Senior'];
+  // Check for manual staff ID overrides
+  if (staffId && STAFF_ID_SKILL_OVERRIDES[staffId]) {
+    debugLog(`Staff ID ${staffId} matched override mapping`, STAFF_ID_SKILL_OVERRIDES[staffId]);
+    return STAFF_ID_SKILL_OVERRIDES[staffId];
   }
   
   // If no skills provided, default to Junior to prevent zero capacity
