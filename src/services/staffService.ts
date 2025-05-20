@@ -529,12 +529,20 @@ export const ensureStaffHasAvailability = async (staffId: string) => {
 // Function to standardize skill mapping for staff members
 export const mapStaffSkillsToForecastSkills = async (staffId: string) => {
   const staff = await getStaffById(staffId);
-  
+
   if (!staff) {
     console.error(`Staff member ${staffId} not found`);
     return [];
   }
-  
-  // Use the centralized skill normalization service
-  return normalizeSkills(staff.skills) as SkillType[];
+
+  // Log the raw skill IDs for troubleshooting
+  console.log(`Debug - Raw skills for staff ${staffId}:`, staff.skills);
+
+  // Use the centralized skill normalization service with staff ID for overrides
+  const normalized = normalizeSkills(staff.skills, staff.id) as SkillType[];
+
+  // Log the normalized result for troubleshooting
+  console.log(`Debug - Normalized skills for staff ${staffId}:`, normalized);
+
+  return normalized;
 };
