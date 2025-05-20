@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from "uuid";
 import { Staff, TimeSlot, WeeklyAvailability, AvailabilitySummary } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,35 +7,40 @@ import { SkillType } from "@/types/task";
 
 // Staff CRUD operations
 export const getAllStaff = async (): Promise<Staff[]> => {
-  const { data, error } = await supabase
-    .from('staff')
-    .select('*');
-  
-  if (error) {
-    console.error("Error fetching staff:", error);
-    throw error;
-  }
-  
-  if (!data) {
-    console.warn("No staff data returned from database");
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*');
+    
+    if (error) {
+      console.error("Error fetching staff:", error);
+      throw error;
+    }
+    
+    if (!data) {
+      console.warn("No staff data returned from database");
+      return [];
+    }
+    
+    console.log("Debug - Raw staff data from database:", data);
+    
+    // Map the database fields to our Staff model
+    return data.map(item => ({
+      id: item.id,
+      fullName: item.full_name,
+      roleTitle: item.role_title || "",
+      skills: item.assigned_skills || [],
+      costPerHour: item.cost_per_hour,
+      email: item.email,
+      phone: item.phone || "",
+      status: item.status,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at
+    }));
+  } catch (err) {
+    console.error("Failed to fetch staff data:", err);
     return [];
   }
-  
-  console.log("Debug - Raw staff data from database:", data);
-  
-  // Map the database fields to our Staff model
-  return data.map(item => ({
-    id: item.id,
-    fullName: item.full_name,
-    roleTitle: item.role_title || "",
-    skills: item.assigned_skills || [],
-    costPerHour: item.cost_per_hour,
-    email: item.email,
-    phone: item.phone || "",
-    status: item.status === "active" ? "active" : "inactive",
-    createdAt: item.created_at,
-    updatedAt: item.updated_at
-  }));
 };
 
 export const getStaffById = async (id: string): Promise<Staff | undefined> => {
@@ -60,7 +66,7 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status === "active" ? "active" : "inactive",
+    status: data.status,
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -94,7 +100,7 @@ export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "u
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status === "active" ? "active" : "inactive",
+    status: data.status,
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -132,7 +138,7 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: data.status === "active" ? "active" : "inactive",
+    status: data.status,
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -152,8 +158,8 @@ export const deleteStaff = async (id: string): Promise<boolean> => {
   return true;
 };
 
-// For now, we'll keep the mock implementations for TimeSlot operations,
-// but we can implement them with Supabase in a future update
+// TimeSlot operations using mock data instead of Supabase
+// since the staff_timeslots table doesn't exist yet in the schema
 
 // Mock timeslots for the current day
 const generateMockTimeSlots = (date: string): TimeSlot[] => {
@@ -189,114 +195,17 @@ const generateMockTimeSlots = (date: string): TimeSlot[] => {
   return slots;
 };
 
-// Mock weekly availability
-const mockWeeklyAvailability: WeeklyAvailability[] = [
-  // Mock data for first staff member
-  ...[1, 2, 3, 4, 5].flatMap(day => [
-    {
-      staffId: 'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c',
-      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      startTime: "09:00",
-      endTime: "12:00",
-      isAvailable: true,
-    },
-    {
-      staffId: 'b1e3c5a7-9d2f-4e8b-87c6-5a3f9e0d1b2c',
-      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      startTime: "13:00",
-      endTime: "17:00",
-      isAvailable: true,
-    }
-  ]),
-  // Mock data for second staff member
-  ...[1, 2, 3, 4, 5].flatMap(day => [
-    {
-      staffId: 'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d',
-      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      startTime: "09:00",
-      endTime: "12:00",
-      isAvailable: true,
-    },
-    {
-      staffId: 'd4f6a8c0-e2b4-6d8f-0a2c-4e6f8a0c2e4d',
-      dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      startTime: "13:00",
-      endTime: "17:00",
-      isAvailable: true,
-    }
-  ])
-];
-
-// TimeSlot operations - using DB data instead of mock data
+// TimeSlot operations
 export const getTimeSlotsByDate = async (date: string): Promise<TimeSlot[]> => {
-  // Query the database for time slots on the specified date
-  const { data, error } = await supabase
-    .from('staff_timeslots')
-    .select('*')
-    .eq('date', date);
-  
-  if (error) {
-    console.error("Error fetching time slots by date:", error);
-    // If the table doesn't exist yet, return empty array instead of throwing
-    if (error.code === "42P01") { // Undefined table error
-      console.warn("Staff timeslots table doesn't exist yet. Returning empty array.");
-      return [];
-    }
-    throw error;
-  }
-  
-  if (!data || data.length === 0) {
-    console.log(`No time slots found for date: ${date}`);
-    return [];
-  }
-  
-  // Map the database fields to our TimeSlot model
-  return data.map(item => ({
-    id: item.id,
-    staffId: item.staff_id,
-    date: item.date,
-    startTime: item.start_time,
-    endTime: item.end_time,
-    isAvailable: item.is_available,
-    taskId: item.task_id || undefined
-  }));
+  console.log(`Fetching time slots for date: ${date}`);
+  // Since staff_timeslots table doesn't exist yet, return mock data
+  return generateMockTimeSlots(date);
 };
 
 export const getTimeSlotsByStaffAndDate = async (staffId: string, date: string): Promise<TimeSlot[]> => {
-  // Query the database for time slots for the specified staff and date
-  const { data, error } = await supabase
-    .from('staff_timeslots')
-    .select('*')
-    .eq('staff_id', staffId)
-    .eq('date', date);
-  
-  if (error) {
-    console.error("Error fetching time slots by staff and date:", error);
-    // If the table doesn't exist yet, return empty array instead of throwing
-    if (error.code === "42P01") { // Undefined table error
-      console.warn("Staff timeslots table doesn't exist yet. Returning empty array.");
-      return [];
-    }
-    throw error;
-  }
-  
-  if (!data || data.length === 0) {
-    console.log(`No time slots found for staff ${staffId} on date: ${date}`);
-    // Since we don't have time slots data in the database yet, 
-    // we'll generate empty slots for the full day to avoid UI issues
-    return generateEmptyTimeSlots(staffId, date);
-  }
-  
-  // Map the database fields to our TimeSlot model
-  return data.map(item => ({
-    id: item.id,
-    staffId: item.staff_id,
-    date: item.date,
-    startTime: item.start_time,
-    endTime: item.end_time,
-    isAvailable: item.is_available,
-    taskId: item.task_id || undefined
-  }));
+  console.log(`Fetching time slots for staff ${staffId} on date: ${date}`);
+  // Since staff_timeslots table doesn't exist yet, return mock data filtered by staffId
+  return generateMockTimeSlots(date).filter(slot => slot.staffId === staffId);
 };
 
 // Helper function to generate empty time slots for a day
@@ -328,52 +237,9 @@ export const updateTimeSlot = async (
   id: string, 
   data: Partial<Omit<TimeSlot, "id" | "staffId" | "date">>
 ): Promise<TimeSlot | undefined> => {
-  // First, check if this is a generated time slot (has a UUID but not in DB)
-  const { data: existingSlot, error: fetchError } = await supabase
-    .from('staff_timeslots')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-    
-  if (fetchError && fetchError.code !== "42P01") {
-    console.error("Error fetching time slot for update:", fetchError);
-    throw fetchError;
-  }
-  
-  // If the table doesn't exist or the slot doesn't exist, 
-  // we can't update it in the database yet
-  if (!existingSlot) {
-    console.warn("Time slot not found in database, cannot update");
-    return undefined;
-  }
-  
-  // If the slot exists, update it
-  const { data: updatedData, error: updateError } = await supabase
-    .from('staff_timeslots')
-    .update({
-      start_time: data.startTime,
-      end_time: data.endTime,
-      is_available: data.isAvailable,
-      task_id: data.taskId
-    })
-    .eq('id', id)
-    .select()
-    .single();
-  
-  if (updateError) {
-    console.error("Error updating time slot:", updateError);
-    throw updateError;
-  }
-  
-  return {
-    id: updatedData.id,
-    staffId: updatedData.staff_id,
-    date: updatedData.date,
-    startTime: updatedData.start_time,
-    endTime: updatedData.end_time,
-    isAvailable: updatedData.is_available,
-    taskId: updatedData.task_id || undefined
-  };
+  // Since staff_timeslots table doesn't exist yet, we can't update in the database
+  console.log("Mock updating time slot:", id, data);
+  return undefined;
 };
 
 // Weekly availability operations
