@@ -9,10 +9,54 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Create Supabase client with improved configuration
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      'x-application-name': 'cpa-practice-management',
+    },
+    // Add fetch options with timeout
+    fetch: (url, options) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).then(response => {
+        clearTimeout(timeoutId);
+        return response;
+      }).catch(error => {
+        clearTimeout(timeoutId);
+        console.error("Supabase fetch error:", error);
+        throw error;
+      });
+    }
   }
 });
+
+// Helper function to check Supabase connection health
+export const checkSupabaseConnection = async (): Promise<boolean> => {
+  try {
+    const start = Date.now();
+    const { error } = await supabase.from('staff').select('count').limit(1);
+    const elapsed = Date.now() - start;
+    
+    console.log(`Supabase connection check took ${elapsed}ms`);
+    
+    if (error) {
+      console.error("Supabase connection check failed:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error("Failed to check Supabase connection:", err);
+    return false;
+  }
+};

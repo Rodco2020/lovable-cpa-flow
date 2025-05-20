@@ -7,6 +7,7 @@ import { SkillType } from "@/types/task";
 // Staff CRUD operations
 export const getAllStaff = async (): Promise<Staff[]> => {
   try {
+    console.log("Fetching all staff members");
     const { data, error } = await supabase
       .from('staff')
       .select('*');
@@ -21,7 +22,7 @@ export const getAllStaff = async (): Promise<Staff[]> => {
       return [];
     }
     
-    console.log("Debug - Raw staff data from database:", data);
+    console.log(`Debug - Raw staff data from database: ${data.length} staff members found`);
     
     // Map the database fields to our Staff model
     return data.map(item => ({
@@ -38,7 +39,7 @@ export const getAllStaff = async (): Promise<Staff[]> => {
     }));
   } catch (err) {
     console.error("Failed to fetch staff data:", err);
-    return [];
+    throw new Error(`Database connection error: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 };
 
@@ -241,36 +242,65 @@ export const updateTimeSlot = async (
   return undefined;
 };
 
-// Weekly availability operations
+// Weekly availability operations with improved error handling
 export const getWeeklyAvailabilityByStaff = async (staffId: string): Promise<WeeklyAvailability[]> => {
-  const { data, error } = await supabase
-    .from('staff_availability')
-    .select('*')
-    .eq('staff_id', staffId);
-  
-  if (error) {
-    console.error("Error fetching staff availability:", error);
-    throw error;
-  }
-  
-  // If no data is found, return empty array
-  if (!data || data.length === 0) {
-    return [];
-  }
-  
-  // Map the database records to our WeeklyAvailability model
-  return data.map(item => {
-    // Parse time_slot format which might be "09:00-12:00" to get start and end times
-    const [startTime, endTime] = item.time_slot.split('-');
+  try {
+    console.log(`Fetching availability for staff ${staffId}`);
     
-    return {
-      staffId: item.staff_id,
-      dayOfWeek: item.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      startTime: startTime,
-      endTime: endTime,
-      isAvailable: item.is_available,
-    };
-  });
+    // First check if the connection is available
+    try {
+      const { error: pingError } = await supabase.from('staff_availability').select('count').limit(1);
+      if (pingError) {
+        console.error("Database connection error during ping:", pingError);
+        throw new Error(`Database connection error: ${pingError.message}`);
+      }
+    } catch (pingErr) {
+      console.error("Failed to connect to Supabase:", pingErr);
+      throw new Error('Cannot connect to database. Please check your connection and try again.');
+    }
+    
+    // Now fetch the actual data
+    const { data, error } = await supabase
+      .from('staff_availability')
+      .select('*')
+      .eq('staff_id', staffId);
+    
+    if (error) {
+      console.error(`Error fetching staff availability for ${staffId}:`, error);
+      throw error;
+    }
+    
+    // If no data is found, return empty array
+    if (!data || data.length === 0) {
+      console.log(`No availability data found for staff ${staffId}`);
+      return [];
+    }
+    
+    console.log(`Found ${data.length} availability records for staff ${staffId}`);
+    
+    // Map the database records to our WeeklyAvailability model
+    return data.map(item => {
+      // Parse time_slot format which might be "09:00-12:00" to get start and end times
+      const [startTime, endTime] = item.time_slot.split('-');
+      
+      return {
+        staffId: item.staff_id,
+        dayOfWeek: item.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+        startTime: startTime,
+        endTime: endTime,
+        isAvailable: item.is_available,
+      };
+    });
+  } catch (err) {
+    console.error(`Failed to fetch availability for staff ${staffId}:`, err);
+    // This is where errors from both the ping and the data fetch will be caught
+    // Rethrow with a more specific message
+    if (err instanceof Error && err.message.includes('connection')) {
+      throw err; // Already formatted connection error
+    } else {
+      throw new Error(`Failed to fetch availability data: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
 };
 
 export const updateWeeklyAvailability = async (
@@ -333,116 +363,126 @@ export const updateWeeklyAvailability = async (
   }));
 };
 
-// New batch operations for availability
+// New batch operations for availability with improved error handling
 export const batchUpdateWeeklyAvailability = async (
   staffId: string,
   availabilities: WeeklyAvailability[]
 ): Promise<WeeklyAvailability[]> => {
-  // Group availabilities by day of week
-  const availabilitiesByDay = availabilities.reduce<Record<string, Omit<WeeklyAvailability, "staffId" | "dayOfWeek">[]>>(
-    (acc, avail) => {
-      const day = avail.dayOfWeek.toString();
-      if (!acc[day]) {
-        acc[day] = [];
-      }
-      acc[day].push({
-        startTime: avail.startTime,
-        endTime: avail.endTime,
-        isAvailable: avail.isAvailable,
-      });
-      return acc;
-    },
-    {}
-  );
-  
-  // Update each day's availabilities
-  const results: WeeklyAvailability[] = [];
-  for (const [day, dayAvailabilities] of Object.entries(availabilitiesByDay)) {
-    const dayOfWeek = parseInt(day) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
-    const updatedAvailabilities = await updateWeeklyAvailability(
-      staffId,
-      dayOfWeek,
-      dayAvailabilities
+  try {
+    // Group availabilities by day of week
+    const availabilitiesByDay = availabilities.reduce<Record<string, Omit<WeeklyAvailability, "staffId" | "dayOfWeek">[]>>(
+      (acc, avail) => {
+        const day = avail.dayOfWeek.toString();
+        if (!acc[day]) {
+          acc[day] = [];
+        }
+        acc[day].push({
+          startTime: avail.startTime,
+          endTime: avail.endTime,
+          isAvailable: avail.isAvailable,
+        });
+        return acc;
+      },
+      {}
     );
-    results.push(...updatedAvailabilities);
+    
+    // Update each day's availabilities
+    const results: WeeklyAvailability[] = [];
+    for (const [day, dayAvailabilities] of Object.entries(availabilitiesByDay)) {
+      const dayOfWeek = parseInt(day) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+      const updatedAvailabilities = await updateWeeklyAvailability(
+        staffId,
+        dayOfWeek,
+        dayAvailabilities
+      );
+      results.push(...updatedAvailabilities);
+    }
+    
+    return results;
+  } catch (err) {
+    console.error(`Failed to batch update availability for staff ${staffId}:`, err);
+    throw new Error(`Failed to update availability data: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
-  
-  return results;
 };
 
-// New function to calculate daily and weekly availability summaries with more detailed metrics
+// Calculate availability summary with improved error handling
 export const calculateAvailabilitySummary = async (
   staffId: string
 ): Promise<AvailabilitySummary> => {
-  const availabilities = await getWeeklyAvailabilityByStaff(staffId);
-  
-  // Calculate hours for each time slot and group by day
-  const dailySummaries = Array.from({ length: 7 }, (_, i) => ({ 
-    day: i, 
-    totalHours: 0,
-    slots: [] as { startTime: string; endTime: string }[] 
-  }));
-  
-  // Distribution by time of day
-  const distribution: { [key: string]: number } = {
-    morning: 0,   // 6:00 AM - 12:00 PM
-    afternoon: 0, // 12:00 PM - 5:00 PM
-    evening: 0    // 5:00 PM - 10:00 PM
-  };
-  
-  for (const avail of availabilities) {
-    if (avail.isAvailable) {
-      // Calculate hours in this time slot
-      const startParts = avail.startTime.split(':').map(Number);
-      const endParts = avail.endTime.split(':').map(Number);
-      
-      const startHours = startParts[0] + startParts[1] / 60;
-      const endHours = endParts[0] + endParts[1] / 60;
-      
-      const hours = endHours - startHours;
-      dailySummaries[avail.dayOfWeek].totalHours += hours;
-      
-      // Track detailed slot information
-      dailySummaries[avail.dayOfWeek].slots.push({
-        startTime: avail.startTime,
-        endTime: avail.endTime
-      });
-      
-      // Calculate distribution by time of day
-      // This is a simplified algorithm - in reality we'd need to split slots that cross boundaries
-      if (startHours >= 6 && startHours < 12) {
-        distribution.morning += hours;
-      } else if (startHours >= 12 && startHours < 17) {
-        distribution.afternoon += hours;
-      } else if (startHours >= 17 && startHours < 22) {
-        distribution.evening += hours;
+  try {
+    const availabilities = await getWeeklyAvailabilityByStaff(staffId);
+    
+    // Calculate hours for each time slot and group by day
+    const dailySummaries = Array.from({ length: 7 }, (_, i) => ({ 
+      day: i, 
+      totalHours: 0,
+      slots: [] as { startTime: string; endTime: string }[] 
+    }));
+    
+    // Distribution by time of day
+    const distribution: { [key: string]: number } = {
+      morning: 0,   // 6:00 AM - 12:00 PM
+      afternoon: 0, // 12:00 PM - 5:00 PM
+      evening: 0    // 5:00 PM - 10:00 PM
+    };
+    
+    for (const avail of availabilities) {
+      if (avail.isAvailable) {
+        // Calculate hours in this time slot
+        const startParts = avail.startTime.split(':').map(Number);
+        const endParts = avail.endTime.split(':').map(Number);
+        
+        const startHours = startParts[0] + startParts[1] / 60;
+        const endHours = endParts[0] + endParts[1] / 60;
+        
+        const hours = endHours - startHours;
+        dailySummaries[avail.dayOfWeek].totalHours += hours;
+        
+        // Track detailed slot information
+        dailySummaries[avail.dayOfWeek].slots.push({
+          startTime: avail.startTime,
+          endTime: avail.endTime
+        });
+        
+        // Calculate distribution by time of day
+        // This is a simplified algorithm - in reality we'd need to split slots that cross boundaries
+        if (startHours >= 6 && startHours < 12) {
+          distribution.morning += hours;
+        } else if (startHours >= 12 && startHours < 17) {
+          distribution.afternoon += hours;
+        } else if (startHours >= 17 && startHours < 22) {
+          distribution.evening += hours;
+        }
       }
     }
+    
+    // Calculate weekly total
+    const weeklyTotal = dailySummaries.reduce((sum, day) => sum + day.totalHours, 0);
+    
+    // Calculate average daily hours (only counting days with any availability)
+    const daysWithAvailability = dailySummaries.filter(day => day.totalHours > 0).length;
+    const averageDailyHours = daysWithAvailability > 0 
+      ? weeklyTotal / daysWithAvailability 
+      : 0;
+    
+    // Find peak day (day with most hours)
+    const peakDay = dailySummaries.reduce((peak, day) => {
+      return day.totalHours > (peak?.hours || 0) 
+        ? { day: day.day, hours: day.totalHours } 
+        : peak;
+    }, null as { day: number; hours: number } | null);
+    
+    return {
+      dailySummaries,
+      weeklyTotal,
+      averageDailyHours,
+      peakDay,
+      distribution,
+    };
+  } catch (err) {
+    console.error(`Failed to calculate availability summary for staff ${staffId}:`, err);
+    throw new Error(`Failed to calculate availability summary: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
-  
-  // Calculate weekly total
-  const weeklyTotal = dailySummaries.reduce((sum, day) => sum + day.totalHours, 0);
-  
-  // Calculate average daily hours (only counting days with any availability)
-  const daysWithAvailability = dailySummaries.filter(day => day.totalHours > 0).length;
-  const averageDailyHours = daysWithAvailability > 0 
-    ? weeklyTotal / daysWithAvailability 
-    : 0;
-  
-  // Find peak day (day with most hours)
-  const peakDay = dailySummaries.reduce((peak, day) => {
-    return day.totalHours > (peak?.hours || 0) 
-      ? { day: day.day, hours: day.totalHours } 
-      : peak;
-  }, null as { day: number; hours: number } | null);
-  
-  return {
-    dailySummaries,
-    weeklyTotal,
-    averageDailyHours,
-    peakDay,
-    distribution,
-  };
 };
 
 // Enhanced function to ensure staff have availability templates
