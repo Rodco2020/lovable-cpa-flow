@@ -37,7 +37,7 @@ const ForecastDebugPage: React.FC = () => {
               </p>
             </div>
             
-            {/* Use our new debugger component */}
+            {/* Use our skill debugger component */}
             <ForecastSkillDebugger />
           </section>
         </div>

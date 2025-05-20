@@ -15,6 +15,13 @@ export const getAllStaff = async (): Promise<Staff[]> => {
     throw error;
   }
   
+  if (!data) {
+    console.warn("No staff data returned from database");
+    return [];
+  }
+  
+  console.log("Debug - Raw staff data from database:", data);
+  
   // Map the database fields to our Staff model
   return data.map(item => ({
     id: item.id,
@@ -220,35 +227,153 @@ const mockWeeklyAvailability: WeeklyAvailability[] = [
   ])
 ];
 
-// TimeSlot operations
+// TimeSlot operations - using DB data instead of mock data
 export const getTimeSlotsByDate = async (date: string): Promise<TimeSlot[]> => {
-  return Promise.resolve(generateMockTimeSlots(date));
+  // Query the database for time slots on the specified date
+  const { data, error } = await supabase
+    .from('staff_timeslots')
+    .select('*')
+    .eq('date', date);
+  
+  if (error) {
+    console.error("Error fetching time slots by date:", error);
+    // If the table doesn't exist yet, return empty array instead of throwing
+    if (error.code === "42P01") { // Undefined table error
+      console.warn("Staff timeslots table doesn't exist yet. Returning empty array.");
+      return [];
+    }
+    throw error;
+  }
+  
+  if (!data || data.length === 0) {
+    console.log(`No time slots found for date: ${date}`);
+    return [];
+  }
+  
+  // Map the database fields to our TimeSlot model
+  return data.map(item => ({
+    id: item.id,
+    staffId: item.staff_id,
+    date: item.date,
+    startTime: item.start_time,
+    endTime: item.end_time,
+    isAvailable: item.is_available,
+    taskId: item.task_id || undefined
+  }));
 };
 
 export const getTimeSlotsByStaffAndDate = async (staffId: string, date: string): Promise<TimeSlot[]> => {
-  const allSlots = await getTimeSlotsByDate(date);
-  return allSlots.filter(slot => slot.staffId === staffId);
+  // Query the database for time slots for the specified staff and date
+  const { data, error } = await supabase
+    .from('staff_timeslots')
+    .select('*')
+    .eq('staff_id', staffId)
+    .eq('date', date);
+  
+  if (error) {
+    console.error("Error fetching time slots by staff and date:", error);
+    // If the table doesn't exist yet, return empty array instead of throwing
+    if (error.code === "42P01") { // Undefined table error
+      console.warn("Staff timeslots table doesn't exist yet. Returning empty array.");
+      return [];
+    }
+    throw error;
+  }
+  
+  if (!data || data.length === 0) {
+    console.log(`No time slots found for staff ${staffId} on date: ${date}`);
+    // Since we don't have time slots data in the database yet, 
+    // we'll generate empty slots for the full day to avoid UI issues
+    return generateEmptyTimeSlots(staffId, date);
+  }
+  
+  // Map the database fields to our TimeSlot model
+  return data.map(item => ({
+    id: item.id,
+    staffId: item.staff_id,
+    date: item.date,
+    startTime: item.start_time,
+    endTime: item.end_time,
+    isAvailable: item.is_available,
+    taskId: item.task_id || undefined
+  }));
+};
+
+// Helper function to generate empty time slots for a day
+const generateEmptyTimeSlots = (staffId: string, date: string): TimeSlot[] => {
+  const slots: TimeSlot[] = [];
+  const startHour = 8; // 8 AM
+  const endHour = 17; // 5 PM
+  
+  for (let hour = startHour; hour < endHour; hour++) {
+    // Create two 30-minute slots per hour
+    for (let minutes of [0, 30]) {
+      slots.push({
+        id: uuidv4(),
+        staffId: staffId,
+        date,
+        startTime: `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+        endTime: minutes === 0 
+          ? `${hour.toString().padStart(2, '0')}:30` 
+          : `${(hour + 1).toString().padStart(2, '0')}:00`,
+        isAvailable: true, // Default to available
+      });
+    }
+  }
+  
+  return slots;
 };
 
 export const updateTimeSlot = async (
   id: string, 
   data: Partial<Omit<TimeSlot, "id" | "staffId" | "date">>
 ): Promise<TimeSlot | undefined> => {
-  // In a real app, this would update the database
-  // For this mock service, we'll just return a modified slot
-  const slots = await getTimeSlotsByDate(new Date().toISOString().split('T')[0]);
-  const slotIndex = slots.findIndex(slot => slot.id === id);
-  
-  if (slotIndex === -1) {
-    return Promise.resolve(undefined);
+  // First, check if this is a generated time slot (has a UUID but not in DB)
+  const { data: existingSlot, error: fetchError } = await supabase
+    .from('staff_timeslots')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+    
+  if (fetchError && fetchError.code !== "42P01") {
+    console.error("Error fetching time slot for update:", fetchError);
+    throw fetchError;
   }
   
-  const updatedSlot = {
-    ...slots[slotIndex],
-    ...data,
-  };
+  // If the table doesn't exist or the slot doesn't exist, 
+  // we can't update it in the database yet
+  if (!existingSlot) {
+    console.warn("Time slot not found in database, cannot update");
+    return undefined;
+  }
   
-  return Promise.resolve(updatedSlot);
+  // If the slot exists, update it
+  const { data: updatedData, error: updateError } = await supabase
+    .from('staff_timeslots')
+    .update({
+      start_time: data.startTime,
+      end_time: data.endTime,
+      is_available: data.isAvailable,
+      task_id: data.taskId
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (updateError) {
+    console.error("Error updating time slot:", updateError);
+    throw updateError;
+  }
+  
+  return {
+    id: updatedData.id,
+    staffId: updatedData.staff_id,
+    date: updatedData.date,
+    startTime: updatedData.start_time,
+    endTime: updatedData.end_time,
+    isAvailable: updatedData.is_available,
+    taskId: updatedData.task_id || undefined
+  };
 };
 
 // Weekly availability operations
