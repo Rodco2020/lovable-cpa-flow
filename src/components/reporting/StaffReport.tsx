@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllStaff, calculateAvailabilitySummary } from "@/services/staffService";
@@ -100,7 +99,7 @@ const StaffReport: React.FC = () => {
           toast({
             title: "Connection Issues",
             description: `Unable to fetch availability data for some staff members. The report will show partial data.`,
-            variant: "warning",
+            variant: "warning", // This is now a valid variant since we added it
           });
         }
       } catch (err) {
