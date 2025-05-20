@@ -1,60 +1,60 @@
-
-import React from 'react';
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
-} from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/context/AuthContext';
-import MainLayout from '@/layouts/MainLayout';
-import DashboardModule from '@/pages/DashboardModule';
-import StaffModule from '@/pages/StaffModule';
-import SchedulerModule from '@/pages/SchedulerModule';
-import ForecastingModule from '@/pages/ForecastingModule';
-import TaskModule from '@/pages/TaskModule';
-import SkillsModule from '@/pages/SkillsModule';
-import ClientModule from '@/pages/ClientModule';
-import IntegrationsInitializer from "@/components/integrations/IntegrationsInitializer";
-import Auth from '@/pages/Auth';
+} from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
+import MainLayout from "@/layouts/MainLayout";
+import Auth from "@/pages/Auth";
+import ClientModule from "@/pages/ClientModule";
+import StaffModule from "@/pages/StaffModule";
+import SkillsModule from "@/pages/SkillsModule";
+import TaskModule from "@/pages/TaskModule";
+import SchedulerModule from "@/pages/SchedulerModule";
+import ForecastingModule from "@/pages/ForecastingModule";
+import DashboardModule from "@/pages/DashboardModule";
+import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
+import StaffReportPage from "@/pages/StaffReportPage";
 
-// Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
     },
   },
 });
 
 function App() {
   return (
-    <>
-      {/* Integration initializer */}
-      <IntegrationsInitializer />
-      
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <AuthProvider>
+    <Router>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <MainLayout>
             <Routes>
+              <Route path="/" element={<Index />} />
               <Route path="/auth/*" element={<Auth />} />
-              <Route path="/" element={<MainLayout />}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<DashboardModule />} />
-                <Route path="clients/*" element={<ClientModule />} />
-                <Route path="staff/*" element={<StaffModule />} />
-                <Route path="scheduler/*" element={<SchedulerModule />} />
-                <Route path="forecasting/*" element={<ForecastingModule />} />
-                <Route path="tasks/*" element={<TaskModule />} />
-                <Route path="skills/*" element={<SkillsModule />} />
-              </Route>
+              <Route path="/clients/*" element={<ClientModule />} />
+              <Route path="/staff/*" element={<StaffModule />} />
+              <Route path="/skills/*" element={<SkillsModule />} />
+              <Route path="/tasks/*" element={<TaskModule />} />
+              <Route path="/scheduler/*" element={<SchedulerModule />} />
+              <Route path="/forecasting/*" element={<ForecastingModule />} />
+              <Route path="/dashboard/*" element={<DashboardModule />} />
+              {/* New report route */}
+              <Route path="/reports/staff" element={<StaffReportPage />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
-          </AuthProvider>
-        </Router>
-      </QueryClientProvider>
-    </>
+          </MainLayout>
+          <Toaster />
+        </QueryClientProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 
