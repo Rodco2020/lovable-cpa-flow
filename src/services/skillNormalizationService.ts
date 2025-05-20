@@ -67,6 +67,18 @@ export const STANDARD_SKILL_MAPPING: Record<string, SkillType[]> = {
 };
 
 /**
+ * Mapping of database skill IDs to forecast skill types
+ * Useful for converting stored skill IDs into normalized skills
+ */
+export const SKILL_ID_MAPPING: Record<string, SkillType[]> = {
+  // Example skill IDs
+  '1b935e08-d167-472b-8579-f43c95ca03a7': ['Junior'],
+  '865da209-825e-4b4e-892b-6984fbc1d965': ['Senior'],
+  '459fb51a-e692-4984-b125-f77af034f5d8': ['CPA'],
+  // Add additional skill ID mappings as needed
+};
+
+/**
  * Debug mode for skill normalization
  * When enabled, logs detailed information about skill mapping
  */
