@@ -67,6 +67,17 @@ export const STANDARD_SKILL_MAPPING: Record<string, SkillType[]> = {
 };
 
 /**
+ * Mapping from raw skill IDs to standard skill types
+ * These IDs correspond to entries in the skills table.
+ */
+export const SKILL_ID_MAPPING: Record<string, SkillType[]> = {
+  // Example placeholder IDs - update with real IDs as needed
+  '00000000-0000-0000-0000-000000000001': ['Junior'],
+  '00000000-0000-0000-0000-000000000002': ['Senior'],
+  '00000000-0000-0000-0000-000000000003': ['CPA'],
+};
+
+/**
  * Debug mode for skill normalization
  * When enabled, logs detailed information about skill mapping
  */
@@ -106,11 +117,18 @@ export const normalizeSkills = (skills: string[], staffId?: string): SkillType[]
   // Map each skill to standard forecast skills
   skills.forEach(skill => {
     if (!skill) return;
-    
+
     const skillLower = skill.toLowerCase().trim();
     debugLog(`Processing skill "${skill}" (normalized to "${skillLower}")`);
-    
-    // If there's a direct mapping, use it
+
+    // First check if this is a known skill ID
+    if (SKILL_ID_MAPPING[skill]) {
+      debugLog(`Using ID mapping for "${skill}": ${SKILL_ID_MAPPING[skill].join(', ')}`);
+      SKILL_ID_MAPPING[skill].forEach(s => standardizedSkills.add(s));
+      return;
+    }
+
+    // If there's a direct name mapping, use it
     if (STANDARD_SKILL_MAPPING[skillLower]) {
       debugLog(`Found direct mapping for "${skillLower}": ${STANDARD_SKILL_MAPPING[skillLower].join(', ')}`);
       STANDARD_SKILL_MAPPING[skillLower].forEach(s => standardizedSkills.add(s));
@@ -123,7 +141,7 @@ export const normalizeSkills = (skills: string[], staffId?: string): SkillType[]
       } else {
         // For unrecognized skills, check for partial matches
         let matched = false;
-        
+
         // Try to find partial matches in mapping keys
         for (const mappingKey of Object.keys(STANDARD_SKILL_MAPPING)) {
           if (skillLower.includes(mappingKey) || mappingKey.includes(skillLower)) {
@@ -132,11 +150,10 @@ export const normalizeSkills = (skills: string[], staffId?: string): SkillType[]
             matched = true;
           }
         }
-        
-        // If still no match, default to Junior
+
+        // If still no match, just log it
         if (!matched) {
-          debugLog(`No match found for "${skill}", defaulting to Junior`);
-          standardizedSkills.add('Junior');
+          debugLog(`No match found for "${skill}"`);
         }
       }
     }
