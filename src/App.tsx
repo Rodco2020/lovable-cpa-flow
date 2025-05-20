@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -35,8 +35,8 @@ function App() {
     <Router>
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
-          <MainLayout>
-            <Routes>
+          <Routes>
+            <Route element={<MainLayout />}>
               <Route path="/" element={<Index />} />
               <Route path="/auth/*" element={<Auth />} />
               <Route path="/clients/*" element={<ClientModule />} />
@@ -49,8 +49,8 @@ function App() {
               {/* Staff report route */}
               <Route path="/reports/staff" element={<StaffReportPage />} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MainLayout>
+            </Route>
+          </Routes>
           <Toaster />
         </QueryClientProvider>
       </AuthProvider>
