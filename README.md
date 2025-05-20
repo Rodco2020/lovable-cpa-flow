@@ -68,6 +68,17 @@ Jest with ts-jest is configured for TypeScript support. Execute all tests with:
 npm test
 ```
 
+## Skill normalization service
+
+Forecasting operations rely on standardized skill types (`Junior`, `Senior`, and `CPA`).
+`skillNormalizationService.ts` maps various skill names and certain staff IDs to
+these standard types. Staff accounts lacking detailed skill information can be
+manually mapped using their ID. Current override mappings include:
+
+- `654242eb-7298-4218-9c3f-a9b9152f712d` → `Senior`
+
+Use `normalizeSkills(skills, staffId)` to apply these mappings.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/cddd36af-4b51-45b1-869a-8fdcfb68c00d) and click on Share -> Publish.

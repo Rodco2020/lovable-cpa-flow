@@ -535,6 +535,6 @@ export const mapStaffSkillsToForecastSkills = async (staffId: string) => {
     return [];
   }
   
-  // Use the centralized skill normalization service
-  return normalizeSkills(staff.skills) as SkillType[];
+  // Use the centralized skill normalization service with staff ID overrides
+  return normalizeSkills(staff.skills, staff.id) as SkillType[];
 };
