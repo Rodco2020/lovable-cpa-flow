@@ -10,7 +10,8 @@ import {
   User,
   UserCog,
   Database,
-  LogOut
+  LogOut,
+  FileBarChart // Adding for reports icon
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,19 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
           >
             <BarChart2 className="h-5 w-5" />
             <span>Forecasting</span>
+          </NavLink>
+          
+          <NavLink 
+            to="/reports/staff" 
+            className={({ isActive }) => cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+              isActive 
+                ? "bg-slate-800 text-white" 
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            )}
+          >
+            <FileBarChart className="h-5 w-5" />
+            <span>Staff Report</span>
           </NavLink>
         </nav>
         
