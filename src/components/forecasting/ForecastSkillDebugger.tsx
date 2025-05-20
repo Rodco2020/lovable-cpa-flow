@@ -20,14 +20,14 @@ const ForecastSkillDebugger: React.FC = () => {
         const staffData = await getAllStaff();
         setStaff(staffData.filter(s => s.status === 'active'));
         
-        // Analyze staff skills
+        // Analyze staff skills - now passing staff ID to the analyze function
         const analysis = staffData
           .filter(s => s.status === 'active')
           .map(s => ({
             id: s.id,
             name: s.fullName,
             rawSkills: s.skills,
-            analysis: analyzeStaffSkills(s.skills)
+            analysis: analyzeStaffSkills(s.skills, s.id)
           }));
         
         setSkillAnalysis(analysis);
@@ -71,6 +71,9 @@ const ForecastSkillDebugger: React.FC = () => {
                         {s.analysis.defaultedToJunior && (
                           <Badge variant="outline" className="ml-2 text-xs">Default</Badge>
                         )}
+                        {s.analysis.manualOverride && (
+                          <Badge variant="destructive" className="ml-2 text-xs">Override</Badge>
+                        )}
                       </div>
                     ))
                   }
@@ -82,7 +85,12 @@ const ForecastSkillDebugger: React.FC = () => {
                   {skillAnalysis
                     .filter(s => s.analysis.hasSenior)
                     .map(s => (
-                      <div key={s.id} className="text-sm">{s.name}</div>
+                      <div key={s.id} className="text-sm">
+                        {s.name}
+                        {s.analysis.manualOverride && (
+                          <Badge variant="destructive" className="ml-2 text-xs">Override</Badge>
+                        )}
+                      </div>
                     ))
                   }
                 </div>
@@ -107,6 +115,7 @@ const ForecastSkillDebugger: React.FC = () => {
                     <th className="text-left p-2">Staff</th>
                     <th className="text-left p-2">Raw Skills</th>
                     <th className="text-left p-2">Mapped Skills</th>
+                    <th className="text-left p-2">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -121,6 +130,14 @@ const ForecastSkillDebugger: React.FC = () => {
                           <Badge key={skill} variant="secondary" className="mr-1">{skill}</Badge>
                         ))}
                       </td>
+                      <td className="p-2">
+                        {item.analysis.manualOverride && (
+                          <Badge variant="destructive">Manual Override</Badge>
+                        )}
+                        {item.analysis.defaultedToJunior && !item.analysis.manualOverride && (
+                          <Badge variant="outline">Default</Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -129,6 +146,8 @@ const ForecastSkillDebugger: React.FC = () => {
             
             <div className="text-xs text-muted-foreground mt-2">
               * Staff with no explicit skills are defaulted to "Junior" to ensure they have capacity
+              <br />
+              * Some staff members may have manual overrides for specific skill mapping
             </div>
           </div>
         )}

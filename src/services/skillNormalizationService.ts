@@ -1,3 +1,4 @@
+
 import { SkillType } from '@/types/task';
 
 /**
@@ -48,7 +49,7 @@ export const STANDARD_SKILL_MAPPING: Record<string, SkillType[]> = {
   'partner': ['CPA'],
   
   // Generic role mappings - IMPORTANT: ensure all staff roles map to something
-  'staff': ['Junior'],  // Map generic "Staff" title to Junior by default
+  'staff': ['Junior', 'Senior'],  // Updated: Map "Staff" title to both Junior and Senior by default
   'staff accountant': ['Junior'],
   'intern': ['Junior'],
   'senior manager': ['Senior'],
@@ -84,11 +85,17 @@ const debugLog = (message: string, data?: any) => {
  * Normalize a set of skills to the standard forecast skill types
  * This is useful for ensuring consistent skill categorization across the system
  */
-export const normalizeSkills = (skills: string[]): SkillType[] => {
+export const normalizeSkills = (skills: string[], staffId?: string): SkillType[] => {
   // Create a set to avoid duplicates
   const standardizedSkills = new Set<SkillType>();
   
-  debugLog(`Normalizing skills: ${skills.join(', ')}`);
+  debugLog(`Normalizing skills: ${skills.join(', ')} for staff ID: ${staffId || 'unknown'}`);
+  
+  // Special case for Marciano (specific staff ID)
+  if (staffId === '654242eb-7298-4218-9c3f-a9b9152f712d') {
+    debugLog('Special case: Marciano detected - assigning Senior skill');
+    return ['Senior'];
+  }
   
   // If no skills provided, default to Junior to prevent zero capacity
   if (!skills || skills.length === 0) {
@@ -182,8 +189,8 @@ export const getAllSkillsWithMappings = (): Record<string, SkillType[]> => {
  * Analyze staff skills and determine their representation in standard skill types
  * Useful for debugging skill distribution
  */
-export const analyzeStaffSkills = (staffSkills: string[]) => {
-  const normalizedSkills = normalizeSkills(staffSkills);
+export const analyzeStaffSkills = (staffSkills: string[], staffId?: string) => {
+  const normalizedSkills = normalizeSkills(staffSkills, staffId);
   
   return {
     originalSkills: staffSkills,
@@ -191,6 +198,7 @@ export const analyzeStaffSkills = (staffSkills: string[]) => {
     hasCPA: normalizedSkills.includes('CPA'),
     hasSenior: normalizedSkills.includes('Senior'),
     hasJunior: normalizedSkills.includes('Junior'),
-    defaultedToJunior: staffSkills.length > 0 && normalizedSkills.length === 1 && normalizedSkills[0] === 'Junior'
+    defaultedToJunior: staffSkills.length > 0 && normalizedSkills.length === 1 && normalizedSkills[0] === 'Junior',
+    manualOverride: staffId === '654242eb-7298-4218-9c3f-a9b9152f712d'
   };
 };
