@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { getUnscheduledTaskInstances } from '@/services/taskService';
+import { getAllClients } from '@/services/clientService';
 import { TaskInstance } from '@/types/task';
+import { Client } from '@/types/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -13,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const UnscheduledTaskList: React.FC = () => {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +26,11 @@ const UnscheduledTaskList: React.FC = () => {
     try {
       const unscheduledTasks = await getUnscheduledTaskInstances();
       setTasks(unscheduledTasks);
+      
+      // Fetch clients to display names instead of IDs
+      const clientsData = await getAllClients();
+      setClients(clientsData);
+      
       // Show success toast only if refreshing, not on initial load
       if (!loading) {
         toast.success("Tasks refreshed successfully");
@@ -39,6 +47,12 @@ const UnscheduledTaskList: React.FC = () => {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Helper function to get client name by ID
+  const getClientName = (clientId: string): string => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.legalName : clientId;
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -105,7 +119,7 @@ const UnscheduledTaskList: React.FC = () => {
                   <TableCell>
                     <div className="flex items-center">
                       <BriefcaseBusiness className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                      {task.clientId}
+                      {getClientName(task.clientId)}
                     </div>
                   </TableCell>
                   <TableCell>

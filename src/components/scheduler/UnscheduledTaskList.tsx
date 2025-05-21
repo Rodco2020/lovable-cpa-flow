@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from "react";
 import { getUnscheduledTaskInstances } from "@/services/taskService";
+import { getAllClients } from "@/services/clientService";
 import { TaskInstance } from "@/types/task";
+import { Client } from "@/types/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,22 +16,27 @@ interface UnscheduledTaskListProps {
 
 const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect }) => {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const unscheduledTasks = await getUnscheduledTaskInstances();
+        const [unscheduledTasks, clientsData] = await Promise.all([
+          getUnscheduledTaskInstances(),
+          getAllClients()
+        ]);
         setTasks(unscheduledTasks);
+        setClients(clientsData);
       } catch (error) {
-        console.error("Error fetching unscheduled tasks:", error);
+        console.error("Error fetching data:", error);
         toast({
-          title: "Error fetching tasks",
-          description: "Could not retrieve unscheduled tasks.",
+          title: "Error fetching data",
+          description: "Could not retrieve unscheduled tasks or clients.",
           variant: "destructive",
         });
       } finally {
@@ -37,8 +44,14 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
       }
     };
 
-    fetchTasks();
+    fetchData();
   }, [toast]);
+
+  // Helper function to get client name by ID
+  const getClientName = (clientId: string): string => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.legalName : clientId;
+  };
 
   const handleTaskClick = (task: TaskInstance) => {
     if (onTaskSelect) {
@@ -52,8 +65,9 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
       task.name.toLowerCase().includes(searchQuery.toLowerCase()) : 
       !searchQuery;
     
-    const clientMatch = task.clientId && searchQuery ? 
-      task.clientId.toLowerCase().includes(searchQuery.toLowerCase()) : 
+    const clientName = getClientName(task.clientId);
+    const clientMatch = clientName && searchQuery ? 
+      clientName.toLowerCase().includes(searchQuery.toLowerCase()) : 
       !searchQuery;
     
     const matchesSearch = nameMatch || clientMatch;
@@ -116,7 +130,7 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
               <div className="flex-1">
                 <h4 className="font-medium">{task.name}</h4>
                 <div className="flex gap-2 text-sm text-muted-foreground">
-                  <span>{task.clientId || "No client"}</span>
+                  <span>{getClientName(task.clientId)}</span>
                   <span>•</span>
                   <span>{task.estimatedHours} hours</span>
                 </div>
