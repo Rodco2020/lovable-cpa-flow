@@ -47,18 +47,19 @@ import {
   mapStaffSkillsToForecastSkills 
 } from '@/services/staffService';
 import { getClientById, getActiveClients } from '@/services/clientService';
-import { debugLog, getDebugMode } from './forecasting/debug';
+import { debugLog, getDebugMode } from '@/services/forecasting/logger';
 import {
   clearForecastCache,
   getCachedForecast,
   setCachedForecast,
-} from './forecasting/cache';
+} from '@/services/forecasting/cache';
+import { calculatePeriods, getPeriodDateRange } from '@/services/forecasting/utils';
 
 // Clear the forecast cache on startup to ensure fresh calculations
 clearForecastCache();
 
 // Export the function from the cache module for external use
-export { clearForecastCache } from './forecasting/cache';
+export { clearForecastCache } from '@/services/forecasting/cache';
 
 /**
  * Generate a forecast based on the provided parameters
@@ -846,91 +847,6 @@ const getDateRangeFromTimeframe = (timeframe: ForecastTimeframe): DateRange => {
   }
 };
 
-/**
- * Helper function to calculate period strings based on granularity
- */
-const calculatePeriods = (dateRange: DateRange, granularity: GranularityType): string[] => {
-  const periods: string[] = [];
-  
-  switch (granularity) {
-    case 'daily':
-      eachDayOfInterval({
-        start: dateRange.startDate,
-        end: dateRange.endDate
-      }).forEach(date => {
-        periods.push(format(date, 'yyyy-MM-dd'));
-      });
-      break;
-      
-    case 'weekly':
-      eachWeekOfInterval({
-        start: dateRange.startDate,
-        end: dateRange.endDate
-      }, { weekStartsOn: 1 }).forEach(date => {
-        periods.push(format(date, 'yyyy-\'W\'ww'));
-      });
-      break;
-      
-    case 'monthly':
-      eachMonthOfInterval({
-        start: dateRange.startDate,
-        end: dateRange.endDate
-      }).forEach(date => {
-        periods.push(format(date, 'yyyy-MM'));
-      });
-      break;
-  }
-  
-  return periods;
-};
-
-/**
- * Helper function to convert a period string to a date range
- */
-const getPeriodDateRange = (period: string, granularity: GranularityType): DateRange => {
-  let startDate, endDate;
-  
-  switch (granularity) {
-    case 'daily':
-      startDate = new Date(period + 'T00:00:00');
-      endDate = new Date(period + 'T23:59:59');
-      break;
-      
-    case 'weekly':
-      // Parse 'yyyy-'W'ww' format
-      const [yearStrWeekly, weekStr] = period.split('-W');
-      const yearWeekly = parseInt(yearStrWeekly);
-      const week = parseInt(weekStr);
-      
-      // Calculate the first day of the week (Monday)
-      startDate = new Date(yearWeekly, 0, 1);
-      startDate.setDate(startDate.getDate() + (week - 1) * 7);
-      while (startDate.getDay() !== 1) {
-        startDate.setDate(startDate.getDate() - 1);
-      }
-      
-      // End date is Sunday
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 6);
-      endDate.setHours(23, 59, 59, 999);
-      break;
-      
-    case 'monthly':
-      // Parse 'yyyy-MM' format
-      const [yearMonthly, month] = period.split('-').map(Number);
-      startDate = new Date(yearMonthly, month - 1, 1);
-      endDate = new Date(yearMonthly, month, 0, 23, 59, 59, 999);
-      break;
-      
-    default:
-      // Fallback to current day
-      startDate = new Date();
-      endDate = new Date();
-      break;
-  }
-  
-  return { startDate, endDate };
-};
 
 /**
  * Get a forecast from the cache or generate a new one if not cached

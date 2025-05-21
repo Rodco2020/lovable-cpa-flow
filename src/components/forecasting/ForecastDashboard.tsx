@@ -23,7 +23,7 @@ import {
 import {
   setForecastDebugMode,
   isForecastDebugModeEnabled,
-} from '@/services/forecasting/debug';
+} from '@/services/forecasting/logger';
 import { runRecurrenceTests } from '@/utils/forecastTestingUtils';
 import useAppEvent from '@/hooks/useAppEvent';
 import { ForecastData, ForecastParameters, ForecastResult, SkillType } from '@/types/forecasting';

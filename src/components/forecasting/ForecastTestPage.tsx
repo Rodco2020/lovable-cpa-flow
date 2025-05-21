@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { runRecurrenceTests, runSkillAllocationTests } from "@/utils/forecastTestingUtils";
 import SkillAllocationSelector from "./SkillAllocationSelector";
-import { setForecastDebugMode, isForecastDebugModeEnabled } from "@/services/forecasting/debug";
+import { setForecastDebugMode, isForecastDebugModeEnabled } from "@/services/forecasting/logger";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
