@@ -1,6 +1,6 @@
 
 import { ForecastResult } from '@/types/forecasting';
-import { debugLog } from './debug';
+import { debugLog } from '@/services/forecasting/logger';
 
 let forecastCache: Record<string, ForecastResult> = {};
 
