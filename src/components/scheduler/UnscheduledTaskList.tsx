@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Filter } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { useSkillNames } from "@/hooks/useSkillNames";
 
 interface UnscheduledTaskListProps {
   onTaskSelect?: (task: TaskInstance) => void;
@@ -21,6 +23,10 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const { toast } = useToast();
+  
+  // Extract all skill IDs from all tasks for the useSkillNames hook
+  const allSkillIds = tasks.flatMap(task => task.requiredSkills);
+  const { skillsMap } = useSkillNames(allSkillIds);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,6 +57,11 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
   const getClientName = (clientId: string): string => {
     const client = clients.find(c => c.id === clientId);
     return client ? client.legalName : clientId;
+  };
+  
+  // Helper function to get skill name by ID
+  const getSkillName = (skillId: string): string => {
+    return skillsMap[skillId]?.name || skillId;
   };
 
   const handleTaskClick = (task: TaskInstance) => {
@@ -134,6 +145,15 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
                   <span>•</span>
                   <span>{task.estimatedHours} hours</span>
                 </div>
+                {task.requiredSkills && task.requiredSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {task.requiredSkills.map((skillId, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {getSkillName(skillId)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className={`px-2 py-1 text-xs rounded-full ${

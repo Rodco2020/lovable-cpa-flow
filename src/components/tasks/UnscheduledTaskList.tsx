@@ -12,12 +12,17 @@ import { BriefcaseBusiness, Clock, RefreshCw, AlertTriangle } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useSkillNames } from '@/hooks/useSkillNames';
 
 const UnscheduledTaskList: React.FC = () => {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Extract all skill IDs from all tasks for the useSkillNames hook
+  const allSkillIds = tasks.flatMap(task => task.requiredSkills);
+  const { skillsMap, isLoading: skillsLoading } = useSkillNames(allSkillIds);
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -52,6 +57,11 @@ const UnscheduledTaskList: React.FC = () => {
   const getClientName = (clientId: string): string => {
     const client = clients.find(c => c.id === clientId);
     return client ? client.legalName : clientId;
+  };
+  
+  // Helper function to get skill name by ID
+  const getSkillName = (skillId: string): string => {
+    return skillsMap[skillId]?.name || skillId;
   };
 
   const getPriorityColor = (priority: string) => {
@@ -133,11 +143,15 @@ const UnscheduledTaskList: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {task.requiredSkills.map((skill, index) => (
-                        <Badge variant="outline" key={index}>
-                          {skill}
-                        </Badge>
-                      ))}
+                      {task.requiredSkills && task.requiredSkills.length > 0 ? (
+                        task.requiredSkills.map((skillId, index) => (
+                          <Badge variant="outline" key={index}>
+                            {skillsLoading ? '...' : getSkillName(skillId)}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No skills required</span>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
