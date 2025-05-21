@@ -99,13 +99,19 @@ const TaskTemplateList: React.FC = () => {
   };
 
   const handleEditTemplate = (template: TaskTemplate) => {
+    // Log template skills for debugging
     console.log('Editing template with skills:', template.requiredSkills);
+    
+    // Important: Store the normalized skill IDs as strings
+    const normalizedSkills = template.requiredSkills.map(skillId => skillId.toString());
+    console.log('Normalized skills for form:', normalizedSkills);
+    
     setEditingTemplate(template);
     setFormData({
       name: template.name,
       description: template.description,
       defaultEstimatedHours: template.defaultEstimatedHours,
-      requiredSkills: [...template.requiredSkills], // Create a new array to ensure proper state updates
+      requiredSkills: normalizedSkills, // Use normalized skills
       defaultPriority: template.defaultPriority,
       category: template.category,
     });
@@ -149,22 +155,33 @@ const TaskTemplateList: React.FC = () => {
   };
 
   const handleSkillChange = (skillId: string, checked: boolean) => {
-    console.log(`Skill ${skillId} changed to ${checked}`);
+    // Ensure skillId is a string
+    const normalizedSkillId = skillId.toString();
+    console.log(`Skill ${normalizedSkillId} changed to ${checked}`);
     
     // Create a new array to ensure React detects the state change
+    // Get current skills (or empty array if undefined)
+    const currentSkills = formData.requiredSkills || [];
+    
+    let updatedSkills: string[];
     if (checked) {
-      setFormData({
-        ...formData, 
-        requiredSkills: [...(formData.requiredSkills || []), skillId]
-      });
+      // Add skill only if it doesn't already exist
+      updatedSkills = [...currentSkills];
+      if (!updatedSkills.includes(normalizedSkillId)) {
+        updatedSkills.push(normalizedSkillId);
+      }
     } else {
-      setFormData({
-        ...formData,
-        requiredSkills: formData.requiredSkills?.filter(s => s !== skillId)
-      });
+      // Remove skill
+      updatedSkills = currentSkills.filter(s => s.toString() !== normalizedSkillId);
     }
     
-    console.log('Updated form data skills:', formData.requiredSkills);
+    // Update form data with new skills array
+    setFormData({
+      ...formData,
+      requiredSkills: updatedSkills
+    });
+    
+    console.log('Updated form data skills:', updatedSkills);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,6 +241,15 @@ const TaskTemplateList: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper function to check if a skill is selected
+  const isSkillSelected = (skillId: string): boolean => {
+    if (!formData.requiredSkills) return false;
+    
+    // Convert both to strings for comparison
+    const normalizedSkillId = skillId.toString();
+    return formData.requiredSkills.some(selectedId => selectedId.toString() === normalizedSkillId);
   };
 
   const priorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
@@ -289,7 +315,7 @@ const TaskTemplateList: React.FC = () => {
                     <div className="flex flex-wrap gap-1">
                       {template.requiredSkills.map(skillId => {
                         // Find the matching skill name from skills array
-                        const skill = skills.find(s => s.id === skillId);
+                        const skill = skills.find(s => s.id.toString() === skillId.toString());
                         return (
                           <span 
                             key={skillId} 
@@ -444,26 +470,32 @@ const TaskTemplateList: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {skills.length > 0 ? (
-                    skills.map(skill => (
-                      <div key={skill.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`skill-${skill.id}`}
-                          checked={formData.requiredSkills?.includes(skill.id) || false}
-                          onCheckedChange={(checked) => 
-                            handleSkillChange(skill.id, checked === true)
-                          }
-                          disabled={isSubmitting}
-                        />
-                        <label htmlFor={`skill-${skill.id}`} className="text-sm">
-                          {skill.name}
-                          {skill.proficiencyLevel && (
-                            <span className="text-xs text-gray-500 ml-1">
-                              ({skill.proficiencyLevel})
-                            </span>
-                          )}
-                        </label>
-                      </div>
-                    ))
+                    skills.map(skill => {
+                      // Debug info to identify skill selection issues
+                      const isChecked = isSkillSelected(skill.id);
+                      console.log(`Skill ${skill.id} (${skill.name}) selected: ${isChecked}`);
+                      
+                      return (
+                        <div key={skill.id} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`skill-${skill.id}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => 
+                              handleSkillChange(skill.id, checked === true)
+                            }
+                            disabled={isSubmitting}
+                          />
+                          <label htmlFor={`skill-${skill.id}`} className="text-sm">
+                            {skill.name}
+                            {skill.proficiencyLevel && (
+                              <span className="text-xs text-gray-500 ml-1">
+                                ({skill.proficiencyLevel})
+                              </span>
+                            )}
+                          </label>
+                        </div>
+                      );
+                    })
                   ) : (
                     <p className="text-sm text-muted-foreground">No skills found. Please add skills in the Skills Module.</p>
                   )}
