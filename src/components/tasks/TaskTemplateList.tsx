@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { TaskTemplate, TaskPriority, TaskCategory } from '@/types/task';
 import { 
@@ -181,7 +182,7 @@ const TaskTemplateList: React.FC = () => {
           name: formData.name!,
           description: formData.description!,
           defaultEstimatedHours: formData.defaultEstimatedHours!,
-          requiredSkills: formData.requiredSkills as SkillType[],
+          requiredSkills: formData.requiredSkills as string[], // Changed from SkillType[] to string[]
           defaultPriority: formData.defaultPriority as TaskPriority,
           category: formData.category as TaskCategory
         });
