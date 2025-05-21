@@ -66,6 +66,7 @@ const TaskTemplateList: React.FC = () => {
     setIsLoading(true);
     try {
       const fetchedTemplates = await getTaskTemplates(showArchived);
+      console.log('Fetched templates:', fetchedTemplates);
       setTemplates(fetchedTemplates);
     } catch (error) {
       console.error('Error fetching templates:', error);
@@ -98,12 +99,13 @@ const TaskTemplateList: React.FC = () => {
   };
 
   const handleEditTemplate = (template: TaskTemplate) => {
+    console.log('Editing template with skills:', template.requiredSkills);
     setEditingTemplate(template);
     setFormData({
       name: template.name,
       description: template.description,
       defaultEstimatedHours: template.defaultEstimatedHours,
-      requiredSkills: [...template.requiredSkills],
+      requiredSkills: [...template.requiredSkills], // Create a new array to ensure proper state updates
       defaultPriority: template.defaultPriority,
       category: template.category,
     });
@@ -147,6 +149,9 @@ const TaskTemplateList: React.FC = () => {
   };
 
   const handleSkillChange = (skillId: string, checked: boolean) => {
+    console.log(`Skill ${skillId} changed to ${checked}`);
+    
+    // Create a new array to ensure React detects the state change
     if (checked) {
       setFormData({
         ...formData, 
@@ -158,6 +163,8 @@ const TaskTemplateList: React.FC = () => {
         requiredSkills: formData.requiredSkills?.filter(s => s !== skillId)
       });
     }
+    
+    console.log('Updated form data skills:', formData.requiredSkills);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,10 +172,17 @@ const TaskTemplateList: React.FC = () => {
     setIsSubmitting(true);
     
     try {
+      console.log('Form data before submission:', formData);
+      
       if (editingTemplate) {
         // Update existing template
-        const updated = await updateTaskTemplate(editingTemplate.id, formData as Partial<TaskTemplate>);
+        const updated = await updateTaskTemplate(editingTemplate.id, {
+          ...formData,
+          requiredSkills: formData.requiredSkills || [] // Ensure we're sending an array even if it's empty
+        });
+        
         if (updated) {
+          console.log('Template updated successfully:', updated);
           toast({
             title: "Template Updated",
             description: "The task template has been updated successfully.",
@@ -182,7 +196,7 @@ const TaskTemplateList: React.FC = () => {
           name: formData.name!,
           description: formData.description!,
           defaultEstimatedHours: formData.defaultEstimatedHours!,
-          requiredSkills: formData.requiredSkills as string[], // Changed from SkillType[] to string[]
+          requiredSkills: formData.requiredSkills as string[], // Using string[] type
           defaultPriority: formData.defaultPriority as TaskPriority,
           category: formData.category as TaskCategory
         });
