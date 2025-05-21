@@ -34,18 +34,24 @@ import {
   ChevronDown
 } from 'lucide-react';
 import TaskListPagination from './TaskListPagination';
+import { getClientAdHocTasks } from '@/services/clientService';
+import { Client } from '@/types/client';
 
 interface ClientAdHocTaskListProps {
-  tasks: TaskInstance[];
+  clientId: string;
   onViewTask?: (taskId: string) => void;
+  onTasksChanged?: () => void;
 }
 
 const ITEMS_PER_PAGE = 5;
 
 const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
-  tasks,
+  clientId,
   onViewTask,
+  onTasksChanged,
 }) => {
+  const [tasks, setTasks] = useState<TaskInstance[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'dueDate' | 'status' | 'priority' | 'hours'>('dueDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -56,6 +62,23 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [skillFilter, setSkillFilter] = useState<string[]>([]);
   const [dueDateFilter, setDueDateFilter] = useState<'past' | 'today' | 'upcoming' | 'all'>('all');
+
+  // Load client tasks
+  useEffect(() => {
+    const fetchTasks = async () => {
+      setIsLoading(true);
+      try {
+        const adHocTasks = await getClientAdHocTasks(clientId);
+        setTasks(adHocTasks);
+      } catch (error) {
+        console.error('Error fetching ad-hoc tasks:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, [clientId]);
   
   // Reset to first page when filters change
   useEffect(() => {
@@ -227,6 +250,10 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
     statusFilter !== 'all'
   ].filter(Boolean).length;
 
+  if (isLoading) {
+    return <div className="text-center py-4">Loading tasks...</div>;
+  }
+
   // Render empty state
   if (tasks.length === 0) {
     return (
@@ -312,8 +339,6 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
                       variant={dueDateFilter === 'upcoming' ? "default" : "outline"}
                       onClick={() => setDueDateFilter(dueDateFilter === 'upcoming' ? 'all' : 'upcoming')}
                       className="w-full"
-                      // Removed the colSpan={2} prop since it's not valid for Button
-                      // Instead, use a grid layout with CSS styling to span multiple columns
                       style={{ gridColumn: "span 2" }}
                     >
                       Upcoming

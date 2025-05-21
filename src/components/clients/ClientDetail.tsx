@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Client } from '@/types/client';
@@ -189,7 +190,10 @@ const ClientDetail: React.FC = () => {
         </div>
         <div className="mt-4">
           <h3 className="text-lg font-semibold mb-2">Ad-hoc Tasks</h3>
-          <ClientAdHocTaskList client={client} onTasksChanged={refreshClient} />
+          <ClientAdHocTaskList 
+            clientId={client.id} 
+            onTasksChanged={refreshClient} 
+          />
         </div>
       </CardContent>
     </Card>
