@@ -169,6 +169,8 @@ export const createClient = async (clientData: Omit<Client, 'id' | 'createdAt' |
     id: uuidv4(),
     createdAt: new Date(),
     updatedAt: new Date(),
+    // If staffLiaisonId is "none", set it to null
+    staffLiaisonId: clientData.staffLiaisonId === "none" ? null : clientData.staffLiaisonId
   };
   
   try {
@@ -201,6 +203,11 @@ export const createClient = async (clientData: Omit<Client, 'id' | 'createdAt' |
 
 // Update an existing client
 export const updateClient = async (id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Client> => {
+  // Process the staffLiaisonId if it's "none"
+  if (clientData.staffLiaisonId === "none") {
+    clientData.staffLiaisonId = null;
+  }
+  
   const updatedData = {
     ...clientData,
     updatedAt: new Date(),

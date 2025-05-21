@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -506,7 +507,7 @@ const ClientForm: React.FC = () => {
                   />
                 </div>
                 
-                {/* Staff Liaison Field - New */}
+                {/* Staff Liaison Field - FIXED */}
                 <FormField
                   control={form.control}
                   name="staffLiaisonId"
@@ -515,7 +516,7 @@ const ClientForm: React.FC = () => {
                       <FormLabel>Staff Liaison</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        value={field.value || ""}
+                        value={field.value || undefined}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -523,7 +524,7 @@ const ClientForm: React.FC = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No liaison assigned</SelectItem>
+                          <SelectItem value="none">No liaison assigned</SelectItem>
                           {staffOptions.map((staff: StaffOption) => (
                             <SelectItem key={staff.id} value={staff.id}>
                               {staff.full_name}
