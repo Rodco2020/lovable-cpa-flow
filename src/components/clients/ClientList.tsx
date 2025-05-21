@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
 import {
@@ -32,10 +32,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Building, DollarSign, Search, User, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 
 const ClientList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<ClientStatus[]>([]);
   const [industryFilter, setIndustryFilter] = useState<IndustryType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +56,22 @@ const ClientList: React.FC = () => {
   const handleRowClick = (clientId: string) => {
     navigate(`/clients/${clientId}`);
   };
+
+  // Effect to refetch data when returning to this page
+  useEffect(() => {
+    const refreshData = async () => {
+      // Clear staff liaisons to ensure fresh data is fetched
+      setStaffLiaisons({});
+      // Invalidate and refetch client data
+      await queryClient.invalidateQueries({ queryKey: ['clients'] });
+      refetch();
+    };
+    
+    // Check if we're returning from an edit page
+    if (location.key) {
+      refreshData();
+    }
+  }, [location.key, queryClient, refetch]);
 
   // Fetch staff liaisons for all clients that have them assigned
   useEffect(() => {
@@ -85,7 +103,9 @@ const ClientList: React.FC = () => {
       }
     };
     
-    fetchStaffLiaisons();
+    if (clients.length > 0) {
+      fetchStaffLiaisons();
+    }
   }, [clients]);
   
   // Handle status filter change

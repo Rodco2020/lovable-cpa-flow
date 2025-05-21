@@ -220,6 +220,8 @@ export const updateClient = async (id: string, clientData: Partial<Omit<Client, 
       updated_at: updatedData.updatedAt?.toISOString(),
     };
     
+    console.log("Updating client with data:", supabaseData);
+    
     const { data, error } = await supabase
       .from('clients')
       .update(supabaseData)
@@ -228,9 +230,11 @@ export const updateClient = async (id: string, clientData: Partial<Omit<Client, 
       .single();
       
     if (error) {
+      console.error("Supabase update error:", error);
       throw error;
     }
     
+    console.log("Client updated successfully:", data);
     return mapSupabaseDataToClient(data);
   } catch (error) {
     console.error(`Error updating client ${id} in Supabase:`, error);

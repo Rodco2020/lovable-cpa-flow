@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { Routes, Route, useNavigate, Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import ClientList from '@/components/clients/ClientList';
 import ClientForm from '@/components/clients/ClientForm';
 import ClientDetail from '@/components/clients/ClientDetail';
@@ -18,6 +19,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ClientModule: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  
+  // Effect to detect navigation back to the client list
+  useEffect(() => {
+    if (location.pathname === '/clients' && location.key) {
+      // Invalidate clients query cache when returning to the client list
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    }
+  }, [location, queryClient]);
   
   return (
     <div className="container mx-auto py-6 space-y-6">
