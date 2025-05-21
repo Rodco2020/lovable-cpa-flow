@@ -1,11 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
-import { getClientById, createClient, updateClient } from '@/services/clientService';
+import { getClientById, createClient, updateClient, getStaffForLiaisonDropdown } from '@/services/clientService';
 import { 
   Card, 
   CardHeader, 
@@ -35,8 +34,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, User } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useQuery } from '@tanstack/react-query';
+
+// Define staff liaison type
+type StaffOption = {
+  id: string;
+  full_name: string;
+};
 
 // Define form schema using Zod
 const clientFormSchema = z.object({
@@ -63,6 +69,7 @@ const clientFormSchema = z.object({
   paymentTerms: z.enum(["Net15", "Net30", "Net45", "Net60"] as const),
   billingFrequency: z.enum(["Monthly", "Quarterly", "Annually", "Project-Based"] as const),
   defaultTaskPriority: z.string().min(1, "Default task priority is required"),
+  staffLiaisonId: z.string().nullable().optional(), // New field for staff liaison
   notificationPreferences: z.object({
     emailReminders: z.boolean().default(true),
     taskNotifications: z.boolean().default(true),
@@ -79,6 +86,12 @@ const ClientForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [client, setClient] = useState<Client | null>(null);
   const [isClientLoading, setIsClientLoading] = useState(isEditMode);
+  
+  // Fetch staff members for the liaison dropdown
+  const { data: staffOptions = [] } = useQuery({
+    queryKey: ['staff', 'liaison-options'],
+    queryFn: getStaffForLiaisonDropdown,
+  });
   
   // Fetch client data if in edit mode
   useEffect(() => {
@@ -127,6 +140,7 @@ const ClientForm: React.FC = () => {
       paymentTerms: client.paymentTerms,
       billingFrequency: client.billingFrequency,
       defaultTaskPriority: client.defaultTaskPriority,
+      staffLiaisonId: client.staffLiaisonId, // Initialize staff liaison field
       notificationPreferences: {
         emailReminders: client.notificationPreferences.emailReminders,
         taskNotifications: client.notificationPreferences.taskNotifications,
@@ -143,6 +157,7 @@ const ClientForm: React.FC = () => {
       paymentTerms: "Net30" as PaymentTerms,
       billingFrequency: "Monthly" as BillingFrequency,
       defaultTaskPriority: "Medium",
+      staffLiaisonId: null, // Default to null for new clients
       notificationPreferences: {
         emailReminders: true,
         taskNotifications: true,
@@ -159,6 +174,9 @@ const ClientForm: React.FC = () => {
           if (clientKey === 'notificationPreferences') {
             form.setValue('notificationPreferences.emailReminders', client.notificationPreferences.emailReminders);
             form.setValue('notificationPreferences.taskNotifications', client.notificationPreferences.taskNotifications);
+          } else if (clientKey === 'staffLiaisonId') { 
+            // Handle staff liaison ID separately
+            form.setValue('staffLiaisonId', client.staffLiaisonId || null);
           } else {
             // @ts-ignore - This is a bit hacky but works for our known properties
             form.setValue(clientKey, client[clientKey]);
@@ -184,6 +202,7 @@ const ClientForm: React.FC = () => {
       paymentTerms: data.paymentTerms as PaymentTerms,
       billingFrequency: data.billingFrequency as BillingFrequency,
       defaultTaskPriority: data.defaultTaskPriority,
+      staffLiaisonId: data.staffLiaisonId, // Include staff liaison ID in client data
       notificationPreferences: {
         emailReminders: data.notificationPreferences.emailReminders,
         taskNotifications: data.notificationPreferences.taskNotifications,
@@ -486,6 +505,39 @@ const ClientForm: React.FC = () => {
                     )}
                   />
                 </div>
+                
+                {/* Staff Liaison Field - New */}
+                <FormField
+                  control={form.control}
+                  name="staffLiaisonId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Staff Liaison</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select staff liaison" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No liaison assigned</SelectItem>
+                          {staffOptions.map((staff: StaffOption) => (
+                            <SelectItem key={staff.id} value={staff.id}>
+                              {staff.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Staff member responsible for this client relationship
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
                   control={form.control}

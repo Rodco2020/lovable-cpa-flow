@@ -24,6 +24,7 @@ export type Database = {
           payment_terms: string
           phone: string
           primary_contact: string
+          staff_liaison_id: string | null
           status: string
           updated_at: string
         }
@@ -41,6 +42,7 @@ export type Database = {
           payment_terms: string
           phone: string
           primary_contact: string
+          staff_liaison_id?: string | null
           status: string
           updated_at?: string
         }
@@ -58,10 +60,19 @@ export type Database = {
           payment_terms?: string
           phone?: string
           primary_contact?: string
+          staff_liaison_id?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_client_staff_liaison"
+            columns: ["staff_liaison_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

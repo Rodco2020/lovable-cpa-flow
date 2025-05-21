@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +26,7 @@ const mapSupabaseDataToClient = (data: any): Client => {
     paymentTerms: (data.payment_terms || "Net30") as PaymentTerms,
     billingFrequency: (data.billing_frequency || "Monthly") as BillingFrequency,
     defaultTaskPriority: data.default_task_priority || "Medium",
+    staffLiaisonId: data.staff_liaison_id || null, // Map the new staff liaison field
     notificationPreferences: data.notification_preferences || {
       emailReminders: true,
       taskNotifications: true,
@@ -53,6 +53,7 @@ const mapClientToSupabaseData = (client: Partial<Client>) => {
     payment_terms: client.paymentTerms,
     billing_frequency: client.billingFrequency,
     default_task_priority: client.defaultTaskPriority,
+    staff_liaison_id: client.staffLiaisonId, // Include staff liaison in mapping to Supabase
     notification_preferences: client.notificationPreferences,
   };
 };
@@ -296,5 +297,26 @@ export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanc
   } catch (error) {
     console.error(`Error fetching ad-hoc tasks for client ${clientId}:`, error);
     return []; // Return empty array on error
+  }
+};
+
+// New function to get staff for staff liaison dropdown
+export const getStaffForLiaisonDropdown = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, full_name')
+      .eq('status', 'active')
+      .order('full_name');
+    
+    if (error) {
+      console.error('Error fetching staff for liaison dropdown:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getStaffForLiaisonDropdown:', error);
+    return [];
   }
 };
