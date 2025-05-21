@@ -1,3 +1,4 @@
+
 import { eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, format } from 'date-fns';
 import { DateRange, GranularityType } from '@/types/forecasting';
 
