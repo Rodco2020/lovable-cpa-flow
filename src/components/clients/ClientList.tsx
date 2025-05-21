@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
 import { Client, ClientStatus, IndustryType } from '@/types/client';
@@ -30,10 +30,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Building, DollarSign, Search, User } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { Building, DollarSign, Search, User, Edit } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const ClientList: React.FC = () => {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<ClientStatus[]>([]);
   const [industryFilter, setIndustryFilter] = useState<IndustryType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +49,11 @@ const ClientList: React.FC = () => {
       industry: industryFilter.length > 0 ? industryFilter : undefined,
     }),
   });
+
+  // Handler for clicking on a client row
+  const handleRowClick = (clientId: string) => {
+    navigate(`/clients/${clientId}`);
+  };
 
   // Fetch staff liaisons for all clients that have them assigned
   useEffect(() => {
@@ -195,31 +202,31 @@ const ClientList: React.FC = () => {
                 <TableHead className="hidden md:table-cell">Staff Liaison</TableHead>
                 <TableHead className="hidden md:table-cell">Monthly Revenue</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     Loading clients...
                   </TableCell>
                 </TableRow>
               ) : filteredClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     No clients found. {searchQuery ? "Try a different search term." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredClients.map((client) => (
-                  <TableRow key={client.id}>
+                  <TableRow 
+                    key={client.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(client.id)}
+                  >
                     <TableCell>
-                      <Link 
-                        to={`/clients/${client.id}`} 
-                        className="font-medium hover:underline text-blue-600"
-                      >
-                        {client.legalName}
-                      </Link>
+                      <span className="font-medium text-blue-600">{client.legalName}</span>
                     </TableCell>
                     <TableCell>{client.primaryContact}</TableCell>
                     <TableCell className="hidden md:table-cell">
@@ -245,6 +252,19 @@ const ClientList: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(client.status)}</TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent row click
+                          navigate(`/clients/${client.id}/edit`);
+                        }}
+                        title="Edit client"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

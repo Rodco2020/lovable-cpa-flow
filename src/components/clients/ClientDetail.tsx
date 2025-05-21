@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Client } from '@/types/client';
@@ -124,7 +123,7 @@ const ClientDetail: React.FC = () => {
               className="mr-2"
             >
               <Edit className="h-4 w-4 mr-1" />
-              Edit
+              Edit Client
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
