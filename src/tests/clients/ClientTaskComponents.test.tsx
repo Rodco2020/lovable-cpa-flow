@@ -26,8 +26,16 @@ jest.mock('@/services/taskService', () => ({
   updateRecurringTask: jest.fn().mockResolvedValue(true)
 }));
 
+// Mock the clientService module
+jest.mock('@/services/clientService', () => ({
+  getClientAdHocTasks: jest.fn().mockResolvedValue([]),
+  getClientById: jest.fn().mockResolvedValue({}),
+  deleteClient: jest.fn().mockResolvedValue(true)
+}));
+
 // Import the mock functions for easier assertions
 import { getRecurringTasks, deactivateRecurringTask, getRecurringTaskById, updateRecurringTask } from '@/services/taskService';
+import { getClientAdHocTasks } from '@/services/clientService';
 
 // Mock data for testing
 const mockRecurringTasks: RecurringTask[] = [
@@ -388,15 +396,27 @@ describe('ClientRecurringTaskList', () => {
 });
 
 describe('ClientAdHocTaskList', () => {
-  test('renders ad-hoc tasks correctly', () => {
-    render(<ClientAdHocTaskList tasks={mockAdHocTasks} />);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock the function to return our test data
+    (getClientAdHocTasks as jest.Mock).mockResolvedValue(mockAdHocTasks);
+  });
+
+  test('renders ad-hoc tasks correctly', async () => {
+    render(<ClientAdHocTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Special Advisory Project');
     
     expect(screen.getByText('Special Advisory Project')).toBeInTheDocument();
     expect(screen.getByText('Emergency Tax Consultation')).toBeInTheDocument();
   });
 
-  test('filters tasks based on search term', () => {
-    render(<ClientAdHocTaskList tasks={mockAdHocTasks} />);
+  test('filters tasks based on search term', async () => {
+    render(<ClientAdHocTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Special Advisory Project');
     
     const searchInput = screen.getByPlaceholderText('Search tasks...');
     fireEvent.change(searchInput, { target: { value: 'emergency' } });
@@ -405,8 +425,11 @@ describe('ClientAdHocTaskList', () => {
     expect(screen.getByText('Emergency Tax Consultation')).toBeInTheDocument();
   });
 
-  test('filters tasks by status with the expanded filter interface', () => {
-    render(<ClientAdHocTaskList tasks={mockAdHocTasks} />);
+  test('filters tasks by status with the expanded filter interface', async () => {
+    render(<ClientAdHocTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Special Advisory Project');
     
     // Open filter popover
     const filterButton = screen.getByText('Filters');
@@ -421,15 +444,23 @@ describe('ClientAdHocTaskList', () => {
     expect(screen.getByText('Emergency Tax Consultation')).toBeInTheDocument();
   });
 
-  test('displays empty state when no tasks are provided', () => {
-    render(<ClientAdHocTaskList tasks={[]} />);
+  test('displays empty state when no tasks are available', async () => {
+    (getClientAdHocTasks as jest.Mock).mockResolvedValue([]);
+    
+    render(<ClientAdHocTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('No Ad-hoc Tasks');
     
     expect(screen.getByText('No Ad-hoc Tasks')).toBeInTheDocument();
   });
 
-  test('calls onViewTask callback when task is clicked', () => {
+  test('calls onViewTask callback when task is clicked', async () => {
     const mockViewTask = jest.fn();
-    render(<ClientAdHocTaskList tasks={mockAdHocTasks} onViewTask={mockViewTask} />);
+    render(<ClientAdHocTaskList clientId="client1" onViewTask={mockViewTask} />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Special Advisory Project');
     
     const taskRow = screen.getByText('Special Advisory Project').closest('tr');
     fireEvent.click(taskRow!);
@@ -437,7 +468,7 @@ describe('ClientAdHocTaskList', () => {
     expect(mockViewTask).toHaveBeenCalledWith('task3');
   });
   
-  test('filters tasks by due date', () => {
+  test('filters tasks by due date', async () => {
     // Create tasks with different due dates
     const tasksWithDifferentDueDates = [
       {
@@ -458,7 +489,12 @@ describe('ClientAdHocTaskList', () => {
       }
     ];
     
-    render(<ClientAdHocTaskList tasks={tasksWithDifferentDueDates} />);
+    (getClientAdHocTasks as jest.Mock).mockResolvedValue(tasksWithDifferentDueDates);
+    
+    render(<ClientAdHocTaskList clientId="client1" />);
+    
+    // Wait for tasks to load
+    await screen.findByText('Past Due Task');
     
     // Open filter popover
     const filterButton = screen.getByText('Filters');
