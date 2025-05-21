@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { TaskTemplate, TaskPriority, TaskCategory } from '@/types/task';
 import { Skill } from '@/types/skill';
 import { 
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose
+  DialogClose,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +60,9 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
     <DialogContent className="max-w-2xl">
       <DialogHeader>
         <DialogTitle>{editingTemplate ? 'Edit Task Template' : 'Create New Task Template'}</DialogTitle>
+        <DialogDescription>
+          {editingTemplate ? 'Update the details of your task template.' : 'Create a new task template for standardized tasks.'}
+        </DialogDescription>
       </DialogHeader>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -158,26 +162,33 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {skills.length > 0 ? (
-                skills.map(skill => (
-                  <div key={skill.id} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`skill-${skill.id}`}
-                      checked={isSkillSelected(skill.id)}
-                      onCheckedChange={(checked) => 
-                        onSkillChange(skill.id, checked === true)
-                      }
-                      disabled={isSubmitting}
-                    />
-                    <label htmlFor={`skill-${skill.id}`} className="text-sm">
-                      {skill.name}
-                      {skill.proficiencyLevel && (
-                        <span className="text-xs text-gray-500 ml-1">
-                          ({skill.proficiencyLevel})
-                        </span>
-                      )}
-                    </label>
-                  </div>
-                ))
+                skills.map(skill => {
+                  // Always convert skill ID to string for consistency
+                  const skillIdStr = skill.id.toString();
+                  const selected = isSkillSelected(skillIdStr);
+                  
+                  return (
+                    <div key={skillIdStr} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`skill-${skillIdStr}`}
+                        checked={selected}
+                        onCheckedChange={(checked) => {
+                          console.log(`Checkbox for skill ${skillIdStr} changed to:`, checked);
+                          onSkillChange(skillIdStr, checked === true);
+                        }}
+                        disabled={isSubmitting}
+                      />
+                      <label htmlFor={`skill-${skillIdStr}`} className="text-sm">
+                        {skill.name}
+                        {skill.proficiencyLevel && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({skill.proficiencyLevel})
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  );
+                })
               ) : (
                 <p className="text-sm text-muted-foreground">No skills found. Please add skills in the Skills Module.</p>
               )}

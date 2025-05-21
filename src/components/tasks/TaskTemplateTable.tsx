@@ -34,8 +34,16 @@ const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
 }) => {
   // Helper function to find skill name by ID
   const findSkillById = (skillId: string): string => {
-    const skill = skills.find(s => s.id.toString() === skillId.toString());
-    return skill ? skill.name : skillId;
+    // Always ensure we're comparing strings
+    const normalizedSkillId = skillId.toString();
+    const skill = skills.find(s => s.id.toString() === normalizedSkillId);
+    
+    if (skill) {
+      return skill.name;
+    } else {
+      console.warn(`Skill with ID ${normalizedSkillId} not found`);
+      return normalizedSkillId;
+    }
   };
 
   if (isLoading) {
@@ -78,14 +86,18 @@ const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
               <TableCell>{template.defaultEstimatedHours}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
-                  {template.requiredSkills.map(skillId => (
-                    <span 
-                      key={skillId} 
-                      className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800"
-                    >
-                      {findSkillById(skillId.toString())}
-                    </span>
-                  ))}
+                  {Array.isArray(template.requiredSkills) && template.requiredSkills.length > 0 ? (
+                    template.requiredSkills.map(skillId => (
+                      <span 
+                        key={skillId.toString()} 
+                        className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800"
+                      >
+                        {findSkillById(skillId.toString())}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400 text-xs">No required skills</span>
+                  )}
                 </div>
               </TableCell>
               <TableCell>

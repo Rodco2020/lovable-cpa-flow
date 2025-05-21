@@ -40,7 +40,14 @@ const TaskTemplateList: React.FC = () => {
   });
 
   // Use custom hook for form state management
-  const { formData, resetForm, updateField, handleSkillChange, isSkillSelected } = useTaskTemplateForm();
+  const { 
+    formData, 
+    resetForm, 
+    updateField, 
+    handleSkillChange, 
+    isSkillSelected,
+    prepareFormDataForSubmission 
+  } = useTaskTemplateForm();
 
   // Fetch templates on component mount and when showArchived changes
   useEffect(() => {
@@ -114,14 +121,13 @@ const TaskTemplateList: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('Form data before submission:', formData);
+      // Use the prepareFormDataForSubmission function to ensure consistent data format
+      const submissionData = prepareFormDataForSubmission();
+      console.log('Form data before submission:', submissionData);
       
       if (editingTemplate) {
         // Update existing template
-        const updated = await updateTaskTemplate(editingTemplate.id, {
-          ...formData,
-          requiredSkills: formData.requiredSkills || [] // Ensure we're sending an array even if it's empty
-        });
+        const updated = await updateTaskTemplate(editingTemplate.id, submissionData);
         
         if (updated) {
           console.log('Template updated successfully:', updated);
@@ -135,12 +141,12 @@ const TaskTemplateList: React.FC = () => {
       } else {
         // Create new template
         const newTemplate = await createTaskTemplate({
-          name: formData.name!,
-          description: formData.description!,
-          defaultEstimatedHours: formData.defaultEstimatedHours!,
-          requiredSkills: formData.requiredSkills as string[], 
-          defaultPriority: formData.defaultPriority!,
-          category: formData.category!
+          name: submissionData.name!,
+          description: submissionData.description!,
+          defaultEstimatedHours: submissionData.defaultEstimatedHours!,
+          requiredSkills: submissionData.requiredSkills as string[], 
+          defaultPriority: submissionData.defaultPriority!,
+          category: submissionData.category!
         });
         
         if (!newTemplate) {

@@ -9,7 +9,7 @@ import { TaskTemplate, TaskPriority, TaskCategory } from '@/types/task';
 export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null) {
   // Form state for new/edited template
   const [formData, setFormData] = useState<Partial<TaskTemplate>>(
-    initialTemplate || {
+    initialTemplate ? normalizeTemplateData(initialTemplate) : {
       name: '',
       description: '',
       defaultEstimatedHours: 1,
@@ -19,20 +19,31 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     }
   );
 
+  // Function to normalize template data when initializing
+  function normalizeTemplateData(template: TaskTemplate): Partial<TaskTemplate> {
+    // Important: Ensure the requiredSkills array is properly normalized
+    // Convert each skill ID to string format to ensure consistent comparison
+    const normalizedSkills = Array.isArray(template.requiredSkills) 
+      ? template.requiredSkills.map(skillId => skillId.toString())
+      : [];
+    
+    console.log('Normalizing template data, skills before:', template.requiredSkills);
+    console.log('Normalized skills:', normalizedSkills);
+    
+    return {
+      name: template.name,
+      description: template.description,
+      defaultEstimatedHours: template.defaultEstimatedHours,
+      requiredSkills: normalizedSkills,
+      defaultPriority: template.defaultPriority,
+      category: template.category,
+    };
+  }
+
   // Reset form data to initial values or use provided template
   const resetForm = (template: TaskTemplate | null = null) => {
     if (template) {
-      // Important: Store the normalized skill IDs as strings
-      const normalizedSkills = template.requiredSkills.map(skillId => skillId.toString());
-      
-      setFormData({
-        name: template.name,
-        description: template.description,
-        defaultEstimatedHours: template.defaultEstimatedHours,
-        requiredSkills: normalizedSkills,
-        defaultPriority: template.defaultPriority,
-        category: template.category,
-      });
+      setFormData(normalizeTemplateData(template));
     } else {
       setFormData({
         name: '',
@@ -66,16 +77,18 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
       if (!updatedSkills.includes(normalizedSkillId)) {
         updatedSkills.push(normalizedSkillId);
       }
+      console.log(`Adding skill ${normalizedSkillId}`, updatedSkills);
     } else {
       // Remove skill
       updatedSkills = currentSkills.filter(s => s.toString() !== normalizedSkillId);
+      console.log(`Removing skill ${normalizedSkillId}`, updatedSkills);
     }
     
     // Update form data with new skills array
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       requiredSkills: updatedSkills
-    });
+    }));
   };
 
   // Helper function to check if a skill is selected
@@ -84,7 +97,25 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     
     // Convert both to strings for comparison
     const normalizedSkillId = skillId.toString();
-    return formData.requiredSkills.some(selectedId => selectedId.toString() === normalizedSkillId);
+    const isSelected = formData.requiredSkills.some(
+      selectedId => selectedId.toString() === normalizedSkillId
+    );
+    
+    console.log(`Checking if skill ${normalizedSkillId} is selected:`, isSelected);
+    return isSelected;
+  };
+
+  // Prepare form data for submission
+  // This ensures the data is in the correct format before sending to the API
+  const prepareFormDataForSubmission = () => {
+    // Ensure we're sending the requiredSkills as an array of strings
+    const preparedData = {
+      ...formData,
+      requiredSkills: formData.requiredSkills || []
+    };
+    
+    console.log('Prepared form data for submission:', preparedData);
+    return preparedData;
   };
 
   return {
@@ -93,5 +124,6 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     updateField,
     handleSkillChange,
     isSkillSelected,
+    prepareFormDataForSubmission,
   };
 }
