@@ -21,21 +21,25 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
       'x-application-name': 'cpa-practice-management',
     },
     // Add fetch options with timeout
-    fetch: (url, options) => {
+    fetch: async (url, options) => {
+      // Create a fresh AbortController for every request so parallel
+      // requests don't share the same signal and inadvertently cancel
+      // each other.
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      return fetch(url, {
-        ...options,
-        signal: controller.signal,
-      }).then(response => {
-        clearTimeout(timeoutId);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        });
         return response;
-      }).catch(error => {
-        clearTimeout(timeoutId);
+      } catch (error) {
         console.error("Supabase fetch error:", error);
         throw error;
-      });
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
   }
 });
