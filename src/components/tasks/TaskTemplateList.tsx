@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { TaskTemplate, TaskPriority, TaskCategory, SkillType } from '@/types/task';
+import { TaskTemplate, TaskPriority, TaskCategory } from '@/types/task';
 import { 
   getTaskTemplates, 
   createTaskTemplate, 
@@ -29,6 +28,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { Archive, Edit, Plus, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { getAllSkills } from '@/services/skillService';
+import { Skill } from '@/types/skill';
 
 const TaskTemplateList: React.FC = () => {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
@@ -37,6 +39,12 @@ const TaskTemplateList: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch skills from the database using React Query
+  const { data: skills = [], isLoading: isLoadingSkills } = useQuery({
+    queryKey: ['skills'],
+    queryFn: getAllSkills
+  });
 
   // Form state for new/edited template
   const [formData, setFormData] = useState<Partial<TaskTemplate>>({
@@ -137,16 +145,16 @@ const TaskTemplateList: React.FC = () => {
     }
   };
 
-  const handleSkillChange = (skill: SkillType, checked: boolean) => {
+  const handleSkillChange = (skillId: string, checked: boolean) => {
     if (checked) {
       setFormData({
         ...formData, 
-        requiredSkills: [...(formData.requiredSkills || []), skill]
+        requiredSkills: [...(formData.requiredSkills || []), skillId]
       });
     } else {
       setFormData({
         ...formData,
-        requiredSkills: formData.requiredSkills?.filter(s => s !== skill)
+        requiredSkills: formData.requiredSkills?.filter(s => s !== skillId)
       });
     }
   };
@@ -203,7 +211,6 @@ const TaskTemplateList: React.FC = () => {
     }
   };
 
-  const availableSkills: SkillType[] = ["Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory", "Bookkeeping"];
   const priorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
   const categories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
 
@@ -265,14 +272,18 @@ const TaskTemplateList: React.FC = () => {
                   <TableCell>{template.defaultEstimatedHours}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {template.requiredSkills.map(skill => (
-                        <span 
-                          key={skill} 
-                          className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                      {template.requiredSkills.map(skillId => {
+                        // Find the matching skill name from skills array
+                        const skill = skills.find(s => s.id === skillId);
+                        return (
+                          <span 
+                            key={skillId} 
+                            className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800"
+                          >
+                            {skill ? skill.name : skillId}
+                          </span>
+                        );
+                      })}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -410,21 +421,39 @@ const TaskTemplateList: React.FC = () => {
             
             <div className="space-y-2">
               <label className="text-sm font-medium">Required Skills</label>
-              <div className="grid grid-cols-3 gap-2">
-                {availableSkills.map(skill => (
-                  <div key={skill} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`skill-${skill}`}
-                      checked={formData.requiredSkills?.includes(skill) || false}
-                      onCheckedChange={(checked) => 
-                        handleSkillChange(skill, checked === true)
-                      }
-                      disabled={isSubmitting}
-                    />
-                    <label htmlFor={`skill-${skill}`} className="text-sm">{skill}</label>
-                  </div>
-                ))}
-              </div>
+              {isLoadingSkills ? (
+                <div className="flex items-center py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+                  <span className="text-sm">Loading skills...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {skills.length > 0 ? (
+                    skills.map(skill => (
+                      <div key={skill.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`skill-${skill.id}`}
+                          checked={formData.requiredSkills?.includes(skill.id) || false}
+                          onCheckedChange={(checked) => 
+                            handleSkillChange(skill.id, checked === true)
+                          }
+                          disabled={isSubmitting}
+                        />
+                        <label htmlFor={`skill-${skill.id}`} className="text-sm">
+                          {skill.name}
+                          {skill.proficiencyLevel && (
+                            <span className="text-xs text-gray-500 ml-1">
+                              ({skill.proficiencyLevel})
+                            </span>
+                          )}
+                        </label>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No skills found. Please add skills in the Skills Module.</p>
+                  )}
+                </div>
+              )}
             </div>
             
             <div className="flex justify-end space-x-2 pt-4">

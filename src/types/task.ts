@@ -1,5 +1,5 @@
 
-export type SkillType = "Junior" | "Senior" | "CPA" | "Tax Specialist" | "Audit" | "Advisory" | "Bookkeeping";
+export type SkillType = string;
 export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 export type TaskCategory = "Tax" | "Audit" | "Advisory" | "Compliance" | "Bookkeeping" | "Other";
 export type TaskStatus = "Unscheduled" | "Scheduled" | "In Progress" | "Completed" | "Canceled";
