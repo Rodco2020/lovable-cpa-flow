@@ -14,10 +14,13 @@ import {
 // Mock data storage for non-migrated functions
 let taskInstances: TaskInstance[] = [];
 
-// Helper function to validate and convert skill types
-const validateSkillType = (skills: string[]): SkillType[] => {
-  const validSkillTypes: SkillType[] = ["Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory", "Bookkeeping"];
-  return skills.filter(skill => validSkillTypes.includes(skill as SkillType)) as SkillType[];
+// Helper function to normalize skill IDs or names
+// Previously this attempted to filter skills against a fixed list of names,
+// which caused valid skill IDs to be removed when reading from the database.
+// Now we simply cast each entry to a string and return the array unchanged.
+const validateSkillType = (skills: string[] = []): SkillType[] => {
+  if (!Array.isArray(skills)) return [];
+  return skills.map(s => s.toString()) as SkillType[];
 };
 
 // Helper function to validate and convert priority
