@@ -1,223 +1,179 @@
 
-import React, { useState, useEffect } from 'react';
-import { normalizeSkills, analyzeStaffSkills } from '@/services/skillNormalizationService';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { analyzeStaffSkills } from '@/services/skillNormalizationService';
 import { getAllStaff } from '@/services/staffService';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Staff } from '@/types/staff';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { SkillType } from '@/types/task';
 
 const ForecastSkillDebugger: React.FC = () => {
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [skillAnalysis, setSkillAnalysis] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [showDetail, setShowDetail] = useState<boolean>(false);
+  const [staffSkills, setStaffSkills] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStaffData = async () => {
+  const loadStaffSkills = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
+      // Get all staff members
+      const allStaff = await getAllStaff();
+      console.log("Loaded staff:", allStaff.length);
       
-      console.log("Debug - Starting to fetch staff data for skill analysis");
-      const staffData = await getAllStaff();
-      console.log("Debug - Staff data fetched:", staffData);
+      // Analyze skills for each staff member
+      const skillAnalysis = allStaff.map(staff => {
+        const analysis = analyzeStaffSkills(staff.skills, staff.id);
+        return {
+          id: staff.id,
+          name: staff.fullName,
+          roleTitle: staff.roleTitle,
+          originalSkills: staff.skills,
+          mappedSkills: analysis.mappedSkills,
+          hasCPA: analysis.hasCPA,
+          hasSenior: analysis.hasSenior,
+          hasJunior: analysis.hasJunior,
+          defaultedToJunior: analysis.defaultedToJunior,
+          manualOverride: analysis.manualOverride
+        };
+      });
       
-      if (!staffData || staffData.length === 0) {
-        console.warn("No staff data found for skill analysis");
-        setError("No staff members found in the database");
-        setStaff([]);
-        setSkillAnalysis([]);
-        setLoading(false);
-        return;
-      }
-      
-      const activeStaff = staffData.filter(s => s.status === 'active');
-      setStaff(activeStaff);
-      
-      // Analyze staff skills - now passing staff ID to the analyze function
-      const analysis = activeStaff.map(s => ({
-        id: s.id,
-        name: s.fullName,
-        rawSkills: s.skills,
-        analysis: analyzeStaffSkills(s.skills, s.id)
-      }));
-      
-      console.log("Debug - Skill analysis complete:", analysis);
-      setSkillAnalysis(analysis);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading staff for skill analysis:", error);
-      setError("Failed to load staff data: " + (error instanceof Error ? error.message : String(error)));
+      setStaffSkills(skillAnalysis);
+    } catch (err) {
+      console.error("Failed to load staff skills:", err);
+      setError("Failed to load staff skills. Check console for details.");
+    } finally {
       setLoading(false);
     }
   };
   
+  // Load staff skills on first render
   useEffect(() => {
-    loadStaffData();
+    loadStaffSkills();
   }, []);
+  
+  // Calculate skill type counts
+  const calculateSkillCounts = () => {
+    const counts = {
+      Junior: 0,
+      Senior: 0,
+      CPA: 0
+    };
+    
+    staffSkills.forEach(staff => {
+      staff.mappedSkills.forEach((skill: SkillType) => {
+        if (counts.hasOwnProperty(skill)) {
+          counts[skill as keyof typeof counts]++;
+        }
+      });
+    });
+    
+    return counts;
+  };
+  
+  const skillCounts = calculateSkillCounts();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Skill Mapping Debugger
+    <div className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">Staff Skill Mapping Analysis</h3>
+        <Button 
+          onClick={loadStaffSkills} 
+          size="sm" 
+          disabled={loading}
+        >
+          {loading ? "Loading..." : "Refresh Skills"}
+        </Button>
+      </div>
+      
+      <div className="flex gap-4 mb-4">
+        <div className="border rounded-md p-3 flex-1 bg-background">
+          <p className="text-sm font-medium mb-1">Skill Type Distribution</p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={loadStaffData} disabled={loading}>
-              {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              Refresh Data
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowDetail(!showDetail)}>
-              {showDetail ? "Hide Details" : "Show Details"}
-            </Button>
+            <Badge variant="outline" className="bg-blue-100">Junior: {skillCounts.Junior}</Badge>
+            <Badge variant="outline" className="bg-purple-100">Senior: {skillCounts.Senior}</Badge>
+            <Badge variant="outline" className="bg-green-100">CPA: {skillCounts.CPA}</Badge>
           </div>
-        </CardTitle>
-        <CardDescription>
-          Analyze how staff skills are mapped to standard forecast skill types
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="text-center py-4">Loading staff data...</div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded p-4 flex items-start">
-            <AlertCircle className="h-5 w-5 mr-2 text-red-600 mt-0.5" />
-            <div>
-              <p className="font-medium">Error loading staff data</p>
-              <p className="text-sm">{error}</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-2 text-red-600 border-red-300 hover:bg-red-50"
-                onClick={loadStaffData}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Try Again
-              </Button>
-            </div>
-          </div>
-        ) : skillAnalysis.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground">
-            No staff members found to analyze
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="border rounded p-2">
-                <h3 className="font-medium mb-2">Staff with Junior</h3>
-                <div className="space-y-1">
-                  {skillAnalysis
-                    .filter(s => s.analysis.hasJunior)
-                    .map(s => (
-                      <div key={s.id} className="text-sm">
-                        {s.name}
-                        {s.analysis.defaultedToJunior && (
-                          <Badge variant="outline" className="ml-2 text-xs">Default</Badge>
-                        )}
-                        {s.analysis.manualOverride && (
-                          <Badge variant="destructive" className="ml-2 text-xs">Override</Badge>
-                        )}
-                      </div>
-                    ))
-                  }
-                  {skillAnalysis.filter(s => s.analysis.hasJunior).length === 0 && (
-                    <div className="text-sm text-muted-foreground italic">None</div>
+        </div>
+      </div>
+      
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Staff Name</TableHead>
+              <TableHead>Role Title</TableHead>
+              <TableHead>Original Skills</TableHead>
+              <TableHead>Mapped Forecast Skills</TableHead>
+              <TableHead>Notes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {staffSkills.map((staff) => (
+              <TableRow key={staff.id}>
+                <TableCell className="font-medium">{staff.name}</TableCell>
+                <TableCell>{staff.roleTitle}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {staff.originalSkills.map((skill: string, index: number) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {staff.mappedSkills.map((skill: string, index: number) => (
+                      <Badge 
+                        key={index} 
+                        variant="secondary"
+                        className={`${
+                          skill === 'Junior' ? 'bg-blue-100' :
+                          skill === 'Senior' ? 'bg-purple-100' :
+                          skill === 'CPA' ? 'bg-green-100' : ''
+                        }`}
+                      >
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {staff.manualOverride && (
+                    <Badge variant="outline" className="bg-amber-100">Manual Override</Badge>
                   )}
-                </div>
-              </div>
-              <div className="border rounded p-2">
-                <h3 className="font-medium mb-2">Staff with Senior</h3>
-                <div className="space-y-1">
-                  {skillAnalysis
-                    .filter(s => s.analysis.hasSenior)
-                    .map(s => (
-                      <div key={s.id} className="text-sm">
-                        {s.name}
-                        {s.analysis.manualOverride && (
-                          <Badge variant="destructive" className="ml-2 text-xs">Override</Badge>
-                        )}
-                      </div>
-                    ))
-                  }
-                  {skillAnalysis.filter(s => s.analysis.hasSenior).length === 0 && (
-                    <div className="text-sm text-muted-foreground italic">None</div>
+                  {staff.defaultedToJunior && (
+                    <Badge variant="outline" className="bg-orange-100">Defaulted to Junior</Badge>
                   )}
-                </div>
-              </div>
-              <div className="border rounded p-2">
-                <h3 className="font-medium mb-2">Staff with CPA</h3>
-                <div className="space-y-1">
-                  {skillAnalysis
-                    .filter(s => s.analysis.hasCPA)
-                    .map(s => (
-                      <div key={s.id} className="text-sm">{s.name}</div>
-                    ))
-                  }
-                  {skillAnalysis.filter(s => s.analysis.hasCPA).length === 0 && (
-                    <div className="text-sm text-muted-foreground italic">None</div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {showDetail && (
-              <table className="w-full text-sm mt-4">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Staff</th>
-                    <th className="text-left p-2">Raw Skills</th>
-                    <th className="text-left p-2">Mapped Skills</th>
-                    <th className="text-left p-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {skillAnalysis.map(item => (
-                    <tr key={item.id} className="border-b hover:bg-muted/50">
-                      <td className="p-2">{item.name}</td>
-                      <td className="p-2">
-                        {item.rawSkills && item.rawSkills.length > 0 ? item.rawSkills.join(', ') : <em>None</em>}
-                      </td>
-                      <td className="p-2">
-                        {item.analysis.mappedSkills && item.analysis.mappedSkills.length > 0 ? (
-                          item.analysis.mappedSkills.map(skill => (
-                            <Badge key={skill} variant="secondary" className="mr-1">{skill}</Badge>
-                          ))
-                        ) : (
-                          <em>None</em>
-                        )}
-                      </td>
-                      <td className="p-2">
-                        {item.analysis.manualOverride && (
-                          <Badge variant="destructive">Manual Override</Badge>
-                        )}
-                        {item.analysis.defaultedToJunior && !item.analysis.manualOverride && (
-                          <Badge variant="outline">Default</Badge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                </TableCell>
+              </TableRow>
+            ))}
+            {staffSkills.length === 0 && !loading && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                  No staff skills found
+                </TableCell>
+              </TableRow>
             )}
-            
-            <div className="text-xs text-muted-foreground mt-2">
-              * Staff with no explicit skills are defaulted to "Junior" to ensure they have capacity
-              <br />
-              * Some staff members may have manual overrides for specific skill mapping
-            </div>
-            
-            <div className="mt-4 p-3 bg-slate-50 rounded-md text-sm border">
-              <h4 className="font-semibold mb-1">Database Debug Info:</h4>
-              <p>Total active staff in database: {staff.length}</p>
-              <p>Staff with skill analysis: {skillAnalysis.length}</p>
-              <p className="text-xs mt-1 text-slate-500">Last refresh: {new Date().toLocaleTimeString()}</p>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center h-24">
+                  <p className="text-muted-foreground">Loading staff skills...</p>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 };
 
