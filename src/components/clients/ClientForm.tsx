@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -438,7 +437,7 @@ const ClientForm: React.FC = () => {
                         <Input 
                           type="number" 
                           min="0" 
-                          step="100" 
+                          step="0.01" 
                           placeholder="0.00" 
                           {...field} 
                         />
