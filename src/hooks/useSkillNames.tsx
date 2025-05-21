@@ -1,5 +1,6 @@
 
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { getAllSkills } from '@/services/skillService';
 import { Skill } from '@/types/skill';
 
@@ -20,14 +21,16 @@ export const useSkillNames = (skillIds: string[] = []) => {
     enabled: skillIds.length > 0,
   });
 
-  // Create a map of skill IDs to skill objects
-  const skillsMap: Record<string, Skill> = {};
-  
-  if (skills) {
-    skills.forEach((skill: Skill) => {
-      skillsMap[skill.id] = skill;
-    });
-  }
+  // Create a stable map of skill IDs to skill objects
+  const skillsMap: Record<string, Skill> = useMemo(() => {
+    const map: Record<string, Skill> = {};
+    if (skills) {
+      skills.forEach((skill: Skill) => {
+        map[skill.id] = skill;
+      });
+    }
+    return map;
+  }, [skills]);
 
   return {
     skillsMap,

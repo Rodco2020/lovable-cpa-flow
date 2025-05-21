@@ -44,6 +44,23 @@ const StaffReport: React.FC = () => {
   const allSkillIds = staffList?.flatMap(staff => staff.skills) || [];
   const { skillsMap, isLoading: skillsLoading } = useSkillNames(allSkillIds);
 
+  // Helper to fetch availability with retries and exponential backoff
+  const fetchAvailabilityWithRetry = async (staffId: string, attempts = 2): Promise<AvailabilitySummary | null> => {
+    for (let i = 0; i <= attempts; i++) {
+      try {
+        return await calculateAvailabilitySummary(staffId);
+      } catch (err) {
+        if (i === attempts) {
+          throw err;
+        }
+        // Backoff: 500ms, 1000ms...
+        const delay = Math.min(500 * 2 ** i, 4000);
+        await new Promise(res => setTimeout(res, delay));
+      }
+    }
+    return null;
+  };
+
   // Load staff data and availability
   useEffect(() => {
     const loadStaffData = async () => {
@@ -57,18 +74,18 @@ const StaffReport: React.FC = () => {
         const connectionErrors: string[] = [];
         
         for (const staff of staffList) {
-          // Get availability summary
+          // Get availability summary with retry logic
           let availabilitySummary = null;
           try {
             console.log(`Fetching availability for staff ${staff.id}`);
-            availabilitySummary = await calculateAvailabilitySummary(staff.id);
+            availabilitySummary = await fetchAvailabilityWithRetry(staff.id);
           } catch (err) {
             console.error(`Failed to get availability for ${staff.fullName}:`, err);
-            
+
             // Check if it's a connection error
-            if (err instanceof Error && 
-               (err.message.includes('Failed to fetch') || 
-                err.message.includes('network') || 
+            if (err instanceof Error &&
+               (err.message.includes('Failed to fetch') ||
+                err.message.includes('network') ||
                 err.message.includes('connection'))) {
               connectionErrors.push(staff.fullName);
             }
@@ -117,7 +134,7 @@ const StaffReport: React.FC = () => {
     };
     
     loadStaffData();
-  }, [staffList, skillsMap, skillsLoading, toast]);
+  }, [staffList, skillsLoading]);
 
   // Function to retry loading the report
   const handleRetry = async () => {

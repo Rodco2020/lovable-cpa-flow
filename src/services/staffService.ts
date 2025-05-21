@@ -481,6 +481,18 @@ export const calculateAvailabilitySummary = async (
     };
   } catch (err) {
     console.error(`Failed to calculate availability summary for staff ${staffId}:`, err);
+    // If the error is a connection issue, return an empty summary so the
+    // UI can display partial data instead of crashing.
+    if (err instanceof Error && (err.message.includes('connection') || err.message.includes('network') || err.message.includes('Failed to fetch'))) {
+      const emptySummary: AvailabilitySummary = {
+        dailySummaries: Array.from({ length: 7 }, (_, i) => ({ day: i, totalHours: 0, slots: [] })),
+        weeklyTotal: 0,
+        averageDailyHours: 0,
+        peakDay: null,
+        distribution: { morning: 0, afternoon: 0, evening: 0 }
+      };
+      return emptySummary;
+    }
     throw new Error(`Failed to calculate availability summary: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 };
