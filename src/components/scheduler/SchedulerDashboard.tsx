@@ -1,118 +1,71 @@
-import React, { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import UnscheduledTaskList from "@/components/scheduler/UnscheduledTaskList";
-import StaffScheduleView from "@/components/scheduler/StaffScheduleView";
-import { useAppEvent } from "@/hooks/useAppEvent";
-import { toast } from "@/services/toastService";
+
+import React, { useEffect } from "react";
 import DragDropContext from "./DragDropContext";
-import RecommendationPanel from "./RecommendationPanel";
-import { Separator } from "@/components/ui/separator";
 import AutoScheduleConfigPanel from "./AutoScheduleConfigPanel";
 import AutoScheduleResults from "./AutoScheduleResults";
 import SchedulerErrorHandler from "./SchedulerErrorHandler";
 import SchedulerMetrics from "./SchedulerMetrics";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useSchedulerKeyboardShortcuts } from "@/hooks/useSchedulerKeyboardShortcuts";
 import KeyboardShortcutHelp from "@/components/scheduler/KeyboardShortcutHelp";
-import UnifiedSchedulingInterface, { SchedulingMode } from "./UnifiedSchedulingInterface";
+import UnifiedSchedulingInterface from "./UnifiedSchedulingInterface";
 import SchedulerHeader from "./SchedulerHeader";
-import { useRecommendationsManager } from "./RecommendationsManager";
-import { useAutoScheduleManager } from "./AutoScheduleManager";
-import { useErrorManager } from "./ErrorManager";
-import { useTaskSelectionManager } from "./TaskSelectionManager";
-import { useCacheManager } from "./CacheManager";
-import { useDateNavigator } from "./DateNavigator";
-import { TaskInstance } from "@/types/task";
+import SchedulerTabs from "./SchedulerTabs";
+import { useSchedulerDashboardController } from "@/hooks/useSchedulerDashboardController";
 
 /**
  * Main dashboard component for the Scheduler Module
  * Integrates all scheduler functionality into a unified interface
  */
 const SchedulerDashboard: React.FC = () => {
-  // Custom hooks for managing different aspects of the scheduler
-  const { currentDate, navigateDay } = useDateNavigator();
-  const { handleRefreshAll } = useCacheManager();
-  const { errorLogs, handleResolveError, handleClearErrors } = useErrorManager();
-  const { 
-    selectedTask, setSelectedTask, activeTab, setActiveTab, handleTaskSelect 
-  } = useTaskSelectionManager();
+  // Use our custom hook to manage all state and logic
   const {
-    recommendations, setRecommendations, showRecommendations, setShowRecommendations,
-    selectedTaskRecommendations, setSelectedTaskRecommendations, isGeneratingRecommendations,
-    generateRecommendations, handleRecommendationApplied
-  } = useRecommendationsManager();
-  const {
-    autoScheduleResults, setAutoScheduleResults, isAutoScheduling,
-    showConfigPanel, setShowConfigPanel, handleAutoSchedule
-  } = useAutoScheduleManager();
-  
-  // Local state
-  const [schedulingMode, setSchedulingMode] = useLocalStorage<SchedulingMode>(
-    'preferred-scheduling-mode', 'manual'
-  );
-  const [showMetrics, setShowMetrics] = useLocalStorage('show-scheduling-metrics', false);
-  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useLocalStorage('task-list-page-size', 10);
-  const [lastAvailabilityEventTime, setLastAvailabilityEventTime] = useState<number>(0);
-  const AVAILABILITY_EVENT_COOLDOWN = 3000; // 3 seconds minimum between handling availability events
-
-  // Initialize keyboard shortcuts
-  const { showHelpOverlay } = useSchedulerKeyboardShortcuts({
-    onRefresh: handleRefreshAll,
-    onNextDay: () => navigateDay('next'),
-    onPrevDay: () => navigateDay('prev'),
-    onToggleMode: setSchedulingMode,
-    onShowHelp: () => setShowKeyboardHelp(true),
-    enabled: true,
-  });
-
-  // Handle task selection
-  const onTaskSelect = (task: TaskInstance) => {
-    handleTaskSelect(task, recommendations, setSelectedTaskRecommendations, setShowRecommendations);
-  };
-
-  // Handle recommendations generation
-  const handleGenerateRecommendations = async () => {
-    const newRecommendations = await generateRecommendations();
+    // Date navigation
+    currentDate,
+    navigateDay,
     
-    // If no task is selected but we have recommendations, auto-select the first task
-    if (!selectedTask && Object.keys(newRecommendations).length > 0) {
-      const firstTaskId = Object.keys(newRecommendations)[0];
-      
-      // Set selected task recommendations
-      setSelectedTaskRecommendations(newRecommendations[firstTaskId]);
-      setShowRecommendations(true);
-      
-      // Switch to schedule tab
-      setActiveTab("schedule");
-    }
-  };
-
-  // Handle recommendation application
-  const onRecommendationApplied = () => {
-    handleRecommendationApplied(selectedTask);
-    setSelectedTask(null);
-  };
-
-  // Listen for availability template changes to update scheduler
-  useAppEvent("availability.template.changed", (event) => {
-    const now = Date.now();
+    // Cache management
+    handleRefreshAll,
     
-    // Prevent rapid successive event handling
-    if (now - lastAvailabilityEventTime < AVAILABILITY_EVENT_COOLDOWN) {
-      console.log('[Availability] Event handling throttled');
-      return;
-    }
+    // Error handling
+    errorLogs,
+    handleResolveError,
+    handleClearErrors,
     
-    setLastAvailabilityEventTime(now);
+    // Task selection
+    selectedTask,
+    setSelectedTask,
+    activeTab,
+    setActiveTab,
+    onTaskSelect,
     
-    toast.info("Availability Updated", "Staff availability has changed. Scheduler updated.");
+    // Recommendations
+    recommendations,
+    showRecommendations,
+    setShowRecommendations,
+    selectedTaskRecommendations,
+    isGeneratingRecommendations,
+    handleGenerateRecommendations,
+    onRecommendationApplied,
     
-    // Clear caches to ensure fresh data is fetched
-    handleRefreshAll();
-  }, [lastAvailabilityEventTime, handleRefreshAll]);
+    // Auto-scheduling
+    autoScheduleResults,
+    setAutoScheduleResults,
+    isAutoScheduling,
+    showConfigPanel,
+    setShowConfigPanel,
+    handleAutoSchedule,
+    
+    // Local state
+    schedulingMode,
+    setSchedulingMode,
+    showMetrics,
+    setShowMetrics,
+    showKeyboardHelp,
+    setShowKeyboardHelp,
+    page,
+    setPage,
+    pageSize,
+    setPageSize
+  } = useSchedulerDashboardController();
 
   // When auto-scheduling results are available, show them in the UI
   useEffect(() => {
@@ -120,7 +73,7 @@ const SchedulerDashboard: React.FC = () => {
       // Switch to the schedule tab to see newly scheduled tasks
       setActiveTab("schedule");
     }
-  }, [autoScheduleResults]);
+  }, [autoScheduleResults, setActiveTab]);
 
   return (
     <DragDropContext>
@@ -178,57 +131,22 @@ const SchedulerDashboard: React.FC = () => {
         )}
 
         {/* Main tabs for unscheduled tasks and schedule view */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="flex items-center justify-between">
-            <TabsList className="grid grid-cols-2 w-[400px]">
-              <TabsTrigger value="unscheduled">Unscheduled Tasks</TabsTrigger>
-              <TabsTrigger value="schedule">Staff Schedule</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="unscheduled" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Unscheduled Tasks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <UnscheduledTaskList 
-                  onTaskSelect={onTaskSelect} 
-                  tasksWithRecommendations={Object.keys(recommendations)}
-                  page={page}
-                  pageSize={pageSize}
-                  onPageChange={setPage}
-                  onPageSizeChange={setPageSize}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="schedule" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Staff Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {showRecommendations && selectedTaskRecommendations.length > 0 ? (
-                  <div className="space-y-6">
-                    <RecommendationPanel 
-                      recommendations={selectedTaskRecommendations}
-                      onRecommendationApplied={onRecommendationApplied}
-                      onClose={() => setShowRecommendations(false)}
-                    />
-                    <Separator />
-                  </div>
-                ) : null}
-                
-                <StaffScheduleView 
-                  selectedTask={selectedTask} 
-                  currentDate={currentDate}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <SchedulerTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          selectedTask={selectedTask}
+          currentDate={currentDate}
+          showRecommendations={showRecommendations}
+          selectedTaskRecommendations={selectedTaskRecommendations}
+          onRecommendationApplied={onRecommendationApplied}
+          setShowRecommendations={setShowRecommendations}
+          onTaskSelect={onTaskSelect}
+          tasksWithRecommendations={Object.keys(recommendations)}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
         
         <KeyboardShortcutHelp
           isOpen={showKeyboardHelp}
