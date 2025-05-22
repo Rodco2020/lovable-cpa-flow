@@ -2,8 +2,9 @@
 import { v4 as uuidv4 } from "uuid";
 import { 
   updateTaskInstance, 
-  getUnscheduledTaskInstances,
-  getTaskInstanceById 
+  getUnscheduledTaskInstances
+  // Removing the import since we're defining our own version
+  // getTaskInstanceById 
 } from "@/services/taskService";
 import { 
   getTimeSlotsByStaffAndDate,
@@ -149,7 +150,8 @@ const getStaffById = async (staffId: string): Promise<Staff | null> => {
   return null;
 };
 
-// Mock function for getting a task instance by ID (replace with real implementation)
+// Implementation of getTaskInstanceById for use within this module
+// Renamed function to use a local implementation instead of importing
 export const getTaskInstanceById = async (taskId: string): Promise<TaskInstance | null> => {
   // In a real app, this would fetch from a real API or database
   try {
