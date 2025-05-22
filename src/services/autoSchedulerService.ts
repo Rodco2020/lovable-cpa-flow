@@ -18,6 +18,12 @@ import {
 import { TaskInstance, TaskPriority } from "@/types/task";
 import { Staff, TimeSlot } from "@/types/staff";
 import { format, addDays, differenceInCalendarDays } from "date-fns";
+import { logError } from "@/services/errorLoggingService";
+import {
+  startSchedulingOperation,
+  recordSuccessfulScheduling,
+  recordFailedScheduling
+} from "@/services/schedulingAnalyticsService";
 
 /**
  * Configuration options for automatic scheduling
@@ -59,6 +65,9 @@ export const autoScheduleTasks = async (
   config: AutoScheduleConfig
 ): Promise<AutoScheduleResult> => {
   console.log("Starting automatic task scheduling with config:", config);
+  
+  // Start scheduling analytics tracking
+  startSchedulingOperation();
   
   const result: AutoScheduleResult = {
     totalTasksProcessed: 0,
@@ -164,6 +173,17 @@ export const autoScheduleTasks = async (
         if (!scheduled) {
           result.tasksSkipped++;
           console.log(`Skipped task ${task.id}: No suitable time slots found`);
+          
+          // Log this as a warning
+          logError(
+            `No suitable time slots found for task "${task.name}"`,
+            'warning',
+            {
+              taskId: task.id,
+              component: 'autoScheduler',
+              details: `Task could not be scheduled within the ${config.lookAheadDays}-day window`
+            }
+          );
         }
         
       } catch (error) {
@@ -173,6 +193,12 @@ export const autoScheduleTasks = async (
           message: error instanceof Error ? error.message : String(error)
         });
         result.tasksSkipped++;
+        
+        // Record failed scheduling
+        recordFailedScheduling(
+          task.id, 
+          error instanceof Error ? error.message : String(error)
+        );
       }
     }
     
@@ -181,6 +207,17 @@ export const autoScheduleTasks = async (
     
   } catch (error) {
     console.error("Failed to complete automatic scheduling:", error);
+    
+    // Log global error
+    logError(
+      "Automatic scheduling failed",
+      'error',
+      {
+        component: 'autoScheduler',
+        details: error instanceof Error ? error.message : String(error)
+      }
+    );
+    
     throw error;
   }
 };
@@ -228,7 +265,7 @@ const sortRecommendationsByConfig = (
     
     // Consider skill match if enabled
     if (config.respectSkillMatch) {
-      score += a.matchScore - b.matchScore;
+      score += b.matchScore - a.matchScore; // Higher matchScore should be preferred
     }
     
     // Consider workload balancing if enabled

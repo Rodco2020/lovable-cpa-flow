@@ -1,7 +1,8 @@
+
 import { v4 as uuidv4 } from "uuid";
 import { 
-  updateTaskInstance, 
-  getUnscheduledTaskInstances
+  getUnscheduledTaskInstances,
+  updateTaskInstance
   // Removing the import since we're defining our own version
   // getTaskInstanceById 
 } from "@/services/taskService";
@@ -14,6 +15,19 @@ import {
 } from "@/services/staffService";
 import { TaskInstance } from "@/types/task";
 import { Staff, TimeSlot } from "@/types/staff";
+import { 
+  staffCache, 
+  taskCache, 
+  recommendationCache, 
+  DEFAULT_CACHE_DURATION,
+  generateCacheKey
+} from "@/services/schedulerCacheService";
+import { logError } from "@/services/errorLoggingService";
+import {
+  startSchedulingOperation,
+  recordSuccessfulScheduling,
+  recordFailedScheduling
+} from "@/services/schedulingAnalyticsService";
 
 // Task-staff match recommendation interface
 export interface StaffTaskRecommendation {
@@ -41,6 +55,16 @@ export const scheduleTask = async (
   endTime: string, // HH:MM format
 ): Promise<TaskInstance> => {
   try {
+    startSchedulingOperation();
+    
+    // Get the task first to validate
+    const task = await getTaskInstanceById(taskId);
+    if (!task) {
+      const errorMsg = `Task not found with ID: ${taskId}`;
+      logError(errorMsg, 'error', { taskId, component: 'schedulerService' });
+      throw new Error(errorMsg);
+    }
+
     // Get the time slots for the staff member on the given date
     const staffTimeSlots = await getTimeSlotsByStaffAndDate(staffId, date);
     
@@ -50,7 +74,14 @@ export const scheduleTask = async (
     );
     
     if (!startSlot) {
-      throw new Error("The selected time slot is not available");
+      const errorMsg = "The selected time slot is not available";
+      logError(errorMsg, 'error', { 
+        taskId, 
+        staffId, 
+        component: 'schedulerService',
+        data: { date, startTime, endTime }
+      });
+      throw new Error(errorMsg);
     }
     
     // Create a Date object for the start time
@@ -73,9 +104,16 @@ export const scheduleTask = async (
       isAvailable: false
     });
     
+    // Record successful scheduling for analytics
+    recordSuccessfulScheduling(updatedTask, staffId);
+    
+    // Clear any cached data that might be affected
+    clearTaskCache(taskId);
+    
     return updatedTask;
   } catch (error) {
     console.error("Error scheduling task:", error);
+    recordFailedScheduling(taskId, error instanceof Error ? error.message : String(error));
     throw error;
   }
 };
@@ -93,7 +131,7 @@ export const validateScheduleSlot = async (
   message?: string;
 }> => {
   try {
-    // Get the task
+    // Get the task - use cached version if available
     const task = await getTaskInstanceById(taskId);
     if (!task) {
       return {
@@ -102,7 +140,7 @@ export const validateScheduleSlot = async (
       };
     }
     
-    // Check staff skills against task required skills
+    // Check staff skills against task required skills - use cached version if available
     const staff = await getStaffById(staffId);
     if (!staff) {
       return {
@@ -125,7 +163,8 @@ export const validateScheduleSlot = async (
       }
     }
     
-    // Check if the time slot is available
+    // Check if the time slot is available - always fetch fresh data here
+    // as availability can change frequently
     const timeSlots = await getTimeSlotsByStaffAndDate(staffId, date);
     const startSlot = timeSlots.find(slot => 
       slot.startTime === startTime
@@ -141,6 +180,17 @@ export const validateScheduleSlot = async (
     return { valid: true };
   } catch (error) {
     console.error("Error validating schedule slot:", error);
+    logError(
+      "Error validating schedule slot", 
+      'warning', 
+      { 
+        taskId, 
+        staffId, 
+        component: 'schedulerService',
+        details: error instanceof Error ? error.message : String(error)
+      }
+    );
+    
     return {
       valid: false,
       message: "Error validating schedule slot"
@@ -223,13 +273,23 @@ const calculateSkillMatchScore = (taskSkills: string[], staffSkills: string[]): 
 
 /**
  * Find suitable staff members for a task based on required skills
- * and return ranked recommendations
+ * and return ranked recommendations - with caching support
  */
 export const findSuitableStaffForTask = async (
   taskId: string,
   date?: string, // Optional date to check for specific date, defaults to current date
 ): Promise<StaffTaskRecommendation[]> => {
   try {
+    // Check the cache first
+    const cacheKey = generateCacheKey(`recommendations:task:${taskId}`, { date });
+    const cachedRecommendations = recommendationCache.get<StaffTaskRecommendation[]>(cacheKey);
+    
+    if (cachedRecommendations) {
+      console.log(`[Cache] Using cached recommendations for task ${taskId}`);
+      return cachedRecommendations;
+    }
+    
+    // No cache hit, generate recommendations
     const task = await getTaskInstanceById(taskId);
     if (!task) {
       console.error("Task not found for recommendations:", taskId);
@@ -239,7 +299,7 @@ export const findSuitableStaffForTask = async (
     // Calculate task urgency for prioritization
     const taskUrgency = calculateTaskUrgency(task);
     
-    // Get all active staff members
+    // Get all active staff members - use cached version
     const allStaff = await getAllStaff();
     const activeStaff = allStaff.filter(staff => staff.status === "active");
     
@@ -298,9 +358,27 @@ export const findSuitableStaffForTask = async (
     }
     
     // Sort recommendations by match score (descending)
-    return recommendations.sort((a, b) => b.matchScore - a.matchScore);
+    const sortedRecommendations = recommendations.sort((a, b) => b.matchScore - a.matchScore);
+    
+    // Cache the results
+    recommendationCache.set(
+      cacheKey,
+      sortedRecommendations,
+      DEFAULT_CACHE_DURATION.RECOMMENDATIONS
+    );
+    
+    return sortedRecommendations;
   } catch (error) {
     console.error("Error finding suitable staff for task:", error);
+    logError(
+      "Failed to find staff recommendations", 
+      'warning',
+      {
+        taskId,
+        component: 'schedulerService',
+        details: error instanceof Error ? error.message : String(error)
+      }
+    );
     return [];
   }
 };
@@ -367,13 +445,14 @@ const findConsecutiveSlots = (
 
 /**
  * Generate batch recommendations for multiple unscheduled tasks
+ * With caching support
  */
 export const generateBatchRecommendations = async (
   date?: string, // Optional date, defaults to current date
   limit: number = 10 // Limit the number of tasks to process
 ): Promise<Record<string, StaffTaskRecommendation[]>> => {
   try {
-    // Get unscheduled tasks
+    // Get unscheduled tasks - don't use cache here as we need fresh data
     const unscheduledTasks = await getUnscheduledTaskInstances();
     
     // Sort tasks by urgency
@@ -392,42 +471,121 @@ export const generateBatchRecommendations = async (
     const recommendations: Record<string, StaffTaskRecommendation[]> = {};
     
     for (const task of prioritizedTasks) {
+      // Check cache first for this specific task's recommendations
+      const cacheKey = generateCacheKey(`recommendations:task:${task.id}`, { date });
+      const cachedRecommendations = recommendationCache.get<StaffTaskRecommendation[]>(cacheKey);
+      
+      if (cachedRecommendations) {
+        recommendations[task.id] = cachedRecommendations;
+        continue;
+      }
+      
+      // No cache hit, generate new recommendations
       const taskRecommendations = await findSuitableStaffForTask(task.id, date);
       if (taskRecommendations.length > 0) {
         recommendations[task.id] = taskRecommendations;
+        
+        // Cache these recommendations for future use
+        recommendationCache.set(
+          cacheKey,
+          taskRecommendations,
+          DEFAULT_CACHE_DURATION.RECOMMENDATIONS
+        );
       }
     }
     
     return recommendations;
   } catch (error) {
     console.error("Error generating batch recommendations:", error);
+    logError(
+      "Failed to generate batch recommendations",
+      'error',
+      {
+        component: 'schedulerService',
+        details: error instanceof Error ? error.message : String(error)
+      }
+    );
     return {};
   }
 };
 
 // Implementation of getTaskInstanceById for use within this module
-// Renamed function to use a local implementation instead of importing
+// With caching support
 export const getTaskInstanceById = async (taskId: string): Promise<TaskInstance | null> => {
-  // In a real app, this would fetch from a real API or database
   try {
+    // Check cache first
+    const cacheKey = `task:${taskId}`;
+    const cachedTask = taskCache.get<TaskInstance>(cacheKey);
+    
+    if (cachedTask) {
+      console.log(`[Cache] Using cached task ${taskId}`);
+      return cachedTask;
+    }
+    
+    // Not in cache, fetch from service
     const tasks = await getUnscheduledTaskInstances();
-    return tasks.find(task => task.id === taskId) || null;
+    const task = tasks.find(task => task.id === taskId);
+    
+    if (task) {
+      // Store in cache
+      taskCache.set(cacheKey, task, DEFAULT_CACHE_DURATION.TASKS);
+    }
+    
+    return task || null;
   } catch (error) {
     console.error("Error getting task by ID:", error);
     return null;
   }
 };
 
-// Enhanced version of getStaffById that uses the service but adds fallback
-// and caching for better performance during batch operations
+// Enhanced version of getStaffById that uses the service but adds caching
+// and error handling for better performance during batch operations
 const getStaffById = async (staffId: string): Promise<Staff | null> => {
   try {
+    // Check cache first
+    const cacheKey = `staff:${staffId}`;
+    const cachedStaff = staffCache.get<Staff>(cacheKey);
+    
+    if (cachedStaff) {
+      console.log(`[Cache] Using cached staff ${staffId}`);
+      return cachedStaff;
+    }
+    
+    // Not in cache, fetch from service
     const staff = await getStaffByIdFromService(staffId);
+    
+    if (staff) {
+      // Store in cache
+      staffCache.set(cacheKey, staff, DEFAULT_CACHE_DURATION.STAFF);
+    }
+    
     return staff || null;
   } catch (error) {
     console.error("Error getting staff by ID:", error);
+    logError(
+      "Failed to fetch staff details",
+      'warning',
+      {
+        staffId,
+        component: 'schedulerService',
+        details: error instanceof Error ? error.message : String(error)
+      }
+    );
     return null;
   }
+};
+
+// Helper function to clear task cache when data changes
+const clearTaskCache = (taskId: string): void => {
+  const cacheKey = `task:${taskId}`;
+  taskCache.delete(cacheKey);
+  
+  // Also clear any recommendations involving this task
+  const recommendationKeys = recommendationCache.keys().filter(
+    key => key.includes(`recommendations:task:${taskId}`)
+  );
+  
+  recommendationKeys.forEach(key => recommendationCache.delete(key));
 };
 
 export default {
