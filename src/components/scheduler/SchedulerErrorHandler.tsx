@@ -47,11 +47,11 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
   if (activeErrors.length === 0) return null;
 
   return (
-    <Card className="mb-6 border-amber-200 bg-amber-50">
+    <Card className="mb-6 border-amber-200 bg-amber-50" aria-live="polite" role="alert">
       <CardContent className="p-4">
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center">
-            <AlertTriangle className="text-amber-600 mr-2 h-5 w-5" />
+            <AlertTriangle className="text-amber-600 mr-2 h-5 w-5" aria-hidden="true" />
             <h3 className="font-medium text-amber-900">
               Scheduling Issues ({activeErrors.length})
             </h3>
@@ -62,6 +62,8 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
               size="sm"
               onClick={() => setExpanded(!expanded)}
               className="text-xs"
+              aria-expanded={expanded}
+              aria-controls="error-list"
             >
               {expanded ? 'Collapse' : 'Expand'}
             </Button>
@@ -70,6 +72,7 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
               size="sm"
               onClick={onClear}
               className="text-xs"
+              aria-label="Clear all errors"
             >
               Clear All
             </Button>
@@ -77,7 +80,7 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
         </div>
 
         {expanded && (
-          <ScrollArea className="max-h-60 overflow-auto">
+          <ScrollArea className="max-h-60 overflow-auto" id="error-list">
             <div className="space-y-3">
               {activeErrors.map(error => (
                 <Alert 
@@ -99,7 +102,7 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
                         </AlertDescription>
                       )}
                       <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                        <Info className="h-3 w-3 mr-1" />
+                        <Info className="h-3 w-3 mr-1" aria-hidden="true" />
                         {new Date(error.timestamp).toLocaleTimeString()}
                         {error.taskId && <span className="ml-2">Task ID: {error.taskId}</span>}
                         {error.staffId && <span className="ml-2">Staff ID: {error.staffId}</span>}
@@ -112,6 +115,7 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
                           size="sm" 
                           onClick={() => onRetry(error.id)}
                           className="h-7 px-2"
+                          aria-label="Retry"
                         >
                           Retry
                         </Button>
@@ -121,8 +125,9 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
                         size="sm" 
                         onClick={() => onResolve(error.id)}
                         className="h-7 px-2 ml-1"
+                        aria-label="Mark as resolved"
                       >
-                        <Check className="h-4 w-4 text-green-600" />
+                        <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>

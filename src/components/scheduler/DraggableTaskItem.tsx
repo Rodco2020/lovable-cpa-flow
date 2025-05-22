@@ -4,6 +4,7 @@ import { useDrag } from 'react-dnd';
 import { ItemTypes } from './dndTypes';
 import { TaskInstance } from '@/types/task';
 import { Badge } from '@/components/ui/badge';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface DraggableTaskItemProps {
   task: TaskInstance;
@@ -40,6 +41,15 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
         className={`${isDragging ? 'opacity-50' : 'hover:bg-slate-50'} 
           cursor-move transition-opacity duration-200`}
         style={{ opacity: isDragging ? 0.5 : 1 }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Drag task: ${task.name}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick?.();
+          }
+        }}
       >
         {children}
       </div>
@@ -61,35 +71,55 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
 
   // Default rendering
   return (
-    <div
-      ref={drag}
-      onClick={onClick}
-      className={`flex justify-between items-center p-3 border rounded-lg 
-        ${isDragging ? 'opacity-50' : 'hover:bg-slate-50'} 
-        cursor-move transition-opacity duration-200`}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
-    >
-      <div className="flex-1">
-        <h4 className="font-medium">{task.name}</h4>
-        <div className="flex gap-2 text-sm text-muted-foreground">
-          <span>{getClientName(task.clientId)}</span>
-          <span>•</span>
-          <span>{task.estimatedHours} hours</span>
-        </div>
-        {task.requiredSkills && task.requiredSkills.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {task.requiredSkills.map((skillId, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
-                {skillId}
-              </Badge>
-            ))}
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            ref={drag}
+            onClick={onClick}
+            className={`flex justify-between items-center p-3 border rounded-lg 
+              ${isDragging ? 'opacity-50' : 'hover:bg-slate-50'} 
+              cursor-move transition-opacity duration-200`}
+            style={{ opacity: isDragging ? 0.5 : 1 }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Drag task: ${task.name}`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick?.();
+              }
+            }}
+            data-testid="draggable-task-item"
+          >
+            <div className="flex-1">
+              <h4 className="font-medium">{task.name}</h4>
+              <div className="flex gap-2 text-sm text-muted-foreground">
+                <span>{getClientName(task.clientId)}</span>
+                <span>•</span>
+                <span>{task.estimatedHours} hours</span>
+              </div>
+              {task.requiredSkills && task.requiredSkills.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {task.requiredSkills.map((skillId, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {skillId}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className={`px-2 py-1 text-xs rounded-full ${getPriorityStyles()}`}>
+              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
+            </div>
           </div>
-        )}
-      </div>
-      <div className={`px-2 py-1 text-xs rounded-full ${getPriorityStyles()}`}>
-        {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
-      </div>
-    </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p>Drag this task to schedule it</p>
+          <p className="text-xs text-muted-foreground mt-1">Click to view details</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

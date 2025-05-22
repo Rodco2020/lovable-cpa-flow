@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +22,9 @@ import { getErrorLogs, resolveError, clearAllErrors, clearResolvedErrors } from 
 import SchedulerMetrics from "./SchedulerMetrics";
 import { clearAllCaches, clearExpiredCaches } from "@/services/schedulerCacheService";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useSchedulerKeyboardShortcuts } from "@/hooks/useSchedulerKeyboardShortcuts";
+import KeyboardShortcutHelp from "@/components/scheduler/KeyboardShortcutHelp";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "react-tooltip";
 
 const SchedulerDashboard: React.FC = () => {
   // State for scheduling
@@ -57,6 +59,9 @@ const SchedulerDashboard: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useLocalStorage('task-list-page-size', 10);
   
+  // Keyboard shortcut help dialog state
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
   // Load initial error logs
   useEffect(() => {
     const logs = getErrorLogs();
@@ -100,6 +105,16 @@ const SchedulerDashboard: React.FC = () => {
       direction === 'prev' ? addDays(prev, -1) : addDays(prev, 1)
     );
   };
+
+  // Initialize keyboard shortcuts
+  const { showHelpOverlay } = useSchedulerKeyboardShortcuts({
+    onRefresh: handleRefreshAll,
+    onNextDay: () => navigateDay('next'),
+    onPrevDay: () => navigateDay('prev'),
+    onToggleMode: setSchedulingMode,
+    onShowHelp: () => setShowKeyboardHelp(true),
+    enabled: true,
+  });
 
   // Handle recommendations generation
   const handleGenerateRecommendations = async () => {
@@ -281,6 +296,7 @@ const SchedulerDashboard: React.FC = () => {
               size="icon"
               onClick={() => navigateDay('prev')}
               className="h-8 w-8"
+              aria-label="Previous day"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -294,28 +310,45 @@ const SchedulerDashboard: React.FC = () => {
               size="icon"
               onClick={() => navigateDay('next')}
               className="h-8 w-8"
+              aria-label="Next day"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRefreshAll}
-              title="Refresh all data"
-              className="h-8 w-8 ml-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRefreshAll}
+                    className="h-8 w-8 ml-2"
+                    aria-label="Refresh all data"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Refresh all data (Press R)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             <Button 
               variant="ghost"
               size="sm"
               onClick={() => setShowMetrics(!showMetrics)}
               className="ml-2"
+              aria-pressed={showMetrics}
+              aria-label={showMetrics ? "Hide metrics" : "Show metrics"}
             >
               {showMetrics ? 'Hide Metrics' : 'Show Metrics'}
             </Button>
+            
+            <KeyboardShortcutHelp
+              isOpen={showKeyboardHelp}
+              onOpenChange={setShowKeyboardHelp}
+            />
           </div>
         </div>
 
