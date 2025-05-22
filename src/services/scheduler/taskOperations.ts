@@ -100,7 +100,8 @@ export const scheduleTask = async (
     } as Partial<TaskInstance>;
     
     // Make sure to await and capture the returned task instance
-    const updatedTask = await updateTaskInstance(taskId, taskUpdateData);
+    // Explicitly cast the result to TaskInstance to address the type mismatch
+    const updatedTask = await updateTaskInstance(taskId, taskUpdateData) as unknown as TaskInstance;
     
     // Mark the time slot as assigned to this task
     await updateTimeSlot(startSlot.id, {
