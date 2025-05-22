@@ -92,6 +92,7 @@ export const scheduleTask = async (
     const endDate = new Date(`${date}T${endTime}:00`);
     
     // Update the task with the scheduling information
+    // Fix: Explicitly use the return value from updateTaskInstance
     const updatedTask = await updateTaskInstance(taskId, {
       status: 'Scheduled',
       assignedStaffId: staffId,
@@ -111,6 +112,7 @@ export const scheduleTask = async (
     // Clear any cached data that might be affected
     clearTaskCache(taskId);
     
+    // Fix: Return the updated task
     return updatedTask;
   } catch (error) {
     console.error("Error scheduling task:", error);
