@@ -40,17 +40,7 @@ export function useSchedulerKeyboardShortcuts({
     
     toast({
       title: 'Keyboard Shortcuts',
-      description: (
-        <div className="space-y-2">
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">R</kbd> Refresh data</p>
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">→</kbd> Next day</p>
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">←</kbd> Previous day</p>
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">1</kbd> Manual mode</p>
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">2</kbd> Hybrid mode</p>
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">3</kbd> Automatic mode</p>
-          <p><kbd className="px-2 py-1 bg-slate-100 rounded">?</kbd> Show this help</p>
-        </div>
-      ),
+      description: "R: Refresh data\n→: Next day\n←: Previous day\n1: Manual mode\n2: Hybrid mode\n3: Automatic mode\n?: Show this help",
       duration: 10000,
     });
   }, [onShowHelp]);
