@@ -20,7 +20,8 @@ import {
   taskCache, 
   recommendationCache, 
   DEFAULT_CACHE_DURATION,
-  generateCacheKey
+  generateCacheKey,
+  clearAllCaches
 } from "@/services/schedulerCacheService";
 import { logError } from "@/services/errorLoggingService";
 import {
