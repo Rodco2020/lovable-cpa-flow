@@ -24,7 +24,12 @@ import { clearAllCaches, clearExpiredCaches } from "@/services/schedulerCacheSer
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSchedulerKeyboardShortcuts } from "@/hooks/useSchedulerKeyboardShortcuts";
 import KeyboardShortcutHelp from "@/components/scheduler/KeyboardShortcutHelp";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "react-tooltip";
+import { 
+  TooltipProvider, 
+  Tooltip, 
+  TooltipTrigger, 
+  TooltipContent 
+} from "@/components/ui/tooltip";
 
 const SchedulerDashboard: React.FC = () => {
   // State for scheduling
