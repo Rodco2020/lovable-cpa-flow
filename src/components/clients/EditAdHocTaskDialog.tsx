@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Dialog,
   DialogContent,
@@ -53,7 +53,7 @@ export function EditAdHocTaskDialog({
   const [saveError, setSaveError] = useState<string | null>(null);
   
   // Update form values when task changes
-  useState(() => {
+  useEffect(() => {
     if (task) {
       setFormValues({
         id: task.id,
@@ -66,7 +66,7 @@ export function EditAdHocTaskDialog({
         status: task.status
       });
     }
-  });
+  }, [task]);
   
   // Handle form input changes
   const handleInputChange = (field: keyof TaskInstance, value: any) => {
