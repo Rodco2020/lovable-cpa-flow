@@ -2,7 +2,7 @@
 import { 
   getUnscheduledTaskInstances,
   updateTaskInstance,
-  getTaskInstanceById
+  getTaskInstances  // Changed from getTaskInstanceById
 } from "@/services/taskService";
 import { 
   getTimeSlotsByStaffAndDate,
