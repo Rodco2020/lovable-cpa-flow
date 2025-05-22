@@ -83,7 +83,7 @@ const SchedulerErrorHandler: React.FC<SchedulerErrorHandlerProps> = ({
                 <Alert 
                   key={error.id} 
                   variant={error.severity === 'error' ? "destructive" : 
-                          error.severity === 'warning' ? "default" : "outline"}
+                          error.severity === 'warning' ? "warning" : "default"}
                   className="text-sm"
                 >
                   <div className="flex justify-between items-start">

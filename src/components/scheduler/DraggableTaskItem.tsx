@@ -4,14 +4,12 @@ import { useDrag } from 'react-dnd';
 import { ItemTypes } from './dndTypes';
 import { TaskInstance } from '@/types/task';
 import { Badge } from '@/components/ui/badge';
-import { Client } from '@/types/client';
-import { useSkillNames } from '@/hooks/useSkillNames';
 
 interface DraggableTaskItemProps {
   task: TaskInstance;
   getClientName: (clientId: string) => string;
   onClick?: () => void;
-  children?: React.ReactNode; // Added children prop
+  children?: React.ReactNode;
 }
 
 const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({ 
@@ -33,27 +31,6 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
     }),
   }));
 
-  // Extract skills for display
-  const { skillsMap } = useSkillNames(task.requiredSkills || []);
-  
-  // Get skill name by ID
-  const getSkillName = (skillId: string): string => {
-    return skillsMap[skillId]?.name || skillId;
-  };
-
-  // Get styling based on priority
-  const getPriorityStyles = () => {
-    switch(task.priority.toLowerCase()) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-      default:
-        return 'bg-green-100 text-green-800';
-    }
-  };
-
   // If children are provided, use them, otherwise render the default content
   if (children) {
     return (
@@ -68,6 +45,19 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
       </div>
     );
   }
+
+  // Get styling based on priority
+  const getPriorityStyles = () => {
+    switch(task.priority.toLowerCase()) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+      default:
+        return 'bg-green-100 text-green-800';
+    }
+  };
 
   // Default rendering
   return (
@@ -90,7 +80,7 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
           <div className="flex flex-wrap gap-1 mt-1.5">
             {task.requiredSkills.map((skillId, index) => (
               <Badge key={index} variant="outline" className="text-xs">
-                {getSkillName(skillId)}
+                {skillId}
               </Badge>
             ))}
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getUnscheduledTaskInstances } from '@/services/taskService';
 import { getAllClients } from '@/services/clientService';
@@ -294,6 +293,7 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
                   <TableCell className="font-medium">
                     <DraggableTaskItem
                       task={task}
+                      getClientName={getClientName}
                       onClick={() => onTaskSelect(task)}
                     >
                       <div className="cursor-pointer hover:text-blue-700">
