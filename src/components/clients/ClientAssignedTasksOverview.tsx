@@ -41,7 +41,8 @@ import {
   Loader2,
   Search,
   Check,
-  CheckCircle
+  CheckCircle,
+  Pencil
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -55,6 +56,7 @@ import {
   getClientAdHocTasks,
   getAllClients
 } from '@/services/clientService';
+import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
 
 interface FormattedTask {
   id: string;
@@ -104,6 +106,10 @@ const ClientAssignedTasksOverview: React.FC = () => {
   const [filteredTasks, setFilteredTasks] = useState<FormattedTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Edit task modal state
+  const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -213,6 +219,121 @@ const ClientAssignedTasksOverview: React.FC = () => {
     
     fetchClientsAndTasks();
   }, [toast]);
+  
+  // Handle task edit
+  const handleEditTask = (taskId: string, taskType: 'Ad-hoc' | 'Recurring') => {
+    if (taskType === 'Recurring') {
+      setSelectedTaskId(taskId);
+      setEditTaskDialogOpen(true);
+    } else {
+      // For Ad-hoc tasks, you might want to implement a different flow or dialog
+      // This is a placeholder for future implementation
+      toast({
+        title: "Info",
+        description: "Editing ad-hoc tasks will be implemented in a future update",
+      });
+    }
+  };
+  
+  // Handle task edit completion
+  const handleEditComplete = () => {
+    // Refresh the task list after edit
+    setIsLoading(true);
+    // Re-fetch clients and tasks
+    const fetchClientsAndTasks = async () => {
+      try {
+        // Fetch all clients first
+        const fetchedClients = await getAllClients();
+        setClients(fetchedClients);
+        
+        const allFormattedTasks: FormattedTask[] = [];
+        const skills = new Set<string>();
+        const priorities = new Set<string>();
+        
+        // Fetch tasks for each client
+        for (const client of fetchedClients) {
+          // Get recurring tasks
+          const recurringTasks = await getClientRecurringTasks(client.id);
+          
+          // Format recurring tasks
+          const formattedRecurringTasks: FormattedTask[] = recurringTasks.map(task => {
+            // Add skills and priorities to sets for filter options
+            task.requiredSkills.forEach(skill => skills.add(skill));
+            priorities.add(task.priority);
+            
+            return {
+              id: task.id,
+              clientId: client.id,
+              clientName: client.legalName,
+              taskName: task.name,
+              taskType: 'Recurring',
+              dueDate: task.dueDate,
+              recurrencePattern: task.recurrencePattern,
+              estimatedHours: task.estimatedHours,
+              requiredSkills: task.requiredSkills,
+              priority: task.priority,
+              status: task.status,
+              isActive: task.isActive
+            };
+          });
+          
+          // Get ad-hoc tasks
+          const adHocTasks = await getClientAdHocTasks(client.id);
+          
+          // Format ad-hoc tasks
+          const formattedAdHocTasks: FormattedTask[] = adHocTasks.map(task => {
+            // Add skills and priorities to sets for filter options
+            task.requiredSkills.forEach(skill => skills.add(skill));
+            priorities.add(task.priority);
+            
+            return {
+              id: task.id,
+              clientId: client.id,
+              clientName: client.legalName,
+              taskName: task.name,
+              taskType: 'Ad-hoc',
+              dueDate: task.dueDate,
+              estimatedHours: task.estimatedHours,
+              requiredSkills: task.requiredSkills,
+              priority: task.priority,
+              status: task.status
+            };
+          });
+          
+          // Add all tasks to the array
+          allFormattedTasks.push(...formattedRecurringTasks, ...formattedAdHocTasks);
+        }
+        
+        // Sort tasks by due date (ascending)
+        allFormattedTasks.sort((a, b) => {
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return a.dueDate.getTime() - b.dueDate.getTime();
+        });
+        
+        setFormattedTasks(allFormattedTasks);
+        setFilteredTasks(allFormattedTasks);
+        setAvailableSkills(Array.from(skills));
+        setAvailablePriorities(Array.from(priorities));
+        
+        toast({
+          title: "Success",
+          description: "Task updated successfully",
+        });
+      } catch (error) {
+        console.error('Error refreshing tasks:', error);
+        toast({
+          title: "Error",
+          description: "Failed to refresh tasks after update",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchClientsAndTasks();
+  };
   
   // Apply filters when any filter changes
   useEffect(() => {
@@ -442,6 +563,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
                     <TableHead className="hidden md:table-cell">Required Skill</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -519,6 +641,16 @@ const ClientAssignedTasksOverview: React.FC = () => {
                           </Badge>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditTask(task.id, task.taskType)}
+                          title={`Edit ${task.taskType} Task`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -553,6 +685,14 @@ const ClientAssignedTasksOverview: React.FC = () => {
           )}
         </div>
       </CardContent>
+
+      {/* Edit Task Dialog */}
+      <EditRecurringTaskContainer
+        open={editTaskDialogOpen}
+        onOpenChange={setEditTaskDialogOpen}
+        taskId={selectedTaskId}
+        onSaveComplete={handleEditComplete}
+      />
     </Card>
   );
 };
