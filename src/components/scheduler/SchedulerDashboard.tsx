@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,11 +14,13 @@ import HybridSchedulingControls from "./HybridSchedulingControls";
 import RecommendationPanel from "./RecommendationPanel";
 import { StaffTaskRecommendation } from "@/services/schedulerService";
 import { Separator } from "@/components/ui/separator";
+import { AutoScheduleResult } from "@/services/autoSchedulerService";
 
 // Enum to track the current scheduling mode
 enum SchedulingMode {
   MANUAL = 'manual',
   HYBRID = 'hybrid',
+  AUTOMATIC = 'automatic'
 }
 
 const SchedulerDashboard: React.FC = () => {
@@ -30,6 +31,7 @@ const SchedulerDashboard: React.FC = () => {
   const [recommendations, setRecommendations] = useState<Record<string, StaffTaskRecommendation[]>>({});
   const [showRecommendations, setShowRecommendations] = useState<boolean>(false);
   const [selectedTaskRecommendations, setSelectedTaskRecommendations] = useState<StaffTaskRecommendation[]>([]);
+  const [autoScheduleResults, setAutoScheduleResults] = useState<AutoScheduleResult | null>(null);
 
   const handleTaskSelect = (task: TaskInstance) => {
     setSelectedTask(task);
@@ -112,6 +114,14 @@ const SchedulerDashboard: React.FC = () => {
     // In a real implementation, we would update any cached availability data here
   }, []);
 
+  // When auto-scheduling results are available, show them in the UI
+  useEffect(() => {
+    if (autoScheduleResults && autoScheduleResults.tasksScheduled > 0) {
+      // Switch to the schedule tab to see newly scheduled tasks
+      setActiveTab("schedule");
+    }
+  }, [autoScheduleResults]);
+
   return (
     <DragDropContext>
       <div className="container mx-auto py-6 space-y-6">
@@ -150,7 +160,7 @@ const SchedulerDashboard: React.FC = () => {
           </div>
 
           <TabsContent value="unscheduled" className="space-y-6">
-            {/* Hybrid Scheduling Controls */}
+            {/* Hybrid/Automatic Scheduling Controls */}
             <HybridSchedulingControls 
               onRecommendationsGenerated={handleRecommendationsGenerated}
               selectedTask={selectedTask}
