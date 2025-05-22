@@ -1,5 +1,5 @@
 
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useForecastDashboard } from '@/hooks/useForecastDashboard';
 import { getForecast, clearForecastCache, validateForecastSystem, getTaskBreakdown } from '@/services/forecastingService';
 import { setForecastDebugMode, isForecastDebugModeEnabled } from '@/services/forecasting/logger';
@@ -53,10 +53,12 @@ describe('useForecastDashboard', () => {
   });
   
   test('loadForecast calls getForecast with correct parameters', async () => {
-    const { result, waitForNextUpdate } = renderHook(() => useForecastDashboard());
+    const { result } = renderHook(() => useForecastDashboard());
     
-    // Wait for initial data load
-    await waitForNextUpdate();
+    // Wait for the forecast to load using waitFor instead of waitForNextUpdate
+    await waitFor(() => {
+      expect(getForecast).toHaveBeenCalled();
+    });
     
     expect(getForecast).toHaveBeenCalledWith(expect.objectContaining({
       mode: 'virtual',
@@ -84,9 +86,8 @@ describe('useForecastDashboard', () => {
   test('handleRecalculate clears cache and reloads data', async () => {
     const { result } = renderHook(() => useForecastDashboard());
     
-    // Wait for initial load
+    // Call recalculate within act
     await act(async () => {
-      // Call recalculate
       result.current.handleRecalculate();
     });
     
