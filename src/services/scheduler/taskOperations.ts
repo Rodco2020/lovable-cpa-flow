@@ -92,13 +92,15 @@ export const scheduleTask = async (
     const endDate = new Date(`${date}T${endTime}:00`);
     
     // Update the task with the scheduling information
-    // Fix: Explicitly use the return value from updateTaskInstance
-    const updatedTask = await updateTaskInstance(taskId, {
+    const taskUpdateData = {
       status: 'Scheduled',
       assignedStaffId: staffId,
       scheduledStartTime: startDate,
       scheduledEndTime: endDate
-    });
+    } as Partial<TaskInstance>;
+    
+    // Make sure to await and capture the returned task instance
+    const updatedTask = await updateTaskInstance(taskId, taskUpdateData);
     
     // Mark the time slot as assigned to this task
     await updateTimeSlot(startSlot.id, {
@@ -112,7 +114,7 @@ export const scheduleTask = async (
     // Clear any cached data that might be affected
     clearTaskCache(taskId);
     
-    // Fix: Return the updated task
+    // Return the updated task
     return updatedTask;
   } catch (error) {
     console.error("Error scheduling task:", error);
