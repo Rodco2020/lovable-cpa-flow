@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -57,6 +56,7 @@ import {
   getAllClients
 } from '@/services/clientService';
 import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
+import { EditAdHocTaskContainer } from './EditAdHocTaskContainer';
 
 interface FormattedTask {
   id: string;
@@ -108,7 +108,8 @@ const ClientAssignedTasksOverview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Edit task modal state
-  const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false);
+  const [editRecurringTaskDialogOpen, setEditRecurringTaskDialogOpen] = useState(false);
+  const [editAdHocTaskDialogOpen, setEditAdHocTaskDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
 
   // Filter states
@@ -222,22 +223,17 @@ const ClientAssignedTasksOverview: React.FC = () => {
   
   // Handle task edit
   const handleEditTask = (taskId: string, taskType: 'Ad-hoc' | 'Recurring') => {
+    setSelectedTaskId(taskId);
+    
     if (taskType === 'Recurring') {
-      setSelectedTaskId(taskId);
-      setEditTaskDialogOpen(true);
+      setEditRecurringTaskDialogOpen(true);
     } else {
-      // For Ad-hoc tasks, you might want to implement a different flow or dialog
-      // This is a placeholder for future implementation
-      toast({
-        title: "Info",
-        description: "Editing ad-hoc tasks will be implemented in a future update",
-      });
+      setEditAdHocTaskDialogOpen(true);
     }
   };
   
   // Handle task edit completion
   const handleEditComplete = () => {
-    // Refresh the task list after edit
     setIsLoading(true);
     // Re-fetch clients and tasks
     const fetchClientsAndTasks = async () => {
@@ -686,10 +682,17 @@ const ClientAssignedTasksOverview: React.FC = () => {
         </div>
       </CardContent>
 
-      {/* Edit Task Dialog */}
+      {/* Edit Task Dialogs */}
       <EditRecurringTaskContainer
-        open={editTaskDialogOpen}
-        onOpenChange={setEditTaskDialogOpen}
+        open={editRecurringTaskDialogOpen}
+        onOpenChange={setEditRecurringTaskDialogOpen}
+        taskId={selectedTaskId}
+        onSaveComplete={handleEditComplete}
+      />
+      
+      <EditAdHocTaskContainer
+        open={editAdHocTaskDialogOpen}
+        onOpenChange={setEditAdHocTaskDialogOpen}
         taskId={selectedTaskId}
         onSaveComplete={handleEditComplete}
       />

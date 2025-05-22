@@ -333,6 +333,8 @@ export const getRecurringTasks = async (activeOnly: boolean = true): Promise<Rec
 
 export const getRecurringTaskById = async (id: string): Promise<RecurringTask | null> => {
   try {
+    console.log(`Fetching recurring task with ID: ${id}`);
+    
     const { data, error } = await supabase
       .from('recurring_tasks')
       .select('*')
@@ -346,8 +348,8 @@ export const getRecurringTaskById = async (id: string): Promise<RecurringTask | 
     
     return mapSupabaseToRecurringTask(data);
   } catch (err) {
-    console.error('Unexpected error fetching recurring task by ID:', err);
-    return null;
+    console.error('Error in getRecurringTaskById:', err);
+    throw err;
   }
 };
 
@@ -624,44 +626,83 @@ export const createAdHocTask = async (task: Omit<TaskInstance, 'id' | 'createdAt
   }
 };
 
-export const updateTaskInstance = async (id: string, updates: Partial<Omit<TaskInstance, 'id' | 'createdAt'>>): Promise<TaskInstance | null> => {
+/**
+ * Fetches a single task instance (ad-hoc task) by ID
+ */
+export const getTaskInstanceById = async (id: string): Promise<TaskInstance | null> => {
   try {
-    // Prepare the update data for Supabase
-    const updateData: any = {};
-    
-    if (updates.templateId !== undefined) updateData.template_id = updates.templateId;
-    if (updates.recurringTaskId !== undefined) updateData.recurring_task_id = updates.recurringTaskId;
-    if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
-    if (updates.name !== undefined) updateData.name = updates.name;
-    if (updates.description !== undefined) updateData.description = updates.description;
-    if (updates.estimatedHours !== undefined) updateData.estimated_hours = updates.estimatedHours;
-    if (updates.requiredSkills !== undefined) updateData.required_skills = updates.requiredSkills;
-    if (updates.priority !== undefined) updateData.priority = updates.priority;
-    if (updates.category !== undefined) updateData.category = updates.category;
-    if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate ? updates.dueDate.toISOString() : null;
-    if (updates.completedAt !== undefined) updateData.completed_at = updates.completedAt ? updates.completedAt.toISOString() : null;
-    if (updates.assignedStaffId !== undefined) updateData.assigned_staff_id = updates.assignedStaffId;
-    if (updates.scheduledStartTime !== undefined) updateData.scheduled_start_time = updates.scheduledStartTime ? updates.scheduledStartTime.toISOString() : null;
-    if (updates.scheduledEndTime !== undefined) updateData.scheduled_end_time = updates.scheduledEndTime ? updates.scheduledEndTime.toISOString() : null;
-    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    console.log(`Fetching task instance with ID: ${id}`);
     
     const { data, error } = await supabase
       .from('task_instances')
-      .update(updateData)
+      .select('*')
       .eq('id', id)
-      .select()
       .single();
+      
+    if (error) {
+      console.error('Error fetching task instance:', error);
+      throw new Error(`Failed to fetch task instance: ${error.message}`);
+    }
     
-    if (error || !data) {
-      console.error('Error updating task instance:', error);
+    if (!data) {
       return null;
     }
     
-    return mapSupabaseToTaskInstance(data);
+    // Convert dates and format data
+    return {
+      ...data,
+      dueDate: data.due_date ? new Date(data.due_date) : null,
+      completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
+      scheduledStartTime: data.scheduled_start_time ? new Date(data.scheduled_start_time) : undefined,
+      scheduledEndTime: data.scheduled_end_time ? new Date(data.scheduled_end_time) : undefined,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at)
+    } as TaskInstance;
   } catch (err) {
-    console.error('Unexpected error updating task instance:', err);
-    return null;
+    console.error('Error in getTaskInstanceById:', err);
+    throw err;
+  }
+};
+
+/**
+ * Updates an existing ad-hoc task instance
+ */
+export const updateTaskInstance = async (id: string, taskData: Partial<TaskInstance>): Promise<void> => {
+  try {
+    console.log(`Updating task instance with ID: ${id}`, taskData);
+    
+    // Prepare data for database (convert Date objects to ISO strings)
+    const dbData: any = {
+      ...taskData,
+      due_date: taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null,
+      completed_at: taskData.completedAt ? new Date(taskData.completedAt).toISOString() : null,
+      scheduled_start_time: taskData.scheduledStartTime ? new Date(taskData.scheduledStartTime).toISOString() : null,
+      scheduled_end_time: taskData.scheduledEndTime ? new Date(taskData.scheduledEndTime).toISOString() : null,
+    };
+    
+    // Remove fields that shouldn't be updated directly
+    delete dbData.id;
+    delete dbData.dueDate;
+    delete dbData.completedAt;
+    delete dbData.scheduledStartTime;
+    delete dbData.scheduledEndTime;
+    delete dbData.createdAt;
+    delete dbData.updatedAt;
+    
+    const { error } = await supabase
+      .from('task_instances')
+      .update(dbData)
+      .eq('id', id);
+      
+    if (error) {
+      console.error('Error updating task instance:', error);
+      throw new Error(`Failed to update task instance: ${error.message}`);
+    }
+    
+    console.log('Task instance updated successfully');
+  } catch (err) {
+    console.error('Error in updateTaskInstance:', err);
+    throw err;
   }
 };
 
