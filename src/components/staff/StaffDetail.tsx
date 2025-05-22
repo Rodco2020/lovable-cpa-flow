@@ -1,37 +1,67 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { getStaffById, calculateAvailabilitySummary } from "@/services/staffService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomBadge } from "@/components/ui/custom-badge";
-import { CalendarDays, Edit, Mail, Phone, Clock } from "lucide-react";
+import { CalendarDays, Edit, Mail, Phone, Clock, ChevronLeft } from "lucide-react";
 import { useSkillNames } from "@/hooks/useSkillNames";
+import { toast } from "sonner";
 
 const StaffDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   
-  const { data: staff, isLoading, error } = useQuery({
+  const { data: staff, isLoading: staffLoading, error: staffError } = useQuery({
     queryKey: ["staff", id],
     queryFn: () => getStaffById(id || ""),
     enabled: !!id,
+    onError: (error) => {
+      console.error("Error fetching staff details:", error);
+      toast.error("Failed to load staff details");
+    }
   });
 
   const { data: availabilitySummary, isLoading: summaryLoading } = useQuery({
     queryKey: ["availability-summary", id],
     queryFn: () => calculateAvailabilitySummary(id || ""),
-    enabled: !!id,
+    enabled: !!id && !!staff,
+    onError: (error) => {
+      console.error("Error fetching availability summary:", error);
+      // Don't show error toast here as this is not critical
+    }
   });
 
   const { skillsMap, isLoading: skillsLoading } = useSkillNames(staff?.skills || []);
 
-  if (isLoading) {
-    return <div className="flex justify-center p-8">Loading staff details...</div>;
+  if (staffLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8">
+        <div className="text-lg font-medium mb-2">Loading staff details...</div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/staff")}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Back to Staff List
+          </Button>
+        </div>
+      </div>
+    );
   }
 
-  if (error || !staff) {
-    return <div className="text-red-500 p-4">Error loading staff details</div>;
+  if (staffError || !staff) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8">
+        <div className="text-red-500 text-lg font-medium mb-4">
+          Staff member not found or error loading details
+        </div>
+        <Button onClick={() => navigate("/staff")}>
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back to Staff List
+        </Button>
+      </div>
+    );
   }
 
   // Map day number to day name for display
@@ -40,7 +70,13 @@ const StaffDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">{staff.fullName}</h1>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => navigate("/staff")}>
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-semibold">{staff.fullName}</h1>
+        </div>
         <div className="flex gap-3">
           <Button variant="outline" asChild>
             <Link to={`/staff/${staff.id}/edit`}>
@@ -151,7 +187,7 @@ const StaffDetail: React.FC = () => {
                 <div className="grid grid-cols-5 gap-1 mt-2">
                   {[1, 2, 3, 4, 5].map((day) => {
                     const dayData = availabilitySummary.dailySummaries[day];
-                    const hasAvailability = dayData.totalHours > 0;
+                    const hasAvailability = dayData && dayData.totalHours > 0;
                     
                     return (
                       <div key={day} className="text-center">

@@ -64,7 +64,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/staff"
+                  path="/staff/*"
                   element={
                     <PrivateRoute>
                       <StaffModule />
