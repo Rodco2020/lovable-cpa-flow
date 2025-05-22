@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,37 +6,28 @@ import ClientForm from '@/components/clients/ClientForm';
 import ClientDetail from '@/components/clients/ClientDetail';
 import ClientAssignedTasksOverview from '@/components/clients/ClientAssignedTasksOverview';
 import { Button } from '@/components/ui/button';
-import { 
-  Building,
-  Users,
-  DollarSign,
-  FileText,
-  PlusCircle,
-  CalendarClock
-} from 'lucide-react';
+import { Building, Users, DollarSign, FileText, PlusCircle, CalendarClock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
 const ClientModule: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  
+
   // Effect to detect navigation back to the client list
   useEffect(() => {
     if (location.pathname === '/clients' && location.key) {
       // Invalidate clients query cache when returning to the client list
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({
+        queryKey: ['clients']
+      });
     }
   }, [location, queryClient]);
-  
-  return (
-    <div className="container mx-auto py-6 space-y-6">
+  return <div className="container mx-auto py-6 space-y-6">
       <Routes>
-        <Route path="/" element={
-          <>
+        <Route path="/" element={<>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h1 className="text-3xl font-bold">Client Module</h1>
+                <h1 className="font-bold text-6xl">Client Module</h1>
                 <p className="text-muted-foreground">Manage your client relationships and revenue projections</p>
               </div>
               <Button onClick={() => navigate('/clients/new')}>
@@ -105,14 +95,11 @@ const ClientModule: React.FC = () => {
                 <ClientAssignedTasksOverview />
               </TabsContent>
             </Tabs>
-          </>
-        } />
+          </>} />
         <Route path="/new" element={<ClientForm />} />
         <Route path="/:id" element={<ClientDetail />} />
         <Route path="/:id/edit" element={<ClientForm />} />
       </Routes>
-    </div>
-  );
+    </div>;
 };
-
 export default ClientModule;
