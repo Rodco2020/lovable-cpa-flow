@@ -11,12 +11,14 @@ interface DraggableTaskItemProps {
   task: TaskInstance;
   getClientName: (clientId: string) => string;
   onClick?: () => void;
+  children?: React.ReactNode; // Added children prop
 }
 
 const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({ 
   task, 
   getClientName, 
-  onClick 
+  onClick,
+  children
 }) => {
   // Set up the drag source
   const [{ isDragging }, drag] = useDrag(() => ({
@@ -52,6 +54,22 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
     }
   };
 
+  // If children are provided, use them, otherwise render the default content
+  if (children) {
+    return (
+      <div
+        ref={drag}
+        onClick={onClick}
+        className={`${isDragging ? 'opacity-50' : 'hover:bg-slate-50'} 
+          cursor-move transition-opacity duration-200`}
+        style={{ opacity: isDragging ? 0.5 : 1 }}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  // Default rendering
   return (
     <div
       ref={drag}

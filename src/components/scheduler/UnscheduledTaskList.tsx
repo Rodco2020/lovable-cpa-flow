@@ -24,6 +24,7 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [clients, setClients] = useState<Record<string, string>>({});
 
   // Load tasks
   useEffect(() => {
@@ -32,6 +33,16 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
       try {
         const unscheduledTasks = await getUnscheduledTaskInstances();
         setTasks(unscheduledTasks);
+        
+        // For simplicity, we're just creating a mock client name lookup
+        // In a real app, you'd fetch actual clients
+        const clientMap: Record<string, string> = {};
+        unscheduledTasks.forEach(task => {
+          if (task.clientId && !clientMap[task.clientId]) {
+            clientMap[task.clientId] = `Client ${task.clientId.substring(0, 6)}`;
+          }
+        });
+        setClients(clientMap);
       } catch (error) {
         console.error("Error loading unscheduled tasks:", error);
       } finally {
@@ -41,6 +52,11 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
 
     loadTasks();
   }, []);
+
+  // Get client name by ID
+  const getClientName = (clientId: string): string => {
+    return clients[clientId] || `Client ${clientId.substring(0, 6)}`;
+  };
 
   // Filter tasks based on search query and priority
   const filteredTasks = tasks.filter(task => {
@@ -118,7 +134,11 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
                 key={task.id}
                 className="relative border rounded-md hover:bg-slate-50 transition-colors"
               >
-                <DraggableTaskItem task={task} onClick={() => onTaskSelect(task)}>
+                <DraggableTaskItem 
+                  task={task} 
+                  getClientName={getClientName}
+                  onClick={() => onTaskSelect(task)}
+                >
                   <div className="p-3">
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
