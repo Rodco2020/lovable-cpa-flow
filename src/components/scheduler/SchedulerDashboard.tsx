@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UnscheduledTaskList from "@/components/scheduler/UnscheduledTaskList";
@@ -24,6 +24,7 @@ import { useErrorManager } from "./ErrorManager";
 import { useTaskSelectionManager } from "./TaskSelectionManager";
 import { useCacheManager } from "./CacheManager";
 import { useDateNavigator } from "./DateNavigator";
+import { TaskInstance } from "@/types/task";
 
 /**
  * Main dashboard component for the Scheduler Module
