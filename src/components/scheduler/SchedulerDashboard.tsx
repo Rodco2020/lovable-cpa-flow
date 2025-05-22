@@ -1,11 +1,10 @@
-
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UnscheduledTaskList from "@/components/scheduler/UnscheduledTaskList";
 import StaffScheduleView from "@/components/scheduler/StaffScheduleView";
 import { useAppEvent } from "@/hooks/useAppEvent";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/services/toastService";
 import DragDropContext from "./DragDropContext";
 import RecommendationPanel from "./RecommendationPanel";
 import { Separator } from "@/components/ui/separator";
@@ -56,6 +55,8 @@ const SchedulerDashboard: React.FC = () => {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useLocalStorage('task-list-page-size', 10);
+  const [lastAvailabilityEventTime, setLastAvailabilityEventTime] = useState<number>(0);
+  const AVAILABILITY_EVENT_COOLDOWN = 3000; // 3 seconds minimum between handling availability events
 
   // Initialize keyboard shortcuts
   const { showHelpOverlay } = useSchedulerKeyboardShortcuts({
@@ -97,14 +98,21 @@ const SchedulerDashboard: React.FC = () => {
 
   // Listen for availability template changes to update scheduler
   useAppEvent("availability.template.changed", (event) => {
-    toast({
-      title: "Availability Updated",
-      description: `Staff availability has changed. Scheduler updated.`,
-    });
+    const now = Date.now();
+    
+    // Prevent rapid successive event handling
+    if (now - lastAvailabilityEventTime < AVAILABILITY_EVENT_COOLDOWN) {
+      console.log('[Availability] Event handling throttled');
+      return;
+    }
+    
+    setLastAvailabilityEventTime(now);
+    
+    toast.info("Availability Updated", "Staff availability has changed. Scheduler updated.");
     
     // Clear caches to ensure fresh data is fetched
     handleRefreshAll();
-  }, []);
+  }, [lastAvailabilityEventTime, handleRefreshAll]);
 
   // When auto-scheduling results are available, show them in the UI
   useEffect(() => {

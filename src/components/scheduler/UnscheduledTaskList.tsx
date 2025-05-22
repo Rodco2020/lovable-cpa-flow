@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getUnscheduledTaskInstances } from '@/services/taskService';
 import { getAllClients } from '@/services/clientService';
@@ -9,7 +8,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { BriefcaseBusiness, Clock, RefreshCw, AlertTriangle, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/services/toastService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSkillNames } from '@/hooks/useSkillNames';
 import { Input } from '@/components/ui/input';
@@ -53,7 +52,20 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
   const allSkillIds = allTasks.flatMap(task => task.requiredSkills);
   const { skillsMap, isLoading: skillsLoading } = useSkillNames(allSkillIds);
 
+  // Track the last refresh timestamp to prevent frequent refreshes
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
+  const REFRESH_COOLDOWN = 2000; // 2 seconds minimum between refreshes
+
   const fetchTasks = useCallback(async () => {
+    const now = Date.now();
+    
+    // Prevent rapid successive refreshes
+    if (now - lastRefreshTime < REFRESH_COOLDOWN) {
+      console.log('[Tasks] Refresh operation throttled');
+      return;
+    }
+    
+    setLastRefreshTime(now);
     setLoading(true);
     setError(null);
     
@@ -67,21 +79,16 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
       
       // Show success toast only if refreshing, not on initial load
       if (!loading) {
-        toast({
-          title: "Tasks refreshed successfully"
-        });
+        toast.success("Tasks refreshed successfully");
       }
     } catch (error) {
       console.error('Error fetching unscheduled tasks:', error);
       setError("Failed to load unscheduled tasks. Please try again.");
-      toast({
-        title: "Failed to load tasks",
-        variant: "destructive"
-      });
+      toast.error("Failed to load tasks");
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, [loading, lastRefreshTime]);
 
   // Apply filtering whenever filter criteria or tasks change
   useEffect(() => {
