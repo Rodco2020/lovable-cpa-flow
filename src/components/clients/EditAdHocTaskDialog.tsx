@@ -22,11 +22,13 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, AlertCircle } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { TaskInstance, TaskPriority } from '@/types/task';
+import { useSkillNames } from '@/hooks/useSkillNames';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface EditAdHocTaskDialogProps {
   open: boolean;
@@ -51,6 +53,9 @@ export function EditAdHocTaskDialog({
   const [formValues, setFormValues] = useState<Partial<TaskInstance>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  
+  // Use the skill names hook to fetch skill info
+  const { skillsMap, isLoading: skillsLoading } = useSkillNames(task?.requiredSkills || []);
   
   // Update form values when task changes
   useEffect(() => {
@@ -108,6 +113,32 @@ export function EditAdHocTaskDialog({
     } finally {
       setIsSaving(false);
     }
+  };
+  
+  // Function to get skill name from ID or fallback to ID if not found
+  const getSkillDisplay = (skillId: string) => {
+    if (skillsLoading) {
+      return (
+        <Badge key={skillId} variant="outline" className="bg-muted/50">
+          <span className="animate-pulse">Loading...</span>
+        </Badge>
+      );
+    }
+    
+    const skill = skillsMap[skillId];
+    if (skill) {
+      return (
+        <Badge key={skillId} variant="secondary">
+          {skill.name}
+        </Badge>
+      );
+    }
+    
+    return (
+      <Badge key={skillId} variant="outline" className="text-muted-foreground">
+        {skillId}
+      </Badge>
+    );
   };
   
   // Determine if we should show loading, error, or form content
@@ -262,15 +293,30 @@ export function EditAdHocTaskDialog({
               
               {/* Required Skills (read-only) */}
               <div className="grid gap-2">
-                <Label>Required Skills</Label>
+                <div className="flex items-center gap-2">
+                  <Label>Required Skills</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full p-0">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        <span className="sr-only">Skills information</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs text-sm">
+                        Required skills are inherited from the task template and cannot be edited directly.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/20">
-                  {task.requiredSkills?.map((skill, idx) => (
-                    <Badge key={idx} variant="secondary">{skill}</Badge>
-                  ))}
-                  {(!task.requiredSkills || task.requiredSkills.length === 0) && (
+                  {task?.requiredSkills && task.requiredSkills.length > 0 ? (
+                    task.requiredSkills.map((skillId, idx) => getSkillDisplay(skillId))
+                  ) : (
                     <span className="text-sm text-muted-foreground">No skills specified</span>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground">Skills are inherited from the task template</p>
               </div>
               
               {/* Save Error */}

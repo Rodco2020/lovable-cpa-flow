@@ -1,60 +1,115 @@
-
 import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import MainLayout from "@/layouts/MainLayout";
-import Auth from "@/pages/Auth";
-import ClientModule from "@/pages/ClientModule";
-import StaffModule from "@/pages/StaffModule";
-import SkillsModule from "@/pages/SkillsModule";
-import TaskModule from "@/pages/TaskModule";
-import SchedulerModule from "@/pages/SchedulerModule";
-import ForecastingModule from "@/pages/ForecastingModule";
-import DashboardModule from "@/pages/DashboardModule";
-import Index from "@/pages/Index";
-import NotFound from "@/pages/NotFound";
-import StaffReportPage from "@/pages/StaffReportPage";
+import { Toaster } from "sonner";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000, // 1 minute
-    },
-  },
-});
+import { AuthProvider } from "./context/AuthContext";
+import { MainLayout } from "./layouts/MainLayout";
+import { Index } from "./pages";
+import { Auth } from "./pages/Auth";
+import { NotFound } from "./pages/NotFound";
+import { PrivateRoute } from "./components/PrivateRoute";
+import { DashboardModule } from "./pages/DashboardModule";
+import { ClientModule } from "./pages/ClientModule";
+import { SkillsModule } from "./pages/SkillsModule";
+import { StaffModule } from "./pages/StaffModule";
+import { TaskModule } from "./pages/TaskModule";
+import { SchedulerModule } from "./pages/SchedulerModule";
+import { ForecastingModule } from "./pages/ForecastingModule";
+import { StaffReportPage } from "./pages/reports/StaffReportPage";
+// Import the TooltipProvider
+import { TooltipProvider } from "./components/ui/tooltip";
 
 function App() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000, // 1 minute
+      },
+    },
+  });
+
   return (
-    <Router>
-      <AuthProvider>
+    <TooltipProvider>
+      <BrowserRouter>
         <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Index />} />
+          <AuthProvider>
+            <Toaster />
+            <Routes>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Index />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <PrivateRoute>
+                      <DashboardModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/clients/*"
+                  element={
+                    <PrivateRoute>
+                      <ClientModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/skills"
+                  element={
+                    <PrivateRoute>
+                      <SkillsModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/staff"
+                  element={
+                    <PrivateRoute>
+                      <StaffModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/tasks"
+                  element={
+                    <PrivateRoute>
+                      <TaskModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/scheduler"
+                  element={
+                    <PrivateRoute>
+                      <SchedulerModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/forecasting"
+                  element={
+                    <PrivateRoute>
+                      <ForecastingModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/reports/staff"
+                  element={
+                    <PrivateRoute>
+                      <StaffReportPage />
+                    </PrivateRoute>
+                  }
+                />
+              </Route>
               <Route path="/auth/*" element={<Auth />} />
-              <Route path="/clients/*" element={<ClientModule />} />
-              <Route path="/staff/*" element={<StaffModule />} />
-              <Route path="/skills/*" element={<SkillsModule />} />
-              <Route path="/tasks/*" element={<TaskModule />} />
-              <Route path="/scheduler/*" element={<SchedulerModule />} />
-              <Route path="/forecasting/*" element={<ForecastingModule />} />
-              <Route path="/dashboard/*" element={<DashboardModule />} />
-              {/* Staff report route */}
-              <Route path="/reports/staff" element={<StaffReportPage />} />
               <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-          <Toaster />
+            </Routes>
+          </AuthProvider>
         </QueryClientProvider>
-      </AuthProvider>
-    </Router>
+      </BrowserRouter>
+    </TooltipProvider>
   );
 }
 
