@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { getUnscheduledTaskInstances } from '@/services/taskService';
 import { getAllClients } from '@/services/clientService';
@@ -43,10 +44,10 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   
-  // Filter state
+  // Filter state - changed default value to "all" instead of empty string
   const [searchTerm, setSearchTerm] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState<string>('');
-  const [clientFilter, setClientFilter] = useState<string>('');
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [clientFilter, setClientFilter] = useState<string>("all");
   
   // Extract all skill IDs from all tasks for the useSkillNames hook
   const allSkillIds = allTasks.flatMap(task => task.requiredSkills);
@@ -96,13 +97,13 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
         );
       }
       
-      // Apply priority filter
-      if (priorityFilter) {
+      // Apply priority filter - modified to check for "all"
+      if (priorityFilter && priorityFilter !== "all") {
         result = result.filter(task => task.priority === priorityFilter);
       }
       
-      // Apply client filter
-      if (clientFilter) {
+      // Apply client filter - modified to check for "all"
+      if (clientFilter && clientFilter !== "all") {
         result = result.filter(task => task.clientId === clientFilter);
       }
       
@@ -175,8 +176,8 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm('');
-    setPriorityFilter('');
-    setClientFilter('');
+    setPriorityFilter('all'); // Changed from empty string to "all"
+    setClientFilter('all');    // Changed from empty string to "all" 
     if (onPageChange) onPageChange(1);
   };
 
@@ -200,7 +201,7 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Priorities</SelectItem>
+                <SelectItem value="all">All Priorities</SelectItem>
                 <SelectItem value="Low">Low</SelectItem>
                 <SelectItem value="Medium">Medium</SelectItem>
                 <SelectItem value="High">High</SelectItem>
@@ -213,7 +214,7 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
                 <SelectValue placeholder="Client" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Clients</SelectItem>
+                <SelectItem value="all">All Clients</SelectItem>
                 {clients.map(client => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.legalName}
