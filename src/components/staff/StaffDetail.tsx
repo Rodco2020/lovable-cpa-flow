@@ -18,9 +18,11 @@ const StaffDetail: React.FC = () => {
     queryKey: ["staff", id],
     queryFn: () => getStaffById(id || ""),
     enabled: !!id,
-    onError: (error) => {
-      console.error("Error fetching staff details:", error);
-      toast.error("Failed to load staff details");
+    meta: {
+      onError: (error: Error) => {
+        console.error("Error fetching staff details:", error);
+        toast.error("Failed to load staff details");
+      }
     }
   });
 
@@ -28,9 +30,11 @@ const StaffDetail: React.FC = () => {
     queryKey: ["availability-summary", id],
     queryFn: () => calculateAvailabilitySummary(id || ""),
     enabled: !!id && !!staff,
-    onError: (error) => {
-      console.error("Error fetching availability summary:", error);
-      // Don't show error toast here as this is not critical
+    meta: {
+      onError: (error: Error) => {
+        console.error("Error fetching availability summary:", error);
+        // Don't show error toast here as this is not critical
+      }
     }
   });
 
@@ -186,7 +190,7 @@ const StaffDetail: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-5 gap-1 mt-2">
                   {[1, 2, 3, 4, 5].map((day) => {
-                    const dayData = availabilitySummary.dailySummaries[day];
+                    const dayData = availabilitySummary.dailySummaries.find(summary => summary.day === day);
                     const hasAvailability = dayData && dayData.totalHours > 0;
                     
                     return (
