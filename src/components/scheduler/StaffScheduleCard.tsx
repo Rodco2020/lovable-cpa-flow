@@ -2,11 +2,10 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Staff } from "@/types/staff";
 import { TaskInstance } from "@/types/task";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader } from "lucide-react";
+import DroppableTimeSlot from "./DroppableTimeSlot";
 
 interface StaffScheduleCardProps {
   staff: Staff;
@@ -17,34 +16,18 @@ interface StaffScheduleCardProps {
     endTime: string;
   }[];
   onSchedule?: (staffId: string, startTime: string, endTime: string) => void;
+  onTaskDrop?: (taskId: string, staffId: string, startTime: string, endTime: string) => void;
+  isScheduling?: boolean;
 }
 
 const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
   staff,
   selectedTask,
-  currentDate,
   availableSlots,
   onSchedule,
+  onTaskDrop,
+  isScheduling = false,
 }) => {
-  const [selectedSlot, setSelectedSlot] = useState("");
-  const [isScheduling, setIsScheduling] = useState(false);
-
-  const handleSchedule = async () => {
-    if (selectedSlot && onSchedule) {
-      setIsScheduling(true);
-      const [startTime, endTime] = selectedSlot.split("-");
-      
-      try {
-        await onSchedule(staff.id, startTime, endTime);
-        setSelectedSlot("");
-      } catch (error) {
-        console.error("Error in schedule handler:", error);
-      } finally {
-        setIsScheduling(false);
-      }
-    }
-  };
-
   // Get initials for avatar fallback
   const getInitials = (name: string) => {
     return name
@@ -52,6 +35,13 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
       .map((n) => n[0])
       .join("")
       .toUpperCase();
+  };
+
+  // Handler for task drops
+  const handleTaskDrop = (taskId: string, staffId: string, startTime: string, endTime: string) => {
+    if (onTaskDrop) {
+      onTaskDrop(taskId, staffId, startTime, endTime);
+    }
   };
 
   return (
@@ -73,43 +63,29 @@ const StaffScheduleCard: React.FC<StaffScheduleCardProps> = ({
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        {availableSlots.length === 0 ? (
+        {isScheduling && (
+          <div className="flex justify-center items-center py-4">
+            <Loader className="animate-spin h-6 w-6 text-primary mr-2" />
+            <span>Scheduling...</span>
+          </div>
+        )}
+        
+        {!isScheduling && availableSlots.length === 0 ? (
           <div className="text-center p-4 text-muted-foreground">
             No available time slots for this day
           </div>
         ) : (
-          <div className="space-y-4">
-            <Select 
-              value={selectedSlot} 
-              onValueChange={setSelectedSlot}
-              disabled={isScheduling || !selectedTask}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select time slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableSlots.map((slot, index) => (
-                  <SelectItem key={index} value={`${slot.startTime}-${slot.endTime}`}>
-                    {slot.startTime} - {slot.endTime}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button 
-              className="w-full"
-              onClick={handleSchedule}
-              disabled={!selectedTask || !selectedSlot || isScheduling}
-            >
-              {isScheduling ? (
-                <>
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  Scheduling...
-                </>
-              ) : (
-                "Schedule"
-              )}
-            </Button>
+          <div className="space-y-2">
+            {!isScheduling && availableSlots.map((slot, index) => (
+              <DroppableTimeSlot
+                key={index}
+                staffId={staff.id}
+                startTime={slot.startTime}
+                endTime={slot.endTime}
+                onDrop={handleTaskDrop}
+                isDisabled={!selectedTask}
+              />
+            ))}
           </div>
         )}
       </CardContent>

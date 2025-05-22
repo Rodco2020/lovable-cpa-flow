@@ -6,11 +6,11 @@ import { TaskInstance } from "@/types/task";
 import { Client } from "@/types/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useSkillNames } from "@/hooks/useSkillNames";
+import DraggableTaskItem from "./DraggableTaskItem";
 
 interface UnscheduledTaskListProps {
   onTaskSelect?: (task: TaskInstance) => void;
@@ -23,33 +23,33 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const { toast } = useToast();
-  
+
   // Extract all skill IDs from all tasks for the useSkillNames hook
   const allSkillIds = tasks.flatMap(task => task.requiredSkills);
   const { skillsMap } = useSkillNames(allSkillIds);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [unscheduledTasks, clientsData] = await Promise.all([
-          getUnscheduledTaskInstances(),
-          getAllClients()
-        ]);
-        setTasks(unscheduledTasks);
-        setClients(clientsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({
-          title: "Error fetching data",
-          description: "Could not retrieve unscheduled tasks or clients.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [unscheduledTasks, clientsData] = await Promise.all([
+        getUnscheduledTaskInstances(),
+        getAllClients()
+      ]);
+      setTasks(unscheduledTasks);
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error fetching data",
+        description: "Could not retrieve unscheduled tasks or clients.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, [toast]);
 
@@ -57,11 +57,6 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
   const getClientName = (clientId: string): string => {
     const client = clients.find(c => c.id === clientId);
     return client ? client.legalName : clientId;
-  };
-  
-  // Helper function to get skill name by ID
-  const getSkillName = (skillId: string): string => {
-    return skillsMap[skillId]?.name || skillId;
   };
 
   const handleTaskClick = (task: TaskInstance) => {
@@ -120,6 +115,10 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
             <SelectItem value="low">Low</SelectItem>
           </SelectContent>
         </Select>
+        
+        <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {loading ? (
@@ -133,41 +132,12 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({ onTaskSelect 
       ) : (
         <div className="space-y-2">
           {filteredTasks.map((task) => (
-            <div
+            <DraggableTaskItem 
               key={task.id}
+              task={task}
+              getClientName={getClientName}
               onClick={() => handleTaskClick(task)}
-              className="flex justify-between items-center p-3 border rounded-lg hover:bg-slate-50 cursor-pointer"
-            >
-              <div className="flex-1">
-                <h4 className="font-medium">{task.name}</h4>
-                <div className="flex gap-2 text-sm text-muted-foreground">
-                  <span>{getClientName(task.clientId)}</span>
-                  <span>•</span>
-                  <span>{task.estimatedHours} hours</span>
-                </div>
-                {task.requiredSkills && task.requiredSkills.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {task.requiredSkills.map((skillId, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {getSkillName(skillId)}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className={`px-2 py-1 text-xs rounded-full ${
-                  task.priority.toLowerCase() === "high" ? "bg-red-100 text-red-800" :
-                  task.priority.toLowerCase() === "medium" ? "bg-yellow-100 text-yellow-800" :
-                  "bg-green-100 text-green-800"
-                }`}>
-                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
-                </div>
-                <Button variant="outline" size="sm">
-                  Assign
-                </Button>
-              </div>
-            </div>
+            />
           ))}
         </div>
       )}

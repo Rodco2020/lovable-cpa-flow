@@ -28,6 +28,7 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [availabilityMasks, setAvailabilityMasks] = useState<Record<string, AvailabilityMask>>({});
+  const [schedulingStaff, setSchedulingStaff] = useState<string | null>(null);
   const { publishEvent } = useEventPublisher();
   
   // Format date for API calls
@@ -85,19 +86,40 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
     loadData();
   }, [formattedDate]);
   
+  // Handle scheduling a task via drop
+  const handleTaskDrop = async (taskId: string, staffId: string, startTime: string, endTime: string) => {
+    // Find the task (either it's the selected task or we need to fetch it)
+    let taskToSchedule = selectedTask;
+    
+    if (!taskToSchedule || taskToSchedule.id !== taskId) {
+      // In a real implementation, we would fetch the task by ID
+      // For now, we'll just use the selected task
+      if (!selectedTask) {
+        toast.error("Please select a task first");
+        return;
+      }
+      taskToSchedule = selectedTask;
+    }
+    
+    handleScheduleTask(taskId, staffId, startTime, endTime);
+  };
+  
   // Handle scheduling a task
-  const handleScheduleTask = async (staffId: string, startTime: string, endTime: string) => {
+  const handleScheduleTask = async (taskId: string, staffId: string, startTime: string, endTime: string) => {
     if (!selectedTask) return;
     
     const staffName = staff.find(s => s.id === staffId)?.fullName || "selected staff";
     
     try {
+      // Set scheduling state
+      setSchedulingStaff(staffId);
+      
       // Show loading toast
       toast.loading(`Scheduling task for ${staffName}...`);
       
       // Schedule the task
       await scheduleTask(
-        selectedTask.id,
+        taskId,
         staffId,
         formattedDate,
         startTime,
@@ -120,7 +142,7 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
       publishEvent({
         type: "task.scheduled",
         payload: {
-          taskId: selectedTask.id,
+          taskId: taskId,
           staffId,
           date: formattedDate,
           startTime,
@@ -134,6 +156,8 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
       toast.dismiss();
       console.error("Error scheduling task:", error);
       toast.error("Error scheduling task");
+    } finally {
+      setSchedulingStaff(null);
     }
   };
   
@@ -212,7 +236,7 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
         <Alert className="bg-blue-50">
           <AlertTitle>Scheduling Task: {selectedTask.name}</AlertTitle>
           <AlertDescription>
-            Use the schedule buttons to assign this task to a staff member.
+            Drag this task onto an available time slot or use the schedule buttons to assign it.
           </AlertDescription>
         </Alert>
       )}
@@ -225,7 +249,9 @@ const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({
             currentDate={currentDate}
             availableSlots={getAvailableSlots(s.id)}
             selectedTask={selectedTask}
-            onSchedule={(staffId, startTime, endTime) => handleScheduleTask(staffId, startTime, endTime)}
+            isScheduling={schedulingStaff === s.id}
+            onSchedule={(staffId, startTime, endTime) => handleScheduleTask(selectedTask?.id || '', staffId, startTime, endTime)}
+            onTaskDrop={handleTaskDrop}
           />
         ))}
       </div>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppEvent } from "@/hooks/useAppEvent";
 import { toast } from "@/components/ui/use-toast";
+import DragDropContext from "./DragDropContext";
 
 const SchedulerDashboard: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<TaskInstance | null>(null);
@@ -41,65 +42,67 @@ const SchedulerDashboard: React.FC = () => {
   }, []);
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Scheduler</h1>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigateDay('prev')}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+    <DragDropContext>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Scheduler</h1>
           
-          <div className="bg-slate-100 px-3 py-1.5 rounded font-medium min-w-32 text-center">
-            {format(currentDate, "EEEE, MMM d, yyyy")}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigateDay('prev')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="bg-slate-100 px-3 py-1.5 rounded font-medium min-w-32 text-center">
+              {format(currentDate, "EEEE, MMM d, yyyy")}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigateDay('next')}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigateDay('next')}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
         </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid grid-cols-2 w-[400px]">
+            <TabsTrigger value="unscheduled">Unscheduled Tasks</TabsTrigger>
+            <TabsTrigger value="schedule">Staff Schedule</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="unscheduled" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Unscheduled Tasks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <UnscheduledTaskList onTaskSelect={handleTaskSelect} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="schedule" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Staff Schedule</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StaffScheduleView 
+                  selectedTask={selectedTask} 
+                  currentDate={currentDate}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-2 w-[400px]">
-          <TabsTrigger value="unscheduled">Unscheduled Tasks</TabsTrigger>
-          <TabsTrigger value="schedule">Staff Schedule</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="unscheduled" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Unscheduled Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <UnscheduledTaskList onTaskSelect={handleTaskSelect} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="schedule" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Staff Schedule</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StaffScheduleView 
-                selectedTask={selectedTask} 
-                currentDate={currentDate}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+    </DragDropContext>
   );
 };
 
