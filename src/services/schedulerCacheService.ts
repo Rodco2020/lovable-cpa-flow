@@ -1,3 +1,4 @@
+
 // Import other dependencies as needed
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,7 +24,7 @@ interface CacheEntry<T> {
 }
 
 // Cache store class with proper typing and expiry management
-class CacheStore<T> {
+export class CacheStore<T> {
   private store: Map<string, CacheEntry<T>> = new Map();
   
   // Set a value in the cache with an expiration time
@@ -184,5 +185,3 @@ export const clearExpiredCaches = () => {
     console.log(`[Cache] Cleared ${cleared} expired cache entries`);
   }
 };
-
-// Other cache-related functions as needed
