@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Magic, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { TaskInstance } from '@/types/task';
 import { StaffTaskRecommendation, generateBatchRecommendations } from '@/services/schedulerService';
@@ -82,7 +82,7 @@ const HybridSchedulingControls: React.FC<HybridSchedulingControlsProps> = ({
               </>
             ) : (
               <>
-                <Magic className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
                 Suggest Assignments
               </>
             )}

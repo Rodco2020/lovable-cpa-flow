@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { getUnscheduledTaskInstances } from "@/services/taskService";
 import { TaskInstance } from "@/types/task";
-import { DraggableTaskItem } from "./DraggableTaskItem";
+import DraggableTaskItem from "./DraggableTaskItem";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Magic, Search } from "lucide-react";
+import { Sparkles, Search } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -132,7 +132,7 @@ const UnscheduledTaskList: React.FC<UnscheduledTaskListProps> = ({
                       <div className="flex space-x-1">
                         {tasksWithRecommendations.includes(task.id) && (
                           <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-transparent flex gap-1 items-center">
-                            <Magic className="h-3 w-3" /> 
+                            <Sparkles className="h-3 w-3" /> 
                             Recommended
                           </Badge>
                         )}
