@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -67,6 +68,35 @@ const SchedulerDashboard: React.FC = () => {
   // Keyboard shortcut help dialog state
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
+  // Callback to refresh all data - moved up before it's used in useSchedulerKeyboardShortcuts
+  const handleRefreshAll = useCallback(() => {
+    // Clear all caches to force fresh data fetch
+    clearAllCaches();
+    
+    // Show toast
+    toast({
+      title: "Data Refreshed",
+      description: "All cached data has been cleared and will be refreshed.",
+    });
+  }, []);
+
+  // Navigate between days
+  const navigateDay = (direction: 'prev' | 'next') => {
+    setCurrentDate(prev => 
+      direction === 'prev' ? addDays(prev, -1) : addDays(prev, 1)
+    );
+  };
+
+  // Initialize keyboard shortcuts
+  const { showHelpOverlay } = useSchedulerKeyboardShortcuts({
+    onRefresh: handleRefreshAll,
+    onNextDay: () => navigateDay('next'),
+    onPrevDay: () => navigateDay('prev'),
+    onToggleMode: setSchedulingMode,
+    onShowHelp: () => setShowKeyboardHelp(true),
+    enabled: true,
+  });
+
   // Load initial error logs
   useEffect(() => {
     const logs = getErrorLogs();
@@ -103,23 +133,6 @@ const SchedulerDashboard: React.FC = () => {
       setShowRecommendations(false);
     }
   };
-
-  // Navigate between days
-  const navigateDay = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => 
-      direction === 'prev' ? addDays(prev, -1) : addDays(prev, 1)
-    );
-  };
-
-  // Initialize keyboard shortcuts
-  const { showHelpOverlay } = useSchedulerKeyboardShortcuts({
-    onRefresh: handleRefreshAll,
-    onNextDay: () => navigateDay('next'),
-    onPrevDay: () => navigateDay('prev'),
-    onToggleMode: setSchedulingMode,
-    onShowHelp: () => setShowKeyboardHelp(true),
-    enabled: true,
-  });
 
   // Handle recommendations generation
   const handleGenerateRecommendations = async () => {
@@ -250,18 +263,6 @@ const SchedulerDashboard: React.FC = () => {
     // Refresh error logs
     setErrorLogs(getErrorLogs() as ErrorLogEntry[]);
   };
-  
-  // Callback to refresh all data
-  const handleRefreshAll = useCallback(() => {
-    // Clear all caches to force fresh data fetch
-    clearAllCaches();
-    
-    // Show toast
-    toast({
-      title: "Data Refreshed",
-      description: "All cached data has been cleared and will be refreshed.",
-    });
-  }, []);
 
   // Listen for availability template changes to update scheduler
   useAppEvent("availability.template.changed", (event) => {
