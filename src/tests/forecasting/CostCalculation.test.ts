@@ -2,7 +2,7 @@ import { generateForecast, clearForecastCache } from '@/services/forecastingServ
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getTaskInstances } from '@/services/taskService';
 import { getClientById } from '@/services/clientService';
-import { Staff, WeeklyAvailability } from '@/types/staff';
+import { Staff, StaffStatus, WeeklyAvailability } from '@/types/staff';
 import { TaskInstance } from '@/types/task';
 import { ForecastParameters } from '@/types/forecasting';
 
@@ -22,6 +22,7 @@ describe('generateForecast cost calculation', () => {
   });
 
   it('calculates costs using average skill cost', async () => {
+    const now = new Date('2023-01-01T00:00:00Z');
     const staffMembers: Staff[] = [
       {
         id: 's1',
@@ -31,9 +32,9 @@ describe('generateForecast cost calculation', () => {
         costPerHour: 30,
         email: '',
         phone: '',
-        status: 'active',
-        createdAt: '',
-        updatedAt: ''
+        status: 'active' as StaffStatus,
+        createdAt: now,
+        updatedAt: now
       },
       {
         id: 's2',
@@ -43,9 +44,9 @@ describe('generateForecast cost calculation', () => {
         costPerHour: 50,
         email: '',
         phone: '',
-        status: 'active',
-        createdAt: '',
-        updatedAt: ''
+        status: 'active' as StaffStatus,
+        createdAt: now,
+        updatedAt: now
       },
       {
         id: 's3',
@@ -55,9 +56,9 @@ describe('generateForecast cost calculation', () => {
         costPerHour: 70,
         email: '',
         phone: '',
-        status: 'active',
-        createdAt: '',
-        updatedAt: ''
+        status: 'active' as StaffStatus,
+        createdAt: now,
+        updatedAt: now
       }
     ];
 

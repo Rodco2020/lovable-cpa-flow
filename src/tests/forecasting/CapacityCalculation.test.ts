@@ -2,7 +2,7 @@ import { generateForecast, clearForecastCache } from '@/services/forecastingServ
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getRecurringTasks } from '@/services/taskService';
 import { differenceInDays } from 'date-fns';
-import { Staff, WeeklyAvailability } from '@/types/staff';
+import { Staff, StaffStatus, WeeklyAvailability } from '@/types/staff';
 import { ForecastParameters } from '@/types/forecasting';
 
 jest.mock('@/services/staffService');
@@ -19,6 +19,7 @@ describe('generateForecast capacity calculation', () => {
   });
 
   it('clips period ranges to the forecast date range', async () => {
+    const now = new Date('2023-01-01T00:00:00Z');
     const staffMembers: Staff[] = [
       {
         id: 's1',
@@ -28,9 +29,9 @@ describe('generateForecast capacity calculation', () => {
         costPerHour: 0,
         email: '',
         phone: '',
-        status: 'active',
-        createdAt: '',
-        updatedAt: ''
+        status: 'active' as StaffStatus,
+        createdAt: now,
+        updatedAt: now
       },
       {
         id: 's2',
@@ -40,9 +41,9 @@ describe('generateForecast capacity calculation', () => {
         costPerHour: 0,
         email: '',
         phone: '',
-        status: 'active',
-        createdAt: '',
-        updatedAt: ''
+        status: 'active' as StaffStatus,
+        createdAt: now,
+        updatedAt: now
       },
       {
         id: 's3',
@@ -52,9 +53,9 @@ describe('generateForecast capacity calculation', () => {
         costPerHour: 0,
         email: '',
         phone: '',
-        status: 'active',
-        createdAt: '',
-        updatedAt: ''
+        status: 'active' as StaffStatus,
+        createdAt: now,
+        updatedAt: now
       }
     ];
 
