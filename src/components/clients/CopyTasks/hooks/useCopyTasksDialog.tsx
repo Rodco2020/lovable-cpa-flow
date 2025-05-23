@@ -256,6 +256,11 @@ export const useCopyTasksDialog = (
     }
   };
 
+  const handleFinish = () => {
+    // Close the dialog and reset state
+    onClose();
+  };
+
   return {
     step,
     targetClientId,
@@ -289,6 +294,6 @@ export const useCopyTasksDialog = (
     handleNext,
     handleBack,
     handleCopy,
-    handleFinish: onClose
+    handleFinish
   };
 };

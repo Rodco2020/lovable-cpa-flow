@@ -25,6 +25,8 @@ interface CopyClientTasksDialogProps {
  * 
  * Phase 1: Basic dialog with client selection
  * Phase 2: Task selection with filters and multi-select functionality
+ * Phase 3: Task copying service functions
+ * Phase 4: Progress and feedback UI
  */
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   isOpen,
