@@ -35,9 +35,11 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
   
   // We need to cast tasks to the correct type to satisfy TypeScript
   // This is safe because we know the actual task type based on the 'type' prop
-  const typedTasks = type === 'ad-hoc' 
-    ? tasks as TaskInstance[]
-    : tasks as RecurringTask[];
+  // Pre-cast the tasks by type to avoid generic casts inside JSX.
+  // This keeps the JSX cleaner and avoids issues with tools that
+  // might misinterpret generic syntax in props.
+  const adHocTasks = tasks as TaskInstance[];
+  const recurringTasks = tasks as RecurringTask[];
 
   // Create a proper error object if error is null to satisfy TypeScript
   const errorObj = error ? error : { name: 'Error', message: '' };
@@ -54,11 +56,11 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
       <div className="p-6 pt-0">
         {type === 'ad-hoc' ? (
           <TaskSelectionList
-            tasks={typedTasks as TaskInstance[]}
+            tasks={adHocTasks}
             selectedTaskIds={new Set(selectedTaskIds)}
             onToggleTask={onToggleTask}
             type={type}
-            onSelectAll={() => onSelectAll(typedTasks)}
+            onSelectAll={() => onSelectAll(adHocTasks)}
             isLoading={isLoading}
             error={errorObj}
             emptyMessage={emptyMessage}
@@ -67,11 +69,11 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
           />
         ) : (
           <TaskSelectionList
-            tasks={typedTasks as RecurringTask[]}
+            tasks={recurringTasks}
             selectedTaskIds={new Set(selectedTaskIds)}
             onToggleTask={onToggleTask}
             type={type}
-            onSelectAll={() => onSelectAll(typedTasks)}
+            onSelectAll={() => onSelectAll(recurringTasks)}
             isLoading={isLoading}
             error={errorObj}
             emptyMessage={emptyMessage}
