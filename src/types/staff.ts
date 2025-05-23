@@ -43,14 +43,17 @@ export interface Staff extends StaffMember {
 
 export interface TimeSlot {
   id: string;
-  start: string;
-  end: string;
-  available: boolean;
-  // For backward compatibility with older components
+  // Identifier for the staff member assigned to this slot
   staffId?: string;
+  // Identifier for a scheduled task
   taskId?: string;
+  // Optional date in YYYY-MM-DD format
+  date?: string;
+  // Optional start time in HH:MM format
   startTime?: string;
+  // Optional end time in HH:MM format
   endTime?: string;
+  // Optional availability flag
   isAvailable?: boolean;
 }
 
