@@ -1,176 +1,138 @@
 
-// Fixing error TS2739: Type '{}' is missing the following properties from type 'Error': name, message
-// We just need to update the error handling in this file
-
 import React, { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Check, X } from 'lucide-react';
-import { getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
-import { Task } from '@/types/task';
-import { toast } from '@/components/ui/use-toast';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import { TaskSelectionList } from './TaskSelectionList';
+import { TaskSelectionPanel } from './TaskSelectionPanel';
 import { DialogFooter } from './DialogFooter';
-import TaskSelectionList from './TaskSelectionList';
+import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { CopyTaskStep, TaskFilterOption } from './types';
+import { useQuery } from '@tanstack/react-query';
+import { getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
 
 interface SelectTasksStepProps {
-  sourceClientId: string;
-  targetClientId: string;
-  onNext: () => void;
-  onBack: () => void;
-  onTasksSelected: (tasks: Task[]) => void;
+  clientId: string;
+  targetClientId: string | null;
+  selectedTaskIds: string[];
+  setSelectedTaskIds: (ids: string[]) => void;
+  step: CopyTaskStep;
+  handleBack: () => void;
+  handleNext: () => void;
 }
 
-const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
-  sourceClientId,
+export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
+  clientId,
   targetClientId,
-  onNext,
-  onBack,
-  onTasksSelected
+  selectedTaskIds,
+  setSelectedTaskIds,
+  step,
+  handleBack,
+  handleNext,
 }) => {
-  const [selectedTasks, setSelectedTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [recurringTasks, setRecurringTasks] = useState<Task[]>([]);
-  const [adHocTasks, setAdHocTasks] = useState<Task[]>([]);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
-  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<TaskFilterOption>('all');
 
-  // Fetch tasks when component mounts
-  React.useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoadingTasks(true);
-      try {
-        // Get recurring tasks
-        const recurring = await getClientRecurringTasks(sourceClientId);
-        setRecurringTasks(recurring || []);
+  // Fetch recurring tasks
+  const { data: recurringTasks = [], isLoading: recurringLoading } = useQuery({
+    queryKey: ['client', clientId, 'recurring-tasks'],
+    queryFn: () => getClientRecurringTasks(clientId),
+    enabled: !!clientId,
+  });
 
-        // Get ad-hoc tasks
-        const adHoc = await getClientAdHocTasks(sourceClientId);
-        setAdHocTasks(adHoc || []);
-      } catch (error) {
-        // Fix the error type here
-        const err = error as Error; // Cast to Error type
-        toast({
-          title: "Failed to load tasks",
-          description: err.message || "An error occurred while loading tasks",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingTasks(false);
-      }
-    };
+  // Fetch ad-hoc tasks
+  const { data: adHocTasks = [], isLoading: adHocLoading } = useQuery({
+    queryKey: ['client', clientId, 'adhoc-tasks'],
+    queryFn: () => getClientAdHocTasks(clientId),
+    enabled: !!clientId,
+  });
 
-    fetchTasks();
-  }, [sourceClientId]);
+  const isLoading = recurringLoading || adHocLoading;
 
-  const handleTaskSelectionChange = (task: Task, isSelected: boolean) => {
-    if (isSelected) {
-      setSelectedTasks([...selectedTasks, task]);
-    } else {
-      setSelectedTasks(selectedTasks.filter(t => t.id !== task.id));
+  // Filter tasks based on search term and active filter
+  const filteredTasks = [...recurringTasks, ...adHocTasks].filter(task => {
+    const matchesSearch = task.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (activeFilter === 'all') {
+      return matchesSearch;
+    } else if (activeFilter === 'recurring') {
+      return matchesSearch && 'recurrencePattern' in task;
+    } else if (activeFilter === 'adhoc') {
+      return matchesSearch && !('recurrencePattern' in task);
     }
+    return false;
+  });
+
+  const recurringTasksCount = recurringTasks.length;
+  const adHocTasksCount = adHocTasks.length;
+  
+  const handleSelectAll = () => {
+    const allTaskIds = filteredTasks.map(task => task.id);
+    setSelectedTaskIds(allTaskIds);
   };
-
-  const handleNext = () => {
-    if (selectedTasks.length === 0) {
-      try {
-        throw new Error("Please select at least one task to copy");
-      } catch (error) {
-        // Fix the error type here
-        const err = error as Error; // Cast to Error type
-        toast({
-          title: "No tasks selected",
-          description: err.message,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    // Invalidate relevant queries to ensure fresh data after task copying
-    queryClient.invalidateQueries({ queryKey: ['client', targetClientId, 'tasks'] });
-    queryClient.invalidateQueries({ queryKey: ['client', targetClientId, 'recurring-tasks'] });
-
-    onTasksSelected(selectedTasks);
-    onNext();
+  
+  const handleDeselectAll = () => {
+    setSelectedTaskIds([]);
   };
-
+  
+  const handleToggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds(
+      selectedTaskIds.includes(taskId)
+        ? selectedTaskIds.filter(id => id !== taskId)
+        : [...selectedTaskIds, taskId]
+    );
+  };
+  
   return (
-    <div className="space-y-4 py-4 pb-4">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Select Tasks to Copy</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose which tasks you want to copy from the source client to the target client.
+    <div className="space-y-4">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Select Tasks to Copy</h2>
+        <p className="text-muted-foreground">
+          Choose the tasks you want to copy from this client to the destination client.
         </p>
       </div>
 
-      {isLoadingTasks ? (
-        <div className="flex items-center justify-center p-6">
-          <p>Loading tasks...</p>
+      {/* Search and filter controls */}
+      <div className="flex items-center space-x-4 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-      ) : (
-        <Tabs defaultValue="recurring" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
-            <TabsTrigger value="adhoc">Ad-hoc Tasks</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="recurring" className="space-y-4 pt-4">
-            {recurringTasks.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">No recurring tasks available</p>
-            ) : (
-              <TaskSelectionList 
-                tasks={recurringTasks}
-                selectedTasks={selectedTasks}
-                onSelectionChange={handleTaskSelectionChange}
-              />
-            )}
-          </TabsContent>
-          
-          <TabsContent value="adhoc" className="space-y-4 pt-4">
-            {adHocTasks.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">No ad-hoc tasks available</p>
-            ) : (
-              <TaskSelectionList 
-                tasks={adHocTasks}
-                selectedTasks={selectedTasks}
-                onSelectionChange={handleTaskSelectionChange}
-              />
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
 
-      <div className="flex items-center justify-between pt-4">
-        <div className="text-sm">
-          <Label>{selectedTasks.length} tasks selected</Label>
-        </div>
+        <TaskSelectionPanel
+          activeFilter={activeFilter}
+          setActiveFilter={setActiveFilter}
+          recurringTasksCount={recurringTasksCount}
+          adHocTasksCount={adHocTasksCount}
+          selectedCount={selectedTaskIds.length}
+          totalCount={filteredTasks.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+        />
       </div>
 
-      <DialogFooter>
-        <Button 
-          variant="outline" 
-          onClick={onBack}
-          disabled={isLoading}
-        >
-          <X className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <Button 
-          onClick={handleNext}
-          disabled={isLoading || selectedTasks.length === 0}
-        >
-          {isLoading ? "Processing..." : (
-            <>
-              <Check className="mr-2 h-4 w-4" />
-              Next
-            </>
-          )}
-        </Button>
-      </DialogFooter>
+      {/* Task list */}
+      <div className="border rounded-md">
+        <TaskSelectionList
+          tasks={filteredTasks}
+          selectedTaskIds={selectedTaskIds}
+          onToggleSelection={handleToggleTaskSelection}
+          isLoading={isLoading}
+        />
+      </div>
+
+      <DialogFooter
+        step={step}
+        handleBack={handleBack}
+        handleNext={handleNext}
+        disableNext={selectedTaskIds.length === 0}
+        handleCopy={() => {}}
+        isProcessing={false}
+        isSuccess={false}
+      />
     </div>
   );
 };
-
-export default SelectTasksStep;
