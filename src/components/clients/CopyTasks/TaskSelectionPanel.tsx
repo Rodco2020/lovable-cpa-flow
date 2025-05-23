@@ -29,6 +29,13 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
     ? tasks as TaskInstance[]
     : tasks as RecurringTask[];
 
+  // Create an empty error object if error is null to satisfy TypeScript
+  const errorObj = error ? error : { name: 'Error', message: '' };
+  
+  // Add missing props for TaskSelectionList
+  const filteredPriorityMessage = '';
+  const allTasksLength = tasks.length;
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -41,11 +48,12 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             selectedTaskIds={selectedTaskIds}
             onToggleTask={onToggleTask}
             type={type}
-            // Fix the type error by properly typing the onSelectAll function
             onSelectAll={() => onSelectAll(typedTasks)}
             isLoading={isLoading}
-            error={error}
+            error={errorObj}
             emptyMessage={emptyMessage}
+            filteredPriorityMessage={filteredPriorityMessage}
+            allTasksLength={allTasksLength}
           />
         ) : (
           <TaskSelectionList<RecurringTask>
@@ -53,11 +61,12 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             selectedTaskIds={selectedTaskIds}
             onToggleTask={onToggleTask}
             type={type}
-            // Fix the type error by properly typing the onSelectAll function
             onSelectAll={() => onSelectAll(typedTasks)}
             isLoading={isLoading}
-            error={error}
+            error={errorObj}
             emptyMessage={emptyMessage}
+            filteredPriorityMessage={filteredPriorityMessage}
+            allTasksLength={allTasksLength}
           />
         )}
       </CardContent>

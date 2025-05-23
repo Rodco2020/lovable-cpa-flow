@@ -1,49 +1,33 @@
 
 import React from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardContent, 
-  CardFooter 
-} from '@/components/ui/card';
-import {  
-  Form 
-} from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Save } from 'lucide-react';
 import { useClientForm } from '@/hooks/useClientForm';
-import BasicInformationSection from './BasicInformationSection';
-import FinancialSettingsSection from './FinancialSettingsSection';
+import BasicInformationSection from '@/components/clients/ClientForm/BasicInformationSection';
+import FinancialSettingsSection from '@/components/clients/ClientForm/FinancialSettingsSection';
 
 /**
- * ClientForm component
+ * Client form component
  * 
- * Provides a form interface for creating and editing client records.
- * Features:
- * - Create new clients with default values
- * - Edit existing clients with pre-populated fields
- * - Validate form input using zod schema
- * - Basic and financial information sections
- * - Staff liaison selection
- * - Notification preferences
+ * Allows creating new clients or editing existing ones with form validation
  */
 const ClientForm: React.FC = () => {
-  const {
-    form,
-    isEditMode,
-    isLoading,
+  const { 
+    form, 
+    isEditMode, 
+    isLoading, 
     isClientLoading,
     staffOptions,
     onSubmit,
-    navigate
+    navigate 
   } = useClientForm();
   
-  // Show loading state
   if (isClientLoading) {
     return (
-      <Card className="max-w-4xl mx-auto">
+      <Card className="max-w-2xl mx-auto">
         <CardContent className="pt-6">
           <div className="flex items-center justify-center h-64">
             <p>Loading client data...</p>
@@ -54,58 +38,46 @@ const ClientForm: React.FC = () => {
   }
   
   return (
-    <Card className="max-w-4xl mx-auto">
+    <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <div className="flex items-center mb-2">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
-            size="sm" 
             onClick={() => navigate('/clients')}
             className="mr-2"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
+          <CardTitle>{isEditMode ? 'Edit Client' : 'Add New Client'}</CardTitle>
         </div>
-        <CardTitle>{isEditMode ? 'Edit Client' : 'Add New Client'}</CardTitle>
         <CardDescription>
           {isEditMode 
             ? 'Update client information and preferences'
-            : 'Enter client details to create a new client profile'}
+            : 'Enter client details to add them to your system'
+          }
         </CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Basic Information Section */}
-              <BasicInformationSection form={form} />
-              
-              {/* Financial & Engagement Settings Section */}
-              <FinancialSettingsSection 
-                form={form} 
-                staffOptions={staffOptions}
-              />
-            </div>
+            <BasicInformationSection form={form} />
+            
+            <Separator />
+            
+            <FinancialSettingsSection 
+              form={form} 
+              staffOptions={staffOptions} 
+            />
           </CardContent>
-          <CardFooter className="flex justify-between">
+          <CardFooter>
             <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => navigate('/clients')}
+              type="submit" 
               disabled={isLoading}
+              className="ml-auto"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <span>Saving...</span>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  {isEditMode ? 'Update Client' : 'Save Client'}
-                </>
-              )}
+              <Save className="h-4 w-4 mr-1" />
+              {isLoading ? 'Saving...' : 'Save Client'}
             </Button>
           </CardFooter>
         </form>
