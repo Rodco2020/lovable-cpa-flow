@@ -52,7 +52,7 @@ const StaffForm: React.FC = () => {
       costPerHour: 0,
       email: "",
       phone: "",
-      status: "active" as StaffStatus,
+      status: "active",
     },
   });
 

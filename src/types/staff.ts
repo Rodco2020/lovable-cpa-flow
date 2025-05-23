@@ -1,6 +1,6 @@
 
 export type SkillType = string;
-export type StaffStatus = "Active" | "Inactive" | "On Leave";
+export type StaffStatus = "active" | "inactive" | "on leave";
 
 export interface StaffMember {
   id: string;
