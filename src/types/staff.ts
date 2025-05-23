@@ -36,23 +36,51 @@ export interface StaffAvailabilityMatrix {
 
 // Additional interfaces needed for backward compatibility with existing code
 // These will maintain compatibility until other files can be refactored
-export interface Staff extends StaffMember {}
+export interface Staff extends StaffMember {
+  // For backward compatibility with older components that use skills instead of assignedSkills
+  skills?: SkillType[];
+}
+
 export interface TimeSlot {
   id: string;
   start: string;
   end: string;
   available: boolean;
+  // For backward compatibility with older components
+  staffId?: string;
+  taskId?: string;
+  startTime?: string;
+  endTime?: string;
+  isAvailable?: boolean;
 }
+
 export interface WeeklyAvailability {
   id: string;
   staffId: string;
   dayOfWeek: number;
   slots: TimeSlot[];
+  // For backward compatibility with older components
+  startTime?: string;
+  endTime?: string;
+  isAvailable?: boolean;
 }
+
 export interface AvailabilitySummary {
   staffId: string;
   totalHours: number;
   dailyHours: {
     [day: string]: number;
   };
+  // For backward compatibility with older components
+  weeklyTotal?: number;
+  averageDailyHours?: number;
+  dailySummaries?: {
+    [day: string]: number;
+  };
+}
+
+// For backward compatibility with components that expect this type
+export interface StaffOption {
+  id: string;
+  full_name: string;
 }
