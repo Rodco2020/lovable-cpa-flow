@@ -37,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Save, User } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import { StaffOption } from '@/types/staffOption';
 
 // Define staff liaison type
 type StaffOption = {
