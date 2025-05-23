@@ -69,7 +69,7 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
  */
 export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "updatedAt">): Promise<Staff> => {
   // Map the Staff model fields to database fields
-  const dbData = mapStaffToDbRecord(staffData);
+  const dbData = mapStaffToDbRecord({...staffData});
   
   const { data, error } = await supabase
     .from('staff')
