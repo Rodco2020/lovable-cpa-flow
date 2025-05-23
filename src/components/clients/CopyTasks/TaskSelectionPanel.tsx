@@ -53,7 +53,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
       </div>
       <div className="p-6 pt-0">
         {type === 'ad-hoc' ? (
-          <TaskSelectionList<TaskInstance>
+          <TaskSelectionList
             tasks={typedTasks as TaskInstance[]}
             selectedTaskIds={new Set(selectedTaskIds)}
             onToggleTask={onToggleTask}
@@ -66,7 +66,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             allTasksLength={allTasksLength}
           />
         ) : (
-          <TaskSelectionList<RecurringTask>
+          <TaskSelectionList
             tasks={typedTasks as RecurringTask[]}
             selectedTaskIds={new Set(selectedTaskIds)}
             onToggleTask={onToggleTask}

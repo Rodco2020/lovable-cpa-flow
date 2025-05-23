@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { TaskInstance, RecurringTask } from '@/types/task';
 
-interface TaskSelectionListProps<T extends TaskInstance | RecurringTask> {
-  tasks: T[];
+interface TaskSelectionListProps {
+  tasks: (TaskInstance | RecurringTask)[];
   selectedTaskIds: Set<string>;
   onToggleTask: (taskId: string) => void;
   onSelectAll: () => void;
@@ -22,7 +22,7 @@ interface TaskSelectionListProps<T extends TaskInstance | RecurringTask> {
  * Component for displaying and selecting tasks from a list
  * Used in the copy client tasks dialog for both ad-hoc and recurring tasks
  */
-export const TaskSelectionList = <T extends TaskInstance | RecurringTask>({
+export const TaskSelectionList: React.FC<TaskSelectionListProps> = ({
   tasks,
   selectedTaskIds,
   onToggleTask,
@@ -33,7 +33,7 @@ export const TaskSelectionList = <T extends TaskInstance | RecurringTask>({
   filteredPriorityMessage,
   allTasksLength,
   type
-}: TaskSelectionListProps<T>) => {
+}: TaskSelectionListProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-4">
