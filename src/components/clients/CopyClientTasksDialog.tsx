@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
@@ -6,8 +5,13 @@ import { Client } from '@/types/client';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowRight, ArrowLeft, ClipboardCopy } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowLeft, ClipboardCopy, Check, Filter } from 'lucide-react';
 import { toast } from 'sonner';
+import { getClientAdHocTasks, getClientRecurringTasks } from '@/services/clientService';
+import { TaskInstance, RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 interface CopyClientTasksDialogProps {
   isOpen: boolean;
@@ -17,6 +21,7 @@ interface CopyClientTasksDialogProps {
 }
 
 type DialogStep = 'select-client' | 'select-tasks' | 'confirmation';
+type TaskTab = 'ad-hoc' | 'recurring' | 'all';
 
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   isOpen,
@@ -26,11 +31,16 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
 }) => {
   const [step, setStep] = useState<DialogStep>('select-client');
   const [targetClientId, setTargetClientId] = useState<string>('');
-
+  const [activeTab, setActiveTab] = useState<TaskTab>('all');
+  
+  // Task selection state
+  const [selectedAdHocTaskIds, setSelectedAdHocTaskIds] = useState<Set<string>>(new Set());
+  const [selectedRecurringTaskIds, setSelectedRecurringTaskIds] = useState<Set<string>>(new Set());
+  
   // Fetch all clients for the dropdown
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients'],
-    queryFn: getAllClients,
+    queryFn: () => getAllClients(),
     enabled: isOpen,
     meta: {
       onError: (error: Error) => {
@@ -39,17 +49,90 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
       }
     }
   });
+  
+  // Fetch ad-hoc tasks for the source client
+  const { 
+    data: adHocTasks, 
+    isLoading: adHocLoading,
+    error: adHocError
+  } = useQuery({
+    queryKey: ['client-adhoc-tasks', sourceClientId],
+    queryFn: () => getClientAdHocTasks(sourceClientId),
+    enabled: isOpen && step === 'select-tasks',
+  });
+  
+  // Fetch recurring tasks for the source client
+  const { 
+    data: recurringTasks, 
+    isLoading: recurringLoading,
+    error: recurringError
+  } = useQuery({
+    queryKey: ['client-recurring-tasks', sourceClientId],
+    queryFn: () => getClientRecurringTasks(sourceClientId),
+    enabled: isOpen && step === 'select-tasks',
+  });
 
   // Reset state when dialog opens
   useEffect(() => {
     if (isOpen) {
       setStep('select-client');
       setTargetClientId('');
+      setSelectedAdHocTaskIds(new Set());
+      setSelectedRecurringTaskIds(new Set());
+      setActiveTab('all');
     }
   }, [isOpen]);
 
   // Filter out the source client from the clients list
   const availableClients = clients?.filter(client => client.id !== sourceClientId) || [];
+  
+  // Task selection handlers
+  const toggleAdHocTask = (taskId: string) => {
+    const newSelection = new Set(selectedAdHocTaskIds);
+    if (newSelection.has(taskId)) {
+      newSelection.delete(taskId);
+    } else {
+      newSelection.add(taskId);
+    }
+    setSelectedAdHocTaskIds(newSelection);
+  };
+  
+  const toggleRecurringTask = (taskId: string) => {
+    const newSelection = new Set(selectedRecurringTaskIds);
+    if (newSelection.has(taskId)) {
+      newSelection.delete(taskId);
+    } else {
+      newSelection.add(taskId);
+    }
+    setSelectedRecurringTaskIds(newSelection);
+  };
+  
+  const selectAllAdHocTasks = () => {
+    if (adHocTasks && adHocTasks.length > 0) {
+      if (selectedAdHocTaskIds.size === adHocTasks.length) {
+        // If all are selected, deselect all
+        setSelectedAdHocTaskIds(new Set());
+      } else {
+        // Otherwise, select all
+        setSelectedAdHocTaskIds(new Set(adHocTasks.map(task => task.id)));
+      }
+    }
+  };
+  
+  const selectAllRecurringTasks = () => {
+    if (recurringTasks && recurringTasks.length > 0) {
+      if (selectedRecurringTaskIds.size === recurringTasks.length) {
+        // If all are selected, deselect all
+        setSelectedRecurringTaskIds(new Set());
+      } else {
+        // Otherwise, select all
+        setSelectedRecurringTaskIds(new Set(recurringTasks.map(task => task.id)));
+      }
+    }
+  };
+
+  // Get total selected tasks count
+  const totalSelectedTasks = selectedAdHocTaskIds.size + selectedRecurringTaskIds.size;
 
   const handleNext = () => {
     if (step === 'select-client') {
@@ -59,7 +142,10 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
       }
       setStep('select-tasks');
     } else if (step === 'select-tasks') {
-      // In Phase 2, we'll add validation for task selection here
+      if (totalSelectedTasks === 0) {
+        toast.error('Please select at least one task to copy');
+        return;
+      }
       setStep('confirmation');
     }
   };
@@ -74,7 +160,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
 
   const handleCopy = () => {
     // In Phase 3, we'll implement the actual copying functionality
-    toast.success('Tasks copied successfully!');
+    toast.success(`${totalSelectedTasks} task(s) copied successfully!`);
     onClose();
   };
 
@@ -114,13 +200,170 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         );
       case 'select-tasks':
         return (
-          <div className="py-6 space-y-4">
-            <p className="text-sm text-gray-500 mb-4">
-              Select tasks to copy (will be implemented in Phase 2):
-            </p>
-            <div className="border rounded-md p-4 text-center text-gray-500">
-              Task selection UI will be added in Phase 2
+          <div className="py-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                Select tasks to copy from {sourceClientName}:
+              </p>
+              <Badge variant="outline" className="ml-2">
+                {totalSelectedTasks} selected
+              </Badge>
             </div>
+            
+            <Tabs 
+              value={activeTab} 
+              onValueChange={value => setActiveTab(value as TaskTab)}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="all">All Tasks</TabsTrigger>
+                <TabsTrigger value="ad-hoc">Ad-hoc Tasks</TabsTrigger>
+                <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
+              </TabsList>
+              
+              <div className="mt-4">
+                {/* Ad-hoc Tasks */}
+                {(activeTab === 'all' || activeTab === 'ad-hoc') && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">Ad-hoc Tasks</h4>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={selectAllAdHocTasks}
+                        disabled={!adHocTasks || adHocTasks.length === 0}
+                      >
+                        {adHocTasks && selectedAdHocTaskIds.size === adHocTasks.length 
+                          ? 'Deselect All' 
+                          : 'Select All'}
+                      </Button>
+                    </div>
+                    
+                    {adHocLoading ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <span>Loading ad-hoc tasks...</span>
+                      </div>
+                    ) : adHocError ? (
+                      <div className="text-center p-4 text-red-500">
+                        Error loading ad-hoc tasks.
+                      </div>
+                    ) : !adHocTasks || adHocTasks.length === 0 ? (
+                      <div className="text-center p-4 text-gray-500">
+                        No ad-hoc tasks available.
+                      </div>
+                    ) : (
+                      <div className="border rounded-md divide-y">
+                        {adHocTasks.map((task) => (
+                          <div 
+                            key={task.id} 
+                            className="flex items-center p-3 hover:bg-gray-50"
+                          >
+                            <Checkbox 
+                              id={`adhoc-${task.id}`}
+                              checked={selectedAdHocTaskIds.has(task.id)}
+                              onCheckedChange={() => toggleAdHocTask(task.id)}
+                              className="mr-3"
+                            />
+                            <div className="flex-1">
+                              <label 
+                                htmlFor={`adhoc-${task.id}`} 
+                                className="font-medium cursor-pointer"
+                              >
+                                {task.name}
+                              </label>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {task.description && <p>{task.description}</p>}
+                                <div className="flex gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.estimatedHours}h
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.priority}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Recurring Tasks */}
+                {(activeTab === 'all' || activeTab === 'recurring') && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">Recurring Tasks</h4>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={selectAllRecurringTasks}
+                        disabled={!recurringTasks || recurringTasks.length === 0}
+                      >
+                        {recurringTasks && selectedRecurringTaskIds.size === recurringTasks.length 
+                          ? 'Deselect All' 
+                          : 'Select All'}
+                      </Button>
+                    </div>
+                    
+                    {recurringLoading ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <span>Loading recurring tasks...</span>
+                      </div>
+                    ) : recurringError ? (
+                      <div className="text-center p-4 text-red-500">
+                        Error loading recurring tasks.
+                      </div>
+                    ) : !recurringTasks || recurringTasks.length === 0 ? (
+                      <div className="text-center p-4 text-gray-500">
+                        No recurring tasks available.
+                      </div>
+                    ) : (
+                      <div className="border rounded-md divide-y">
+                        {recurringTasks.map((task) => (
+                          <div 
+                            key={task.id} 
+                            className="flex items-center p-3 hover:bg-gray-50"
+                          >
+                            <Checkbox 
+                              id={`recurring-${task.id}`}
+                              checked={selectedRecurringTaskIds.has(task.id)}
+                              onCheckedChange={() => toggleRecurringTask(task.id)}
+                              className="mr-3"
+                            />
+                            <div className="flex-1">
+                              <label 
+                                htmlFor={`recurring-${task.id}`} 
+                                className="font-medium cursor-pointer"
+                              >
+                                {task.name}
+                              </label>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {task.description && <p>{task.description}</p>}
+                                <div className="flex gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.estimatedHours}h
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.priority}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.recurrencePattern.type}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Tabs>
           </div>
         );
       case 'confirmation':
@@ -128,11 +371,22 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         return (
           <div className="py-6 space-y-4">
             <p className="text-sm text-gray-500">
-              You are about to copy selected tasks from:
+              You are about to copy {totalSelectedTasks} selected tasks:
             </p>
             <div className="border rounded-md p-4">
               <p><strong>From:</strong> {sourceClientName}</p>
               <p><strong>To:</strong> {targetClient?.legalName}</p>
+              <div className="mt-2">
+                <p><strong>Selected tasks:</strong></p>
+                <ul className="mt-1 list-disc pl-5 text-sm">
+                  {selectedAdHocTaskIds.size > 0 && (
+                    <li>{selectedAdHocTaskIds.size} ad-hoc task(s)</li>
+                  )}
+                  {selectedRecurringTaskIds.size > 0 && (
+                    <li>{selectedRecurringTaskIds.size} recurring task(s)</li>
+                  )}
+                </ul>
+              </div>
             </div>
             <p className="text-sm text-amber-600 font-semibold">
               This action will create copies of the selected tasks for the target client.
