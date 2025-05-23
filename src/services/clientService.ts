@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { Client } from '@/types/client';
 import { StaffMember } from '@/types/staff';
@@ -194,13 +193,13 @@ export const deleteClient = async (clientId: string): Promise<void> => {
 /**
  * Get staff members for liaison dropdown
  */
-export const getStaffForLiaisonDropdown = async (): Promise<StaffMember[]> => {
+export const getStaffForLiaisonDropdown = async (): Promise<StaffOption[]> => {
   try {
     const { data, error } = await supabase
       .from('staff')
-      .select('*')
-      .eq('status', 'Active')
-      .order('lastName', { ascending: true });
+      .select('id, full_name')
+      .eq('status', 'active')
+      .order('full_name', { ascending: true });
       
     if (error) {
       console.error('Error fetching staff for dropdown:', error);

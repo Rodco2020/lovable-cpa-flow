@@ -73,7 +73,7 @@ export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "u
   
   const { data, error } = await supabase
     .from('staff')
-    .insert([dbData])
+    .insert(dbData)
     .select()
     .single();
   

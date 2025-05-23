@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import TaskSelectionList from './TaskSelectionList';
 import { RecurringTask, TaskInstance } from '@/types/task';
 import { TaskSelectionPanelProps } from './types';
+import TaskSelectionList from './TaskSelectionList';
 
 /**
  * TaskSelectionPanel Component 
