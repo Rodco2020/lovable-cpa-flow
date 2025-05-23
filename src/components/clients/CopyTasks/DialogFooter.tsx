@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { DialogFooter as ShadcnDialogFooter } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { DialogStep } from './hooks/useCopyTasksDialog';
 
 interface DialogFooterProps {
@@ -36,10 +36,10 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({
       case 'select-tasks':
         return (
           <>
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} className="sm:flex-1">
               Cancel
             </Button>
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 sm:flex-1 sm:justify-end">
               {step !== 'select-client' && (
                 <Button variant="outline" onClick={handleBack}>
                   Back
@@ -57,10 +57,10 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({
       case 'confirmation':
         return (
           <>
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} className="sm:flex-1">
               Cancel
             </Button>
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 sm:flex-1 sm:justify-end">
               <Button variant="outline" onClick={handleBack}>
                 Back
               </Button>
@@ -81,12 +81,12 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({
       case 'processing':
         return (
           <Button variant="outline" onClick={handleClose} disabled>
-            Cancel
+            Please wait...
           </Button>
         );
       case 'success':
         return (
-          <Button onClick={handleFinish}>
+          <Button onClick={handleFinish} className="w-full sm:w-auto">
             Close
           </Button>
         );
@@ -94,7 +94,7 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({
   };
   
   return (
-    <ShadcnDialogFooter className="flex justify-between sm:justify-between space-x-2">
+    <ShadcnDialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
       {renderButtons()}
     </ShadcnDialogFooter>
   );

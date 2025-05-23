@@ -1,10 +1,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useQuery } from '@tanstack/react-query';
 import { Client } from '@/types/client';
-import { getActiveClients } from '@/services/clientService';
-import { getClientAdHocTasks, getClientRecurringTasks } from '@/services/clientTaskService';
 import { useCopyTasksDialog } from './CopyTasks/hooks/useCopyTasksDialog';
 import { SelectClientStep } from './CopyTasks/SelectClientStep';
 import { SelectTasksStep } from './CopyTasks/SelectTasksStep';
@@ -27,6 +24,7 @@ interface CopyClientTasksDialogProps {
  * Phase 2: Task selection with filters and multi-select functionality
  * Phase 3: Task copying service functions
  * Phase 4: Progress and feedback UI
+ * Phase 5: Final integration and testing
  */
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   isOpen,
@@ -49,6 +47,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     copyResults,
     clients,
     clientsLoading,
+    clientsError,
     availableClients,
     adHocTasks,
     adHocLoading,
@@ -67,11 +66,34 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     handleNext,
     handleBack,
     handleCopy,
-    handleFinish
+    handleFinish,
+    copyError
   } = useCopyTasksDialog(isOpen, onClose, sourceClientId, sourceClientName);
+
+  // Early return for error states
+  const renderError = (errorMessage: string) => (
+    <div className="py-6 text-center text-red-600">
+      <p>{errorMessage}</p>
+      <p className="mt-2 text-sm text-gray-500">Please try again or contact support.</p>
+    </div>
+  );
 
   // Render step content based on current step
   const renderStepContent = () => {
+    // Check for critical errors
+    if (clientsError && step === 'select-client') {
+      return renderError('Failed to load available clients.');
+    }
+
+    if ((adHocError || recurringError) && step === 'select-tasks') {
+      return renderError('Failed to load tasks from the source client.');
+    }
+
+    if (copyError && step === 'processing') {
+      return renderError(`Failed to copy tasks: ${copyError}`);
+    }
+
+    // Render the appropriate step content
     switch (step) {
       case 'select-client':
         return (
@@ -132,7 +154,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
         <DialogHeader>
           <DialogTitle>Copy Client Tasks</DialogTitle>
           <DialogDescription>
@@ -149,8 +171,11 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
           handleCopy={handleCopy}
           handleClose={onClose}
           handleFinish={handleFinish}
-          isNextDisabled={step === 'select-client' && !targetClientId || 
-                         step === 'select-tasks' && totalSelectedTasks === 0}
+          isNextDisabled={
+            (step === 'select-client' && !targetClientId) || 
+            (step === 'select-tasks' && totalSelectedTasks === 0) ||
+            !!copyError
+          }
           isCopying={isCopying}
         />
       </DialogContent>

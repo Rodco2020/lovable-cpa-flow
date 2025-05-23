@@ -1,8 +1,10 @@
 
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { Client } from '@/types/client';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface SelectClientStepProps {
   availableClients: Client[];
@@ -21,6 +23,13 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
   setTargetClientId,
   isLoading
 }) => {
+  const navigate = useNavigate();
+  
+  // Handle "no clients available" scenario
+  const handleCreateNewClient = () => {
+    navigate('/clients/new');
+  };
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
@@ -48,8 +57,23 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
           </SelectContent>
         </Select>
       ) : (
-        <div className="text-center py-4 text-amber-600">
-          No other active clients available to copy tasks to.
+        <div className="rounded-md bg-yellow-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">No other active clients available</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>You need at least one more active client to copy tasks to.</p>
+                <div className="mt-4">
+                  <Button size="sm" onClick={handleCreateNewClient}>
+                    Create New Client
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

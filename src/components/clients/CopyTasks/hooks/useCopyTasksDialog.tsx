@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getActiveClients } from '@/services/clientService';
 import { getClientAdHocTasks, getClientRecurringTasks } from '@/services/clientTaskService';
@@ -28,6 +28,7 @@ export const useCopyTasksDialog = (
   const [isCopying, setIsCopying] = useState(false);
   const [copyProgress, setCopyProgress] = useState(0);
   const [filterPriority, setFilterPriority] = useState<FilterOption>('all');
+  const [copyError, setCopyError] = useState<string | null>(null);
   
   // Task selection state
   const [selectedAdHocTaskIds, setSelectedAdHocTaskIds] = useState<Set<string>>(new Set());
@@ -50,11 +51,16 @@ export const useCopyTasksDialog = (
       setFilterPriority('all');
       setCopyProgress(0);
       setCopyResults(null);
+      setCopyError(null);
     }
   }, [isOpen]);
   
   // Fetch all clients for the dropdown
-  const { data: clients, isLoading: clientsLoading } = useQuery({
+  const { 
+    data: clients, 
+    isLoading: clientsLoading,
+    error: clientsError
+  } = useQuery({
     queryKey: ['active-clients'],
     queryFn: getActiveClients,
     enabled: isOpen,
@@ -78,6 +84,15 @@ export const useCopyTasksDialog = (
     queryKey: ['client-adhoc-tasks', sourceClientId],
     queryFn: () => getClientAdHocTasks(sourceClientId),
     enabled: isOpen && step === 'select-tasks',
+    meta: {
+      onError: (error: Error) => {
+        toast({
+          title: "Error",
+          description: 'Failed to load ad-hoc tasks',
+          variant: "destructive"
+        });
+      }
+    }
   });
   
   // Fetch recurring tasks for the source client
@@ -89,42 +104,61 @@ export const useCopyTasksDialog = (
     queryKey: ['client-recurring-tasks', sourceClientId],
     queryFn: () => getClientRecurringTasks(sourceClientId),
     enabled: isOpen && step === 'select-tasks',
+    meta: {
+      onError: (error: Error) => {
+        toast({
+          title: "Error",
+          description: 'Failed to load recurring tasks',
+          variant: "destructive"
+        });
+      }
+    }
   });
 
   // Filter out the source client from the clients list
-  const availableClients = clients?.filter(client => client.id !== sourceClientId) || [];
+  const availableClients = useMemo(() => 
+    clients?.filter(client => client.id !== sourceClientId) || []
+  , [clients, sourceClientId]);
   
-  // Filter tasks based on priority
-  const filteredAdHocTasks = adHocTasks ? adHocTasks.filter(task => 
-    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority.toLowerCase()
-  ) : [];
+  // Filter tasks based on priority - using useMemo for performance with large lists
+  const filteredAdHocTasks = useMemo(() => 
+    adHocTasks ? adHocTasks.filter(task => 
+      filterPriority === 'all' || task.priority.toLowerCase() === filterPriority.toLowerCase()
+    ) : []
+  , [adHocTasks, filterPriority]);
   
-  const filteredRecurringTasks = recurringTasks ? recurringTasks.filter(task => 
-    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority.toLowerCase()
-  ) : [];
+  const filteredRecurringTasks = useMemo(() => 
+    recurringTasks ? recurringTasks.filter(task => 
+      filterPriority === 'all' || task.priority.toLowerCase() === filterPriority.toLowerCase()
+    ) : []
+  , [recurringTasks, filterPriority]);
   
-  // Task selection handlers
-  const toggleAdHocTask = (taskId: string) => {
-    const newSelection = new Set(selectedAdHocTaskIds);
-    if (newSelection.has(taskId)) {
-      newSelection.delete(taskId);
-    } else {
-      newSelection.add(taskId);
-    }
-    setSelectedAdHocTaskIds(newSelection);
-  };
+  // Task selection handlers - converted to useCallback for performance
+  const toggleAdHocTask = useCallback((taskId: string) => {
+    setSelectedAdHocTaskIds(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(taskId)) {
+        newSelection.delete(taskId);
+      } else {
+        newSelection.add(taskId);
+      }
+      return newSelection;
+    });
+  }, []);
   
-  const toggleRecurringTask = (taskId: string) => {
-    const newSelection = new Set(selectedRecurringTaskIds);
-    if (newSelection.has(taskId)) {
-      newSelection.delete(taskId);
-    } else {
-      newSelection.add(taskId);
-    }
-    setSelectedRecurringTaskIds(newSelection);
-  };
+  const toggleRecurringTask = useCallback((taskId: string) => {
+    setSelectedRecurringTaskIds(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(taskId)) {
+        newSelection.delete(taskId);
+      } else {
+        newSelection.add(taskId);
+      }
+      return newSelection;
+    });
+  }, []);
   
-  const selectAllAdHocTasks = () => {
+  const selectAllAdHocTasks = useCallback(() => {
     if (filteredAdHocTasks && filteredAdHocTasks.length > 0) {
       if (selectedAdHocTaskIds.size === filteredAdHocTasks.length) {
         // If all are selected, deselect all
@@ -134,9 +168,9 @@ export const useCopyTasksDialog = (
         setSelectedAdHocTaskIds(new Set(filteredAdHocTasks.map(task => task.id)));
       }
     }
-  };
+  }, [filteredAdHocTasks, selectedAdHocTaskIds.size]);
   
-  const selectAllRecurringTasks = () => {
+  const selectAllRecurringTasks = useCallback(() => {
     if (filteredRecurringTasks && filteredRecurringTasks.length > 0) {
       if (selectedRecurringTaskIds.size === filteredRecurringTasks.length) {
         // If all are selected, deselect all
@@ -146,7 +180,7 @@ export const useCopyTasksDialog = (
         setSelectedRecurringTaskIds(new Set(filteredRecurringTasks.map(task => task.id)));
       }
     }
-  };
+  }, [filteredRecurringTasks, selectedRecurringTaskIds.size]);
 
   // Get total selected tasks count
   const totalSelectedTasks = selectedAdHocTaskIds.size + selectedRecurringTaskIds.size;
@@ -154,7 +188,7 @@ export const useCopyTasksDialog = (
   // Get target client object
   const targetClient = availableClients.find(client => client.id === targetClientId);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (step === 'select-client') {
       if (!targetClientId) {
         toast({
@@ -176,30 +210,45 @@ export const useCopyTasksDialog = (
       }
       setStep('confirmation');
     }
-  };
+  }, [step, targetClientId, totalSelectedTasks]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (step === 'select-tasks') {
       setStep('select-client');
     } else if (step === 'confirmation') {
       setStep('select-tasks');
     }
-  };
+  }, [step]);
 
-  const simulateProgress = () => {
+  // Performance optimization - realistic progress simulation with exponential slowdown
+  const simulateProgress = useCallback(() => {
     let progress = 0;
+    let speed = 10;
+    
     const interval = setInterval(() => {
-      progress += Math.random() * 10;
+      progress += Math.random() * speed;
+      
+      // Exponentially decrease speed as we approach 100%
+      if (progress > 70) {
+        speed = 2;
+      } else if (progress > 85) {
+        speed = 0.5;
+      } else if (progress > 95) {
+        speed = 0.1;
+      }
+      
       if (progress > 100) {
-        progress = 100;
+        progress = 99; // Leave the last 1% for the actual completion
         clearInterval(interval);
       }
+      
       setCopyProgress(Math.floor(progress));
     }, 200);
+    
     return () => clearInterval(interval);
-  };
+  }, []);
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     if (!targetClientId || (selectedAdHocTaskIds.size === 0 && selectedRecurringTaskIds.size === 0)) {
       toast({
         title: "Error",
@@ -211,11 +260,13 @@ export const useCopyTasksDialog = (
     
     setIsCopying(true);
     setStep('processing');
+    setCopyError(null);
     
     // Simulate progress during the copy operation
     const clearProgressSimulation = simulateProgress();
     
     try {
+      // Begin copy operation
       const result = await copyClientTasks(
         Array.from(selectedRecurringTaskIds), 
         Array.from(selectedAdHocTaskIds), 
@@ -244,22 +295,30 @@ export const useCopyTasksDialog = (
         description: `Tasks copied successfully!`
       });
     } catch (error) {
+      // Set error state for UI to display
+      setCopyError(error instanceof Error ? error.message : 'An unknown error occurred');
+      
       toast({
         title: "Error",
         description: 'Failed to copy tasks. Please try again.',
         variant: "destructive"
       });
-      setStep('confirmation'); // Go back to confirmation step on error
     } finally {
       setIsCopying(false);
       clearProgressSimulation();
     }
-  };
+  }, [
+    targetClientId, 
+    selectedAdHocTaskIds, 
+    selectedRecurringTaskIds, 
+    simulateProgress, 
+    queryClient
+  ]);
 
-  const handleFinish = () => {
+  const handleFinish = useCallback(() => {
     // Close the dialog and reset state
     onClose();
-  };
+  }, [onClose]);
 
   return {
     step,
@@ -276,6 +335,7 @@ export const useCopyTasksDialog = (
     copyResults,
     clients,
     clientsLoading,
+    clientsError,
     availableClients,
     adHocTasks,
     adHocLoading,
@@ -294,6 +354,7 @@ export const useCopyTasksDialog = (
     handleNext,
     handleBack,
     handleCopy,
-    handleFinish
+    handleFinish,
+    copyError
   };
 };
