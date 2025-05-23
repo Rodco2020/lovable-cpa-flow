@@ -3,6 +3,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { getStaffById, calculateAvailabilitySummary } from "@/services/staffService";
+import type { AvailabilitySummary } from "@/types/staff";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomBadge } from "@/components/ui/custom-badge";
@@ -26,7 +27,7 @@ const StaffDetail: React.FC = () => {
     }
   });
 
-  const { data: availabilitySummary, isLoading: summaryLoading } = useQuery({
+  const { data: availabilitySummary, isLoading: summaryLoading } = useQuery<AvailabilitySummary>({
     queryKey: ["availability-summary", id],
     queryFn: () => calculateAvailabilitySummary(id || ""),
     enabled: !!id && !!staff,

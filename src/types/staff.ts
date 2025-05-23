@@ -66,16 +66,30 @@ export interface WeeklyAvailability {
 }
 
 export interface AvailabilitySummary {
-  staffId: string;
-  totalHours: number;
-  dailyHours: {
-    [day: string]: number;
-  };
-  // For backward compatibility with older components
-  weeklyTotal?: number;
-  averageDailyHours?: number;
-  dailySummaries?: {
-    [day: string]: number;
+  /**
+   * Array of summaries for each day of the week. The `day` field uses
+   * JavaScript's `Date.getDay()` convention where 0 represents Sunday.
+   */
+  dailySummaries: {
+    day: number;
+    totalHours: number;
+    slots: { startTime: string; endTime: string }[];
+  }[];
+
+  /** Total hours available across the week */
+  weeklyTotal: number;
+
+  /** Average hours of availability for days that contain any slots */
+  averageDailyHours: number;
+
+  /** Day with the highest total hours of availability */
+  peakDay: { day: number; hours: number } | null;
+
+  /** Distribution of available hours throughout the day */
+  distribution: {
+    morning: number;
+    afternoon: number;
+    evening: number;
   };
 }
 
