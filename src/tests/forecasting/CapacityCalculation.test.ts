@@ -1,3 +1,4 @@
+
 import { generateForecast, clearForecastCache } from '@/services/forecastingService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getRecurringTasks } from '@/services/taskService';
@@ -26,6 +27,7 @@ describe('generateForecast capacity calculation', () => {
         fullName: 'Staff 1',
         roleTitle: '',
         skills: ['CPA'],
+        assignedSkills: ['CPA'],
         costPerHour: 0,
         email: '',
         phone: '',
@@ -38,6 +40,7 @@ describe('generateForecast capacity calculation', () => {
         fullName: 'Staff 2',
         roleTitle: '',
         skills: ['CPA'],
+        assignedSkills: ['CPA'],
         costPerHour: 0,
         email: '',
         phone: '',
@@ -50,6 +53,7 @@ describe('generateForecast capacity calculation', () => {
         fullName: 'Staff 3',
         roleTitle: '',
         skills: ['CPA'],
+        assignedSkills: ['CPA'],
         costPerHour: 0,
         email: '',
         phone: '',
@@ -60,10 +64,13 @@ describe('generateForecast capacity calculation', () => {
     ];
 
     const availability: WeeklyAvailability[] = [1,2,3,4,5].map(day => ({
+      id: `avail-${day}`,
       staffId: 's1',
       dayOfWeek: day as 0|1|2|3|4|5|6,
-      startTime: '09:00',
-      endTime: '17:00',
+      slots: [{
+        startTime: '09:00',
+        endTime: '17:00'
+      }],
       isAvailable: true
     }));
 

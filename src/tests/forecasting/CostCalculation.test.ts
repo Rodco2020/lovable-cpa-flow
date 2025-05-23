@@ -1,3 +1,4 @@
+
 import { generateForecast, clearForecastCache } from '@/services/forecastingService';
 import { getAllStaff, getWeeklyAvailabilityByStaff } from '@/services/staffService';
 import { getTaskInstances } from '@/services/taskService';
@@ -29,6 +30,7 @@ describe('generateForecast cost calculation', () => {
         fullName: 'Staff 1',
         roleTitle: '',
         skills: ['CPA'],
+        assignedSkills: ['CPA'],
         costPerHour: 30,
         email: '',
         phone: '',
@@ -41,6 +43,7 @@ describe('generateForecast cost calculation', () => {
         fullName: 'Staff 2',
         roleTitle: '',
         skills: ['CPA'],
+        assignedSkills: ['CPA'],
         costPerHour: 50,
         email: '',
         phone: '',
@@ -53,6 +56,7 @@ describe('generateForecast cost calculation', () => {
         fullName: 'Staff 3',
         roleTitle: '',
         skills: ['CPA'],
+        assignedSkills: ['CPA'],
         costPerHour: 70,
         email: '',
         phone: '',
@@ -63,10 +67,13 @@ describe('generateForecast cost calculation', () => {
     ];
 
     const availability: WeeklyAvailability[] = [1, 2, 3, 4, 5].map(day => ({
+      id: `avail-${day}`,
       staffId: 's1',
       dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      startTime: '09:00',
-      endTime: '17:00',
+      slots: [{
+        startTime: '09:00',
+        endTime: '17:00'
+      }],
       isAvailable: true
     }));
 
