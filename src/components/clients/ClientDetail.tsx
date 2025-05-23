@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Client } from '@/types/client';
@@ -8,7 +9,9 @@ import { ArrowLeft, Edit, Trash2, Copy } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import ClientAdHocTaskList from './ClientAdHocTaskList';
+import ClientRecurringTaskList from './ClientRecurringTaskList';
 import CopyClientTasksDialog from './CopyClientTasksDialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -191,7 +194,7 @@ const ClientDetail: React.FC = () => {
         </div>
         <div className="mt-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Ad-hoc Tasks</h3>
+            <h3 className="text-lg font-semibold">Client Tasks</h3>
             <Button 
               variant="outline" 
               size="sm"
@@ -201,10 +204,27 @@ const ClientDetail: React.FC = () => {
               Copy Tasks
             </Button>
           </div>
-          <ClientAdHocTaskList 
-            clientId={client.id} 
-            onTasksChanged={refreshClient} 
-          />
+
+          <Tabs defaultValue="adhoc" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="adhoc">Ad-hoc Tasks</TabsTrigger>
+              <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="adhoc">
+              <ClientAdHocTaskList 
+                clientId={client.id} 
+                onTasksChanged={refreshClient} 
+              />
+            </TabsContent>
+            
+            <TabsContent value="recurring">
+              <ClientRecurringTaskList 
+                clientId={client.id}
+                onRefreshNeeded={refreshClient}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </CardContent>
       

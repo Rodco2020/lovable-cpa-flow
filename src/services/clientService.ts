@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { TaskInstance, RecurringTask, TaskPriority, TaskCategory, RecurrencePattern, TaskStatus } from '@/types/task';
 import { Client } from '@/types/client';
@@ -35,14 +34,31 @@ export const getAllClients = async (): Promise<Client[]> => {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .order('legalName', { ascending: true });
+      .order('legal_name', { ascending: true });
       
     if (error) {
       console.error('Error fetching all clients:', error);
       throw error;
     }
     
-    return data || [];
+    // Map from snake_case to camelCase
+    return data?.map(client => ({
+      id: client.id,
+      legalName: client.legal_name,
+      primaryContact: client.primary_contact,
+      email: client.email,
+      phone: client.phone,
+      billingAddress: client.billing_address,
+      industry: client.industry,
+      status: client.status,
+      expectedMonthlyRevenue: client.expected_monthly_revenue,
+      paymentTerms: client.payment_terms,
+      billingFrequency: client.billing_frequency,
+      defaultTaskPriority: client.default_task_priority,
+      staffLiaisonId: client.staff_liaison_id,
+      createdAt: new Date(client.created_at),
+      updatedAt: new Date(client.updated_at)
+    })) || [];
   } catch (error) {
     console.error('Error in getAllClients:', error);
     throw error;
@@ -58,7 +74,7 @@ export const getActiveClients = async (): Promise<Client[]> => {
       .from('clients')
       .select('*')
       .eq('status', 'Active')
-      .order('legalName', { ascending: true });
+      .order('legal_name', { ascending: true });
       
     if (error) {
       console.error('Error fetching active clients:', error);
