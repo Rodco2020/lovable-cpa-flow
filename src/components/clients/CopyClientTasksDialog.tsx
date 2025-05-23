@@ -1,12 +1,17 @@
 
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
-import { getActiveClients } from '@/services/clientService';
 import { Client } from '@/types/client';
-import { Loader2 } from 'lucide-react';
+import { getActiveClients } from '@/services/clientService';
+import { getClientAdHocTasks, getClientRecurringTasks } from '@/services/clientTaskService';
+import { useCopyTasksDialog } from './CopyTasks/hooks/useCopyTasksDialog';
+import { SelectClientStep } from './CopyTasks/SelectClientStep';
+import { SelectTasksStep } from './CopyTasks/SelectTasksStep';
+import { ConfirmationStep } from './CopyTasks/ConfirmationStep';
+import { ProcessingStep } from './CopyTasks/ProcessingStep';
+import { SuccessStep } from './CopyTasks/SuccessStep';
+import { DialogFooter } from './CopyTasks/DialogFooter';
 
 interface CopyClientTasksDialogProps {
   isOpen: boolean;
@@ -19,6 +24,7 @@ interface CopyClientTasksDialogProps {
  * Dialog component for copying tasks from one client to another.
  * 
  * Phase 1: Basic dialog with client selection
+ * Phase 2: Task selection with filters and multi-select functionality
  */
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   isOpen,
@@ -26,122 +32,100 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   sourceClientId,
   sourceClientName,
 }) => {
-  // Dialog state
-  const [step, setStep] = useState<'select-client' | 'select-tasks' | 'confirmation'>('select-client');
-  const [targetClientId, setTargetClientId] = useState<string>('');
+  const {
+    step,
+    targetClientId,
+    setTargetClientId,
+    activeTab,
+    setActiveTab,
+    isCopying,
+    copyProgress,
+    filterPriority,
+    setFilterPriority,
+    selectedAdHocTaskIds,
+    selectedRecurringTaskIds,
+    copyResults,
+    clients,
+    clientsLoading,
+    availableClients,
+    adHocTasks,
+    adHocLoading,
+    adHocError,
+    recurringTasks,
+    recurringLoading,
+    recurringError,
+    filteredAdHocTasks,
+    filteredRecurringTasks,
+    targetClient,
+    totalSelectedTasks,
+    toggleAdHocTask,
+    toggleRecurringTask,
+    selectAllAdHocTasks,
+    selectAllRecurringTasks,
+    handleNext,
+    handleBack,
+    handleCopy,
+    handleFinish
+  } = useCopyTasksDialog(isOpen, onClose, sourceClientId, sourceClientName);
 
-  // Reset state when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      setStep('select-client');
-      setTargetClientId('');
-    }
-  }, [isOpen]);
-
-  // Fetch active clients for the dropdown
-  const { data: clients, isLoading } = useQuery({
-    queryKey: ['active-clients'],
-    queryFn: getActiveClients,
-    enabled: isOpen,
-    meta: {
-      onSettled: (data, error) => {
-        if (error) {
-          console.error("Failed to load clients:", error);
-        }
-      }
-    }
-  });
-
-  // Filter out the source client from the list
-  const availableClients = clients?.filter(client => client.id !== sourceClientId) || [];
-
-  const handleNext = () => {
-    if (step === 'select-client' && targetClientId) {
-      setStep('select-tasks');
-    } else if (step === 'select-tasks') {
-      setStep('confirmation');
-    }
-  };
-
-  const handleBack = () => {
-    if (step === 'select-tasks') {
-      setStep('select-client');
-    } else if (step === 'confirmation') {
-      setStep('select-tasks');
-    }
-  };
-
-  // Render client selection step
-  const renderClientSelectionStep = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Select the client you want to copy tasks to:
-      </p>
-      
-      {isLoading ? (
-        <div className="flex items-center justify-center py-6">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : availableClients.length > 0 ? (
-        <Select
-          value={targetClientId}
-          onValueChange={setTargetClientId}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a client" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableClients.map((client: Client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.legalName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <div className="text-center py-4 text-amber-600">
-          No other active clients available to copy tasks to.
-        </div>
-      )}
-    </div>
-  );
-
-  // Content based on current step
+  // Render step content based on current step
   const renderStepContent = () => {
     switch (step) {
       case 'select-client':
-        return renderClientSelectionStep();
+        return (
+          <SelectClientStep
+            availableClients={availableClients}
+            targetClientId={targetClientId}
+            setTargetClientId={setTargetClientId}
+            isLoading={clientsLoading}
+          />
+        );
       case 'select-tasks':
-        // Placeholder for Phase 2
-        return <div>Task selection will be implemented in Phase 2</div>;
+        return (
+          <SelectTasksStep
+            sourceClientName={sourceClientName}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            filterPriority={filterPriority}
+            setFilterPriority={setFilterPriority}
+            totalSelectedTasks={totalSelectedTasks}
+            filteredAdHocTasks={filteredAdHocTasks}
+            adHocTasks={adHocTasks}
+            selectedAdHocTaskIds={selectedAdHocTaskIds}
+            toggleAdHocTask={toggleAdHocTask}
+            selectAllAdHocTasks={selectAllAdHocTasks}
+            adHocLoading={adHocLoading}
+            adHocError={adHocError}
+            filteredRecurringTasks={filteredRecurringTasks}
+            recurringTasks={recurringTasks}
+            selectedRecurringTaskIds={selectedRecurringTaskIds}
+            toggleRecurringTask={toggleRecurringTask}
+            selectAllRecurringTasks={selectAllRecurringTasks}
+            recurringLoading={recurringLoading}
+            recurringError={recurringError}
+          />
+        );
       case 'confirmation':
-        // Placeholder for Phase 2
-        return <div>Confirmation will be implemented in Phase 2</div>;
+        return (
+          <ConfirmationStep
+            sourceClientName={sourceClientName}
+            targetClientName={targetClient?.legalName || ''}
+            selectedAdHocTaskCount={selectedAdHocTaskIds.size}
+            selectedRecurringTaskCount={selectedRecurringTaskIds.size}
+          />
+        );
+      case 'processing':
+        return <ProcessingStep progress={copyProgress} />;
+      case 'success':
+        return (
+          <SuccessStep
+            sourceClientName={sourceClientName}
+            targetClientName={targetClient?.legalName || ''}
+            adHocTasksCount={copyResults?.adHoc.length || 0}
+            recurringTasksCount={copyResults?.recurring.length || 0}
+          />
+        );
     }
-  };
-
-  // Dialog footer buttons
-  const renderFooterButtons = () => {
-    return (
-      <DialogFooter className="flex justify-between sm:justify-between space-x-2">
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <div className="flex space-x-2">
-          {step !== 'select-client' && (
-            <Button variant="outline" onClick={handleBack}>
-              Back
-            </Button>
-          )}
-          <Button 
-            onClick={handleNext}
-            disabled={step === 'select-client' && !targetClientId}
-          >
-            {step === 'confirmation' ? 'Copy Tasks' : 'Next'}
-          </Button>
-        </div>
-      </DialogFooter>
-    );
   };
 
   return (
@@ -156,7 +140,17 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         
         {renderStepContent()}
         
-        {renderFooterButtons()}
+        <DialogFooter
+          step={step}
+          handleBack={handleBack}
+          handleNext={handleNext}
+          handleCopy={handleCopy}
+          handleClose={onClose}
+          handleFinish={handleFinish}
+          isNextDisabled={step === 'select-client' && !targetClientId || 
+                         step === 'select-tasks' && totalSelectedTasks === 0}
+          isCopying={isCopying}
+        />
       </DialogContent>
     </Dialog>
   );

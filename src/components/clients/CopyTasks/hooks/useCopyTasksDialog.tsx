@@ -1,8 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getAllClients, getClientAdHocTasks, getClientRecurringTasks, copyClientTasks } from '@/services/clientService';
+import { getActiveClients } from '@/services/clientService';
+import { getClientAdHocTasks, getClientRecurringTasks } from '@/services/clientTaskService';
+import { copyClientTasks } from '@/services/taskCopyService';
 import { Client } from '@/types/client';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 import { TaskInstance, RecurringTask } from '@/types/task';
 import { FilterOption } from '../SelectTasksStep';
 
@@ -52,12 +55,16 @@ export const useCopyTasksDialog = (
   
   // Fetch all clients for the dropdown
   const { data: clients, isLoading: clientsLoading } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => getAllClients(),
+    queryKey: ['active-clients'],
+    queryFn: getActiveClients,
     enabled: isOpen,
     meta: {
       onError: (error: Error) => {
-        toast.error('Failed to load clients');
+        toast({
+          title: "Error",
+          description: 'Failed to load clients',
+          variant: "destructive"
+        });
       }
     }
   });
@@ -89,11 +96,11 @@ export const useCopyTasksDialog = (
   
   // Filter tasks based on priority
   const filteredAdHocTasks = adHocTasks ? adHocTasks.filter(task => 
-    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority
+    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority.toLowerCase()
   ) : [];
   
   const filteredRecurringTasks = recurringTasks ? recurringTasks.filter(task => 
-    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority
+    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority.toLowerCase()
   ) : [];
   
   // Task selection handlers
@@ -150,13 +157,21 @@ export const useCopyTasksDialog = (
   const handleNext = () => {
     if (step === 'select-client') {
       if (!targetClientId) {
-        toast.error('Please select a target client');
+        toast({
+          title: "Error",
+          description: 'Please select a target client',
+          variant: "destructive"
+        });
         return;
       }
       setStep('select-tasks');
     } else if (step === 'select-tasks') {
       if (totalSelectedTasks === 0) {
-        toast.error('Please select at least one task to copy');
+        toast({
+          title: "Error",
+          description: 'Please select at least one task to copy',
+          variant: "destructive"
+        });
         return;
       }
       setStep('confirmation');
@@ -186,7 +201,11 @@ export const useCopyTasksDialog = (
 
   const handleCopy = async () => {
     if (!targetClientId || (selectedAdHocTaskIds.size === 0 && selectedRecurringTaskIds.size === 0)) {
-      toast.error('Please select a target client and at least one task');
+      toast({
+        title: "Error",
+        description: 'Please select a target client and at least one task',
+        variant: "destructive"
+      });
       return;
     }
     
@@ -220,9 +239,16 @@ export const useCopyTasksDialog = (
       
       // Show success screen
       setStep('success');
-      toast.success(`Tasks copied successfully!`);
+      toast({
+        title: "Success",
+        description: `Tasks copied successfully!`
+      });
     } catch (error) {
-      toast.error('Failed to copy tasks. Please try again.');
+      toast({
+        title: "Error",
+        description: 'Failed to copy tasks. Please try again.',
+        variant: "destructive"
+      });
       setStep('confirmation'); // Go back to confirmation step on error
     } finally {
       setIsCopying(false);

@@ -1,54 +1,53 @@
 
 import React from 'react';
-import { Check } from 'lucide-react';
-import { RecurringTask, TaskInstance } from '@/types/task';
+import { CheckCircle2 } from 'lucide-react';
 
 interface SuccessStepProps {
-  copyResults: {
-    recurring: RecurringTask[];
-    adHoc: TaskInstance[];
-  } | null;
-  targetClientName?: string;
+  sourceClientName: string;
+  targetClientName: string;
+  adHocTasksCount: number;
+  recurringTasksCount: number;
 }
 
 /**
- * Final step of the copy client tasks dialog
- * Shows a success message and summary of copied tasks
+ * Success step of the copy client tasks dialog
+ * Shown after tasks have been successfully copied
  */
 export const SuccessStep: React.FC<SuccessStepProps> = ({
-  copyResults,
-  targetClientName
+  sourceClientName,
+  targetClientName,
+  adHocTasksCount,
+  recurringTasksCount
 }) => {
-  const totalCopied = copyResults ? copyResults.recurring.length + copyResults.adHoc.length : 0;
+  const totalTasksCount = adHocTasksCount + recurringTasksCount;
   
   return (
-    <div className="py-6 space-y-6 text-center">
-      <div className="mx-auto rounded-full bg-green-100 p-3 w-16 h-16 flex items-center justify-center">
-        <Check className="h-8 w-8 text-green-600" />
-      </div>
-      <div>
-        <h3 className="text-lg font-medium mb-1">Tasks Copied Successfully!</h3>
-        <p className="text-sm text-gray-500">
-          {totalCopied} task(s) have been copied to {targetClientName}
-        </p>
+    <div className="py-6 space-y-4 text-center">
+      <div className="flex flex-col items-center justify-center">
+        <div className="rounded-full bg-green-100 p-3">
+          <CheckCircle2 className="h-6 w-6 text-green-600" />
+        </div>
+        <h3 className="mt-4 text-lg font-medium">Tasks Copied Successfully!</h3>
       </div>
       
-      {copyResults && (
-        <div className="border rounded-md p-4 text-left bg-gray-50">
-          <h4 className="font-medium mb-2">Summary</h4>
-          <ul className="list-disc pl-5 text-sm space-y-1">
-            {copyResults.adHoc.length > 0 && (
-              <li>{copyResults.adHoc.length} ad-hoc task(s) copied</li>
-            )}
-            {copyResults.recurring.length > 0 && (
-              <li>{copyResults.recurring.length} recurring task(s) copied</li>
-            )}
-            {(copyResults.adHoc.length === 0 && copyResults.recurring.length === 0) && (
-              <li>No tasks were copied</li>
-            )}
-          </ul>
+      <p className="text-sm text-gray-500">
+        {totalTasksCount} task{totalTasksCount !== 1 ? 's' : ''} from <strong>{sourceClientName}</strong> {totalTasksCount !== 1 ? 'have' : 'has'} been copied to <strong>{targetClientName}</strong>.
+      </p>
+      
+      <div className="text-sm border rounded-md p-4 bg-gray-50">
+        <div className="flex justify-between py-1">
+          <span>Ad-hoc tasks:</span>
+          <span className="font-medium">{adHocTasksCount}</span>
         </div>
-      )}
+        <div className="flex justify-between py-1">
+          <span>Recurring tasks:</span>
+          <span className="font-medium">{recurringTasksCount}</span>
+        </div>
+        <div className="flex justify-between pt-2 border-t mt-1 font-medium">
+          <span>Total:</span>
+          <span>{totalTasksCount}</span>
+        </div>
+      </div>
     </div>
   );
 };

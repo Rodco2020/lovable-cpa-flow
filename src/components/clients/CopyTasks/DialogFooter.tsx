@@ -1,99 +1,101 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, Loader2, ClipboardCopy } from 'lucide-react';
-import { DialogFooter } from '@/components/ui/dialog';
+import { DialogFooter as ShadcnDialogFooter } from '@/components/ui/dialog';
+import { Loader2 } from 'lucide-react';
+import { DialogStep } from './hooks/useCopyTasksDialog';
 
-interface CopyTasksDialogFooterProps {
-  step: 'select-client' | 'select-tasks' | 'confirmation' | 'processing' | 'success';
-  onBack: () => void;
-  onNext: () => void;
-  onClose: () => void;
-  onCopy: () => void;
-  onFinish: () => void;
+interface DialogFooterProps {
+  step: DialogStep;
+  handleBack: () => void;
+  handleNext: () => void;
+  handleCopy: () => void;
+  handleClose: () => void;
+  handleFinish: () => void;
+  isNextDisabled: boolean;
   isCopying: boolean;
 }
 
 /**
- * Footer for the copy tasks dialog with appropriate buttons for each step
+ * Footer component with appropriate buttons based on the current step
  */
-export const CopyTasksDialogFooter: React.FC<CopyTasksDialogFooterProps> = ({
+export const DialogFooter: React.FC<DialogFooterProps> = ({
   step,
-  onBack,
-  onNext,
-  onClose,
-  onCopy,
-  onFinish,
+  handleBack,
+  handleNext,
+  handleCopy,
+  handleClose,
+  handleFinish,
+  isNextDisabled,
   isCopying
 }) => {
-  if (step === 'processing') {
-    return null;
-  }
-  
-  if (step === 'success') {
-    return (
-      <DialogFooter>
-        <Button onClick={onFinish} className="w-full sm:w-auto">
-          Done
-        </Button>
-      </DialogFooter>
-    );
-  }
-  
-  if (step === 'confirmation') {
-    return (
-      <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
-        <div>
-          <Button variant="outline" onClick={onBack} className="mt-2 sm:mt-0">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose}>
+  // Render different buttons based on current step
+  const renderButtons = () => {
+    switch (step) {
+      case 'select-client':
+      case 'select-tasks':
+        return (
+          <>
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <div className="flex space-x-2">
+              {step !== 'select-client' && (
+                <Button variant="outline" onClick={handleBack}>
+                  Back
+                </Button>
+              )}
+              <Button 
+                onClick={handleNext}
+                disabled={isNextDisabled}
+              >
+                Next
+              </Button>
+            </div>
+          </>
+        );
+      case 'confirmation':
+        return (
+          <>
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={handleBack}>
+                Back
+              </Button>
+              <Button 
+                onClick={handleCopy}
+                disabled={isCopying}
+              >
+                {isCopying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Copying...
+                  </>
+                ) : 'Copy Tasks'}
+              </Button>
+            </div>
+          </>
+        );
+      case 'processing':
+        return (
+          <Button variant="outline" onClick={handleClose} disabled>
             Cancel
           </Button>
-          <Button 
-            onClick={onCopy} 
-            disabled={isCopying}
-          >
-            {isCopying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Copying...
-              </>
-            ) : (
-              <>
-                <ClipboardCopy className="mr-2 h-4 w-4" />
-                Copy Tasks
-              </>
-            )}
+        );
+      case 'success':
+        return (
+          <Button onClick={handleFinish}>
+            Close
           </Button>
-        </div>
-      </DialogFooter>
-    );
-  }
+        );
+    }
+  };
   
-  // Steps: select-client and select-tasks
   return (
-    <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
-      <div>
-        {step !== 'select-client' && (
-          <Button variant="outline" onClick={onBack} className="mt-2 sm:mt-0">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        )}
-      </div>
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={onNext}>
-          Next
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </DialogFooter>
+    <ShadcnDialogFooter className="flex justify-between sm:justify-between space-x-2">
+      {renderButtons()}
+    </ShadcnDialogFooter>
   );
 };

@@ -1,63 +1,57 @@
 
 import React from 'react';
-import { Client } from '@/types/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Info } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2 } from 'lucide-react';
+import { Client } from '@/types/client';
 
 interface SelectClientStepProps {
   availableClients: Client[];
-  clientsLoading: boolean;
   targetClientId: string;
-  setTargetClientId: (value: string) => void;
+  setTargetClientId: (id: string) => void;
+  isLoading: boolean;
 }
 
 /**
  * First step of the copy client tasks dialog
- * Allows selecting the target client to copy tasks to
+ * Allows selecting which client to copy tasks to
  */
 export const SelectClientStep: React.FC<SelectClientStepProps> = ({
   availableClients,
-  clientsLoading,
   targetClientId,
-  setTargetClientId
+  setTargetClientId,
+  isLoading
 }) => {
   return (
-    <div className="py-6 space-y-4">
-      <p className="text-sm text-gray-500">
-        Select a client to copy tasks to:
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Select the client you want to copy tasks to:
       </p>
-      <Select
-        value={targetClientId}
-        onValueChange={(value) => setTargetClientId(value)}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select a client" />
-        </SelectTrigger>
-        <SelectContent>
-          {clientsLoading ? (
-            <div className="p-2 flex items-center justify-center">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              <span>Loading clients...</span>
-            </div>
-          ) : availableClients.length === 0 ? (
-            <div className="p-2 text-center text-gray-500">No other clients available</div>
-          ) : (
-            availableClients.map((client) => (
+      
+      {isLoading ? (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : availableClients.length > 0 ? (
+        <Select
+          value={targetClientId}
+          onValueChange={setTargetClientId}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a client" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableClients.map((client: Client) => (
               <SelectItem key={client.id} value={client.id}>
                 {client.legalName}
               </SelectItem>
-            ))
-          )}
-        </SelectContent>
-      </Select>
-      
-      <Alert className="mt-6">
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          You will be able to select which tasks to copy in the next step.
-        </AlertDescription>
-      </Alert>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="text-center py-4 text-amber-600">
+          No other active clients available to copy tasks to.
+        </div>
+      )}
     </div>
   );
 };

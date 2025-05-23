@@ -20,6 +20,7 @@ export interface StaffMember {
   fullName: string;
   roleTitle: string;
   skills: string[];
+  assignedSkills: string[]; // Added to match Staff interface
   costPerHour: number;
   email: string;
   phone: string;
@@ -49,6 +50,7 @@ export interface WeeklyAvailability {
 export interface AvailabilitySummary {
   weeklyTotal: number;
   averageDailyHours: number;
+  peakDay?: number; // Added to fix type error
   dailySummaries: Array<{
     day: number;
     totalHours: number;
@@ -65,4 +67,6 @@ export interface TimeSlot {
   startTime: string;
   endTime: string;
   isAvailable: boolean;
+  taskId?: string; // Added to fix type errors
+  date?: string; // Added to fix type errors
 }
