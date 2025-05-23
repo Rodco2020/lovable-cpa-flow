@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
@@ -6,13 +5,16 @@ import { Client } from '@/types/client';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowRight, ArrowLeft, ClipboardCopy, Check, Filter } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowLeft, ClipboardCopy, Check, Filter, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getClientAdHocTasks, getClientRecurringTasks, copyClientTasks } from '@/services/clientService';
 import { TaskInstance, RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface CopyClientTasksDialogProps {
   isOpen: boolean;
@@ -21,8 +23,9 @@ interface CopyClientTasksDialogProps {
   sourceClientName: string;
 }
 
-type DialogStep = 'select-client' | 'select-tasks' | 'confirmation';
+type DialogStep = 'select-client' | 'select-tasks' | 'confirmation' | 'processing' | 'success';
 type TaskTab = 'ad-hoc' | 'recurring' | 'all';
+type FilterOption = 'all' | 'high' | 'medium' | 'low';
 
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   isOpen,
@@ -35,10 +38,18 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   const [targetClientId, setTargetClientId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TaskTab>('all');
   const [isCopying, setIsCopying] = useState(false);
+  const [copyProgress, setCopyProgress] = useState(0);
+  const [filterPriority, setFilterPriority] = useState<FilterOption>('all');
   
   // Task selection state
   const [selectedAdHocTaskIds, setSelectedAdHocTaskIds] = useState<Set<string>>(new Set());
   const [selectedRecurringTaskIds, setSelectedRecurringTaskIds] = useState<Set<string>>(new Set());
+  
+  // Result state
+  const [copyResults, setCopyResults] = useState<{
+    recurring: RecurringTask[];
+    adHoc: TaskInstance[];
+  } | null>(null);
   
   // Fetch all clients for the dropdown
   const { data: clients, isLoading: clientsLoading } = useQuery({
@@ -83,11 +94,23 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
       setSelectedAdHocTaskIds(new Set());
       setSelectedRecurringTaskIds(new Set());
       setActiveTab('all');
+      setFilterPriority('all');
+      setCopyProgress(0);
+      setCopyResults(null);
     }
   }, [isOpen]);
 
   // Filter out the source client from the clients list
   const availableClients = clients?.filter(client => client.id !== sourceClientId) || [];
+  
+  // Filter tasks based on priority
+  const filteredAdHocTasks = adHocTasks ? adHocTasks.filter(task => 
+    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority
+  ) : [];
+  
+  const filteredRecurringTasks = recurringTasks ? recurringTasks.filter(task => 
+    filterPriority === 'all' || task.priority.toLowerCase() === filterPriority
+  ) : [];
   
   // Task selection handlers
   const toggleAdHocTask = (taskId: string) => {
@@ -111,25 +134,25 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   };
   
   const selectAllAdHocTasks = () => {
-    if (adHocTasks && adHocTasks.length > 0) {
-      if (selectedAdHocTaskIds.size === adHocTasks.length) {
+    if (filteredAdHocTasks && filteredAdHocTasks.length > 0) {
+      if (selectedAdHocTaskIds.size === filteredAdHocTasks.length) {
         // If all are selected, deselect all
         setSelectedAdHocTaskIds(new Set());
       } else {
         // Otherwise, select all
-        setSelectedAdHocTaskIds(new Set(adHocTasks.map(task => task.id)));
+        setSelectedAdHocTaskIds(new Set(filteredAdHocTasks.map(task => task.id)));
       }
     }
   };
   
   const selectAllRecurringTasks = () => {
-    if (recurringTasks && recurringTasks.length > 0) {
-      if (selectedRecurringTaskIds.size === recurringTasks.length) {
+    if (filteredRecurringTasks && filteredRecurringTasks.length > 0) {
+      if (selectedRecurringTaskIds.size === filteredRecurringTasks.length) {
         // If all are selected, deselect all
         setSelectedRecurringTaskIds(new Set());
       } else {
         // Otherwise, select all
-        setSelectedRecurringTaskIds(new Set(recurringTasks.map(task => task.id)));
+        setSelectedRecurringTaskIds(new Set(filteredRecurringTasks.map(task => task.id)));
       }
     }
   };
@@ -161,6 +184,19 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     }
   };
 
+  const simulateProgress = () => {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 10;
+      if (progress > 100) {
+        progress = 100;
+        clearInterval(interval);
+      }
+      setCopyProgress(Math.floor(progress));
+    }, 200);
+    return () => clearInterval(interval);
+  };
+
   const handleCopy = async () => {
     if (!targetClientId || (selectedAdHocTaskIds.size === 0 && selectedRecurringTaskIds.size === 0)) {
       toast.error('Please select a target client and at least one task');
@@ -168,6 +204,10 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     }
     
     setIsCopying(true);
+    setStep('processing');
+    
+    // Simulate progress during the copy operation
+    const clearProgressSimulation = simulateProgress();
     
     try {
       const result = await copyClientTasks(
@@ -176,7 +216,11 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         targetClientId
       );
       
-      const totalCopied = result.recurring.length + result.adHoc.length;
+      // Store results for success screen
+      setCopyResults(result);
+      
+      // Set progress to 100% when complete
+      setCopyProgress(100);
       
       // Invalidate queries to refresh task lists
       queryClient.invalidateQueries({
@@ -187,14 +231,21 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         queryKey: ['client-recurring-tasks', targetClientId]
       });
       
-      toast.success(`${totalCopied} task(s) copied successfully!`);
-      onClose();
+      // Show success screen
+      setStep('success');
+      toast.success(`Tasks copied successfully!`);
     } catch (error) {
       console.error('Error copying tasks:', error);
       toast.error('Failed to copy tasks. Please try again.');
+      setStep('confirmation'); // Go back to confirmation step on error
     } finally {
       setIsCopying(false);
+      clearProgressSimulation();
     }
+  };
+
+  const handleFinish = () => {
+    onClose();
   };
 
   const renderStepContent = () => {
@@ -229,18 +280,56 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                 )}
               </SelectContent>
             </Select>
+            
+            <Alert className="mt-6">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                You will be able to select which tasks to copy in the next step.
+              </AlertDescription>
+            </Alert>
           </div>
         );
       case 'select-tasks':
         return (
           <div className="py-4 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                Select tasks to copy from {sourceClientName}:
-              </p>
-              <Badge variant="outline" className="ml-2">
-                {totalSelectedTasks} selected
-              </Badge>
+              <div>
+                <p className="text-sm text-gray-500">
+                  Select tasks to copy from {sourceClientName}:
+                </p>
+                <Badge variant="outline" className="mt-1">
+                  {totalSelectedTasks} selected
+                </Badge>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-xs text-gray-500">Filter by priority</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Filter tasks by priority level</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                <Select 
+                  value={filterPriority} 
+                  onValueChange={(value) => setFilterPriority(value as FilterOption)}
+                >
+                  <SelectTrigger className="w-[100px] h-8">
+                    <Filter className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <Tabs 
@@ -264,9 +353,9 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                         variant="outline" 
                         size="sm"
                         onClick={selectAllAdHocTasks}
-                        disabled={!adHocTasks || adHocTasks.length === 0}
+                        disabled={!filteredAdHocTasks || filteredAdHocTasks.length === 0}
                       >
-                        {adHocTasks && selectedAdHocTaskIds.size === adHocTasks.length 
+                        {filteredAdHocTasks && selectedAdHocTaskIds.size === filteredAdHocTasks.length 
                           ? 'Deselect All' 
                           : 'Select All'}
                       </Button>
@@ -279,15 +368,18 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                       </div>
                     ) : adHocError ? (
                       <div className="text-center p-4 text-red-500">
+                        <AlertCircle className="h-4 w-4 mx-auto mb-2" />
                         Error loading ad-hoc tasks.
                       </div>
-                    ) : !adHocTasks || adHocTasks.length === 0 ? (
+                    ) : !filteredAdHocTasks || filteredAdHocTasks.length === 0 ? (
                       <div className="text-center p-4 text-gray-500">
-                        No ad-hoc tasks available.
+                        {adHocTasks && adHocTasks.length > 0 && filterPriority !== 'all'
+                          ? `No ${filterPriority} priority ad-hoc tasks available.`
+                          : 'No ad-hoc tasks available.'}
                       </div>
                     ) : (
-                      <div className="border rounded-md divide-y">
-                        {adHocTasks.map((task) => (
+                      <div className="border rounded-md divide-y max-h-60 overflow-y-auto">
+                        {filteredAdHocTasks.map((task) => (
                           <div 
                             key={task.id} 
                             className="flex items-center p-3 hover:bg-gray-50"
@@ -311,7 +403,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                                   <Badge variant="outline" className="text-xs">
                                     {task.estimatedHours}h
                                   </Badge>
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant={`${task.priority.toLowerCase() === 'high' ? 'destructive' : 'outline'}`} className="text-xs">
                                     {task.priority}
                                   </Badge>
                                 </div>
@@ -333,9 +425,9 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                         variant="outline" 
                         size="sm"
                         onClick={selectAllRecurringTasks}
-                        disabled={!recurringTasks || recurringTasks.length === 0}
+                        disabled={!filteredRecurringTasks || filteredRecurringTasks.length === 0}
                       >
-                        {recurringTasks && selectedRecurringTaskIds.size === recurringTasks.length 
+                        {filteredRecurringTasks && selectedRecurringTaskIds.size === filteredRecurringTasks.length 
                           ? 'Deselect All' 
                           : 'Select All'}
                       </Button>
@@ -348,15 +440,18 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                       </div>
                     ) : recurringError ? (
                       <div className="text-center p-4 text-red-500">
+                        <AlertCircle className="h-4 w-4 mx-auto mb-2" />
                         Error loading recurring tasks.
                       </div>
-                    ) : !recurringTasks || recurringTasks.length === 0 ? (
+                    ) : !filteredRecurringTasks || filteredRecurringTasks.length === 0 ? (
                       <div className="text-center p-4 text-gray-500">
-                        No recurring tasks available.
+                        {recurringTasks && recurringTasks.length > 0 && filterPriority !== 'all'
+                          ? `No ${filterPriority} priority recurring tasks available.`
+                          : 'No recurring tasks available.'}
                       </div>
                     ) : (
-                      <div className="border rounded-md divide-y">
-                        {recurringTasks.map((task) => (
+                      <div className="border rounded-md divide-y max-h-60 overflow-y-auto">
+                        {filteredRecurringTasks.map((task) => (
                           <div 
                             key={task.id} 
                             className="flex items-center p-3 hover:bg-gray-50"
@@ -380,7 +475,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                                   <Badge variant="outline" className="text-xs">
                                     {task.estimatedHours}h
                                   </Badge>
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant={`${task.priority.toLowerCase() === 'high' ? 'destructive' : 'outline'}`} className="text-xs">
                                     {task.priority}
                                   </Badge>
                                   <Badge variant="outline" className="text-xs">
@@ -406,7 +501,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
             <p className="text-sm text-gray-500">
               You are about to copy {totalSelectedTasks} selected tasks:
             </p>
-            <div className="border rounded-md p-4">
+            <div className="border rounded-md p-4 bg-gray-50">
               <p><strong>From:</strong> {sourceClientName}</p>
               <p><strong>To:</strong> {targetClient?.legalName}</p>
               <div className="mt-2">
@@ -421,60 +516,144 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
                 </ul>
               </div>
             </div>
-            <p className="text-sm text-amber-600 font-semibold">
-              This action will create copies of the selected tasks for the target client.
-            </p>
+            <Alert variant="warning" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                This action will create copies of the selected tasks for the target client. The operation cannot be undone.
+              </AlertDescription>
+            </Alert>
+          </div>
+        );
+      case 'processing':
+        return (
+          <div className="py-6 space-y-6 text-center">
+            <Loader2 className="h-16 w-16 animate-spin mx-auto text-primary" />
+            <div>
+              <h3 className="text-lg font-medium mb-1">Copying tasks...</h3>
+              <p className="text-sm text-gray-500">
+                Please wait while your tasks are being copied.
+              </p>
+            </div>
+            <div className="w-full space-y-2">
+              <Progress value={copyProgress} className="h-2 w-full" />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Processing...</span>
+                <span>{copyProgress}%</span>
+              </div>
+            </div>
+          </div>
+        );
+      case 'success':
+        const totalCopied = copyResults ? copyResults.recurring.length + copyResults.adHoc.length : 0;
+        const targetClientName = availableClients.find(client => client.id === targetClientId)?.legalName;
+        return (
+          <div className="py-6 space-y-6 text-center">
+            <div className="mx-auto rounded-full bg-green-100 p-3 w-16 h-16 flex items-center justify-center">
+              <Check className="h-8 w-8 text-green-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium mb-1">Tasks Copied Successfully!</h3>
+              <p className="text-sm text-gray-500">
+                {totalCopied} task(s) have been copied to {targetClientName}
+              </p>
+            </div>
+            
+            {copyResults && (
+              <div className="border rounded-md p-4 text-left bg-gray-50">
+                <h4 className="font-medium mb-2">Summary</h4>
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  {copyResults.adHoc.length > 0 && (
+                    <li>{copyResults.adHoc.length} ad-hoc task(s) copied</li>
+                  )}
+                  {copyResults.recurring.length > 0 && (
+                    <li>{copyResults.recurring.length} recurring task(s) copied</li>
+                  )}
+                  {(copyResults.adHoc.length === 0 && copyResults.recurring.length === 0) && (
+                    <li>No tasks were copied</li>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
         );
     }
   };
 
   const renderFooter = () => {
-    return (
-      <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
-        <div>
-          {step !== 'select-client' && (
-            <Button variant="outline" onClick={handleBack} className="mt-2 sm:mt-0">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          {step === 'confirmation' ? (
-            <Button 
-              onClick={handleCopy} 
-              disabled={isCopying}
-            >
-              {isCopying ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Copying...
-                </>
-              ) : (
-                <>
-                  <ClipboardCopy className="mr-2 h-4 w-4" />
-                  Copy Tasks
-                </>
+    switch (step) {
+      case 'select-client':
+      case 'select-tasks':
+        return (
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
+            <div>
+              {step !== 'select-client' && (
+                <Button variant="outline" onClick={handleBack} className="mt-2 sm:mt-0">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
               )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleNext}>
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </DialogFooter>
+        );
+      case 'confirmation':
+        return (
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
+            <div>
+              <Button variant="outline" onClick={handleBack} className="mt-2 sm:mt-0">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCopy} 
+                disabled={isCopying}
+              >
+                {isCopying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Copying...
+                  </>
+                ) : (
+                  <>
+                    <ClipboardCopy className="mr-2 h-4 w-4" />
+                    Copy Tasks
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        );
+      case 'processing':
+        return null;
+      case 'success':
+        return (
+          <DialogFooter>
+            <Button onClick={handleFinish} className="w-full sm:w-auto">
+              Done
             </Button>
-          ) : (
-            <Button onClick={handleNext}>
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </DialogFooter>
-    );
+          </DialogFooter>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={isOpen => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={`sm:max-w-${step === 'processing' || step === 'success' ? 'sm' : 'md'}`}>
         <DialogHeader>
           <DialogTitle>Copy Client Tasks</DialogTitle>
           <DialogDescription>

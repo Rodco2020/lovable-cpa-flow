@@ -1,5 +1,268 @@
+
 import { supabase } from '@/lib/supabaseClient';
-import { TaskInstance, RecurringTask, TaskPriority, TaskCategory, RecurrencePattern } from '@/types/task';
+import { TaskInstance, RecurringTask, TaskPriority, TaskCategory, RecurrencePattern, TaskStatus } from '@/types/task';
+import { Client } from '@/types/client';
+import { StaffMember } from '@/types/staff';
+
+/**
+ * Get a client by ID
+ */
+export const getClientById = async (clientId: string): Promise<Client> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', clientId)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching client by ID:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getClientById:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all clients
+ */
+export const getAllClients = async (): Promise<Client[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('legalName', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching all clients:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getAllClients:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get active clients
+ */
+export const getActiveClients = async (): Promise<Client[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('status', 'Active')
+      .order('legalName', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching active clients:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getActiveClients:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new client
+ */
+export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([client])
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating client:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in createClient:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an existing client
+ */
+export const updateClient = async (clientId: string, updates: Partial<Client>): Promise<Client> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .update(updates)
+      .eq('id', clientId)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error updating client:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in updateClient:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a client
+ */
+export const deleteClient = async (clientId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', clientId);
+      
+    if (error) {
+      console.error('Error deleting client:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in deleteClient:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get staff members for liaison dropdown
+ */
+export const getStaffForLiaisonDropdown = async (): Promise<StaffMember[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('status', 'Active')
+      .order('lastName', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching staff for dropdown:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getStaffForLiaisonDropdown:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a recurring task by ID
+ */
+export const getRecurringTaskById = async (taskId: string): Promise<RecurringTask | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+      
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      console.error('Error fetching recurring task:', error);
+      throw error;
+    }
+    
+    // Create recurrence pattern object from individual fields
+    const recurrencePattern: RecurrencePattern = {
+      type: data.recurrence_type as RecurrencePattern['type'],
+      interval: data.recurrence_interval || undefined,
+      weekdays: data.weekdays || undefined,
+      dayOfMonth: data.day_of_month || undefined,
+      monthOfYear: data.month_of_year || undefined,
+      endDate: data.end_date ? new Date(data.end_date) : undefined,
+      customOffsetDays: data.custom_offset_days || undefined,
+    };
+    
+    return {
+      id: data.id,
+      templateId: data.template_id,
+      clientId: data.client_id,
+      name: data.name,
+      description: data.description || '',
+      estimatedHours: data.estimated_hours,
+      requiredSkills: data.required_skills || [],
+      priority: data.priority as TaskPriority,
+      category: data.category as TaskCategory,
+      status: data.status as TaskStatus,
+      dueDate: data.due_date ? new Date(data.due_date) : null,
+      recurrencePattern,
+      lastGeneratedDate: data.last_generated_date ? new Date(data.last_generated_date) : null,
+      isActive: data.is_active,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      notes: data.notes
+    };
+  } catch (error) {
+    console.error('Error in getRecurringTaskById:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a task instance by ID
+ */
+export const getTaskInstanceById = async (taskId: string): Promise<TaskInstance | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('task_instances')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+      
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      console.error('Error fetching task instance:', error);
+      throw error;
+    }
+    
+    return {
+      id: data.id,
+      templateId: data.template_id,
+      clientId: data.client_id,
+      name: data.name,
+      description: data.description || '',
+      estimatedHours: data.estimated_hours,
+      requiredSkills: data.required_skills || [],
+      priority: data.priority as TaskPriority,
+      category: data.category as TaskCategory,
+      status: data.status as TaskStatus,
+      dueDate: data.due_date ? new Date(data.due_date) : null,
+      completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
+      assignedStaffId: data.assigned_staff_id,
+      scheduledStartTime: data.scheduled_start_time ? new Date(data.scheduled_start_time) : undefined,
+      scheduledEndTime: data.scheduled_end_time ? new Date(data.scheduled_end_time) : undefined,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      notes: data.notes
+    };
+  } catch (error) {
+    console.error('Error in getTaskInstanceById:', error);
+    throw error;
+  }
+};
 
 /**
  * Fetch ad-hoc tasks for a specific client
@@ -157,7 +420,7 @@ export const copyRecurringTask = async (taskId: string, targetClientId: string):
         custom_offset_days: newTaskData.recurrencePattern.customOffsetDays,
         notes: newTaskData.notes,
         is_active: true,
-        status: 'Unscheduled'
+        status: 'Unscheduled' as TaskStatus
       }])
       .select()
       .single();
@@ -243,7 +506,7 @@ export const copyAdHocTask = async (taskId: string, targetClientId: string): Pro
         category: newTaskData.category,
         due_date: newTaskData.dueDate ? newTaskData.dueDate.toISOString() : null,
         notes: newTaskData.notes,
-        status: 'Unscheduled'
+        status: 'Unscheduled' as TaskStatus
       }])
       .select()
       .single();
