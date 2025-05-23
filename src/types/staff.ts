@@ -10,7 +10,7 @@ export interface StaffMember {
   phone?: string;
   assignedSkills: SkillType[];
   costPerHour: number;
-  status: StaffStatus | boolean;
+  status: StaffStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,5 +31,28 @@ export interface StaffAvailabilityMatrix {
     [dayOfWeek: number]: { // 0-6, where 0 is Sunday
       [timeSlot: string]: boolean; // "HH:MM-HH:MM": true/false
     };
+  };
+}
+
+// Additional interfaces needed for backward compatibility with existing code
+// These will maintain compatibility until other files can be refactored
+export interface Staff extends StaffMember {}
+export interface TimeSlot {
+  id: string;
+  start: string;
+  end: string;
+  available: boolean;
+}
+export interface WeeklyAvailability {
+  id: string;
+  staffId: string;
+  dayOfWeek: number;
+  slots: TimeSlot[];
+}
+export interface AvailabilitySummary {
+  staffId: string;
+  totalHours: number;
+  dailyHours: {
+    [day: string]: number;
   };
 }
