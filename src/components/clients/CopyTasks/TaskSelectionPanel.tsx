@@ -47,11 +47,11 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
   const allTasksLength = tasks.length;
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-md font-medium">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
+    <div className="h-full border rounded-lg bg-card text-card-foreground shadow-sm">
+      <div className="flex flex-col space-y-1.5 p-6 pb-3">
+        <h3 className="text-md font-medium">{title}</h3>
+      </div>
+      <div className="p-6 pt-0">
         {type === 'ad-hoc' ? (
           <TaskSelectionList<TaskInstance>
             tasks={typedTasks as TaskInstance[]}
@@ -79,8 +79,8 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             allTasksLength={allTasksLength}
           />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

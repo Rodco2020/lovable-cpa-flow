@@ -8,7 +8,8 @@ import { ProcessingStep } from './CopyTasks/ProcessingStep';
 import { SuccessStep } from './CopyTasks/SuccessStep';
 import { useCopyTasksDialog } from './CopyTasks/hooks/useCopyTasksDialog';
 import { useQuery } from '@tanstack/react-query';
-import { getClients } from '@/services/clientService';
+import { getAllClients } from '@/services/clientService';
+import { Client } from '@/types/client';
 
 interface CopyClientTasksDialogProps {
   clientId: string;
@@ -33,11 +34,11 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   // Fetch available clients for selection
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
-    queryFn: getClients,
+    queryFn: getAllClients,
   });
 
   // Filter out the source client from available clients
-  const availableClients = clients.filter(client => client.id !== clientId);
+  const availableClients = Array.isArray(clients) ? clients.filter((client: Client) => client.id !== clientId) : [];
 
   const {
     step,
@@ -84,8 +85,8 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
 
   // Find the target client name when the targetClientId changes
   React.useEffect(() => {
-    if (targetClientId) {
-      const client = clients.find(c => c.id === targetClientId);
+    if (targetClientId && Array.isArray(clients)) {
+      const client = clients.find((c: Client) => c.id === targetClientId);
       if (client) {
         setTargetClientName(client.legalName || '');
       }

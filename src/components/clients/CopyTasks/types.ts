@@ -24,6 +24,10 @@ export interface Task {
 export interface SelectClientStepProps {
   sourceClientId: string;
   onSelectClient: (id: string) => void;
+  availableClients: any[];
+  targetClientId: string;
+  setTargetClientId: (id: string) => void;
+  isLoading: boolean;
 }
 
 // Updated ConfirmationStepProps to include sourceClientId
