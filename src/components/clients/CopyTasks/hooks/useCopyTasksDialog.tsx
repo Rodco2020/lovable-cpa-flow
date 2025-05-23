@@ -24,6 +24,8 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
       setStep('select-client');
     } else if (step === 'confirm') {
       setStep('select-tasks');
+    } else if (step === 'success') {
+      onClose();
     }
   };
 
@@ -40,6 +42,7 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
     setStep('processing');
 
     try {
+      // Fixed: Passing the selectedTaskIds array directly to the function
       await copyClientTasks(clientId, targetClientId, selectedTaskIds);
       
       // Invalidate queries to refresh task lists

@@ -2,12 +2,21 @@
 import React from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { DialogFooter } from './DialogFooter';
+import { CopyTaskStep } from './types';
 
 interface ConfirmationStepProps {
+  sourceClientId: string;
+  targetClientId: string;
   sourceClientName: string;
   targetClientName: string;
   selectedAdHocTaskCount: number;
   selectedRecurringTaskCount: number;
+  selectedCount: number;
+  step: CopyTaskStep;
+  handleBack: () => void;
+  handleCopy: () => Promise<void>;
+  isProcessing: boolean;
 }
 
 /**
@@ -18,9 +27,14 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   sourceClientName,
   targetClientName,
   selectedAdHocTaskCount,
-  selectedRecurringTaskCount
+  selectedRecurringTaskCount,
+  selectedCount,
+  step,
+  handleBack,
+  handleCopy,
+  isProcessing
 }) => {
-  const totalTaskCount = selectedAdHocTaskCount + selectedRecurringTaskCount;
+  const totalTaskCount = selectedCount || (selectedAdHocTaskCount + selectedRecurringTaskCount);
   
   return (
     <div className="py-4 space-y-4">
@@ -66,6 +80,15 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           </ul>
         </AlertDescription>
       </Alert>
+
+      <DialogFooter
+        step={step}
+        handleBack={handleBack}
+        handleNext={() => {}}
+        handleCopy={() => handleCopy()}
+        isProcessing={isProcessing}
+        isSuccess={false}
+      />
     </div>
   );
 };

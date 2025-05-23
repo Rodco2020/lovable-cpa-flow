@@ -20,15 +20,21 @@ export interface Task {
   [key: string]: any;
 }
 
+// Updated SelectClientStepProps to include sourceClientId
 export interface SelectClientStepProps {
   sourceClientId: string;
   onSelectClient: (id: string) => void;
 }
 
+// Updated ConfirmationStepProps to include sourceClientId
 export interface ConfirmationStepProps {
   sourceClientId: string;
   targetClientId: string;
+  sourceClientName?: string;
+  targetClientName?: string;
   selectedCount: number;
+  selectedAdHocTaskCount?: number;
+  selectedRecurringTaskCount?: number;
   step: CopyTaskStep;
   handleBack: () => void;
   handleCopy: () => Promise<void>;
@@ -55,4 +61,15 @@ export interface TaskSelectionPanelFilterProps {
   totalCount: number;
   onSelectAll: () => void;
   onDeselectAll: () => void;
+}
+
+export interface TaskSelectionPanelProps {
+  tasks: any[];
+  selectedTaskIds: string[];
+  onToggleTask: (taskId: string) => void;
+  type: 'ad-hoc' | 'recurring';
+  onSelectAll: (tasks: any[]) => void;
+  isLoading?: boolean;
+  error?: Error | null;
+  emptyMessage?: string;
 }

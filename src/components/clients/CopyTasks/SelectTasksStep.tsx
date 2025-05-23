@@ -7,6 +7,7 @@ import { CopyTaskStep, TaskFilterOption, TaskSelectionPanelFilterProps } from '.
 import { useQuery } from '@tanstack/react-query';
 import { getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
 import TaskSelectionPanel from './TaskSelectionPanel';
+import { RecurringTask, TaskInstance } from '@/types/task';
 
 interface SelectTasksStepProps {
   clientId: string;
@@ -115,8 +116,8 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
   const isLoading = recurringLoading || adHocLoading;
 
   // Filter tasks based on search term and active filter
-  const filteredTasks = [...recurringTasks, ...adHocTasks].filter(task => {
-    const matchesSearch = task.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTasks = [...(recurringTasks as RecurringTask[]), ...(adHocTasks as TaskInstance[])].filter(task => {
+    const matchesSearch = task?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (activeFilter === 'all') {
       return matchesSearch;
@@ -147,6 +148,9 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
         : [...selectedTaskIds, taskId]
     );
   };
+  
+  // Determine the display type based on active filter
+  const displayType = activeFilter === 'adhoc' ? 'ad-hoc' : 'recurring';
   
   return (
     <div className="space-y-4">
@@ -187,7 +191,7 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
           tasks={filteredTasks}
           selectedTaskIds={selectedTaskIds}
           onToggleTask={handleToggleTaskSelection}
-          type={activeFilter === 'adhoc' ? 'ad-hoc' : 'recurring'}
+          type={displayType}
           onSelectAll={handleSelectAll}
           isLoading={isLoading}
         />

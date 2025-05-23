@@ -5,25 +5,34 @@ import { Loader2, AlertTriangle } from 'lucide-react';
 import { Client } from '@/types/client';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-
-interface SelectClientStepProps {
-  availableClients: Client[];
-  targetClientId: string;
-  setTargetClientId: (id: string) => void;
-  isLoading: boolean;
-}
+import { SelectClientStepProps } from './types';
 
 /**
  * First step of the copy client tasks dialog
  * Allows selecting which client to copy tasks to
  */
-export const SelectClientStep: React.FC<SelectClientStepProps> = ({
+export const SelectClientStep: React.FC<{
+  availableClients: Client[];
+  targetClientId: string;
+  setTargetClientId: (id: string) => void;
+  isLoading: boolean;
+  sourceClientId: string;
+  onSelectClient: (id: string) => void;
+}> = ({
   availableClients,
   targetClientId,
   setTargetClientId,
-  isLoading
+  isLoading,
+  sourceClientId,
+  onSelectClient
 }) => {
   const navigate = useNavigate();
+  
+  // Handle selection change
+  const handleValueChange = (id: string) => {
+    setTargetClientId(id);
+    onSelectClient(id);
+  };
   
   // Handle "no clients available" scenario
   const handleCreateNewClient = () => {
@@ -43,7 +52,7 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
       ) : availableClients.length > 0 ? (
         <Select
           value={targetClientId}
-          onValueChange={setTargetClientId}
+          onValueChange={handleValueChange}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a client" />

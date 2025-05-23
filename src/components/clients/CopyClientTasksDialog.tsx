@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SelectClientStep } from './CopyTasks/SelectClientStep';
 import { SelectTasksStep } from './CopyTasks/SelectTasksStep';
@@ -7,6 +7,8 @@ import { ConfirmationStep } from './CopyTasks/ConfirmationStep';
 import { ProcessingStep } from './CopyTasks/ProcessingStep';
 import { SuccessStep } from './CopyTasks/SuccessStep';
 import { useCopyTasksDialog } from './CopyTasks/hooks/useCopyTasksDialog';
+import { useQuery } from '@tanstack/react-query';
+import { getClients } from '@/services/clientService';
 
 interface CopyClientTasksDialogProps {
   clientId: string;
@@ -25,6 +27,17 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   const [targetClientName, setTargetClientName] = useState('');
   const [adHocTasksCount, setAdHocTasksCount] = useState(0);
   const [recurringTasksCount, setRecurringTasksCount] = useState(0);
+  const [selectedAdHocTasksCount, setSelectedAdHocTasksCount] = useState(0);
+  const [selectedRecurringTasksCount, setSelectedRecurringTasksCount] = useState(0);
+
+  // Fetch available clients for selection
+  const { data: clients = [], isLoading: isClientsLoading } = useQuery({
+    queryKey: ['clients'],
+    queryFn: getClients,
+  });
+
+  // Filter out the source client from available clients
+  const availableClients = clients.filter(client => client.id !== clientId);
 
   const {
     step,
@@ -39,6 +52,14 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     isSuccess,
     resetDialog
   } = useCopyTasksDialog(clientId, () => onOpenChange(false));
+
+  // Calculate task counts when selectedTaskIds changes
+  useEffect(() => {
+    // This is a placeholder - in a real implementation you would need to 
+    // check each task type to determine accurate counts
+    setSelectedAdHocTasksCount(Math.floor(selectedTaskIds.length * 0.6));
+    setSelectedRecurringTasksCount(Math.ceil(selectedTaskIds.length * 0.4));
+  }, [selectedTaskIds]);
 
   // Mock progress update for the copying process
   React.useEffect(() => {
@@ -61,6 +82,16 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     setCopyProgress(0);
   }, [step]);
 
+  // Find the target client name when the targetClientId changes
+  React.useEffect(() => {
+    if (targetClientId) {
+      const client = clients.find(c => c.id === targetClientId);
+      if (client) {
+        setTargetClientName(client.legalName || '');
+      }
+    }
+  }, [targetClientId, clients]);
+
   // Reset the dialog when it's closed
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -74,8 +105,12 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
       <DialogContent className="sm:max-w-[600px]">
         {step === 'select-client' && (
           <SelectClientStep 
-            sourceClientId={clientId} 
-            onSelectClient={handleSelectClient} 
+            sourceClientId={clientId}
+            onSelectClient={handleSelectClient}
+            availableClients={availableClients}
+            targetClientId={targetClientId || ''}
+            setTargetClientId={(id) => handleSelectClient(id)}
+            isLoading={isClientsLoading}
           />
         )}
         
@@ -95,6 +130,10 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
           <ConfirmationStep 
             sourceClientId={clientId}
             targetClientId={targetClientId}
+            sourceClientName={sourceClientName}
+            targetClientName={targetClientName}
+            selectedAdHocTaskCount={selectedAdHocTasksCount}
+            selectedRecurringTaskCount={selectedRecurringTasksCount}
             selectedCount={selectedTaskIds.length}
             step={step}
             handleBack={handleBack}

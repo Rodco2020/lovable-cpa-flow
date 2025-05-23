@@ -86,12 +86,12 @@ export const TaskSelectionList = <T extends TaskInstance | RecurringTask>({
                 <Badge variant="outline" className="text-xs">
                   {task.estimatedHours}h
                 </Badge>
-                <Badge variant={`${task.priority.toLowerCase() === 'high' ? 'destructive' : 'outline'}`} className="text-xs">
+                <Badge variant={`${task.priority?.toLowerCase() === 'high' ? 'destructive' : 'outline'}`} className="text-xs">
                   {task.priority}
                 </Badge>
                 {type === 'recurring' && ('recurrencePattern' in task) && (
                   <Badge variant="outline" className="text-xs">
-                    {task.recurrencePattern.type}
+                    {task.recurrencePattern?.type}
                   </Badge>
                 )}
               </div>
