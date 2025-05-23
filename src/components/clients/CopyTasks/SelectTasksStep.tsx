@@ -1,13 +1,12 @@
 
 import React, { useState } from 'react';
-import { TaskSelectionList } from './TaskSelectionList';
-import { TaskSelectionPanel } from './TaskSelectionPanel';
 import { DialogFooter } from './DialogFooter';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { CopyTaskStep, TaskFilterOption } from './types';
+import { CopyTaskStep, TaskFilterOption, TaskSelectionPanelFilterProps } from './types';
 import { useQuery } from '@tanstack/react-query';
 import { getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
+import TaskSelectionPanel from './TaskSelectionPanel';
 
 interface SelectTasksStepProps {
   clientId: string;
@@ -18,6 +17,74 @@ interface SelectTasksStepProps {
   handleBack: () => void;
   handleNext: () => void;
 }
+
+// This component is used to display filter options for the task selection
+const TaskSelectionPanelFilter: React.FC<TaskSelectionPanelFilterProps> = ({
+  activeFilter,
+  setActiveFilter,
+  recurringTasksCount,
+  adHocTasksCount,
+  selectedCount,
+  totalCount,
+  onSelectAll,
+  onDeselectAll
+}) => {
+  return (
+    <div className="flex flex-col space-y-2">
+      <div className="flex space-x-2">
+        <button
+          onClick={() => setActiveFilter('all')}
+          className={`px-3 py-1 text-xs rounded-full ${
+            activeFilter === 'all'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground'
+          }`}
+        >
+          All ({adHocTasksCount + recurringTasksCount})
+        </button>
+        <button
+          onClick={() => setActiveFilter('adhoc')}
+          className={`px-3 py-1 text-xs rounded-full ${
+            activeFilter === 'adhoc'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground'
+          }`}
+        >
+          Ad-hoc ({adHocTasksCount})
+        </button>
+        <button
+          onClick={() => setActiveFilter('recurring')}
+          className={`px-3 py-1 text-xs rounded-full ${
+            activeFilter === 'recurring'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground'
+          }`}
+        >
+          Recurring ({recurringTasksCount})
+        </button>
+      </div>
+      <div className="flex justify-between text-xs">
+        <span>
+          Selected: {selectedCount} of {totalCount}
+        </span>
+        <div className="space-x-2">
+          <button
+            onClick={onSelectAll}
+            className="text-primary hover:underline"
+          >
+            Select All
+          </button>
+          <button
+            onClick={onDeselectAll}
+            className="text-primary hover:underline"
+          >
+            Deselect All
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
   clientId,
@@ -91,8 +158,8 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
       </div>
 
       {/* Search and filter controls */}
-      <div className="flex items-center space-x-4 mb-4">
-        <div className="relative flex-1">
+      <div className="flex flex-col space-y-4">
+        <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search tasks..."
@@ -102,7 +169,7 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
           />
         </div>
 
-        <TaskSelectionPanel
+        <TaskSelectionPanelFilter
           activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
           recurringTasksCount={recurringTasksCount}
@@ -116,10 +183,12 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
 
       {/* Task list */}
       <div className="border rounded-md">
-        <TaskSelectionList
+        <TaskSelectionPanel
           tasks={filteredTasks}
           selectedTaskIds={selectedTaskIds}
-          onToggleSelection={handleToggleTaskSelection}
+          onToggleTask={handleToggleTaskSelection}
+          type={activeFilter === 'adhoc' ? 'ad-hoc' : 'recurring'}
+          onSelectAll={handleSelectAll}
           isLoading={isLoading}
         />
       </div>

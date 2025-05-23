@@ -2,8 +2,18 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RecurringTask, TaskInstance } from '@/types/task';
-import { TaskSelectionPanelProps } from './types';
 import { TaskSelectionList } from './TaskSelectionList';
+
+export interface TaskSelectionPanelProps {
+  tasks: (TaskInstance | RecurringTask)[];
+  selectedTaskIds: string[];
+  onToggleTask: (taskId: string) => void;
+  type: 'ad-hoc' | 'recurring';
+  onSelectAll: (tasks: (TaskInstance | RecurringTask)[]) => void;
+  isLoading?: boolean;
+  error?: Error | null;
+  emptyMessage?: string;
+}
 
 /**
  * TaskSelectionPanel Component 
@@ -45,7 +55,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
         {type === 'ad-hoc' ? (
           <TaskSelectionList<TaskInstance>
             tasks={typedTasks as TaskInstance[]}
-            selectedTaskIds={selectedTaskIds}
+            selectedTaskIds={new Set(selectedTaskIds)}
             onToggleTask={onToggleTask}
             type={type}
             onSelectAll={() => onSelectAll(typedTasks)}
@@ -58,7 +68,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
         ) : (
           <TaskSelectionList<RecurringTask>
             tasks={typedTasks as RecurringTask[]}
-            selectedTaskIds={selectedTaskIds}
+            selectedTaskIds={new Set(selectedTaskIds)}
             onToggleTask={onToggleTask}
             type={type}
             onSelectAll={() => onSelectAll(typedTasks)}

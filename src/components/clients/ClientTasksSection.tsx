@@ -58,14 +58,12 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
         </TabsContent>
       </Tabs>
       
-      {isCopyDialogOpen && (
-        <CopyClientTasksDialog 
-          isOpen={isCopyDialogOpen}
-          onClose={() => setIsCopyDialogOpen(false)}
-          sourceClientId={clientId}
-          sourceClientName={clientName}
-        />
-      )}
+      <CopyClientTasksDialog 
+        open={isCopyDialogOpen}
+        onOpenChange={setIsCopyDialogOpen}
+        clientId={clientId}
+        sourceClientName={clientName}
+      />
     </div>
   );
 };

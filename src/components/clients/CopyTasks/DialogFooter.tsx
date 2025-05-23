@@ -1,101 +1,61 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { DialogFooter as ShadcnDialogFooter } from '@/components/ui/dialog';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { DialogStep } from './hooks/useCopyTasksDialog';
-
-interface DialogFooterProps {
-  step: DialogStep;
-  handleBack: () => void;
-  handleNext: () => void;
-  handleCopy: () => void;
-  handleClose: () => void;
-  handleFinish: () => void;
-  isNextDisabled: boolean;
-  isCopying: boolean;
-}
+import { CopyTaskStep, DialogFooterProps } from './types';
 
 /**
- * Footer component with appropriate buttons based on the current step
+ * Dialog footer component that shows the appropriate buttons based on the current step
  */
 export const DialogFooter: React.FC<DialogFooterProps> = ({
   step,
   handleBack,
   handleNext,
+  disableNext = false,
   handleCopy,
-  handleClose,
-  handleFinish,
-  isNextDisabled,
-  isCopying
+  isProcessing,
+  isSuccess
 }) => {
-  // Render different buttons based on current step
-  const renderButtons = () => {
-    switch (step) {
-      case 'select-client':
-      case 'select-tasks':
-        return (
-          <>
-            <Button variant="outline" onClick={handleClose} className="sm:flex-1">
-              Cancel
-            </Button>
-            <div className="flex space-x-2 sm:flex-1 sm:justify-end">
-              {step !== 'select-client' && (
-                <Button variant="outline" onClick={handleBack}>
-                  Back
-                </Button>
-              )}
-              <Button 
-                onClick={handleNext}
-                disabled={isNextDisabled}
-              >
-                Next
-              </Button>
-            </div>
-          </>
-        );
-      case 'confirmation':
-        return (
-          <>
-            <Button variant="outline" onClick={handleClose} className="sm:flex-1">
-              Cancel
-            </Button>
-            <div className="flex space-x-2 sm:flex-1 sm:justify-end">
-              <Button variant="outline" onClick={handleBack}>
-                Back
-              </Button>
-              <Button 
-                onClick={handleCopy}
-                disabled={isCopying}
-              >
-                {isCopying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Copying...
-                  </>
-                ) : 'Copy Tasks'}
-              </Button>
-            </div>
-          </>
-        );
-      case 'processing':
-        return (
-          <Button variant="outline" onClick={handleClose} disabled>
-            Please wait...
-          </Button>
-        );
-      case 'success':
-        return (
-          <Button onClick={handleFinish} className="w-full sm:w-auto">
-            Close
-          </Button>
-        );
-    }
-  };
-  
+  if (step === 'processing') {
+    return null; // No buttons shown during processing
+  }
+
+  if (step === 'success') {
+    return (
+      <div className="flex justify-end space-x-2 mt-4">
+        <Button onClick={handleBack}>
+          Done
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <ShadcnDialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
-      {renderButtons()}
-    </ShadcnDialogFooter>
+    <div className="flex justify-between mt-4">
+      <Button 
+        variant="outline" 
+        onClick={handleBack}
+        disabled={step === 'select-client'}
+      >
+        Back
+      </Button>
+      
+      {step === 'select-tasks' && (
+        <Button 
+          onClick={handleNext}
+          disabled={disableNext}
+        >
+          Next
+        </Button>
+      )}
+      
+      {step === 'confirm' && (
+        <Button 
+          onClick={handleCopy}
+          disabled={isProcessing}
+        >
+          {isProcessing ? 'Copying...' : 'Copy Tasks'}
+        </Button>
+      )}
+    </div>
   );
 };

@@ -3,9 +3,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import { copyClientTasks } from '@/services/clientService';
-import { TaskFilterOption } from '../types';
-
-export type CopyTaskStep = 'select-client' | 'select-tasks' | 'confirm' | 'processing' | 'success';
+import { CopyTaskStep } from '../types';
 
 export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
   const [step, setStep] = useState<CopyTaskStep>('select-client');
