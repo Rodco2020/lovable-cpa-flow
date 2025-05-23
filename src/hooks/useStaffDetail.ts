@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { getStaffById, calculateAvailabilitySummary } from "@/services/staffService";
+import { getStaffById, calculateAvailabilitySummary } from "@/services/staff";
 import { Staff, AvailabilitySummary } from "@/types/staff";
 import { toast } from "sonner";
 

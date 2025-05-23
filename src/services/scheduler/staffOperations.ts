@@ -1,6 +1,6 @@
 
 import { Staff } from "@/types/staff";
-import { getStaffById as getStaffByIdFromService } from "@/services/staffService";
+import { getStaffById as getStaffByIdFromService } from "@/services/staff";
 import { logError } from "@/services/errorLoggingService";
 import { 
   staffCache, 
@@ -95,7 +95,7 @@ export const validateScheduleSlot = async (
     
     // Check if the time slot is available - always fetch fresh data here
     // as availability can change frequently
-    const { getTimeSlotsByStaffAndDate } = await import('@/services/staffService');
+    const { getTimeSlotsByStaffAndDate } = await import('@/services/staff');
     const timeSlots = await getTimeSlotsByStaffAndDate(staffId, date);
     const startSlot = timeSlots.find(slot => 
       slot.startTime === startTime
