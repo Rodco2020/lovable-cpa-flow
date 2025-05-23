@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Filter } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { TaskSelectionPanel } from './TaskSelectionPanel';
+import TaskSelectionPanel from './TaskSelectionPanel';
 import { TaskInstance, RecurringTask } from '@/types/task';
 
 export type TaskTab = 'all' | 'ad-hoc' | 'recurring';

@@ -41,7 +41,8 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             selectedTaskIds={selectedTaskIds}
             onToggleTask={onToggleTask}
             type={type}
-            onSelectAll={onSelectAll}
+            // Fix the type error by properly typing the onSelectAll function
+            onSelectAll={() => onSelectAll(typedTasks)}
             isLoading={isLoading}
             error={error}
             emptyMessage={emptyMessage}
@@ -52,7 +53,8 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             selectedTaskIds={selectedTaskIds}
             onToggleTask={onToggleTask}
             type={type}
-            onSelectAll={onSelectAll}
+            // Fix the type error by properly typing the onSelectAll function
+            onSelectAll={() => onSelectAll(typedTasks)}
             isLoading={isLoading}
             error={error}
             emptyMessage={emptyMessage}

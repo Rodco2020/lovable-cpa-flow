@@ -1,6 +1,5 @@
-
+import { supabase } from '@/lib/supabaseClient';
 import { Staff } from "@/types/staff";
-import { supabase } from "@/integrations/supabase/client";
 import { mapStaffFromDbRecord, mapStaffToDbRecord } from "./staffMapper";
 
 /**
@@ -67,22 +66,43 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
  * @param staffData The staff data to create (without id/timestamps)
  * @returns Promise resolving to the newly created Staff object
  */
-export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "updatedAt">): Promise<Staff> => {
-  // Map the Staff model fields to database fields
-  const dbData = mapStaffToDbRecord({...staffData});
-  
-  const { data, error } = await supabase
-    .from('staff')
-    .insert(dbData)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error("Error creating staff:", error);
+export const createStaff = async (staffData: Omit<Staff, 'id' | 'createdAt' | 'updatedAt'>): Promise<Staff> => {
+  try {
+    const dbRecord = mapStaffToDbRecord(staffData);
+    
+    // Fix the type error by making sure the staff record has all required fields
+    // The error was due to the insert expecting specific fields that might be missing
+    // Ensure assigned_skills is an array
+    if (!dbRecord.assigned_skills || !Array.isArray(dbRecord.assigned_skills)) {
+      dbRecord.assigned_skills = [];
+    }
+    
+    // Ensure email is present
+    if (!dbRecord.email) {
+      throw new Error('Email is required for staff creation');
+    }
+    
+    // Ensure full_name is present
+    if (!dbRecord.full_name) {
+      throw new Error('Full name is required for staff creation');
+    }
+    
+    const { data, error } = await supabase
+      .from('staff')
+      .insert(dbRecord)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating staff:', error);
+      throw error;
+    }
+    
+    return mapStaffFromDbRecord(data);
+  } catch (error) {
+    console.error('Error in createStaff:', error);
     throw error;
   }
-  
-  return mapStaffFromDbRecord(data);
 };
 
 /**
