@@ -29,7 +29,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
     ? tasks as TaskInstance[]
     : tasks as RecurringTask[];
 
-  // Create an empty error object if error is null to satisfy TypeScript
+  // Create a proper error object if error is null to satisfy TypeScript
   const errorObj = error ? error : { name: 'Error', message: '' };
   
   // Add missing props for TaskSelectionList
