@@ -58,14 +58,11 @@ export interface TimeSlot {
 }
 
 export interface WeeklyAvailability {
-  id: string;
   staffId: string;
   dayOfWeek: number;
-  slots: TimeSlot[];
-  // For backward compatibility with older components
-  startTime?: string;
-  endTime?: string;
-  isAvailable?: boolean;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
 }
 
 export interface AvailabilitySummary {
