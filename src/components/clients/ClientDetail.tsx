@@ -4,10 +4,11 @@ import { Client } from '@/types/client';
 import { getClientById, deleteClient } from '@/services/clientService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Copy } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import ClientAdHocTaskList from './ClientAdHocTaskList';
+import CopyClientTasksDialog from './CopyClientTasksDialog';
 
 const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +16,7 @@ const ClientDetail: React.FC = () => {
   const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   
   useEffect(() => {
     const fetchClient = async () => {
@@ -187,14 +189,33 @@ const ClientDetail: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-2">Ad-hoc Tasks</h3>
+        <div className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Ad-hoc Tasks</h3>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsCopyDialogOpen(true)}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Tasks
+            </Button>
+          </div>
           <ClientAdHocTaskList 
             clientId={client.id} 
             onTasksChanged={refreshClient} 
           />
         </div>
       </CardContent>
+      
+      {isCopyDialogOpen && (
+        <CopyClientTasksDialog 
+          isOpen={isCopyDialogOpen}
+          onClose={() => setIsCopyDialogOpen(false)}
+          sourceClientId={client.id}
+          sourceClientName={client.legalName}
+        />
+      )}
     </Card>
   );
 };
