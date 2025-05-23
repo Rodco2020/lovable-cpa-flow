@@ -30,6 +30,7 @@ export const getAllStaff = async (): Promise<Staff[]> => {
       fullName: item.full_name,
       roleTitle: item.role_title || "",
       skills: item.assigned_skills || [],
+      assignedSkills: item.assigned_skills || [], // Added to match Staff interface
       costPerHour: item.cost_per_hour,
       email: item.email,
       phone: item.phone || "",
@@ -63,6 +64,7 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
     fullName: data.full_name,
     roleTitle: data.role_title || "",
     skills: data.assigned_skills || [],
+    assignedSkills: data.assigned_skills || [], // Added to match Staff interface
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
@@ -97,6 +99,7 @@ export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "u
     fullName: data.full_name,
     roleTitle: data.role_title || "",
     skills: data.assigned_skills || [],
+    assignedSkills: data.assigned_skills || [], // Added to match Staff interface
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
@@ -113,6 +116,7 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
   if (staffData.fullName !== undefined) dbData.full_name = staffData.fullName;
   if (staffData.roleTitle !== undefined) dbData.role_title = staffData.roleTitle;
   if (staffData.skills !== undefined) dbData.assigned_skills = staffData.skills;
+  if (staffData.assignedSkills !== undefined) dbData.assigned_skills = staffData.assignedSkills;
   if (staffData.costPerHour !== undefined) dbData.cost_per_hour = staffData.costPerHour;
   if (staffData.email !== undefined) dbData.email = staffData.email;
   if (staffData.phone !== undefined) dbData.phone = staffData.phone;
@@ -135,6 +139,7 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
     fullName: data.full_name,
     roleTitle: data.role_title || "",
     skills: data.assigned_skills || [],
+    assignedSkills: data.assigned_skills || [], // Added to match Staff interface
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
@@ -466,18 +471,21 @@ export const calculateAvailabilitySummary = async (
       : 0;
     
     // Find peak day (day with most hours)
-    const peakDay = dailySummaries.reduce((peak, day) => {
-      return day.totalHours > (peak?.hours || 0) 
-        ? { day: day.day, hours: day.totalHours } 
-        : peak;
-    }, null as { day: number; hours: number } | null);
+    let peakDay: number | undefined = undefined;
+    let maxHours = 0;
+    
+    dailySummaries.forEach(day => {
+      if (day.totalHours > maxHours) {
+        maxHours = day.totalHours;
+        peakDay = day.day;
+      }
+    });
     
     return {
       dailySummaries,
       weeklyTotal,
       averageDailyHours,
-      peakDay,
-      distribution,
+      peakDay
     };
   } catch (err) {
     console.error(`Failed to calculate availability summary for staff ${staffId}:`, err);
@@ -488,8 +496,6 @@ export const calculateAvailabilitySummary = async (
         dailySummaries: Array.from({ length: 7 }, (_, i) => ({ day: i, totalHours: 0, slots: [] })),
         weeklyTotal: 0,
         averageDailyHours: 0,
-        peakDay: null,
-        distribution: { morning: 0, afternoon: 0, evening: 0 }
       };
       return emptySummary;
     }
