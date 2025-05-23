@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
 import { Client } from '@/types/client';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, ArrowRight, ArrowLeft, ClipboardCopy, Check, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import { getClientAdHocTasks, getClientRecurringTasks } from '@/services/clientService';
+import { getClientAdHocTasks, getClientRecurringTasks, copyClientTasks } from '@/services/clientService';
 import { TaskInstance, RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,9 +30,11 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   sourceClientId,
   sourceClientName,
 }) => {
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<DialogStep>('select-client');
   const [targetClientId, setTargetClientId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TaskTab>('all');
+  const [isCopying, setIsCopying] = useState(false);
   
   // Task selection state
   const [selectedAdHocTaskIds, setSelectedAdHocTaskIds] = useState<Set<string>>(new Set());
@@ -158,10 +161,40 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     }
   };
 
-  const handleCopy = () => {
-    // In Phase 3, we'll implement the actual copying functionality
-    toast.success(`${totalSelectedTasks} task(s) copied successfully!`);
-    onClose();
+  const handleCopy = async () => {
+    if (!targetClientId || (selectedAdHocTaskIds.size === 0 && selectedRecurringTaskIds.size === 0)) {
+      toast.error('Please select a target client and at least one task');
+      return;
+    }
+    
+    setIsCopying(true);
+    
+    try {
+      const result = await copyClientTasks(
+        Array.from(selectedRecurringTaskIds), 
+        Array.from(selectedAdHocTaskIds), 
+        targetClientId
+      );
+      
+      const totalCopied = result.recurring.length + result.adHoc.length;
+      
+      // Invalidate queries to refresh task lists
+      queryClient.invalidateQueries({
+        queryKey: ['client-adhoc-tasks', targetClientId]
+      });
+      
+      queryClient.invalidateQueries({
+        queryKey: ['client-recurring-tasks', targetClientId]
+      });
+      
+      toast.success(`${totalCopied} task(s) copied successfully!`);
+      onClose();
+    } catch (error) {
+      console.error('Error copying tasks:', error);
+      toast.error('Failed to copy tasks. Please try again.');
+    } finally {
+      setIsCopying(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -412,9 +445,21 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
             Cancel
           </Button>
           {step === 'confirmation' ? (
-            <Button onClick={handleCopy}>
-              <ClipboardCopy className="mr-2 h-4 w-4" />
-              Copy Tasks
+            <Button 
+              onClick={handleCopy} 
+              disabled={isCopying}
+            >
+              {isCopying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Copying...
+                </>
+              ) : (
+                <>
+                  <ClipboardCopy className="mr-2 h-4 w-4" />
+                  Copy Tasks
+                </>
+              )}
             </Button>
           ) : (
             <Button onClick={handleNext}>

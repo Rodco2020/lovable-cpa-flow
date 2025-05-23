@@ -1,333 +1,325 @@
-import { v4 as uuidv4 } from 'uuid';
-import { Client, ClientStatus, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
-import { supabase } from '@/integrations/supabase/client';
-import { getRecurringTasks, getTaskInstances } from '@/services/taskService';
-import { RecurringTask, TaskInstance } from '@/types/task';
+import { supabase } from '@/lib/supabaseClient';
+import { TaskInstance, RecurringTask, TaskPriority, TaskCategory, RecurrencePattern } from '@/types/task';
 
-// Local memory storage as fallback when Supabase is not connected
-let clients: Client[] = [];
-
-// Map Supabase data to our Client model
-const mapSupabaseDataToClient = (data: any): Client => {
-  if (!data) throw new Error("Invalid data from Supabase");
-  
-  console.log("Raw client data from Supabase:", data);
-  
-  const mappedClient = {
-    id: data.id || "",
-    legalName: data.legal_name || "",
-    primaryContact: data.primary_contact || "",
-    email: data.email || "",
-    phone: data.phone || "",
-    billingAddress: data.billing_address || "",
-    industry: (data.industry || "Other") as IndustryType,
-    status: (data.status || "Active") as ClientStatus,
-    expectedMonthlyRevenue: data.expected_monthly_revenue || 0,
-    paymentTerms: (data.payment_terms || "Net30") as PaymentTerms,
-    billingFrequency: (data.billing_frequency || "Monthly") as BillingFrequency,
-    defaultTaskPriority: data.default_task_priority || "Medium",
-    staffLiaisonId: data.staff_liaison_id || null, // Map the new staff liaison field
-    notificationPreferences: data.notification_preferences || {
-      emailReminders: true,
-      taskNotifications: true,
-    },
-    createdAt: data.created_at ? new Date(data.created_at) : new Date(),
-    updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
-  };
-  
-  console.log("Mapped client:", mappedClient);
-  return mappedClient;
-};
-
-// Map our Client model to Supabase data
-const mapClientToSupabaseData = (client: Partial<Client>) => {
-  return {
-    legal_name: client.legalName,
-    primary_contact: client.primaryContact,
-    email: client.email,
-    phone: client.phone,
-    billing_address: client.billingAddress,
-    industry: client.industry,
-    status: client.status,
-    expected_monthly_revenue: client.expectedMonthlyRevenue,
-    payment_terms: client.paymentTerms,
-    billing_frequency: client.billingFrequency,
-    default_task_priority: client.defaultTaskPriority,
-    staff_liaison_id: client.staffLiaisonId, // Include staff liaison in mapping to Supabase
-    notification_preferences: client.notificationPreferences,
-  };
-};
-
-// Get all clients (renamed to match the usage in ClientList.tsx)
-export const getClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
-  return getAllClients(filters);
-};
-
-// Get all clients
-export const getAllClients = async (filters?: { status?: ClientStatus[]; industry?: IndustryType[] }): Promise<Client[]> => {
-  try {
-    console.log("Fetching clients from Supabase with filters:", JSON.stringify(filters, null, 2));
-    let query = supabase
-      .from('clients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (filters?.status && filters.status.length > 0) {
-      console.log("Applying status filter:", filters.status);
-      query = query.in('status', filters.status);
-    }
-    
-    if (filters?.industry && filters.industry.length > 0) {
-      console.log("Applying industry filter:", filters.industry);
-      query = query.in('industry', filters.industry);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Error fetching clients from Supabase:', error);
-      return clients; // Fallback to in-memory
-    }
-
-    console.log("Raw data from Supabase query:", data);
-    
-    if (!data || data.length === 0) {
-      console.log("No clients found in Supabase, returning empty array");
-      return [];
-    }
-    
-    // Log each client data to check values
-    data.forEach(client => {
-      console.log("Client from Supabase:", {
-        id: client.id,
-        legal_name: client.legal_name,
-        status: client.status, 
-        industry: client.industry
-      });
-    });
-    
-    const mappedClients = data.map(mapSupabaseDataToClient);
-    console.log("All mapped clients:", mappedClients);
-    return mappedClients;
-  } catch (error) {
-    console.error('Error fetching clients:', error);
-    
-    // Apply filters to in-memory clients if needed
-    let filteredClients = clients;
-    
-    if (filters?.status && filters.status.length > 0) {
-      filteredClients = filteredClients.filter(c => filters.status?.includes(c.status));
-    }
-    
-    if (filters?.industry && filters.industry.length > 0) {
-      filteredClients = filteredClients.filter(c => filters.industry?.includes(c.industry));
-    }
-    
-    return filteredClients;
-  }
-};
-
-// Get only active clients
-export const getActiveClients = async (): Promise<Client[]> => {
-  try {
-    return await getAllClients({ status: ['Active'] });
-  } catch (error) {
-    console.error('Error fetching active clients:', error);
-    return clients.filter(c => c.status === 'Active');
-  }
-};
-
-// Get a client by ID
-export const getClientById = async (id: string): Promise<Client> => {
-  try {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    return mapSupabaseDataToClient(data);
-  } catch (error) {
-    console.error(`Error fetching client ${id} from Supabase:`, error);
-    const client = clients.find(client => client.id === id);
-    if (!client) {
-      throw new Error(`Client with ID ${id} not found`);
-    }
-    return client;
-  }
-};
-
-// Create a new client
-export const createClient = async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client> => {
-  // Create a new client object with ID and timestamps
-  const newClient: Client = {
-    ...clientData,
-    id: uuidv4(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    // If staffLiaisonId is "none", set it to null
-    staffLiaisonId: clientData.staffLiaisonId === "none" ? null : clientData.staffLiaisonId
-  };
-  
-  try {
-    // Map client data to Supabase format
-    const supabaseData = {
-      id: newClient.id,
-      ...mapClientToSupabaseData(newClient),
-      created_at: newClient.createdAt.toISOString(),
-      updated_at: newClient.updatedAt.toISOString(),
-    };
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .insert([supabaseData])
-      .select()
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    return mapSupabaseDataToClient(data);
-  } catch (error) {
-    console.error('Error creating client in Supabase:', error);
-    // Fall back to in-memory storage
-    clients.push(newClient);
-    return newClient;
-  }
-};
-
-// Update an existing client
-export const updateClient = async (id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Client> => {
-  // Process the staffLiaisonId if it's "none"
-  if (clientData.staffLiaisonId === "none") {
-    clientData.staffLiaisonId = null;
-  }
-  
-  const updatedData = {
-    ...clientData,
-    updatedAt: new Date(),
-  };
-  
-  try {
-    // Map client data to Supabase format
-    const supabaseData = {
-      ...mapClientToSupabaseData(updatedData),
-      updated_at: updatedData.updatedAt?.toISOString(),
-    };
-    
-    console.log("Updating client with data:", supabaseData);
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .update(supabaseData)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Supabase update error:", error);
-      throw error;
-    }
-    
-    console.log("Client updated successfully:", data);
-    return mapSupabaseDataToClient(data);
-  } catch (error) {
-    console.error(`Error updating client ${id} in Supabase:`, error);
-    // Fall back to in-memory storage
-    const index = clients.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new Error(`Client with ID ${id} not found`);
-    }
-    
-    clients[index] = {
-      ...clients[index],
-      ...updatedData,
-    };
-    
-    return clients[index];
-  }
-};
-
-// Delete a client
-export const deleteClient = async (id: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', id);
-      
-    if (error) {
-      throw error;
-    }
-    
-    // Also remove from local array to keep in sync
-    clients = clients.filter(c => c.id !== id);
-    return true;
-  } catch (error) {
-    console.error(`Error deleting client ${id} from Supabase:`, error);
-    // Fall back to in-memory storage
-    clients = clients.filter(c => c.id !== id);
-    return true;
-  }
-};
-
-// Get linked task IDs for a client
-export const getClientTaskIds = async (clientId: string): Promise<string[]> => {
-  // This is a stub - in the future, it would query tasks associated with this client
-  return [];
-};
-
-// Get recurring tasks for a client
-export const getClientRecurringTasks = async (clientId: string): Promise<RecurringTask[]> => {
-  try {
-    // Use the task service to get all recurring tasks and filter by client ID
-    const allRecurringTasks = await getRecurringTasks(false); // Include both active and inactive tasks
-    return allRecurringTasks.filter(task => task.clientId === clientId);
-  } catch (error) {
-    console.error(`Error fetching recurring tasks for client ${clientId}:`, error);
-    return []; // Return empty array on error
-  }
-};
-
-// Get ad-hoc tasks for a client
+/**
+ * Fetch ad-hoc tasks for a specific client
+ */
 export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstance[]> => {
   try {
-    // Use the task service to get task instances that aren't generated from recurring tasks
-    // and filter by client ID
-    const allTaskInstances = await getTaskInstances({
-      clientId: clientId
-    });
+    const { data, error } = await supabase
+      .from('task_instances')
+      .select('*')
+      .eq('client_id', clientId)
+      .is('recurring_task_id', null)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching client ad-hoc tasks:', error);
+      throw error;
+    }
     
-    // Filter out tasks that were generated from recurring tasks
-    return allTaskInstances.filter(task => !task.recurringTaskId);
+    // Map the database results to our TaskInstance type
+    return data.map(task => ({
+      id: task.id,
+      templateId: task.template_id,
+      clientId: task.client_id,
+      name: task.name,
+      description: task.description || '',
+      estimatedHours: task.estimated_hours,
+      requiredSkills: task.required_skills || [],
+      priority: task.priority as TaskPriority,
+      category: task.category as TaskCategory,
+      status: task.status as TaskStatus,
+      dueDate: task.due_date ? new Date(task.due_date) : null,
+      completedAt: task.completed_at ? new Date(task.completed_at) : undefined,
+      assignedStaffId: task.assigned_staff_id,
+      scheduledStartTime: task.scheduled_start_time ? new Date(task.scheduled_start_time) : undefined,
+      scheduledEndTime: task.scheduled_end_time ? new Date(task.scheduled_end_time) : undefined,
+      createdAt: new Date(task.created_at),
+      updatedAt: new Date(task.updated_at),
+      notes: task.notes
+    }));
   } catch (error) {
-    console.error(`Error fetching ad-hoc tasks for client ${clientId}:`, error);
-    return []; // Return empty array on error
+    console.error('Error in getClientAdHocTasks:', error);
+    throw error;
   }
 };
 
-// New function to get staff for staff liaison dropdown
-export const getStaffForLiaisonDropdown = async () => {
+/**
+ * Fetch recurring tasks for a specific client
+ */
+export const getClientRecurringTasks = async (clientId: string): Promise<RecurringTask[]> => {
   try {
     const { data, error } = await supabase
-      .from('staff')
-      .select('id, full_name')
-      .eq('status', 'active')
-      .order('full_name');
-    
+      .from('recurring_tasks')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+      
     if (error) {
-      console.error('Error fetching staff for liaison dropdown:', error);
-      return [];
+      console.error('Error fetching client recurring tasks:', error);
+      throw error;
     }
     
-    return data || [];
+    // Map the database results to our RecurringTask type
+    return data.map(task => {
+      // Create recurrence pattern object from individual fields
+      const recurrencePattern: RecurrencePattern = {
+        type: task.recurrence_type as RecurrencePattern['type'],
+        interval: task.recurrence_interval || undefined,
+        weekdays: task.weekdays || undefined,
+        dayOfMonth: task.day_of_month || undefined,
+        monthOfYear: task.month_of_year || undefined,
+        endDate: task.end_date ? new Date(task.end_date) : undefined,
+        customOffsetDays: task.custom_offset_days || undefined,
+      };
+      
+      return {
+        id: task.id,
+        templateId: task.template_id,
+        clientId: task.client_id,
+        name: task.name,
+        description: task.description || '',
+        estimatedHours: task.estimated_hours,
+        requiredSkills: task.required_skills || [],
+        priority: task.priority as TaskPriority,
+        category: task.category as TaskCategory,
+        status: task.status as TaskStatus,
+        dueDate: task.due_date ? new Date(task.due_date) : null,
+        recurrencePattern,
+        lastGeneratedDate: task.last_generated_date ? new Date(task.last_generated_date) : null,
+        isActive: task.is_active,
+        createdAt: new Date(task.created_at),
+        updatedAt: new Date(task.updated_at),
+        notes: task.notes
+      };
+    });
   } catch (error) {
-    console.error('Error in getStaffForLiaisonDropdown:', error);
-    return [];
+    console.error('Error in getClientRecurringTasks:', error);
+    throw error;
+  }
+};
+
+/**
+ * Copy a recurring task to another client
+ */
+export const copyRecurringTask = async (taskId: string, targetClientId: string): Promise<RecurringTask> => {
+  try {
+    // First, get the source task
+    const sourceTask = await getRecurringTaskById(taskId);
+    
+    if (!sourceTask) {
+      throw new Error(`Recurring task with ID ${taskId} not found`);
+    }
+    
+    // Create a new task based on the source task but with the target client ID
+    const newTaskData = {
+      templateId: sourceTask.templateId,
+      clientId: targetClientId,
+      name: sourceTask.name,
+      description: sourceTask.description,
+      estimatedHours: sourceTask.estimatedHours,
+      requiredSkills: sourceTask.requiredSkills,
+      priority: sourceTask.priority,
+      category: sourceTask.category,
+      dueDate: sourceTask.dueDate,
+      recurrencePattern: {
+        type: sourceTask.recurrencePattern.type,
+        interval: sourceTask.recurrencePattern.interval,
+        weekdays: sourceTask.recurrencePattern.weekdays,
+        dayOfMonth: sourceTask.recurrencePattern.dayOfMonth,
+        monthOfYear: sourceTask.recurrencePattern.monthOfYear,
+        endDate: sourceTask.recurrencePattern.endDate,
+        customOffsetDays: sourceTask.recurrencePattern.customOffsetDays,
+      },
+      notes: sourceTask.notes
+    };
+    
+    // Create the new task in the database
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .insert([{
+        template_id: newTaskData.templateId,
+        client_id: newTaskData.clientId,
+        name: newTaskData.name,
+        description: newTaskData.description,
+        estimated_hours: newTaskData.estimatedHours,
+        required_skills: newTaskData.requiredSkills,
+        priority: newTaskData.priority,
+        category: newTaskData.category,
+        due_date: newTaskData.dueDate ? newTaskData.dueDate.toISOString() : null,
+        recurrence_type: newTaskData.recurrencePattern.type,
+        recurrence_interval: newTaskData.recurrencePattern.interval,
+        weekdays: newTaskData.recurrencePattern.weekdays,
+        day_of_month: newTaskData.recurrencePattern.dayOfMonth,
+        month_of_year: newTaskData.recurrencePattern.monthOfYear,
+        end_date: newTaskData.recurrencePattern.endDate ? newTaskData.recurrencePattern.endDate.toISOString() : null,
+        custom_offset_days: newTaskData.recurrencePattern.customOffsetDays,
+        notes: newTaskData.notes,
+        is_active: true,
+        status: 'Unscheduled'
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error copying recurring task:', error);
+      throw error;
+    }
+    
+    // Convert the database response to our RecurringTask type
+    const recurrencePattern: RecurrencePattern = {
+      type: data.recurrence_type as RecurrencePattern['type'],
+      interval: data.recurrence_interval || undefined,
+      weekdays: data.weekdays || undefined,
+      dayOfMonth: data.day_of_month || undefined,
+      monthOfYear: data.month_of_year || undefined,
+      endDate: data.end_date ? new Date(data.end_date) : undefined,
+      customOffsetDays: data.custom_offset_days || undefined,
+    };
+    
+    return {
+      id: data.id,
+      templateId: data.template_id,
+      clientId: data.client_id,
+      name: data.name,
+      description: data.description || '',
+      estimatedHours: data.estimated_hours,
+      requiredSkills: data.required_skills || [],
+      priority: data.priority as TaskPriority,
+      category: data.category as TaskCategory,
+      status: data.status as TaskStatus,
+      dueDate: data.due_date ? new Date(data.due_date) : null,
+      recurrencePattern,
+      lastGeneratedDate: data.last_generated_date ? new Date(data.last_generated_date) : null,
+      isActive: data.is_active,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      notes: data.notes
+    };
+  } catch (error) {
+    console.error('Error in copyRecurringTask:', error);
+    throw error;
+  }
+};
+
+/**
+ * Copy an ad-hoc task to another client
+ */
+export const copyAdHocTask = async (taskId: string, targetClientId: string): Promise<TaskInstance> => {
+  try {
+    // First, get the source task
+    const sourceTask = await getTaskInstanceById(taskId);
+    
+    if (!sourceTask) {
+      throw new Error(`Ad-hoc task with ID ${taskId} not found`);
+    }
+    
+    // Create a new task based on the source task but with the target client ID
+    const newTaskData = {
+      templateId: sourceTask.templateId,
+      clientId: targetClientId,
+      name: sourceTask.name,
+      description: sourceTask.description,
+      estimatedHours: sourceTask.estimatedHours,
+      requiredSkills: sourceTask.requiredSkills,
+      priority: sourceTask.priority,
+      category: sourceTask.category,
+      dueDate: sourceTask.dueDate,
+      notes: sourceTask.notes
+    };
+    
+    // Create the new task in the database
+    const { data, error } = await supabase
+      .from('task_instances')
+      .insert([{
+        template_id: newTaskData.templateId,
+        client_id: newTaskData.clientId,
+        name: newTaskData.name,
+        description: newTaskData.description,
+        estimated_hours: newTaskData.estimatedHours,
+        required_skills: newTaskData.requiredSkills,
+        priority: newTaskData.priority,
+        category: newTaskData.category,
+        due_date: newTaskData.dueDate ? newTaskData.dueDate.toISOString() : null,
+        notes: newTaskData.notes,
+        status: 'Unscheduled'
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error copying ad-hoc task:', error);
+      throw error;
+    }
+    
+    // Convert the database response to our TaskInstance type
+    return {
+      id: data.id,
+      templateId: data.template_id,
+      clientId: data.client_id,
+      name: data.name,
+      description: data.description || '',
+      estimatedHours: data.estimated_hours,
+      requiredSkills: data.required_skills || [],
+      priority: data.priority as TaskPriority,
+      category: data.category as TaskCategory,
+      status: data.status as TaskStatus,
+      dueDate: data.due_date ? new Date(data.due_date) : null,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      notes: data.notes
+    };
+  } catch (error) {
+    console.error('Error in copyAdHocTask:', error);
+    throw error;
+  }
+};
+
+/**
+ * Copy multiple tasks (both recurring and ad-hoc) to another client
+ */
+export const copyClientTasks = async (
+  recurringTaskIds: string[],
+  adHocTaskIds: string[],
+  targetClientId: string
+): Promise<{ recurring: RecurringTask[], adHoc: TaskInstance[] }> => {
+  try {
+    const copiedRecurringTasks: RecurringTask[] = [];
+    const copiedAdHocTasks: TaskInstance[] = [];
+    
+    // Copy recurring tasks
+    if (recurringTaskIds.length > 0) {
+      for (const taskId of recurringTaskIds) {
+        try {
+          const copiedTask = await copyRecurringTask(taskId, targetClientId);
+          copiedRecurringTasks.push(copiedTask);
+        } catch (error) {
+          console.error(`Failed to copy recurring task ${taskId}:`, error);
+          // Continue with other tasks even if one fails
+        }
+      }
+    }
+    
+    // Copy ad-hoc tasks
+    if (adHocTaskIds.length > 0) {
+      for (const taskId of adHocTaskIds) {
+        try {
+          const copiedTask = await copyAdHocTask(taskId, targetClientId);
+          copiedAdHocTasks.push(copiedTask);
+        } catch (error) {
+          console.error(`Failed to copy ad-hoc task ${taskId}:`, error);
+          // Continue with other tasks even if one fails
+        }
+      }
+    }
+    
+    return {
+      recurring: copiedRecurringTasks,
+      adHoc: copiedAdHocTasks
+    };
+  } catch (error) {
+    console.error('Error in copyClientTasks:', error);
+    throw error;
   }
 };
