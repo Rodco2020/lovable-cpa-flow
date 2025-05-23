@@ -34,8 +34,8 @@ export const getAllStaff = async (): Promise<Staff[]> => {
       email: item.email,
       phone: item.phone || "",
       status: (item.status === "active" ? "active" : "inactive") as Staff["status"],
-      createdAt: item.created_at,
-      updatedAt: item.updated_at
+      createdAt: new Date(item.created_at),
+      updatedAt: new Date(item.updated_at)
     }));
   } catch (err) {
     console.error("Failed to fetch staff data:", err);
@@ -67,8 +67,8 @@ export const getStaffById = async (id: string): Promise<Staff | undefined> => {
     email: data.email,
     phone: data.phone || "",
     status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
-    createdAt: data.created_at,
-    updatedAt: data.updated_at
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at)
   };
 };
 
@@ -101,8 +101,8 @@ export const createStaff = async (staffData: Omit<Staff, "id" | "createdAt" | "u
     email: data.email,
     phone: data.phone || "",
     status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
-    createdAt: data.created_at,
-    updatedAt: data.updated_at
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at)
   };
 };
 
@@ -139,8 +139,8 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
     email: data.email,
     phone: data.phone || "",
     status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
-    createdAt: data.created_at,
-    updatedAt: data.updated_at
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at)
   };
 };
 
