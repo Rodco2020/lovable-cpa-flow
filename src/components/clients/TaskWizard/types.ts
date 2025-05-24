@@ -27,3 +27,21 @@ export interface WizardContextType extends WizardState {
   canGoNext: boolean;
   canGoPrevious: boolean;
 }
+
+// New types for enhanced copy functionality
+export interface ClientPreview {
+  id: string;
+  name: string;
+  taskCount: number;
+  lastActivity: Date;
+  industry: string;
+}
+
+export interface AdvancedTaskFilter {
+  category?: string;
+  priority?: string;
+  skillRequired?: string;
+  estimatedHoursRange?: [number, number];
+  dateRange?: [Date, Date];
+  status?: string;
+}

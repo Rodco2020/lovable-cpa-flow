@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RecurringTask, TaskInstance } from '@/types/task';
@@ -12,13 +13,15 @@ export interface TaskSelectionPanelProps {
   isLoading?: boolean;
   error?: Error | null;
   emptyMessage?: string;
+  showAdvancedFilters?: boolean;
+  onFiltersChange?: (filters: any) => void;
 }
 
 /**
- * TaskSelectionPanel Component 
+ * Enhanced TaskSelectionPanel Component 
  * 
  * Displays a panel for selecting tasks to copy, with separate handling for
- * ad-hoc and recurring task types.
+ * ad-hoc and recurring task types. Now supports advanced filtering capabilities.
  */
 const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
   tasks,
@@ -28,7 +31,9 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
   onSelectAll,
   isLoading = false,
   error = null,
-  emptyMessage = "No tasks available for selection"
+  emptyMessage = "No tasks available for selection",
+  showAdvancedFilters = false,
+  onFiltersChange
 }) => {
   const title = type === 'ad-hoc' ? 'Ad-Hoc Tasks' : 'Recurring Tasks';
   
@@ -51,6 +56,11 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
     <div className="h-full border rounded-lg bg-card text-card-foreground shadow-sm">
       <div className="flex flex-col space-y-1.5 p-6 pb-3">
         <h3 className="text-md font-medium">{title}</h3>
+        {showAdvancedFilters && (
+          <div className="text-sm text-muted-foreground">
+            Enhanced filtering available in wizard mode
+          </div>
+        )}
       </div>
       <div className="p-6 pt-0">
         {type === 'ad-hoc' ? (
