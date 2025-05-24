@@ -14,7 +14,10 @@ import { SelectTasksStep } from '../CopyTasks/SelectTasksStep';
 import { ConfirmationStep } from '../CopyTasks/ConfirmationStep';
 import { ProcessingStep } from '../CopyTasks/ProcessingStep';
 import { SuccessStep } from '../CopyTasks/SuccessStep';
+import { TemplateAssignmentStep } from './TemplateAssignmentStep';
+import { AssignmentConfig } from './AssignmentConfiguration';
 import { useCopyTasksDialog } from '../CopyTasks/hooks/useCopyTasksDialog';
+import { assignTemplatesToClients } from '@/services/templateAssignmentService';
 import { Client } from '@/types/client';
 
 interface TaskAssignmentWizardProps {
@@ -38,6 +41,16 @@ const WizardContent: React.FC<{
     setSelectedTaskIds 
   } = useWizard();
   
+  // Template assignment state
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [assignmentConfig, setAssignmentConfig] = useState<AssignmentConfig>({
+    assignmentType: 'ad-hoc',
+    customizePerClient: false
+  });
+  const [isAssignmentProcessing, setIsAssignmentProcessing] = useState(false);
+  const [assignmentSuccess, setAssignmentSuccess] = useState(false);
+
   // Fetch clients for enhanced browser
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -77,6 +90,8 @@ const WizardContent: React.FC<{
   const handleActionSelect = (action: WizardAction) => {
     if (action === 'copy-from-client') {
       setCurrentStep('client-selection');
+    } else if (action === 'template-assignment') {
+      setCurrentStep('task-selection'); // Reuse task-selection step for template assignment
     } else {
       // For other actions, proceed to next step (placeholder for now)
       setCurrentStep('client-selection');
@@ -88,6 +103,28 @@ const WizardContent: React.FC<{
     if (selectedAction === 'copy-from-client') {
       handleCopySelectClient(clientId);
       setCurrentStep('task-selection');
+    }
+  };
+
+  const handleTemplateAssignmentExecute = async () => {
+    setIsAssignmentProcessing(true);
+    setCurrentStep('processing');
+
+    try {
+      for (const templateId of selectedTemplateIds) {
+        await assignTemplatesToClients({
+          templateId,
+          clientIds: selectedClientIds,
+          config: assignmentConfig
+        });
+      }
+      
+      setAssignmentSuccess(true);
+      setCurrentStep('success');
+    } catch (error) {
+      console.error('Template assignment failed:', error);
+    } finally {
+      setIsAssignmentProcessing(false);
     }
   };
 
@@ -154,6 +191,19 @@ const WizardContent: React.FC<{
               handleNext={() => setCurrentStep('confirmation')}
             />
           );
+        } else if (selectedAction === 'template-assignment') {
+          return (
+            <TemplateAssignmentStep
+              onNext={() => setCurrentStep('confirmation')}
+              onBack={() => setCurrentStep('action-selection')}
+              selectedTemplateIds={selectedTemplateIds}
+              setSelectedTemplateIds={setSelectedTemplateIds}
+              selectedClientIds={selectedClientIds}
+              setSelectedClientIds={setSelectedClientIds}
+              assignmentConfig={assignmentConfig}
+              setAssignmentConfig={setAssignmentConfig}
+            />
+          );
         }
         return (
           <WizardStep 
@@ -190,6 +240,42 @@ const WizardContent: React.FC<{
               isProcessing={isCopyProcessing}
             />
           );
+        } else if (selectedAction === 'template-assignment') {
+          return (
+            <WizardStep 
+              title="Confirm Template Assignment"
+              description="Review and confirm your template assignments"
+            >
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Templates Selected</p>
+                      <p className="font-medium">{selectedTemplateIds.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Clients Selected</p>
+                      <p className="font-medium">{selectedClientIds.length}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => setCurrentStep('task-selection')}
+                    className="px-4 py-2 border rounded-md hover:bg-gray-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleTemplateAssignmentExecute}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  >
+                    Execute Assignment
+                  </button>
+                </div>
+              </div>
+            </WizardStep>
+          );
         }
         return (
           <WizardStep 
@@ -205,6 +291,8 @@ const WizardContent: React.FC<{
       case 'processing':
         if (selectedAction === 'copy-from-client') {
           return <ProcessingStep progress={isCopyProcessing ? 50 : 100} />;
+        } else if (selectedAction === 'template-assignment') {
+          return <ProcessingStep progress={isAssignmentProcessing ? 50 : 100} />;
         }
         return (
           <WizardStep 
@@ -226,6 +314,27 @@ const WizardContent: React.FC<{
               adHocTasksCount={Math.floor(copySelectedTaskIds.length * 0.6)}
               recurringTasksCount={Math.ceil(copySelectedTaskIds.length * 0.4)}
             />
+          );
+        } else if (selectedAction === 'template-assignment') {
+          return (
+            <WizardStep 
+              title="Assignment Complete"
+              description="Templates have been successfully assigned"
+            >
+              <div className="text-center py-8 text-green-600">
+                <div className="mb-4">
+                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Assignment Successful!</h3>
+                  <p className="text-gray-600">
+                    {selectedTemplateIds.length} template(s) assigned to {selectedClientIds.length} client(s)
+                  </p>
+                </div>
+              </div>
+            </WizardStep>
           );
         }
         return (
