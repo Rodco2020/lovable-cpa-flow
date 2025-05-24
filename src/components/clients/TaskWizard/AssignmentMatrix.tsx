@@ -265,7 +265,7 @@ export const AssignmentMatrix: React.FC<AssignmentMatrixProps> = ({
                               <div className="space-y-1">
                                 <Badge variant="outline" className="text-xs">
                                   {client.industry}
-                                </div>
+                                </Badge>
                                 <div className="text-xs text-muted-foreground">
                                   ${client.expectedMonthlyRevenue?.toLocaleString()}/mo
                                 </div>
