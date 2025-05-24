@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { TaskTemplate } from '@/types/task';
+import { TaskTemplate, TaskPriority } from '@/types/task';
 import { AssignmentConfig } from '@/components/clients/TaskWizard/AssignmentConfiguration';
 import { toast } from '@/hooks/use-toast';
 
@@ -191,7 +191,7 @@ export const getAvailableTemplates = async (): Promise<TaskTemplate[]> => {
       description: template.description,
       defaultEstimatedHours: template.default_estimated_hours,
       requiredSkills: template.required_skills || [],
-      defaultPriority: template.default_priority,
+      defaultPriority: template.default_priority as TaskPriority,
       category: template.category,
       isArchived: template.is_archived,
       createdAt: new Date(template.created_at),
