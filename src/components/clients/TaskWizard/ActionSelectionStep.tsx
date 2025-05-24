@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Copy, FileTemplate, Users, Wrench } from 'lucide-react';
+import { Copy, FileText, Users, Wrench } from 'lucide-react';
 import { WizardStep } from './WizardStep';
 import { ActionCard } from './ActionCard';
 import { useWizard } from './WizardContext';
@@ -32,7 +32,7 @@ export const ActionSelectionStep: React.FC<ActionSelectionStepProps> = ({
       id: 'template-assignment' as WizardAction,
       title: 'Template Assignment',
       description: 'Assign task templates directly to clients with customizable parameters and scheduling.',
-      icon: FileTemplate,
+      icon: FileText,
       status: 'coming-soon' as const
     },
     {
