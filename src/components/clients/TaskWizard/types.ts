@@ -45,3 +45,47 @@ export interface AdvancedTaskFilter {
   dateRange?: [Date, Date];
   status?: string;
 }
+
+// New types for Phase 5: Bulk Operations
+export interface BulkSelectionState {
+  selectedClientIds: string[];
+  selectedTemplateIds: string[];
+  operationType: 'template-assignment' | 'task-copy' | 'batch-update';
+}
+
+export interface BulkOperationConfig {
+  operationType: 'template-assignment' | 'task-copy' | 'batch-update';
+  batchSize: number;
+  concurrency: number;
+  validationRules: ValidationRule[];
+}
+
+export interface ValidationRule {
+  field: string;
+  rule: 'required' | 'unique' | 'valid-date' | 'positive-number';
+  message: string;
+}
+
+export interface BulkOperationResult {
+  totalOperations: number;
+  successfulOperations: number;
+  failedOperations: number;
+  errors: BulkOperationError[];
+  processingTime: number;
+  results: any[];
+}
+
+export interface BulkOperationError {
+  clientId?: string;
+  templateId?: string;
+  error: string;
+  details?: any;
+}
+
+export interface ProgressUpdate {
+  completed: number;
+  total: number;
+  currentOperation: string;
+  percentage: number;
+  estimatedTimeRemaining?: number;
+}
