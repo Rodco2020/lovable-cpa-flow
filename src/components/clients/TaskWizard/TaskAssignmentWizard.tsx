@@ -1,10 +1,12 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { WizardProvider, useWizard } from './WizardContext';
 import { WizardProgressIndicator } from './WizardProgressIndicator';
 import { WizardNavigation } from './WizardNavigation';
+import { ActionSelectionStep } from './ActionSelectionStep';
 import { WizardStep } from './WizardStep';
+import { WizardAction } from './types';
+import CopyClientTasksDialog from '../CopyClientTasksDialog';
 
 interface TaskAssignmentWizardProps {
   open: boolean;
@@ -16,13 +18,22 @@ const WizardContent: React.FC<{
   onClose: () => void;
   initialClientId?: string;
 }> = ({ onClose, initialClientId }) => {
-  const { currentStep, selectedAction, resetWizard } = useWizard();
+  const { 
+    currentStep, 
+    selectedAction, 
+    resetWizard, 
+    setCurrentStep,
+    targetClientId,
+    setTargetClientId 
+  } = useWizard();
+  
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
 
   React.useEffect(() => {
     if (initialClientId) {
-      // Set initial client ID if provided
+      setTargetClientId(initialClientId);
     }
-  }, [initialClientId]);
+  }, [initialClientId, setTargetClientId]);
 
   const handleCancel = () => {
     resetWizard();
@@ -34,64 +45,23 @@ const WizardContent: React.FC<{
     onClose();
   };
 
+  const handleActionSelect = (action: WizardAction) => {
+    if (action === 'copy-from-client') {
+      // Close wizard and open existing copy dialog
+      resetWizard();
+      onClose();
+      setShowCopyDialog(true);
+    } else {
+      // For other actions, proceed to next step (placeholder for now)
+      setCurrentStep('client-selection');
+    }
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 'action-selection':
         return (
-          <WizardStep 
-            title="Choose Action"
-            description="Select the type of task operation you want to perform"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-6 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <h4 className="font-medium mb-2">Copy from Client</h4>
-                <p className="text-sm text-muted-foreground">
-                  Copy tasks from one client to another
-                </p>
-                <div className="mt-4">
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                    Available
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-6 border rounded-lg opacity-50 cursor-not-allowed">
-                <h4 className="font-medium mb-2">Template Assignment</h4>
-                <p className="text-sm text-muted-foreground">
-                  Assign task templates to clients
-                </p>
-                <div className="mt-4">
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-6 border rounded-lg opacity-50 cursor-not-allowed">
-                <h4 className="font-medium mb-2">Bulk Operations</h4>
-                <p className="text-sm text-muted-foreground">
-                  Perform bulk task assignments
-                </p>
-                <div className="mt-4">
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-6 border rounded-lg opacity-50 cursor-not-allowed">
-                <h4 className="font-medium mb-2">Template Builder</h4>
-                <p className="text-sm text-muted-foreground">
-                  Create templates from existing tasks
-                </p>
-                <div className="mt-4">
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-            </div>
-          </WizardStep>
+          <ActionSelectionStep onActionSelect={handleActionSelect} />
         );
       
       default:
@@ -102,8 +72,13 @@ const WizardContent: React.FC<{
           >
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-4">
                   This step will be implemented in the next phase.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Selected Action: <span className="font-medium capitalize">
+                    {selectedAction?.replace('-', ' ')}
+                  </span>
                 </p>
               </div>
             </div>
@@ -113,19 +88,31 @@ const WizardContent: React.FC<{
   };
 
   return (
-    <div className="space-y-6">
-      <WizardProgressIndicator 
-        currentStep={currentStep}
-        selectedAction={selectedAction || undefined}
-      />
-      
-      {renderStepContent()}
-      
-      <WizardNavigation 
-        onCancel={handleCancel}
-        onComplete={handleComplete}
-      />
-    </div>
+    <>
+      <div className="space-y-6">
+        <WizardProgressIndicator 
+          currentStep={currentStep}
+          selectedAction={selectedAction || undefined}
+        />
+        
+        {renderStepContent()}
+        
+        <WizardNavigation 
+          onCancel={handleCancel}
+          onComplete={handleComplete}
+        />
+      </div>
+
+      {/* Existing Copy Dialog - maintains backward compatibility */}
+      {showCopyDialog && initialClientId && (
+        <CopyClientTasksDialog 
+          open={showCopyDialog}
+          onOpenChange={setShowCopyDialog}
+          clientId={initialClientId}
+          sourceClientName=""
+        />
+      )}
+    </>
   );
 };
 

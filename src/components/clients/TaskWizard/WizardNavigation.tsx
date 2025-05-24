@@ -23,6 +23,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
 }) => {
   const { 
     currentStep, 
+    selectedAction,
     canGoNext, 
     canGoPrevious, 
     goToNextStep, 
@@ -41,6 +42,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
 
   const getNextLabel = () => {
     if (customNextLabel) return customNextLabel;
+    if (currentStep === 'action-selection') return 'Select Action';
     if (currentStep === 'confirmation') return 'Execute';
     if (currentStep === 'success') return 'Finish';
     return 'Next';
@@ -50,6 +52,14 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
     if (customPreviousLabel) return customPreviousLabel;
     return 'Back';
   };
+
+  // For action selection step, we don't show next button since selection triggers navigation
+  const shouldShowNext = currentStep !== 'action-selection' && !hideNext && (canGoNext || currentStep === 'success');
+  
+  // Disable next button on action selection step or when no action is selected for other steps
+  const isNextDisabled = isProcessing || 
+    (currentStep === 'action-selection') ||
+    (currentStep !== 'action-selection' && currentStep !== 'success' && !selectedAction);
 
   return (
     <div className="flex justify-between items-center pt-4 border-t">
@@ -73,10 +83,10 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
           </Button>
         )}
         
-        {!hideNext && (canGoNext || currentStep === 'success') && (
+        {shouldShowNext && (
           <Button 
             onClick={handleNext}
-            disabled={isProcessing && currentStep !== 'success'}
+            disabled={isNextDisabled}
           >
             {getNextLabel()}
             {currentStep !== 'success' && <ChevronRight className="h-4 w-4 ml-2" />}
