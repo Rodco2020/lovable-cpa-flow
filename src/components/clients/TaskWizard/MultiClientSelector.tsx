@@ -207,7 +207,7 @@ export const MultiClientSelector: React.FC<MultiClientSelectorProps> = ({
                           <DollarSign className="h-3 w-3 mr-1" />
                           ${client.expectedMonthlyRevenue?.toLocaleString() || '0'}/mo
                         </div>
-                        <Badge variant="outline" size="sm">
+                        <Badge variant="outline">
                           {client.status}
                         </Badge>
                       </div>
