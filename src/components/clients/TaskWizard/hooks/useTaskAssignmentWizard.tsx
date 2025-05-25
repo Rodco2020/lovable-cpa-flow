@@ -22,6 +22,13 @@ import { useCopySuccessMonitor } from './useCopySuccessMonitor';
  * @param onClose - Callback function to execute when wizard closes
  */
 export const useTaskAssignmentWizard = (initialClientId?: string, onClose?: () => void) => {
+  // PHASE 1 DIAGNOSTIC: Log main hook initialization
+  console.log('🔍 PHASE 1 DIAGNOSTIC - useTaskAssignmentWizard: Main hook initialized', {
+    initialClientId,
+    onCloseProvided: !!onClose,
+    timestamp: new Date().toISOString()
+  });
+
   // Manage wizard state and template assignment
   const wizardState = useWizardState(initialClientId);
   
@@ -36,6 +43,18 @@ export const useTaskAssignmentWizard = (initialClientId?: string, onClose?: () =
     copyOperation.copyStep,
     wizardState.setCurrentStep
   );
+
+  // PHASE 1 DIAGNOSTIC: Log hook composition state
+  console.log('🔍 PHASE 1 DIAGNOSTIC - useTaskAssignmentWizard: Hook composition state', {
+    wizardCurrentStep: wizardState.currentStep,
+    wizardSelectedAction: wizardState.selectedAction,
+    copyIsCopySuccess: copyOperation.isCopySuccess,
+    copyIsCopyProcessing: copyOperation.isCopyProcessing,
+    copyCopyStep: copyOperation.copyStep,
+    copyTargetClientId: copyOperation.copyTargetClientId,
+    copySelectedTaskIdsCount: copyOperation.copySelectedTaskIds.length,
+    timestamp: new Date().toISOString()
+  });
 
   // Get wizard action handlers
   const {
@@ -55,7 +74,8 @@ export const useTaskAssignmentWizard = (initialClientId?: string, onClose?: () =
     assignmentConfig: wizardState.assignmentConfig
   });
 
-  return {
+  // PHASE 1 DIAGNOSTIC: Log final wizard state before return
+  const returnValue = {
     // Wizard state
     currentStep: wizardState.currentStep,
     selectedAction: wizardState.selectedAction,
@@ -95,4 +115,25 @@ export const useTaskAssignmentWizard = (initialClientId?: string, onClose?: () =
     getSourceClientName: copyOperation.getSourceClientName,
     getTargetClientName: copyOperation.getTargetClientName
   };
+
+  console.log('🔍 PHASE 1 DIAGNOSTIC - useTaskAssignmentWizard: Final wizard state', {
+    currentStep: returnValue.currentStep,
+    selectedAction: returnValue.selectedAction,
+    clientsCount: returnValue.clients.length,
+    isClientsLoading: returnValue.isClientsLoading,
+    copyTargetClientId: returnValue.copyTargetClientId,
+    copySelectedTaskIdsCount: returnValue.copySelectedTaskIds.length,
+    copyStep: returnValue.copyStep,
+    isCopyProcessing: returnValue.isCopyProcessing,
+    handlersAvailable: {
+      handleActionSelect: !!returnValue.handleActionSelect,
+      handleClientSelect: !!returnValue.handleClientSelect,
+      handleEnhancedCopyExecute: !!returnValue.handleEnhancedCopyExecute,
+      getSourceClientName: !!returnValue.getSourceClientName,
+      getTargetClientName: !!returnValue.getTargetClientName
+    },
+    timestamp: new Date().toISOString()
+  });
+
+  return returnValue;
 };
