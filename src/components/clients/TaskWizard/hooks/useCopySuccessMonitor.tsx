@@ -15,6 +15,7 @@ export const useCopySuccessMonitor = (
   currentStep: WizardStep,
   isCopySuccess: boolean,
   isCopyProcessing: boolean,
+  copyStep: string,
   setCurrentStep: (step: WizardStep) => void
 ) => {
   // State-based copy success monitoring with reliable progression
@@ -23,15 +24,25 @@ export const useCopySuccessMonitor = (
       currentStep,
       isCopySuccess,
       isCopyProcessing,
+      copyStep,
       timestamp: new Date().toISOString(),
-      progressionReady: currentStep === 'processing' && isCopySuccess && !isCopyProcessing
+      progressionReady:
+        currentStep === 'processing' &&
+        (isCopySuccess || copyStep === 'success') &&
+        !isCopyProcessing
     });
     
     // Primary progression logic - state-based only (no fallback timeout)
-    if (currentStep === 'processing' && isCopySuccess && !isCopyProcessing) {
+    if (
+      currentStep === 'processing' &&
+      (isCopySuccess || copyStep === 'success') &&
+      !isCopyProcessing
+    ) {
       console.log('useCopySuccessMonitor: ✅ ALL CONDITIONS MET - Progressing to success step');
       console.log('useCopySuccessMonitor: Current step is processing ✓');
-      console.log('useCopySuccessMonitor: Copy success is true ✓');
+      console.log(
+        'useCopySuccessMonitor: Copy success detected via flag or copyStep ✓'
+      );
       console.log('useCopySuccessMonitor: Copy processing is false ✓');
       console.log('useCopySuccessMonitor: SUCCESS STATE PROPAGATION CONFIRMED - State synchronized properly');
       
@@ -50,10 +61,10 @@ export const useCopySuccessMonitor = (
     // Enhanced detailed logging when conditions are not met
     if (currentStep === 'processing') {
       const reasons = [];
-      if (!isCopySuccess) {
+      if (!isCopySuccess && copyStep !== 'success') {
         reasons.push('Copy success flag is false');
-        console.log('useCopySuccessMonitor: ❌ Waiting for copy success flag to be true');
-        console.log('useCopySuccessMonitor: STATE SYNC ISSUE - isCopySuccess should be true after successful copy');
+        console.log('useCopySuccessMonitor: ❌ Waiting for copy success flag or copyStep to indicate success');
+        console.log('useCopySuccessMonitor: STATE SYNC ISSUE - success state should propagate after copy');
       }
       if (isCopyProcessing) {
         reasons.push('Copy still in progress');
@@ -64,9 +75,9 @@ export const useCopySuccessMonitor = (
         console.log('useCopySuccessMonitor: Conditions not met for step progression:', reasons.join(', '));
       }
     } else {
-      console.log('useCopySuccessMonitor: Not monitoring - current step is not processing:', currentStep);
+      console.log('useCopySuccessMonitor: Not monitoring - current step is not processing:', currentStep, 'copyStep:', copyStep);
     }
-  }, [isCopySuccess, currentStep, isCopyProcessing, setCurrentStep]);
+  }, [isCopySuccess, currentStep, isCopyProcessing, copyStep, setCurrentStep]);
 
   // No fallback timeout mechanism - rely entirely on proper state synchronization
   // This ensures that success is only reported when the state properly flows through all hooks
