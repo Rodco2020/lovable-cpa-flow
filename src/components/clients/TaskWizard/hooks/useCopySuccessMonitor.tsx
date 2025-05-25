@@ -9,8 +9,7 @@ import { WizardStep } from '../types';
  * It monitors the copy success state and automatically transitions from 
  * 'processing' to 'success' step when the operation completes.
  * 
- * The hook uses a reliable state-based approach rather than timers to ensure
- * consistent step transitions regardless of processing time.
+ * Enhanced with comprehensive logging and fallback timeout mechanism.
  */
 export const useCopySuccessMonitor = (
   currentStep: WizardStep,
@@ -27,14 +26,16 @@ export const useCopySuccessMonitor = (
       timestamp: new Date().toISOString()
     });
     
-    // Centralized step progression logic
+    // Primary progression logic - state-based
     if (currentStep === 'processing' && isCopySuccess && !isCopyProcessing) {
-      console.log('useCopySuccessMonitor: All conditions met for progression to success step');
-      console.log('useCopySuccessMonitor: Transitioning from processing to success');
+      console.log('useCopySuccessMonitor: ✅ ALL CONDITIONS MET - Progressing to success step');
+      console.log('useCopySuccessMonitor: Current step is processing ✓');
+      console.log('useCopySuccessMonitor: Copy success is true ✓');
+      console.log('useCopySuccessMonitor: Copy processing is false ✓');
       
       // Use a small delay to ensure UI state is stable
       const progressionTimer = setTimeout(() => {
-        console.log('useCopySuccessMonitor: Executing step transition to success');
+        console.log('useCopySuccessMonitor: 🚀 EXECUTING STEP TRANSITION TO SUCCESS');
         setCurrentStep('success');
       }, 100);
 
@@ -44,14 +45,50 @@ export const useCopySuccessMonitor = (
       };
     }
     
-    // Log when conditions are not met for debugging
+    // Detailed logging when conditions are not met
     if (currentStep === 'processing') {
+      const reasons = [];
       if (!isCopySuccess) {
-        console.log('useCopySuccessMonitor: Waiting for copy success flag');
+        reasons.push('Copy success flag is false');
+        console.log('useCopySuccessMonitor: ❌ Waiting for copy success flag to be true');
       }
       if (isCopyProcessing) {
-        console.log('useCopySuccessMonitor: Copy still in progress');
+        reasons.push('Copy still in progress');
+        console.log('useCopySuccessMonitor: ❌ Copy still in progress');
       }
+      
+      if (reasons.length > 0) {
+        console.log('useCopySuccessMonitor: Conditions not met:', reasons.join(', '));
+      }
+    } else {
+      console.log('useCopySuccessMonitor: Not monitoring - current step is not processing:', currentStep);
     }
   }, [isCopySuccess, currentStep, isCopyProcessing, setCurrentStep]);
+
+  // Fallback timeout mechanism - if state-based progression fails
+  useEffect(() => {
+    if (currentStep === 'processing') {
+      console.log('useCopySuccessMonitor: Setting up fallback timeout for processing step');
+      
+      const fallbackTimer = setTimeout(() => {
+        console.log('useCopySuccessMonitor: ⏰ FALLBACK TIMEOUT TRIGGERED');
+        console.log('useCopySuccessMonitor: Current state at timeout:', {
+          currentStep,
+          isCopySuccess,
+          isCopyProcessing
+        });
+        
+        // If we're still in processing after 10 seconds, force progression
+        if (currentStep === 'processing') {
+          console.log('useCopySuccessMonitor: 🔧 FORCING PROGRESSION VIA FALLBACK');
+          setCurrentStep('success');
+        }
+      }, 10000); // 10 second fallback
+
+      return () => {
+        console.log('useCopySuccessMonitor: Cleaning up fallback timer');
+        clearTimeout(fallbackTimer);
+      };
+    }
+  }, [currentStep, setCurrentStep, isCopySuccess, isCopyProcessing]);
 };

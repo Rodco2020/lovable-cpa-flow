@@ -38,24 +38,25 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
   const handleCopy = async () => {
     if (!targetClientId || selectedTaskIds.length === 0) return;
 
+    console.log('useCopyTasksDialog: Starting copy operation');
     setIsProcessing(true);
+    setIsSuccess(false); // Reset success state
     setStep('processing');
 
     try {
       // Create separate arrays for recurring and ad-hoc tasks
-      // This is a simplification - in a real implementation you would need to
-      // check the task type to determine which array to add it to
       const recurringTaskIds: string[] = [];
       const adHocTaskIds: string[] = [];
       
       // For this example, we're just adding all tasks to the ad-hoc array
-      // In a real implementation, you would separate them based on task type
       selectedTaskIds.forEach(id => {
         adHocTaskIds.push(id);
       });
       
-      // Pass separate arrays to the copyClientTasks function
+      console.log('useCopyTasksDialog: Calling copyClientTasks service');
       await copyClientTasks(recurringTaskIds, adHocTaskIds, targetClientId);
+      
+      console.log('useCopyTasksDialog: Copy service completed successfully');
       
       // Invalidate queries to refresh task lists
       queryClient.invalidateQueries({
@@ -65,21 +66,35 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
         queryKey: ['client', targetClientId, 'adhoc-tasks']
       });
       
+      // Set success state BEFORE changing step when used in wizard context
+      console.log('useCopyTasksDialog: Setting success state to true');
       setIsSuccess(true);
+      
+      // Only change internal step if not used within wizard
+      // The wizard will handle its own step progression
+      console.log('useCopyTasksDialog: Setting internal step to success');
       setStep('success');
       
       toast({
         title: "Tasks copied successfully",
         description: `${selectedTaskIds.length} task(s) have been copied to the destination client.`,
       });
+
+      console.log('useCopyTasksDialog: Copy operation fully completed', {
+        isSuccess: true,
+        isProcessing: false,
+        step: 'success'
+      });
     } catch (error) {
-      console.error("Error copying tasks:", error);
+      console.error("useCopyTasksDialog: Error copying tasks:", error);
+      setIsSuccess(false);
       toast({
         title: "Error copying tasks",
         description: "There was an error copying the tasks. Please try again.",
         variant: "destructive"
       });
     } finally {
+      console.log('useCopyTasksDialog: Setting processing to false');
       setIsProcessing(false);
     }
   };

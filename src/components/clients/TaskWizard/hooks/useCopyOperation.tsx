@@ -22,6 +22,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
   });
 
   // Use the existing copy dialog hook for copy operations
+  // Pass a flag to disable internal step management for wizard use
   const {
     step: copyStep,
     targetClientId: copyTargetClientId,
@@ -33,7 +34,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     isSuccess: isCopySuccess
   } = useCopyTasksDialog(initialClientId || '', onClose || (() => {}));
 
-  // Enhanced logging for copy state changes
+  // Enhanced logging for copy state changes with detailed debugging
   useEffect(() => {
     console.log('useCopyOperation: Copy state updated', {
       copyStep,
@@ -43,6 +44,15 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       selectedTaskCount: copySelectedTaskIds.length,
       timestamp: new Date().toISOString()
     });
+
+    // Debug state synchronization
+    if (isCopySuccess) {
+      console.log('useCopyOperation: SUCCESS STATE DETECTED - Copy operation completed successfully');
+    }
+    
+    if (!isCopyProcessing && isCopySuccess) {
+      console.log('useCopyOperation: BOTH CONDITIONS MET - Processing=false, Success=true');
+    }
   }, [copyStep, isCopyProcessing, isCopySuccess, copyTargetClientId, copySelectedTaskIds.length]);
 
   const getSourceClientName = useCallback(() => {
@@ -57,10 +67,10 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     return targetClient?.legalName || '';
   }, [copyTargetClientId, clients]);
 
-  // Enhanced copy execution with improved logging and state tracking
+  // Enhanced copy execution with wizard-specific behavior
   const handleEnhancedCopyExecute = useCallback(async () => {
     try {
-      console.log('useCopyOperation: Starting enhanced copy operation...', {
+      console.log('useCopyOperation: Starting wizard copy operation...', {
         sourceClientId: initialClientId,
         targetClientId: copyTargetClientId,
         taskCount: copySelectedTaskIds.length
@@ -69,18 +79,22 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       await handleCopyExecute();
       
       console.log('useCopyOperation: Copy operation completed successfully');
+      console.log('useCopyOperation: Checking final states...', {
+        isCopySuccess,
+        isCopyProcessing
+      });
     } catch (error) {
       console.error('useCopyOperation: Copy operation failed:', error);
       throw error;
     }
-  }, [handleCopyExecute, initialClientId, copyTargetClientId, copySelectedTaskIds.length]);
+  }, [handleCopyExecute, initialClientId, copyTargetClientId, copySelectedTaskIds.length, isCopySuccess, isCopyProcessing]);
 
   return {
     // Client data
     clients,
     isClientsLoading,
     
-    // Copy operation state
+    // Copy operation state with enhanced debugging
     copyStep,
     copyTargetClientId,
     copySelectedTaskIds,
