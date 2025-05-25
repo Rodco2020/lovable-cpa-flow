@@ -64,20 +64,23 @@ const WizardContent: React.FC<{
     isSuccess: isCopySuccess
   } = useCopyTasksDialog(initialClientId || '', onClose);
 
-  // Memoized effect to set initial target client ID - fixes infinite loop
+  // Set initial target client ID once
   useEffect(() => {
     if (initialClientId && !targetClientId) {
+      console.log('TaskAssignmentWizard: Setting initial targetClientId:', initialClientId);
       setTargetClientId(initialClientId);
     }
   }, [initialClientId, targetClientId, setTargetClientId]);
 
-  // Monitor copy success and transition wizard step
+  // Enhanced copy success monitoring with detailed logging
   useEffect(() => {
-    if (isCopySuccess && currentStep === 'processing') {
-      console.log('Copy operation completed successfully, transitioning to success step');
+    console.log('TaskAssignmentWizard: State check - currentStep:', currentStep, 'isCopySuccess:', isCopySuccess, 'isCopyProcessing:', isCopyProcessing);
+    
+    if (isCopySuccess && currentStep === 'processing' && !isCopyProcessing) {
+      console.log('TaskAssignmentWizard: Copy operation completed successfully, transitioning to success step');
       setCurrentStep('success');
     }
-  }, [isCopySuccess, currentStep, setCurrentStep]);
+  }, [isCopySuccess, currentStep, isCopyProcessing, setCurrentStep]);
 
   const {
     handleActionSelect,
@@ -108,16 +111,15 @@ const WizardContent: React.FC<{
     return targetClient?.legalName || '';
   }, [copyTargetClientId, clients]);
 
-  // Enhanced copy execution with proper step management
+  // Enhanced copy execution with improved logging
   const handleEnhancedCopyExecute = useCallback(async () => {
     try {
-      console.log('Starting copy operation...');
+      console.log('TaskAssignmentWizard: Starting enhanced copy operation...');
       setCurrentStep('processing');
       await handleCopyExecute();
-      console.log('Copy operation initiated');
+      console.log('TaskAssignmentWizard: Copy operation completed, waiting for success state...');
     } catch (error) {
-      console.error('Copy operation failed:', error);
-      // On error, go back to confirmation step
+      console.error('TaskAssignmentWizard: Copy operation failed:', error);
       setCurrentStep('confirmation');
     }
   }, [handleCopyExecute, setCurrentStep]);

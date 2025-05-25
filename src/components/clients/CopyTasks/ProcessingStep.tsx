@@ -5,15 +5,17 @@ import { Loader2, CheckCircle } from 'lucide-react';
 
 interface ProcessingStepProps {
   progress: number;
+  onComplete?: () => void;
 }
 
 /**
  * Processing step of the copy client tasks dialog
  * Shows a progress bar while tasks are being copied
  */
-export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress }) => {
+export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress, onComplete }) => {
   const [displayProgress, setDisplayProgress] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [hasTriggeredComplete, setHasTriggeredComplete] = useState(false);
 
   // Smooth progress animation
   useEffect(() => {
@@ -26,6 +28,21 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress }) => {
 
     return () => clearTimeout(timer);
   }, [progress]);
+
+  // Auto-progress when copy is complete
+  useEffect(() => {
+    if (isCompleted && progress >= 100 && onComplete && !hasTriggeredComplete) {
+      setHasTriggeredComplete(true);
+      console.log('ProcessingStep: Copy completed, triggering progression in 2 seconds');
+      
+      const progressionTimer = setTimeout(() => {
+        console.log('ProcessingStep: Calling onComplete callback');
+        onComplete();
+      }, 2000);
+
+      return () => clearTimeout(progressionTimer);
+    }
+  }, [isCompleted, progress, onComplete, hasTriggeredComplete]);
 
   // Generate dynamic status message based on progress
   const getStatusMessage = () => {

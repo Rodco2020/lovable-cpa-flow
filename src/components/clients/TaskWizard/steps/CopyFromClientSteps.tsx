@@ -73,6 +73,12 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
     return 100; // Show 100% when complete but before transition
   };
 
+  // Handle automatic progression from processing to success
+  const handleProcessingComplete = () => {
+    console.log('CopyFromClientSteps: Processing complete, transitioning to success step');
+    onStepChange('success');
+  };
+
   switch (currentStep) {
     case 'client-selection':
       return (
@@ -130,7 +136,12 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
       return null;
 
     case 'processing':
-      return <ProcessingStep progress={getProcessingProgress()} />;
+      return (
+        <ProcessingStep 
+          progress={getProcessingProgress()}
+          onComplete={handleProcessingComplete}
+        />
+      );
 
     case 'success':
       return (
