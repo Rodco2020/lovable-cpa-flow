@@ -1,6 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
-import { getRecurringTasks, deactivateRecurringTask } from '@/services/taskService';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { deactivateRecurringTask } from '@/services/taskService';
+import { getClientRecurringTasks } from '@/services/clientService';
 import { RecurringTask } from '@/types/task';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,51 +26,35 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   onRefreshNeeded,
   onViewTask 
 }) => {
-  const [tasks, setTasks] = useState<RecurringTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: tasks = [],
+    isLoading: loading,
+    error,
+    isFetching,
+    refetch
+  } = useQuery({
+    queryKey: ['client', clientId, 'recurring-tasks'],
+    queryFn: () => getClientRecurringTasks(clientId),
+  });
+
+  const isRefreshing = isFetching && !loading;
+
   const [currentPage, setCurrentPage] = useState(1);
   const [editingTaskId, setEditingTaskId] = useState<string | undefined>(undefined);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const tasksPerPage = 5;
   
   // Get all skill IDs from all tasks to fetch their names
   const allSkillIds = tasks.flatMap(task => task.requiredSkills);
   const { skillsMap, isLoading: loadingSkills } = useSkillNames(allSkillIds);
 
-  const loadTasks = async (showLoadingState: boolean = true) => {
-    if (showLoadingState) setLoading(true);
-    else setIsRefreshing(true);
-    
-    setError(null);
-    
-    try {
-      console.log("Fetching recurring tasks for client:", clientId);
-      const allTasks = await getRecurringTasks(false);
-      const clientTasks = allTasks.filter(task => task.clientId === clientId);
-      console.log(`Found ${clientTasks.length} recurring tasks for client ${clientId}`);
-      setTasks(clientTasks);
-    } catch (error) {
-      console.error("Error loading recurring tasks:", error);
-      setError("Failed to load recurring tasks. Please try again.");
-      toast.error("Failed to load recurring tasks");
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-  }, [clientId]);
 
   const handleDeactivate = async (taskId: string) => {
     try {
       const success = await deactivateRecurringTask(taskId);
       if (success) {
         toast.success("Task deactivated successfully");
-        loadTasks(false); // Refresh without full loading state
+        await refetch();
         if (onRefreshNeeded) onRefreshNeeded();
       } else {
         toast.error("Failed to deactivate task");
@@ -80,7 +66,7 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   };
 
   const handleRetryLoad = () => {
-    loadTasks();
+    refetch();
   };
 
   const handleEditClick = (taskId: string, e: React.MouseEvent) => {
@@ -89,14 +75,11 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveComplete = () => {
-    // Refresh the task list after a successful edit
-    loadTasks(false); // Don't show loading spinner, just refresh in the background
-    
-    // Also notify parent components that a refresh might be needed
+  const handleSaveComplete = async () => {
+    await refetch();
+
     if (onRefreshNeeded) onRefreshNeeded();
-    
-    // Reset the UI state
+
     setEditingTaskId(undefined);
   };
 
