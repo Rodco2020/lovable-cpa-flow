@@ -6,6 +6,9 @@ import { useCallback } from 'react';
  * 
  * This hook wraps the base copy execution with additional validation,
  * logging, and error handling to ensure reliable operation within the wizard.
+ * 
+ * IMPORTANT: This now delegates to the base copy handler to ensure proper
+ * state machine transitions in the copy dialog.
  */
 export const useCopyExecution = (
   baseCopyExecute: () => Promise<void>,
@@ -32,8 +35,11 @@ export const useCopyExecution = (
     });
 
     try {
+      // CRITICAL: Use the base copy handler which properly manages the copy dialog's
+      // state machine transitions (select-tasks → processing → success)
+      // This ensures copyStep and isCopySuccess are updated correctly
       await baseCopyExecute();
-      console.log('Copy execution completed successfully');
+      console.log('Copy execution completed successfully - state machine updated');
     } catch (error) {
       console.error('Copy execution failed:', error);
       throw error;
