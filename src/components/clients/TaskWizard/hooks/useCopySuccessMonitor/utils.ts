@@ -3,7 +3,7 @@ import { WizardStep } from '../../types';
 import { ProgressionConditions, ProgressionReasons } from './types';
 
 /**
- * Evaluates all conditions required for step progression
+ * Evaluates the conditions required for wizard step progression
  */
 export const evaluateProgressionConditions = (
   currentStep: WizardStep,
@@ -14,18 +14,17 @@ export const evaluateProgressionConditions = (
   const isProcessingStep = currentStep === 'processing';
   const copySuccessOrStepSuccess = isCopySuccess || copyStep === 'success';
   const notProcessing = !isCopyProcessing;
-  const allConditionsMet = isProcessingStep && copySuccessOrStepSuccess && notProcessing;
-
+  
   return {
     isProcessingStep,
     copySuccessOrStepSuccess,
     notProcessing,
-    allConditionsMet
+    allConditionsMet: isProcessingStep && copySuccessOrStepSuccess && notProcessing
   };
 };
 
 /**
- * Analyzes why progression conditions are not met
+ * Analyzes why progression conditions are not yet met
  */
 export const analyzeProgressionReasons = (
   currentStep: WizardStep,
@@ -36,17 +35,17 @@ export const analyzeProgressionReasons = (
   const reasons: string[] = [];
   
   if (currentStep !== 'processing') {
-    return { reasons: [`Current step is not processing: ${currentStep}`], shouldProgress: false };
+    reasons.push(`not in processing step (${currentStep})`);
   }
-
+  
   if (!isCopySuccess && copyStep !== 'success') {
-    reasons.push('Copy success flag is false and copyStep is not success');
+    reasons.push(`copy not complete (success: ${isCopySuccess}, step: ${copyStep})`);
   }
   
   if (isCopyProcessing) {
-    reasons.push('Copy still in progress');
+    reasons.push('still processing');
   }
-
+  
   return {
     reasons,
     shouldProgress: reasons.length === 0
@@ -54,57 +53,8 @@ export const analyzeProgressionReasons = (
 };
 
 /**
- * Logs detailed progression state for debugging
+ * Logs successful progression with minimal information
  */
-export const logProgressionState = (
-  phase: string,
-  currentStep: WizardStep,
-  isCopySuccess: boolean,
-  isCopyProcessing: boolean,
-  copyStep: string,
-  conditions: ProgressionConditions
-) => {
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: State check with enhanced verification`, {
-    currentStep,
-    isCopySuccess,
-    isCopyProcessing,
-    copyStep,
-    timestamp: new Date().toISOString(),
-    shouldProgressConditions: conditions
-  });
-};
-
-/**
- * Logs successful step progression
- */
-export const logSuccessfulProgression = (phase: string) => {
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: ✅ ALL CONDITIONS MET - Progressing to success step`);
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: Current step is processing ✓`);
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: Copy success detected via flag or copyStep ✓`);
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: Copy processing is false ✓`);
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: SUCCESS STATE PROPAGATION CONFIRMED - Executing immediate transition`);
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: 🚀 EXECUTING IMMEDIATE STEP TRANSITION TO SUCCESS`);
-};
-
-/**
- * Logs waiting conditions
- */
-export const logWaitingConditions = (
-  phase: string,
-  reasons: string[],
-  isCopySuccess: boolean,
-  copyStep: string,
-  isCopyProcessing: boolean
-) => {
-  if (reasons.includes('Copy success flag is false and copyStep is not success')) {
-    console.log(`🔍 ${phase} - useCopySuccessMonitor: ❌ Waiting for copy success flag or copyStep to indicate success`);
-    console.log(`🔍 ${phase} - useCopySuccessMonitor: Current copy success state:`, { isCopySuccess, copyStep });
-  }
-  
-  if (reasons.includes('Copy still in progress')) {
-    console.log(`🔍 ${phase} - useCopySuccessMonitor: ❌ Copy still in progress`);
-  }
-  
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: Conditions not met for step progression:`, reasons.join(', '));
-  console.log(`🔍 ${phase} - useCopySuccessMonitor: Will continue monitoring until success state propagates properly`);
+export const logSuccessfulProgression = (context: string) => {
+  console.log(`${context}: Copy operation completed - progressing to success step`);
 };

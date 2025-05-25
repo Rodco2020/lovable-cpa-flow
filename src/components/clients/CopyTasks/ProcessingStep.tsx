@@ -11,8 +11,6 @@ interface ProcessingStepProps {
 /**
  * Processing step of the copy client tasks dialog
  * Shows a progress bar while tasks are being copied
- * 
- * Simplified to only show progress - step progression is handled by the wizard's state management
  */
 export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress, onComplete }) => {
   const [displayProgress, setDisplayProgress] = useState(0);
@@ -24,17 +22,15 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress, onComp
       setDisplayProgress(progress);
       if (progress >= 100) {
         setIsCompleted(true);
-        console.log('ProcessingStep: Copy operation completed (100% progress reached)');
       }
     }, 100);
 
     return () => clearTimeout(timer);
   }, [progress]);
 
-  // Call onComplete when operation is finished for notification purposes only
+  // Call onComplete when operation is finished
   useEffect(() => {
     if (isCompleted && progress >= 100 && onComplete) {
-      console.log('ProcessingStep: Notifying parent of completion via onComplete callback');
       onComplete();
     }
   }, [isCompleted, progress, onComplete]);

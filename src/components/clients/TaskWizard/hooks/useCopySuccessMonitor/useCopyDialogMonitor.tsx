@@ -17,17 +17,9 @@ export const useCopyDialogMonitor = (
   setCurrentStep: (step: WizardStep) => void
 ) => {
   useEffect(() => {
-    console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Copy dialog state change detected', {
-      copyStep,
-      isCopySuccess,
-      isCopyProcessing,
-      currentStep,
-      timestamp: new Date().toISOString()
-    });
-
     // Handle case where copy dialog completes but wizard hasn't transitioned yet
     if (copyStep === 'success' && currentStep === 'processing' && !isCopyProcessing) {
-      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Copy dialog reports success - triggering wizard progression');
+      console.log('Copy dialog reports success - triggering wizard progression');
       setCurrentStep('success');
     }
   }, [copyStep, isCopySuccess, isCopyProcessing, currentStep, setCurrentStep]);

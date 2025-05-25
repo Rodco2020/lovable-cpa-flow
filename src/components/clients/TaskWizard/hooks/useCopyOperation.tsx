@@ -15,7 +15,6 @@ import { CopyOperationHookReturn } from './types';
  * - Copy operation state management and monitoring
  * - Client name resolution for source and target clients
  * - Enhanced copy execution with proper database verification
- * - Fixed state synchronization for proper wizard step progression
  * 
  * @param initialClientId - The source client ID to copy tasks from
  * @param onClose - Callback function to execute when copy operation completes
@@ -25,13 +24,6 @@ export const useCopyOperation = (
   initialClientId?: string, 
   onClose?: () => void
 ): CopyOperationHookReturn => {
-  // PHASE 1 DIAGNOSTIC: Log hook initialization
-  console.log('🔍 PHASE 1 DIAGNOSTIC - useCopyOperation: Hook initialized', {
-    initialClientId,
-    onCloseProvided: !!onClose,
-    timestamp: new Date().toISOString()
-  });
-
   // Fetch clients for enhanced browser
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -50,18 +42,6 @@ export const useCopyOperation = (
     isSuccess: isCopySuccessFromDialog,
     isDetectingTaskTypes
   } = useCopyTasksDialog(initialClientId || '', onClose || (() => {}));
-
-  // PHASE 1 DIAGNOSTIC: Log copy dialog hook state
-  console.log('🔍 PHASE 1 DIAGNOSTIC - useCopyOperation: Copy dialog hook state', {
-    copyStep,
-    copyTargetClientId,
-    copySelectedTaskIdsCount: copySelectedTaskIds.length,
-    copySelectedTaskIds,
-    isCopyProcessing,
-    isCopySuccessFromDialog,
-    isDetectingTaskTypes,
-    timestamp: new Date().toISOString()
-  });
 
   // Use specialized hooks for different concerns
   const { isCopySuccess } = useCopyState(
@@ -83,19 +63,18 @@ export const useCopyOperation = (
     copySelectedTaskIds
   );
 
-  // PHASE 1 DIAGNOSTIC: Log final return values
-  const returnValue: CopyOperationHookReturn = {
+  return {
     // Client data
     clients,
     isClientsLoading,
     
-    // Copy operation state with enhanced debugging and proper success state synchronization
+    // Copy operation state
     copyStep,
     copyTargetClientId,
     copySelectedTaskIds,
     setCopySelectedTaskIds,
     isCopyProcessing,
-    isCopySuccess, // Now properly synchronized with copy dialog success state
+    isCopySuccess,
     isDetectingTaskTypes,
     
     // Copy operation handlers
@@ -104,24 +83,4 @@ export const useCopyOperation = (
     getSourceClientName,
     getTargetClientName
   };
-
-  console.log('🔍 PHASE 1 DIAGNOSTIC - useCopyOperation: Returning hook values', {
-    clientsCount: clients.length,
-    isClientsLoading,
-    copyStep,
-    copyTargetClientId,
-    copySelectedTaskIdsCount: copySelectedTaskIds.length,
-    isCopyProcessing,
-    isCopySuccess,
-    isDetectingTaskTypes,
-    handlersAvailable: {
-      handleCopySelectClient: !!handleCopySelectClient,
-      handleEnhancedCopyExecute: !!handleEnhancedCopyExecute,
-      getSourceClientName: !!getSourceClientName,
-      getTargetClientName: !!getTargetClientName
-    },
-    timestamp: new Date().toISOString()
-  });
-
-  return returnValue;
 };

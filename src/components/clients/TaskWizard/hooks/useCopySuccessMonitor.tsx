@@ -14,8 +14,6 @@ import { CopySuccessMonitorParams } from './useCopySuccessMonitor/types';
  * - useCopyProgressionMonitor: Handles primary progression logic
  * - useCopyDialogMonitor: Monitors copy dialog state changes
  * 
- * PHASE 3: Fixed state synchronization and step progression logic
- * 
  * @param currentStep - Current wizard step
  * @param isCopySuccess - Whether copy operation succeeded
  * @param isCopyProcessing - Whether copy operation is in progress

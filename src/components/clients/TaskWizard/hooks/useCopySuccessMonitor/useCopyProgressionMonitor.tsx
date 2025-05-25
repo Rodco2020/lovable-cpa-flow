@@ -4,9 +4,7 @@ import { WizardStep } from '../../types';
 import { 
   evaluateProgressionConditions, 
   analyzeProgressionReasons, 
-  logProgressionState, 
-  logSuccessfulProgression, 
-  logWaitingConditions 
+  logSuccessfulProgression 
 } from './utils';
 
 /**
@@ -31,26 +29,15 @@ export const useCopyProgressionMonitor = (
       copyStep
     );
     
-    logProgressionState(
-      'PHASE 3 FIX',
-      currentStep,
-      isCopySuccess,
-      isCopyProcessing,
-      copyStep,
-      conditions
-    );
-    
     // Primary progression logic - state-based progression with immediate transition
     if (conditions.allConditionsMet) {
-      logSuccessfulProgression('PHASE 3 FIX');
-      
-      // Immediate transition without delay to ensure reliable progression
+      logSuccessfulProgression('Copy Success Monitor');
       setCurrentStep('success');
-      return; // Exit early to prevent other logic
+      return;
     }
     
-    // Enhanced detailed logging when conditions are not met
-    if (currentStep === 'processing') {
+    // Log waiting conditions only when in processing step and not progressing
+    if (currentStep === 'processing' && !conditions.allConditionsMet) {
       const reasonsAnalysis = analyzeProgressionReasons(
         currentStep,
         isCopySuccess,
@@ -59,16 +46,8 @@ export const useCopyProgressionMonitor = (
       );
       
       if (reasonsAnalysis.reasons.length > 0) {
-        logWaitingConditions(
-          'PHASE 3 FIX',
-          reasonsAnalysis.reasons,
-          isCopySuccess,
-          copyStep,
-          isCopyProcessing
-        );
+        console.log('Copy operation waiting for conditions:', reasonsAnalysis.reasons.join(', '));
       }
-    } else {
-      console.log(`🔍 PHASE 3 FIX - useCopySuccessMonitor: Not monitoring - current step is not processing:`, currentStep, 'copyStep:', copyStep);
     }
   }, [isCopySuccess, currentStep, isCopyProcessing, copyStep, setCurrentStep]);
 };

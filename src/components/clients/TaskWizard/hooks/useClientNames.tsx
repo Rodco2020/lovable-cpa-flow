@@ -5,47 +5,25 @@ import { Client } from '@/types/client';
 /**
  * Hook for resolving client names from client IDs
  * 
- * Provides utility functions to get source and target client names
- * for display purposes in the copy operation wizard.
+ * Provides utility functions to get client names for source and target clients
+ * used in copy operations, with fallback handling for missing clients.
  */
 export const useClientNames = (
   clients: Client[],
-  initialClientId?: string,
-  copyTargetClientId?: string
+  sourceClientId?: string,
+  targetClientId?: string | null
 ) => {
   const getSourceClientName = useCallback(() => {
-    const result = (() => {
-      if (!initialClientId || !Array.isArray(clients)) return '';
-      const sourceClient = clients.find((c: Client) => c.id === initialClientId);
-      return sourceClient?.legalName || '';
-    })();
-    
-    console.log('🔍 PHASE 1 DIAGNOSTIC - useClientNames: getSourceClientName called', {
-      initialClientId,
-      clientsCount: clients.length,
-      result,
-      timestamp: new Date().toISOString()
-    });
-    
-    return result;
-  }, [initialClientId, clients]);
+    if (!sourceClientId) return 'Unknown Client';
+    const client = clients.find(c => c.id === sourceClientId);
+    return client?.legalName || 'Unknown Client';
+  }, [clients, sourceClientId]);
 
   const getTargetClientName = useCallback(() => {
-    const result = (() => {
-      if (!copyTargetClientId || !Array.isArray(clients)) return '';
-      const targetClient = clients.find((c: Client) => c.id === copyTargetClientId);
-      return targetClient?.legalName || '';
-    })();
-    
-    console.log('🔍 PHASE 1 DIAGNOSTIC - useClientNames: getTargetClientName called', {
-      copyTargetClientId,
-      clientsCount: clients.length,
-      result,
-      timestamp: new Date().toISOString()
-    });
-    
-    return result;
-  }, [copyTargetClientId, clients]);
+    if (!targetClientId) return 'Unknown Client';
+    const client = clients.find(c => c.id === targetClientId);
+    return client?.legalName || 'Unknown Client';
+  }, [clients, targetClientId]);
 
   return {
     getSourceClientName,
