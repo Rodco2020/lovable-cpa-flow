@@ -56,17 +56,6 @@ export interface SuccessStepProps {
   recurringTasksCount: number;
 }
 
-export interface TaskSelectionPanelFilterProps {
-  activeFilter: TaskFilterOption;
-  setActiveFilter: (filter: TaskFilterOption) => void;
-  recurringTasksCount: number;
-  adHocTasksCount: number;
-  selectedCount: number;
-  totalCount: number;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
-}
-
 export interface TaskSelectionPanelProps {
   tasks: any[];
   selectedTaskIds: string[];
