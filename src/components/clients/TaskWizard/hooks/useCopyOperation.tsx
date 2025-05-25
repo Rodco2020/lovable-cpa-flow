@@ -12,7 +12,7 @@ import { Client } from '@/types/client';
  * - Integration with the existing copy tasks dialog
  * - Copy operation state management and monitoring
  * - Client name resolution for source and target clients
- * - Enhanced state tracking for reliable step progression
+ * - Enhanced state tracking with proper database verification
  */
 export const useCopyOperation = (initialClientId?: string, onClose?: () => void) => {
   // Fetch clients for enhanced browser
@@ -48,11 +48,11 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
 
     // Debug state synchronization
     if (isCopySuccess) {
-      console.log('useCopyOperation: SUCCESS STATE DETECTED - Copy operation completed successfully');
+      console.log('useCopyOperation: SUCCESS STATE DETECTED - Copy operation completed and verified in database');
     }
     
     if (!isCopyProcessing && isCopySuccess) {
-      console.log('useCopyOperation: BOTH CONDITIONS MET - Processing=false, Success=true');
+      console.log('useCopyOperation: OPERATION COMPLETE - Processing=false, Success=true with database verification');
     }
   }, [copyStep, isCopyProcessing, isCopySuccess, copyTargetClientId, copySelectedTaskIds.length, isDetectingTaskTypes]);
 
@@ -68,10 +68,10 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     return targetClient?.legalName || '';
   }, [copyTargetClientId, clients]);
 
-  // Enhanced copy execution with wizard-specific behavior
+  // Enhanced copy execution with proper database verification
   const handleEnhancedCopyExecute = useCallback(async () => {
     try {
-      console.log('useCopyOperation: Starting wizard copy operation...', {
+      console.log('useCopyOperation: Starting wizard copy operation with database verification...', {
         sourceClientId: initialClientId,
         targetClientId: copyTargetClientId,
         taskCount: copySelectedTaskIds.length
@@ -79,16 +79,12 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       
       await handleCopyExecute();
       
-      console.log('useCopyOperation: Copy operation completed successfully');
-      console.log('useCopyOperation: Checking final states...', {
-        isCopySuccess,
-        isCopyProcessing
-      });
+      console.log('useCopyOperation: Copy operation completed successfully with database verification');
     } catch (error) {
       console.error('useCopyOperation: Copy operation failed:', error);
       throw error;
     }
-  }, [handleCopyExecute, initialClientId, copyTargetClientId, copySelectedTaskIds.length, isCopySuccess, isCopyProcessing]);
+  }, [handleCopyExecute, initialClientId, copyTargetClientId, copySelectedTaskIds.length]);
 
   return {
     // Client data

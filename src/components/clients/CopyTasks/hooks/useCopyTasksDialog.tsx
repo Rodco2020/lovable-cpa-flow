@@ -57,7 +57,7 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
       return;
     }
 
-    console.log('useCopyTasksDialog: Starting copy operation with proper task type detection');
+    console.log('useCopyTasksDialog: Starting copy operation with enhanced validation');
     setIsProcessing(true);
     setIsSuccess(false);
     setStep('processing');
@@ -81,43 +81,56 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
         });
       }
       
-      console.log('useCopyTasksDialog: Calling copyClientTasks service with proper task routing');
-      await copyClientTasks(recurringTaskIds, adHocTaskIds, targetClientId);
+      console.log('useCopyTasksDialog: Calling copyClientTasks service with enhanced validation and verification');
+      const result = await copyClientTasks(recurringTaskIds, adHocTaskIds, targetClientId);
       
-      console.log('useCopyTasksDialog: Copy service completed successfully');
+      console.log('useCopyTasksDialog: Copy service completed successfully with verification', {
+        recurringCopied: result.recurring.length,
+        adHocCopied: result.adHoc.length
+      });
       
-      // Invalidate queries to refresh task lists
-      queryClient.invalidateQueries({
+      // Invalidate queries to refresh task lists for the target client
+      console.log('useCopyTasksDialog: Invalidating queries for target client:', targetClientId);
+      await queryClient.invalidateQueries({
         queryKey: ['client', targetClientId, 'recurring-tasks']
       });
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ['client', targetClientId, 'adhoc-tasks']
       });
       
-      console.log('useCopyTasksDialog: Setting success state to true');
-      setIsSuccess(true);
+      // Also invalidate the general client tasks overview
+      await queryClient.invalidateQueries({
+        queryKey: ['client-assigned-tasks']
+      });
       
-      console.log('useCopyTasksDialog: Setting internal step to success');
+      console.log('useCopyTasksDialog: Setting success state after database verification');
+      setIsSuccess(true);
       setStep('success');
       
+      const totalCopied = result.recurring.length + result.adHoc.length;
       toast({
         title: "Tasks copied successfully",
-        description: `${selectedTaskIds.length} task(s) have been copied to the destination client. ${recurringTaskIds.length} recurring, ${adHocTaskIds.length} ad-hoc.`,
+        description: `${totalCopied} task(s) have been copied and verified in the database. ${result.recurring.length} recurring, ${result.adHoc.length} ad-hoc.`,
       });
 
-      console.log('useCopyTasksDialog: Copy operation fully completed', {
+      console.log('useCopyTasksDialog: Copy operation fully completed and verified', {
         isSuccess: true,
         isProcessing: false,
         step: 'success',
-        recurringTasksCount: recurringTaskIds.length,
-        adHocTasksCount: adHocTaskIds.length
+        totalCopied,
+        recurringTasksCount: result.recurring.length,
+        adHocTasksCount: result.adHoc.length
       });
     } catch (error) {
-      console.error("useCopyTasksDialog: Error copying tasks:", error);
+      console.error("useCopyTasksDialog: Copy operation failed with error:", error);
       setIsSuccess(false);
+      setStep('select-tasks'); // Return to task selection to allow retry
+      
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred during copy operation";
+      
       toast({
         title: "Error copying tasks",
-        description: error instanceof Error ? error.message : "There was an error copying the tasks. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

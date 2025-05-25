@@ -9,7 +9,7 @@ import { WizardStep } from '../types';
  * It monitors the copy success state and automatically transitions from 
  * 'processing' to 'success' step when the operation completes.
  * 
- * Enhanced with comprehensive logging and fallback timeout mechanism.
+ * Enhanced with reliable state-based progression - no fallback timeouts.
  */
 export const useCopySuccessMonitor = (
   currentStep: WizardStep,
@@ -17,7 +17,7 @@ export const useCopySuccessMonitor = (
   isCopyProcessing: boolean,
   setCurrentStep: (step: WizardStep) => void
 ) => {
-  // Enhanced copy success monitoring with detailed logging and reliable progression
+  // State-based copy success monitoring with reliable progression
   useEffect(() => {
     console.log('useCopySuccessMonitor: State check', {
       currentStep,
@@ -26,7 +26,7 @@ export const useCopySuccessMonitor = (
       timestamp: new Date().toISOString()
     });
     
-    // Primary progression logic - state-based
+    // Primary progression logic - state-based only (no fallback timeout)
     if (currentStep === 'processing' && isCopySuccess && !isCopyProcessing) {
       console.log('useCopySuccessMonitor: ✅ ALL CONDITIONS MET - Progressing to success step');
       console.log('useCopySuccessMonitor: Current step is processing ✓');
@@ -65,30 +65,6 @@ export const useCopySuccessMonitor = (
     }
   }, [isCopySuccess, currentStep, isCopyProcessing, setCurrentStep]);
 
-  // Fallback timeout mechanism - if state-based progression fails
-  useEffect(() => {
-    if (currentStep === 'processing') {
-      console.log('useCopySuccessMonitor: Setting up fallback timeout for processing step');
-      
-      const fallbackTimer = setTimeout(() => {
-        console.log('useCopySuccessMonitor: ⏰ FALLBACK TIMEOUT TRIGGERED');
-        console.log('useCopySuccessMonitor: Current state at timeout:', {
-          currentStep,
-          isCopySuccess,
-          isCopyProcessing
-        });
-        
-        // If we're still in processing after 10 seconds, force progression
-        if (currentStep === 'processing') {
-          console.log('useCopySuccessMonitor: 🔧 FORCING PROGRESSION VIA FALLBACK');
-          setCurrentStep('success');
-        }
-      }, 10000); // 10 second fallback
-
-      return () => {
-        console.log('useCopySuccessMonitor: Cleaning up fallback timer');
-        clearTimeout(fallbackTimer);
-      };
-    }
-  }, [currentStep, setCurrentStep, isCopySuccess, isCopyProcessing]);
+  // No fallback timeout mechanism - rely entirely on proper database verification
+  // This ensures that success is only reported when the database operation actually succeeds
 };
