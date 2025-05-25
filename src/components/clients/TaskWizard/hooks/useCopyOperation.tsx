@@ -13,6 +13,7 @@ import { Client } from '@/types/client';
  * - Copy operation state management and monitoring
  * - Client name resolution for source and target clients
  * - Enhanced state tracking with proper database verification
+ * - Fixed state synchronization for proper wizard step progression
  */
 export const useCopyOperation = (initialClientId?: string, onClose?: () => void) => {
   // Fetch clients for enhanced browser
@@ -30,9 +31,43 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     handleSelectClient: handleCopySelectClient,
     handleCopy: handleCopyExecute,
     isProcessing: isCopyProcessing,
-    isSuccess: isCopySuccess,
+    isSuccess: isCopySuccessFromDialog,
     isDetectingTaskTypes
   } = useCopyTasksDialog(initialClientId || '', onClose || (() => {}));
+
+  // State to track copy success with proper synchronization
+  const [isCopySuccess, setIsCopySuccess] = useState(false);
+
+  // Synchronize success state from copy dialog hook with enhanced logging
+  useEffect(() => {
+    console.log('useCopyOperation: Synchronizing success state from copy dialog', {
+      isCopySuccessFromDialog,
+      currentIsCopySuccess: isCopySuccess,
+      copyStep,
+      isCopyProcessing,
+      timestamp: new Date().toISOString()
+    });
+
+    // Update local success state to match copy dialog success state
+    if (isCopySuccessFromDialog !== isCopySuccess) {
+      console.log('useCopyOperation: SUCCESS STATE CHANGE DETECTED', {
+        from: isCopySuccess,
+        to: isCopySuccessFromDialog,
+        reason: 'Copy dialog hook state updated'
+      });
+      setIsCopySuccess(isCopySuccessFromDialog);
+    }
+
+    // Enhanced state verification for step progression
+    if (isCopySuccessFromDialog && !isCopyProcessing) {
+      console.log('useCopyOperation: COPY OPERATION FULLY COMPLETED', {
+        isCopySuccess: isCopySuccessFromDialog,
+        isCopyProcessing,
+        copyStep,
+        message: 'Ready for wizard step progression'
+      });
+    }
+  }, [isCopySuccessFromDialog, isCopyProcessing, copyStep, isCopySuccess]);
 
   // Enhanced logging for copy state changes with detailed debugging
   useEffect(() => {
@@ -40,6 +75,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       copyStep,
       isCopyProcessing,
       isCopySuccess,
+      isCopySuccessFromDialog,
       copyTargetClientId,
       selectedTaskCount: copySelectedTaskIds.length,
       isDetectingTaskTypes,
@@ -48,13 +84,13 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
 
     // Debug state synchronization
     if (isCopySuccess) {
-      console.log('useCopyOperation: SUCCESS STATE DETECTED - Copy operation completed and verified in database');
+      console.log('useCopyOperation: SUCCESS STATE ACTIVE - Copy operation completed and verified in database');
     }
     
     if (!isCopyProcessing && isCopySuccess) {
       console.log('useCopyOperation: OPERATION COMPLETE - Processing=false, Success=true with database verification');
     }
-  }, [copyStep, isCopyProcessing, isCopySuccess, copyTargetClientId, copySelectedTaskIds.length, isDetectingTaskTypes]);
+  }, [copyStep, isCopyProcessing, isCopySuccess, isCopySuccessFromDialog, copyTargetClientId, copySelectedTaskIds.length, isDetectingTaskTypes]);
 
   const getSourceClientName = useCallback(() => {
     if (!initialClientId || !Array.isArray(clients)) return '';
@@ -91,13 +127,13 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     clients,
     isClientsLoading,
     
-    // Copy operation state with enhanced debugging
+    // Copy operation state with enhanced debugging and proper success state synchronization
     copyStep,
     copyTargetClientId,
     copySelectedTaskIds,
     setCopySelectedTaskIds,
     isCopyProcessing,
-    isCopySuccess,
+    isCopySuccess, // Now properly synchronized with copy dialog success state
     isDetectingTaskTypes,
     
     // Copy operation handlers

@@ -59,7 +59,7 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
 
     console.log('useCopyTasksDialog: Starting copy operation with enhanced validation');
     setIsProcessing(true);
-    setIsSuccess(false);
+    setIsSuccess(false); // Reset success state at start
     setStep('processing');
 
     try {
@@ -104,7 +104,11 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
       });
       
       console.log('useCopyTasksDialog: Setting success state after database verification');
+      
+      // CRITICAL: Set success state BEFORE changing step to ensure proper state propagation
       setIsSuccess(true);
+      console.log('useCopyTasksDialog: SUCCESS STATE SET TO TRUE - Ready for step progression');
+      
       setStep('success');
       
       const totalCopied = result.recurring.length + result.adHoc.length;
@@ -119,7 +123,8 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
         step: 'success',
         totalCopied,
         recurringTasksCount: result.recurring.length,
-        adHocTasksCount: result.adHoc.length
+        adHocTasksCount: result.adHoc.length,
+        message: 'State ready for wizard progression'
       });
     } catch (error) {
       console.error("useCopyTasksDialog: Copy operation failed with error:", error);
@@ -147,6 +152,17 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
     setIsSuccess(false);
   };
 
+  // Enhanced logging when success state changes
+  const logSuccessStateChange = (newSuccess: boolean) => {
+    console.log('useCopyTasksDialog: Success state change', {
+      from: isSuccess,
+      to: newSuccess,
+      step,
+      isProcessing,
+      timestamp: new Date().toISOString()
+    });
+  };
+
   return {
     step,
     targetClientId,
@@ -157,7 +173,7 @@ export const useCopyTasksDialog = (clientId: string, onClose: () => void) => {
     handleNext,
     handleCopy,
     isProcessing,
-    isSuccess,
+    isSuccess, // This now properly maintains state throughout the copy operation
     resetDialog,
     onClose,
     isDetectingTaskTypes

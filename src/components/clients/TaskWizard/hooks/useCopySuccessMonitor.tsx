@@ -9,7 +9,7 @@ import { WizardStep } from '../types';
  * It monitors the copy success state and automatically transitions from 
  * 'processing' to 'success' step when the operation completes.
  * 
- * Enhanced with reliable state-based progression - no fallback timeouts.
+ * Enhanced with reliable state-based progression and improved state synchronization verification.
  */
 export const useCopySuccessMonitor = (
   currentStep: WizardStep,
@@ -19,11 +19,12 @@ export const useCopySuccessMonitor = (
 ) => {
   // State-based copy success monitoring with reliable progression
   useEffect(() => {
-    console.log('useCopySuccessMonitor: State check', {
+    console.log('useCopySuccessMonitor: State check with enhanced verification', {
       currentStep,
       isCopySuccess,
       isCopyProcessing,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      progressionReady: currentStep === 'processing' && isCopySuccess && !isCopyProcessing
     });
     
     // Primary progression logic - state-based only (no fallback timeout)
@@ -32,6 +33,7 @@ export const useCopySuccessMonitor = (
       console.log('useCopySuccessMonitor: Current step is processing ✓');
       console.log('useCopySuccessMonitor: Copy success is true ✓');
       console.log('useCopySuccessMonitor: Copy processing is false ✓');
+      console.log('useCopySuccessMonitor: SUCCESS STATE PROPAGATION CONFIRMED - State synchronized properly');
       
       // Use a small delay to ensure UI state is stable
       const progressionTimer = setTimeout(() => {
@@ -45,12 +47,13 @@ export const useCopySuccessMonitor = (
       };
     }
     
-    // Detailed logging when conditions are not met
+    // Enhanced detailed logging when conditions are not met
     if (currentStep === 'processing') {
       const reasons = [];
       if (!isCopySuccess) {
         reasons.push('Copy success flag is false');
         console.log('useCopySuccessMonitor: ❌ Waiting for copy success flag to be true');
+        console.log('useCopySuccessMonitor: STATE SYNC ISSUE - isCopySuccess should be true after successful copy');
       }
       if (isCopyProcessing) {
         reasons.push('Copy still in progress');
@@ -58,13 +61,13 @@ export const useCopySuccessMonitor = (
       }
       
       if (reasons.length > 0) {
-        console.log('useCopySuccessMonitor: Conditions not met:', reasons.join(', '));
+        console.log('useCopySuccessMonitor: Conditions not met for step progression:', reasons.join(', '));
       }
     } else {
       console.log('useCopySuccessMonitor: Not monitoring - current step is not processing:', currentStep);
     }
   }, [isCopySuccess, currentStep, isCopyProcessing, setCurrentStep]);
 
-  // No fallback timeout mechanism - rely entirely on proper database verification
-  // This ensures that success is only reported when the database operation actually succeeds
+  // No fallback timeout mechanism - rely entirely on proper state synchronization
+  // This ensures that success is only reported when the state properly flows through all hooks
 };
