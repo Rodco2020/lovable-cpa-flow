@@ -1,95 +1,119 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { useWizard } from './WizardContext';
 
-interface WizardNavigationProps {
-  onCancel?: () => void;
-  onComplete?: () => void;
-  customNextLabel?: string;
-  customPreviousLabel?: string;
-  hideNext?: boolean;
-  hidePrevious?: boolean;
-}
-
-export const WizardNavigation: React.FC<WizardNavigationProps> = ({
-  onCancel,
-  onComplete,
-  customNextLabel,
-  customPreviousLabel,
-  hideNext = false,
-  hidePrevious = false
-}) => {
-  const { 
-    currentStep, 
+export const WizardNavigation: React.FC = () => {
+  const {
+    currentStep,
     selectedAction,
-    canGoNext, 
-    canGoPrevious, 
-    goToNextStep, 
-    goToPreviousStep, 
-    isProcessing,
-    isComplete 
+    canGoNext,
+    canGoPrevious,
+    goToNextStep,
+    goToPreviousStep,
+    resetWizard,
+    isProcessing
   } = useWizard();
 
-  const handleNext = () => {
-    if (currentStep === 'success' && onComplete) {
-      onComplete();
-    } else {
-      goToNextStep();
+  const getStepNumber = (step: string): number => {
+    const steps = ['action-selection', 'client-selection', 'task-selection', 'configuration', 'confirmation', 'processing', 'success'];
+    return steps.indexOf(step) + 1;
+  };
+
+  const getTotalSteps = (): number => {
+    return 7; // Total number of steps
+  };
+
+  const getStepTitle = (step: string): string => {
+    switch (step) {
+      case 'action-selection':
+        return 'Select Action';
+      case 'client-selection':
+        return 'Select Clients';
+      case 'task-selection':
+        return 'Select Tasks';
+      case 'configuration':
+        return 'Configuration';
+      case 'confirmation':
+        return 'Confirmation';
+      case 'processing':
+        return 'Processing';
+      case 'success':
+        return 'Complete';
+      default:
+        return 'Unknown Step';
     }
   };
 
-  const getNextLabel = () => {
-    if (customNextLabel) return customNextLabel;
-    if (currentStep === 'action-selection') return 'Select Action';
-    if (currentStep === 'confirmation') return 'Execute';
-    if (currentStep === 'success') return 'Finish';
-    return 'Next';
+  const shouldShowNext = (): boolean => {
+    // Don't show Next button on success or processing steps
+    if (currentStep === 'success' || currentStep === 'processing') {
+      return false;
+    }
+    
+    // For action-selection step, only show if an action is selected
+    if (currentStep === 'action-selection') {
+      return selectedAction !== null;
+    }
+    
+    return canGoNext;
   };
 
-  const getPreviousLabel = () => {
-    if (customPreviousLabel) return customPreviousLabel;
-    return 'Back';
+  const shouldShowPrevious = (): boolean => {
+    // Don't show Previous button on action-selection, processing, or success steps
+    if (currentStep === 'action-selection' || currentStep === 'processing' || currentStep === 'success') {
+      return false;
+    }
+    
+    return canGoPrevious;
   };
-
-  // For action selection step, we don't show next button since selection triggers navigation
-  const shouldShowNext = currentStep !== 'action-selection' && !hideNext && (canGoNext || currentStep === 'success');
-  
-  // Disable next button on action selection step or when no action is selected for other steps
-  const isNextDisabled = isProcessing || 
-    (currentStep === 'action-selection') ||
-    (currentStep !== 'action-selection' && currentStep !== 'success' && !selectedAction);
 
   return (
-    <div className="flex justify-between items-center pt-4 border-t">
-      <div>
-        {onCancel && (
-          <Button variant="outline" onClick={onCancel} disabled={isProcessing}>
-            Cancel
-          </Button>
-        )}
+    <div className="flex items-center justify-between p-4 border-t bg-muted/10">
+      {/* Step indicator */}
+      <div className="flex items-center space-x-2">
+        <Badge variant="outline">
+          Step {getStepNumber(currentStep)} of {getTotalSteps()}
+        </Badge>
+        <span className="text-sm text-muted-foreground">
+          {getStepTitle(currentStep)}
+        </span>
       </div>
-      
-      <div className="flex gap-2">
-        {!hidePrevious && canGoPrevious && (
-          <Button 
-            variant="outline" 
+
+      {/* Navigation buttons */}
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={resetWizard}
+          disabled={isProcessing}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Reset
+        </Button>
+
+        {shouldShowPrevious() && (
+          <Button
+            variant="outline"
+            size="sm"
             onClick={goToPreviousStep}
             disabled={isProcessing}
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
-            {getPreviousLabel()}
+            Previous
           </Button>
         )}
-        
-        {shouldShowNext && (
-          <Button 
-            onClick={handleNext}
-            disabled={isNextDisabled}
+
+        {shouldShowNext() && (
+          <Button
+            size="sm"
+            onClick={goToNextStep}
+            disabled={isProcessing}
           >
-            {getNextLabel()}
-            {currentStep !== 'success' && <ChevronRight className="h-4 w-4 ml-2" />}
+            Next
+            <ChevronRight className="h-4 w-4 ml-2" />
           </Button>
         )}
       </div>
