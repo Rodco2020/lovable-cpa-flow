@@ -73,10 +73,9 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
     return 100; // Show 100% when complete but before transition
   };
 
-  // Handle automatic progression from processing to success
+  // Simple completion notification (no auto-progression)
   const handleProcessingComplete = () => {
-    console.log('CopyFromClientSteps: Processing complete, transitioning to success step');
-    onStepChange('success');
+    console.log('CopyFromClientSteps: Processing step completed - relying on useCopySuccessMonitor for progression');
   };
 
   switch (currentStep) {

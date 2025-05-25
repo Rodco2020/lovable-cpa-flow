@@ -12,6 +12,7 @@ import { Client } from '@/types/client';
  * - Integration with the existing copy tasks dialog
  * - Copy operation state management and monitoring
  * - Client name resolution for source and target clients
+ * - Enhanced state tracking for reliable step progression
  */
 export const useCopyOperation = (initialClientId?: string, onClose?: () => void) => {
   // Fetch clients for enhanced browser
@@ -32,6 +33,18 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     isSuccess: isCopySuccess
   } = useCopyTasksDialog(initialClientId || '', onClose || (() => {}));
 
+  // Enhanced logging for copy state changes
+  useEffect(() => {
+    console.log('useCopyOperation: Copy state updated', {
+      copyStep,
+      isCopyProcessing,
+      isCopySuccess,
+      copyTargetClientId,
+      selectedTaskCount: copySelectedTaskIds.length,
+      timestamp: new Date().toISOString()
+    });
+  }, [copyStep, isCopyProcessing, isCopySuccess, copyTargetClientId, copySelectedTaskIds.length]);
+
   const getSourceClientName = useCallback(() => {
     if (!initialClientId || !Array.isArray(clients)) return '';
     const sourceClient = clients.find((c: Client) => c.id === initialClientId);
@@ -44,17 +57,23 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     return targetClient?.legalName || '';
   }, [copyTargetClientId, clients]);
 
-  // Enhanced copy execution with improved logging
+  // Enhanced copy execution with improved logging and state tracking
   const handleEnhancedCopyExecute = useCallback(async () => {
     try {
-      console.log('TaskAssignmentWizard: Starting enhanced copy operation...');
+      console.log('useCopyOperation: Starting enhanced copy operation...', {
+        sourceClientId: initialClientId,
+        targetClientId: copyTargetClientId,
+        taskCount: copySelectedTaskIds.length
+      });
+      
       await handleCopyExecute();
-      console.log('TaskAssignmentWizard: Copy operation completed, waiting for success state...');
+      
+      console.log('useCopyOperation: Copy operation completed successfully');
     } catch (error) {
-      console.error('TaskAssignmentWizard: Copy operation failed:', error);
+      console.error('useCopyOperation: Copy operation failed:', error);
       throw error;
     }
-  }, [handleCopyExecute]);
+  }, [handleCopyExecute, initialClientId, copyTargetClientId, copySelectedTaskIds.length]);
 
   return {
     // Client data

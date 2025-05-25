@@ -11,11 +11,13 @@ interface ProcessingStepProps {
 /**
  * Processing step of the copy client tasks dialog
  * Shows a progress bar while tasks are being copied
+ * 
+ * Note: Auto-progression has been removed to prevent competing mechanisms.
+ * Step progression is now handled by the parent wizard's state management.
  */
 export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress, onComplete }) => {
   const [displayProgress, setDisplayProgress] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [hasTriggeredComplete, setHasTriggeredComplete] = useState(false);
 
   // Smooth progress animation
   useEffect(() => {
@@ -23,26 +25,20 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress, onComp
       setDisplayProgress(progress);
       if (progress >= 100) {
         setIsCompleted(true);
+        console.log('ProcessingStep: Copy operation completed (100% progress reached)');
       }
     }, 100);
 
     return () => clearTimeout(timer);
   }, [progress]);
 
-  // Auto-progress when copy is complete
+  // Call onComplete when operation is finished, but don't auto-progress
   useEffect(() => {
-    if (isCompleted && progress >= 100 && onComplete && !hasTriggeredComplete) {
-      setHasTriggeredComplete(true);
-      console.log('ProcessingStep: Copy completed, triggering progression in 2 seconds');
-      
-      const progressionTimer = setTimeout(() => {
-        console.log('ProcessingStep: Calling onComplete callback');
-        onComplete();
-      }, 2000);
-
-      return () => clearTimeout(progressionTimer);
+    if (isCompleted && progress >= 100 && onComplete) {
+      console.log('ProcessingStep: Notifying parent of completion via onComplete callback');
+      onComplete();
     }
-  }, [isCompleted, progress, onComplete, hasTriggeredComplete]);
+  }, [isCompleted, progress, onComplete]);
 
   // Generate dynamic status message based on progress
   const getStatusMessage = () => {
@@ -96,7 +92,7 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({ progress, onComp
 
       {isCompleted && (
         <div className="mt-4 text-xs text-muted-foreground">
-          Redirecting to results...
+          Processing completed - wizard will advance automatically
         </div>
       )}
     </div>

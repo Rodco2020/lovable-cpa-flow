@@ -5,8 +5,12 @@ import { WizardStep } from '../types';
 /**
  * Custom hook for monitoring copy operation success and handling step transitions
  * 
- * This hook provides enhanced monitoring with detailed logging for copy operations
- * and ensures proper step transitions when operations complete successfully.
+ * This hook provides centralized step progression logic for copy operations.
+ * It monitors the copy success state and automatically transitions from 
+ * 'processing' to 'success' step when the operation completes.
+ * 
+ * The hook uses a reliable state-based approach rather than timers to ensure
+ * consistent step transitions regardless of processing time.
  */
 export const useCopySuccessMonitor = (
   currentStep: WizardStep,
@@ -14,13 +18,40 @@ export const useCopySuccessMonitor = (
   isCopyProcessing: boolean,
   setCurrentStep: (step: WizardStep) => void
 ) => {
-  // Enhanced copy success monitoring with detailed logging
+  // Enhanced copy success monitoring with detailed logging and reliable progression
   useEffect(() => {
-    console.log('TaskAssignmentWizard: State check - currentStep:', currentStep, 'isCopySuccess:', isCopySuccess, 'isCopyProcessing:', isCopyProcessing);
+    console.log('useCopySuccessMonitor: State check', {
+      currentStep,
+      isCopySuccess,
+      isCopyProcessing,
+      timestamp: new Date().toISOString()
+    });
     
-    if (isCopySuccess && currentStep === 'processing' && !isCopyProcessing) {
-      console.log('TaskAssignmentWizard: Copy operation completed successfully, transitioning to success step');
-      setCurrentStep('success');
+    // Centralized step progression logic
+    if (currentStep === 'processing' && isCopySuccess && !isCopyProcessing) {
+      console.log('useCopySuccessMonitor: All conditions met for progression to success step');
+      console.log('useCopySuccessMonitor: Transitioning from processing to success');
+      
+      // Use a small delay to ensure UI state is stable
+      const progressionTimer = setTimeout(() => {
+        console.log('useCopySuccessMonitor: Executing step transition to success');
+        setCurrentStep('success');
+      }, 100);
+
+      return () => {
+        console.log('useCopySuccessMonitor: Cleaning up progression timer');
+        clearTimeout(progressionTimer);
+      };
+    }
+    
+    // Log when conditions are not met for debugging
+    if (currentStep === 'processing') {
+      if (!isCopySuccess) {
+        console.log('useCopySuccessMonitor: Waiting for copy success flag');
+      }
+      if (isCopyProcessing) {
+        console.log('useCopySuccessMonitor: Copy still in progress');
+      }
     }
   }, [isCopySuccess, currentStep, isCopyProcessing, setCurrentStep]);
 };
