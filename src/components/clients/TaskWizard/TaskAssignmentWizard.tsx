@@ -19,6 +19,7 @@ import { AssignmentConfig } from './AssignmentConfiguration';
 import { useCopyTasksDialog } from '../CopyTasks/hooks/useCopyTasksDialog';
 import { assignTemplatesToClients } from '@/services/templateAssignmentService';
 import { Client } from '@/types/client';
+import { TemplateBuilder } from './TemplateBuilder';
 
 interface TaskAssignmentWizardProps {
   open: boolean;
@@ -51,6 +52,9 @@ const WizardContent: React.FC<{
   const [isAssignmentProcessing, setIsAssignmentProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
+  // Template builder state
+  const [selectedTasksForTemplate, setSelectedTasksForTemplate] = useState<any[]>([]);
+
   // Fetch clients for enhanced browser
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -77,23 +81,14 @@ const WizardContent: React.FC<{
     }
   }, [initialClientId, setTargetClientId]);
 
-  const handleCancel = () => {
-    resetWizard();
-    onClose();
-  };
-
-  const handleComplete = () => {
-    resetWizard();
-    onClose();
-  };
-
   const handleActionSelect = (action: WizardAction) => {
     if (action === 'copy-from-client') {
       setCurrentStep('client-selection');
     } else if (action === 'template-assignment') {
-      setCurrentStep('task-selection'); // Reuse task-selection step for template assignment
+      setCurrentStep('task-selection');
+    } else if (action === 'template-builder') {
+      setCurrentStep('task-selection');
     } else {
-      // For other actions, proceed to next step (placeholder for now)
       setCurrentStep('client-selection');
     }
   };
@@ -126,6 +121,16 @@ const WizardContent: React.FC<{
     } finally {
       setIsAssignmentProcessing(false);
     }
+  };
+
+  const handleTemplateCreated = (templateData: any) => {
+    console.log('Template created:', templateData);
+    setCurrentStep('success');
+  };
+
+  const handleTaskSelectionForTemplate = (tasks: any[]) => {
+    setSelectedTasksForTemplate(tasks);
+    setCurrentStep('configuration');
   };
 
   const availableClients = Array.isArray(clients) 
@@ -204,6 +209,24 @@ const WizardContent: React.FC<{
               setAssignmentConfig={setAssignmentConfig}
             />
           );
+        } else if (selectedAction === 'template-builder' && initialClientId) {
+          return (
+            <WizardStep 
+              title="Select Tasks for Template"
+              description="Choose tasks to convert into a reusable template"
+            >
+              <SelectTasksStep 
+                clientId={initialClientId}
+                targetClientId={initialClientId}
+                selectedTaskIds={selectedTaskIds}
+                setSelectedTaskIds={setSelectedTaskIds}
+                step="select-tasks"
+                handleBack={() => setCurrentStep('action-selection')}
+                handleNext={() => setCurrentStep('configuration')}
+                isTemplateBuilder={true}
+              />
+            </WizardStep>
+          );
         }
         return (
           <WizardStep 
@@ -212,6 +235,42 @@ const WizardContent: React.FC<{
           >
             <div className="text-center py-8 text-muted-foreground">
               Task selection for {selectedAction?.replace('-', ' ')} will be implemented here.
+            </div>
+          </WizardStep>
+        );
+
+      case 'configuration':
+        if (selectedAction === 'template-builder' && selectedTaskIds.length > 0) {
+          const tasksForBuilder = selectedTaskIds.map(taskId => {
+            // Mock task data - in real implementation, fetch from service
+            return {
+              task: {
+                id: taskId,
+                name: `Task ${taskId}`,
+                description: 'Task description',
+                estimatedHours: 2,
+                category: 'Tax',
+                priority: 'Medium'
+              },
+              client: clients.find((c: Client) => c.id === initialClientId) || clients[0]
+            };
+          });
+
+          return (
+            <TemplateBuilder
+              selectedTasks={tasksForBuilder}
+              onTemplateCreated={handleTemplateCreated}
+              onCancel={() => setCurrentStep('task-selection')}
+            />
+          );
+        }
+        return (
+          <WizardStep 
+            title="Configuration"
+            description="Configure your operation settings"
+          >
+            <div className="text-center py-8 text-muted-foreground">
+              Configuration for {selectedAction?.replace('-', ' ')} will be implemented here.
             </div>
           </WizardStep>
         );
@@ -336,6 +395,27 @@ const WizardContent: React.FC<{
               </div>
             </WizardStep>
           );
+        } else if (selectedAction === 'template-builder') {
+          return (
+            <WizardStep 
+              title="Template Created"
+              description="Your template has been successfully created"
+            >
+              <div className="text-center py-8 text-green-600">
+                <div className="mb-4">
+                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Template Created Successfully!</h3>
+                  <p className="text-gray-600">
+                    Template created from {selectedTaskIds.length} selected task(s)
+                  </p>
+                </div>
+              </div>
+            </WizardStep>
+          );
         }
         return (
           <WizardStep 
@@ -380,10 +460,7 @@ const WizardContent: React.FC<{
       
       {renderStepContent()}
       
-      <WizardNavigation 
-        onCancel={handleCancel}
-        onComplete={handleComplete}
-      />
+      <WizardNavigation />
     </div>
   );
 };
