@@ -43,8 +43,8 @@ export const useTaskSelection = (clientId: string) => {
   const recurringTasksCount = recurringTasks.length;
   const adHocTasksCount = adHocTasks.length;
 
-  // Determine the display type based on active filter
-  const displayType = activeFilter === 'adhoc' ? 'ad-hoc' : 'recurring';
+  // Determine the display type based on active filter - ensure it returns the correct union type
+  const displayType: 'ad-hoc' | 'recurring' = activeFilter === 'adhoc' ? 'ad-hoc' : 'recurring';
 
   return {
     searchTerm,
