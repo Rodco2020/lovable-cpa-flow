@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { WizardProvider, useWizard } from './WizardContext';
@@ -5,21 +6,15 @@ import { WizardProgressIndicator } from './WizardProgressIndicator';
 import { WizardNavigation } from './WizardNavigation';
 import { ActionSelectionStep } from './ActionSelectionStep';
 import { WizardStep } from './WizardStep';
-import { WizardAction } from './types';
 import { useQuery } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
-import { EnhancedClientBrowser } from './EnhancedClientBrowser';
-import { SelectTasksStep } from '../CopyTasks/SelectTasksStep';
-import { ConfirmationStep } from '../CopyTasks/ConfirmationStep';
-import { ProcessingStep } from '../CopyTasks/ProcessingStep';
-import { SuccessStep } from '../CopyTasks/SuccessStep';
-import { TemplateAssignmentStep } from './TemplateAssignmentStep';
 import { AssignmentConfig } from './AssignmentConfiguration';
 import { useCopyTasksDialog } from '../CopyTasks/hooks/useCopyTasksDialog';
-import { assignTemplatesToClients } from '@/services/templateAssignmentService';
 import { Client } from '@/types/client';
-import { TemplateBuilder } from './TemplateBuilder';
-import { TaskInstance, TaskPriority, TaskCategory, TaskStatus } from '@/types/task';
+import { CopyFromClientSteps } from './steps/CopyFromClientSteps';
+import { TemplateAssignmentSteps } from './steps/TemplateAssignmentSteps';
+import { TemplateBuilderSteps } from './steps/TemplateBuilderSteps';
+import { useWizardHandlers } from './hooks/useWizardHandlers';
 
 interface TaskAssignmentWizardProps {
   open: boolean;
@@ -34,7 +29,6 @@ const WizardContent: React.FC<{
   const { 
     currentStep, 
     selectedAction, 
-    resetWizard, 
     setCurrentStep,
     targetClientId,
     setTargetClientId,
@@ -52,9 +46,6 @@ const WizardContent: React.FC<{
   const [isAssignmentProcessing, setIsAssignmentProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-  // Template builder state
-  const [selectedTasksForTemplate, setSelectedTasksForTemplate] = useState<any[]>([]);
-
   // Fetch clients for enhanced browser
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -68,11 +59,8 @@ const WizardContent: React.FC<{
     selectedTaskIds: copySelectedTaskIds,
     setSelectedTaskIds: setCopySelectedTaskIds,
     handleSelectClient: handleCopySelectClient,
-    handleBack: handleCopyBack,
-    handleNext: handleCopyNext,
     handleCopy: handleCopyExecute,
     isProcessing: isCopyProcessing,
-    isSuccess: isCopySuccess,
   } = useCopyTasksDialog(initialClientId || '', onClose);
 
   React.useEffect(() => {
@@ -81,61 +69,22 @@ const WizardContent: React.FC<{
     }
   }, [initialClientId, setTargetClientId]);
 
-  const handleActionSelect = (action: WizardAction) => {
-    if (action === 'copy-from-client') {
-      setCurrentStep('client-selection');
-    } else if (action === 'template-assignment') {
-      setCurrentStep('task-selection');
-    } else if (action === 'template-builder') {
-      setCurrentStep('task-selection');
-    } else {
-      setCurrentStep('client-selection');
-    }
-  };
-
-  const handleClientSelect = (clientId: string) => {
-    setTargetClientId(clientId);
-    if (selectedAction === 'copy-from-client') {
-      handleCopySelectClient(clientId);
-      setCurrentStep('task-selection');
-    }
-  };
-
-  const handleTemplateAssignmentExecute = async () => {
-    setIsAssignmentProcessing(true);
-    setCurrentStep('processing');
-
-    try {
-      for (const templateId of selectedTemplateIds) {
-        await assignTemplatesToClients({
-          templateId,
-          clientIds: selectedClientIds,
-          config: assignmentConfig
-        });
-      }
-      
-      setAssignmentSuccess(true);
-      setCurrentStep('success');
-    } catch (error) {
-      console.error('Template assignment failed:', error);
-    } finally {
-      setIsAssignmentProcessing(false);
-    }
-  };
-
-  const handleTemplateCreated = (templateData: any) => {
-    console.log('Template created:', templateData);
-    setCurrentStep('success');
-  };
-
-  const handleTaskSelectionForTemplate = (tasks: any[]) => {
-    setSelectedTasksForTemplate(tasks);
-    setCurrentStep('configuration');
-  };
-
-  const availableClients = Array.isArray(clients) 
-    ? clients.filter((client: Client) => client.id !== initialClientId) 
-    : [];
+  const {
+    handleActionSelect,
+    handleClientSelect,
+    handleTemplateAssignmentExecute,
+    handleTemplateCreated
+  } = useWizardHandlers({
+    selectedAction,
+    setCurrentStep,
+    setTargetClientId,
+    handleCopySelectClient,
+    setIsAssignmentProcessing,
+    setAssignmentSuccess,
+    selectedTemplateIds,
+    selectedClientIds,
+    assignmentConfig
+  });
 
   const getSourceClientName = () => {
     if (!initialClientId || !Array.isArray(clients)) return '';
@@ -152,127 +101,73 @@ const WizardContent: React.FC<{
   const renderStepContent = () => {
     switch (currentStep) {
       case 'action-selection':
-        return (
-          <ActionSelectionStep onActionSelect={handleActionSelect} />
-        );
+        return <ActionSelectionStep onActionSelect={handleActionSelect} />;
       
       case 'client-selection':
+      case 'task-selection':
+      case 'confirmation':
+      case 'processing':
+      case 'success':
         if (selectedAction === 'copy-from-client') {
           return (
-            <WizardStep 
-              title="Select Target Client"
-              description="Choose the client you want to copy tasks to"
-            >
-              <EnhancedClientBrowser
-                clients={availableClients}
-                onSelectClient={handleClientSelect}
-                selectedClientId={copyTargetClientId || undefined}
-                isLoading={isClientsLoading}
-              />
-            </WizardStep>
-          );
-        }
-        return (
-          <WizardStep 
-            title="Select Client"
-            description="Choose a client for this operation"
-          >
-            <div className="text-center py-8 text-muted-foreground">
-              Client selection for {selectedAction?.replace('-', ' ')} will be implemented here.
-            </div>
-          </WizardStep>
-        );
-
-      case 'task-selection':
-        if (selectedAction === 'copy-from-client' && initialClientId && copyTargetClientId) {
-          return (
-            <SelectTasksStep 
-              clientId={initialClientId}
-              targetClientId={copyTargetClientId}
-              selectedTaskIds={copySelectedTaskIds}
-              setSelectedTaskIds={setCopySelectedTaskIds}
-              step={copyStep}
-              handleBack={() => setCurrentStep('client-selection')}
-              handleNext={() => setCurrentStep('confirmation')}
+            <CopyFromClientSteps
+              currentStep={currentStep}
+              initialClientId={initialClientId}
+              clients={clients}
+              isClientsLoading={isClientsLoading}
+              copyTargetClientId={copyTargetClientId}
+              copySelectedTaskIds={copySelectedTaskIds}
+              copyStep={copyStep}
+              onClientSelect={handleClientSelect}
+              onTaskSelectionChange={setCopySelectedTaskIds}
+              onStepChange={setCurrentStep}
+              onCopyExecute={handleCopyExecute}
+              isCopyProcessing={isCopyProcessing}
+              getSourceClientName={getSourceClientName}
+              getTargetClientName={getTargetClientName}
             />
           );
         } else if (selectedAction === 'template-assignment') {
           return (
-            <TemplateAssignmentStep
-              onNext={() => setCurrentStep('confirmation')}
-              onBack={() => setCurrentStep('action-selection')}
+            <TemplateAssignmentSteps
+              currentStep={currentStep}
               selectedTemplateIds={selectedTemplateIds}
               setSelectedTemplateIds={setSelectedTemplateIds}
               selectedClientIds={selectedClientIds}
               setSelectedClientIds={setSelectedClientIds}
               assignmentConfig={assignmentConfig}
               setAssignmentConfig={setAssignmentConfig}
+              onStepChange={setCurrentStep}
+              onExecuteAssignment={handleTemplateAssignmentExecute}
+              isAssignmentProcessing={isAssignmentProcessing}
             />
           );
-        } else if (selectedAction === 'template-builder' && initialClientId) {
+        } else if (selectedAction === 'template-builder') {
           return (
-            <WizardStep 
-              title="Select Tasks for Template"
-              description="Choose tasks to convert into a reusable template"
-            >
-              <SelectTasksStep 
-                clientId={initialClientId}
-                targetClientId={initialClientId}
-                selectedTaskIds={selectedTaskIds}
-                setSelectedTaskIds={setSelectedTaskIds}
-                step="select-tasks"
-                handleBack={() => setCurrentStep('action-selection')}
-                handleNext={() => setCurrentStep('configuration')}
-                isTemplateBuilder={true}
-              />
-            </WizardStep>
+            <TemplateBuilderSteps
+              currentStep={currentStep}
+              initialClientId={initialClientId}
+              clients={clients}
+              selectedTaskIds={selectedTaskIds}
+              setSelectedTaskIds={setSelectedTaskIds}
+              onStepChange={setCurrentStep}
+              onTemplateCreated={handleTemplateCreated}
+            />
           );
         }
-        return (
-          <WizardStep 
-            title="Select Tasks"
-            description="Choose tasks for this operation"
-          >
-            <div className="text-center py-8 text-muted-foreground">
-              Task selection for {selectedAction?.replace('-', ' ')} will be implemented here.
-            </div>
-          </WizardStep>
-        );
+        break;
 
       case 'configuration':
-        if (selectedAction === 'template-builder' && selectedTaskIds.length > 0) {
-          // Create proper TaskInstance objects with all required properties
-          const tasksForBuilder = selectedTaskIds.map(taskId => {
-            const sourceClient = clients.find((c: Client) => c.id === initialClientId) || clients[0];
-            
-            const mockTask: TaskInstance = {
-              id: taskId,
-              templateId: `template-${taskId}`,
-              clientId: initialClientId || '',
-              name: `Task ${taskId}`,
-              description: 'Task description from existing client task',
-              estimatedHours: 2,
-              requiredSkills: ['Tax Preparation'],
-              priority: 'Medium' as TaskPriority,
-              category: 'Tax' as TaskCategory,
-              status: 'Unscheduled' as TaskStatus,
-              dueDate: new Date(),
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              notes: 'Converted from client task'
-            };
-
-            return {
-              task: mockTask,
-              client: sourceClient
-            };
-          });
-
+        if (selectedAction === 'template-builder') {
           return (
-            <TemplateBuilder
-              selectedTasks={tasksForBuilder}
+            <TemplateBuilderSteps
+              currentStep={currentStep}
+              initialClientId={initialClientId}
+              clients={clients}
+              selectedTaskIds={selectedTaskIds}
+              setSelectedTaskIds={setSelectedTaskIds}
+              onStepChange={setCurrentStep}
               onTemplateCreated={handleTemplateCreated}
-              onCancel={() => setCurrentStep('task-selection')}
             />
           );
         }
@@ -283,159 +178,6 @@ const WizardContent: React.FC<{
           >
             <div className="text-center py-8 text-muted-foreground">
               Configuration for {selectedAction?.replace('-', ' ')} will be implemented here.
-            </div>
-          </WizardStep>
-        );
-
-      case 'confirmation':
-        if (selectedAction === 'copy-from-client' && initialClientId && copyTargetClientId) {
-          const selectedAdHocCount = Math.floor(copySelectedTaskIds.length * 0.6);
-          const selectedRecurringCount = Math.ceil(copySelectedTaskIds.length * 0.4);
-          
-          return (
-            <ConfirmationStep 
-              sourceClientId={initialClientId}
-              targetClientId={copyTargetClientId}
-              sourceClientName={getSourceClientName()}
-              targetClientName={getTargetClientName()}
-              selectedAdHocTaskCount={selectedAdHocCount}
-              selectedRecurringTaskCount={selectedRecurringCount}
-              selectedCount={copySelectedTaskIds.length}
-              step={copyStep}
-              handleBack={() => setCurrentStep('task-selection')}
-              handleCopy={async () => {
-                setCurrentStep('processing');
-                await handleCopyExecute();
-                setCurrentStep('success');
-              }}
-              isProcessing={isCopyProcessing}
-            />
-          );
-        } else if (selectedAction === 'template-assignment') {
-          return (
-            <WizardStep 
-              title="Confirm Template Assignment"
-              description="Review and confirm your template assignments"
-            >
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Templates Selected</p>
-                      <p className="font-medium">{selectedTemplateIds.length}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Clients Selected</p>
-                      <p className="font-medium">{selectedClientIds.length}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <button
-                    onClick={() => setCurrentStep('task-selection')}
-                    className="px-4 py-2 border rounded-md hover:bg-gray-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleTemplateAssignmentExecute}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                  >
-                    Execute Assignment
-                  </button>
-                </div>
-              </div>
-            </WizardStep>
-          );
-        }
-        return (
-          <WizardStep 
-            title="Confirm Operation"
-            description="Review and confirm your selections"
-          >
-            <div className="text-center py-8 text-muted-foreground">
-              Confirmation for {selectedAction?.replace('-', ' ')} will be implemented here.
-            </div>
-          </WizardStep>
-        );
-
-      case 'processing':
-        if (selectedAction === 'copy-from-client') {
-          return <ProcessingStep progress={isCopyProcessing ? 50 : 100} />;
-        } else if (selectedAction === 'template-assignment') {
-          return <ProcessingStep progress={isAssignmentProcessing ? 50 : 100} />;
-        }
-        return (
-          <WizardStep 
-            title="Processing"
-            description="Your operation is being processed"
-          >
-            <div className="text-center py-8 text-muted-foreground">
-              Processing {selectedAction?.replace('-', ' ')}...
-            </div>
-          </WizardStep>
-        );
-
-      case 'success':
-        if (selectedAction === 'copy-from-client') {
-          return (
-            <SuccessStep 
-              sourceClientName={getSourceClientName()}
-              targetClientName={getTargetClientName()}
-              adHocTasksCount={Math.floor(copySelectedTaskIds.length * 0.6)}
-              recurringTasksCount={Math.ceil(copySelectedTaskIds.length * 0.4)}
-            />
-          );
-        } else if (selectedAction === 'template-assignment') {
-          return (
-            <WizardStep 
-              title="Assignment Complete"
-              description="Templates have been successfully assigned"
-            >
-              <div className="text-center py-8 text-green-600">
-                <div className="mb-4">
-                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Assignment Successful!</h3>
-                  <p className="text-gray-600">
-                    {selectedTemplateIds.length} template(s) assigned to {selectedClientIds.length} client(s)
-                  </p>
-                </div>
-              </div>
-            </WizardStep>
-          );
-        } else if (selectedAction === 'template-builder') {
-          return (
-            <WizardStep 
-              title="Template Created"
-              description="Your template has been successfully created"
-            >
-              <div className="text-center py-8 text-green-600">
-                <div className="mb-4">
-                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Template Created Successfully!</h3>
-                  <p className="text-gray-600">
-                    Template created from {selectedTaskIds.length} selected task(s)
-                  </p>
-                </div>
-              </div>
-            </WizardStep>
-          );
-        }
-        return (
-          <WizardStep 
-            title="Success"
-            description="Operation completed successfully"
-          >
-            <div className="text-center py-8 text-green-600">
-              {selectedAction?.replace('-', ' ')} completed successfully!
             </div>
           </WizardStep>
         );
