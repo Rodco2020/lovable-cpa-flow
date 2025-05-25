@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { WizardProvider, useWizard } from './WizardContext';
@@ -20,6 +19,7 @@ import { useCopyTasksDialog } from '../CopyTasks/hooks/useCopyTasksDialog';
 import { assignTemplatesToClients } from '@/services/templateAssignmentService';
 import { Client } from '@/types/client';
 import { TemplateBuilder } from './TemplateBuilder';
+import { TaskInstance, TaskPriority, TaskCategory, TaskStatus } from '@/types/task';
 
 interface TaskAssignmentWizardProps {
   open: boolean;
@@ -241,18 +241,30 @@ const WizardContent: React.FC<{
 
       case 'configuration':
         if (selectedAction === 'template-builder' && selectedTaskIds.length > 0) {
+          // Create proper TaskInstance objects with all required properties
           const tasksForBuilder = selectedTaskIds.map(taskId => {
-            // Mock task data - in real implementation, fetch from service
+            const sourceClient = clients.find((c: Client) => c.id === initialClientId) || clients[0];
+            
+            const mockTask: TaskInstance = {
+              id: taskId,
+              templateId: `template-${taskId}`,
+              clientId: initialClientId || '',
+              name: `Task ${taskId}`,
+              description: 'Task description from existing client task',
+              estimatedHours: 2,
+              requiredSkills: ['Tax Preparation'],
+              priority: 'Medium' as TaskPriority,
+              category: 'Tax' as TaskCategory,
+              status: 'Unscheduled' as TaskStatus,
+              dueDate: new Date(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              notes: 'Converted from client task'
+            };
+
             return {
-              task: {
-                id: taskId,
-                name: `Task ${taskId}`,
-                description: 'Task description',
-                estimatedHours: 2,
-                category: 'Tax',
-                priority: 'Medium'
-              },
-              client: clients.find((c: Client) => c.id === initialClientId) || clients[0]
+              task: mockTask,
+              client: sourceClient
             };
           });
 

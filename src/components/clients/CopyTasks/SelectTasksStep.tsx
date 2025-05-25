@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DialogFooter } from './DialogFooter';
 import { Search } from 'lucide-react';
@@ -17,6 +16,7 @@ interface SelectTasksStepProps {
   step: CopyTaskStep;
   handleBack: () => void;
   handleNext: () => void;
+  isTemplateBuilder?: boolean;
 }
 
 // This component is used to display filter options for the task selection
@@ -95,6 +95,7 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
   step,
   handleBack,
   handleNext,
+  isTemplateBuilder = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<TaskFilterOption>('all');
@@ -155,9 +156,14 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
   return (
     <div className="space-y-4">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold">Select Tasks to Copy</h2>
+        <h2 className="text-xl font-semibold">
+          {isTemplateBuilder ? 'Select Tasks for Template' : 'Select Tasks to Copy'}
+        </h2>
         <p className="text-muted-foreground">
-          Choose the tasks you want to copy from this client to the destination client.
+          {isTemplateBuilder 
+            ? 'Choose the tasks you want to convert into a reusable template.'
+            : 'Choose the tasks you want to copy from this client to the destination client.'
+          }
         </p>
       </div>
 
