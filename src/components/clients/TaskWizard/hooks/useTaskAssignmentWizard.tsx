@@ -33,6 +33,7 @@ export const useTaskAssignmentWizard = (initialClientId?: string, onClose?: () =
     wizardState.currentStep,
     copyOperation.isCopySuccess,
     copyOperation.isCopyProcessing,
+    copyOperation.copyStep,
     wizardState.setCurrentStep
   );
 
