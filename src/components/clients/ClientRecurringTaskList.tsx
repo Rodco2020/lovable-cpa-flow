@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { deactivateRecurringTask } from '@/services/taskService';
@@ -47,7 +46,6 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   // Get all skill IDs from all tasks to fetch their names
   const allSkillIds = tasks.flatMap(task => task.requiredSkills);
   const { skillsMap, isLoading: loadingSkills } = useSkillNames(allSkillIds);
-
 
   const handleDeactivate = async (taskId: string) => {
     try {
@@ -146,7 +144,7 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
           <div className="flex flex-col items-center py-8 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mb-4" />
             <p className="text-lg font-semibold text-destructive">Error Loading Tasks</p>
-            <p className="text-muted-foreground mb-4">{error}</p>
+            <p className="text-muted-foreground mb-4">{error instanceof Error ? error.message : String(error)}</p>
             <Button onClick={handleRetryLoad} className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
               Retry
