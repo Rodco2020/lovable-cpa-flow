@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RecurringTask, TaskInstance } from '@/types/task';
@@ -45,9 +44,6 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
   const adHocTasks = tasks as TaskInstance[];
   const recurringTasks = tasks as RecurringTask[];
 
-  // Create a proper error object if error is null to satisfy TypeScript
-  const errorObj = error ? error : { name: 'Error', message: '' };
-  
   // Add missing props for TaskSelectionList
   const filteredPriorityMessage = '';
   const allTasksLength = tasks.length;
@@ -71,7 +67,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             type={type}
             onSelectAll={() => onSelectAll(adHocTasks)}
             isLoading={isLoading}
-            error={errorObj}
+            error={error}
             emptyMessage={emptyMessage}
             filteredPriorityMessage={filteredPriorityMessage}
             allTasksLength={allTasksLength}
@@ -84,7 +80,7 @@ const TaskSelectionPanel: React.FC<TaskSelectionPanelProps> = ({
             type={type}
             onSelectAll={() => onSelectAll(recurringTasks)}
             isLoading={isLoading}
-            error={errorObj}
+            error={error}
             emptyMessage={emptyMessage}
             filteredPriorityMessage={filteredPriorityMessage}
             allTasksLength={allTasksLength}

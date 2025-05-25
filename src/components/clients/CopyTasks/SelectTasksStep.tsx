@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { DialogFooter } from './DialogFooter';
 import { Search } from 'lucide-react';
@@ -101,20 +102,21 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
   const [activeFilter, setActiveFilter] = useState<TaskFilterOption>('all');
 
   // Fetch recurring tasks
-  const { data: recurringTasks = [], isLoading: recurringLoading } = useQuery({
+  const { data: recurringTasks = [], isLoading: recurringLoading, error: recurringError } = useQuery({
     queryKey: ['client', clientId, 'recurring-tasks'],
     queryFn: () => getClientRecurringTasks(clientId),
     enabled: !!clientId,
   });
 
   // Fetch ad-hoc tasks
-  const { data: adHocTasks = [], isLoading: adHocLoading } = useQuery({
+  const { data: adHocTasks = [], isLoading: adHocLoading, error: adHocError } = useQuery({
     queryKey: ['client', clientId, 'adhoc-tasks'],
     queryFn: () => getClientAdHocTasks(clientId),
     enabled: !!clientId,
   });
 
   const isLoading = recurringLoading || adHocLoading;
+  const hasError = recurringError || adHocError;
 
   // Filter tasks based on search term and active filter
   const filteredTasks = [...(recurringTasks as RecurringTask[]), ...(adHocTasks as TaskInstance[])].filter(task => {
@@ -200,6 +202,7 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
           type={displayType}
           onSelectAll={handleSelectAll}
           isLoading={isLoading}
+          error={hasError ? new Error('Failed to load tasks') : null}
         />
       </div>
 
