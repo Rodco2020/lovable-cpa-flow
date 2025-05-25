@@ -9,7 +9,7 @@ import { WizardStep } from '../types';
  * It monitors the copy success state and automatically transitions from 
  * 'processing' to 'success' step when the operation completes.
  * 
- * Enhanced with reliable state-based progression and improved state synchronization verification.
+ * PHASE 3: Fixed state synchronization and step progression logic
  */
 export const useCopySuccessMonitor = (
   currentStep: WizardStep,
@@ -18,67 +18,77 @@ export const useCopySuccessMonitor = (
   copyStep: string,
   setCurrentStep: (step: WizardStep) => void
 ) => {
-  // State-based copy success monitoring with reliable progression
+  // PHASE 3: Enhanced copy success monitoring with reliable progression
   useEffect(() => {
-    console.log('useCopySuccessMonitor: State check with enhanced verification', {
+    console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: State check with enhanced verification', {
       currentStep,
       isCopySuccess,
       isCopyProcessing,
       copyStep,
       timestamp: new Date().toISOString(),
-      progressionReady:
-        currentStep === 'processing' &&
-        (isCopySuccess || copyStep === 'success') &&
-        !isCopyProcessing
+      shouldProgressConditions: {
+        isProcessingStep: currentStep === 'processing',
+        copySuccessOrStepSuccess: isCopySuccess || copyStep === 'success',
+        notProcessing: !isCopyProcessing,
+        allConditionsMet: currentStep === 'processing' && (isCopySuccess || copyStep === 'success') && !isCopyProcessing
+      }
     });
     
-    // Primary progression logic - state-based only (no fallback timeout)
+    // PHASE 3: Primary progression logic - state-based progression with immediate transition
     if (
       currentStep === 'processing' &&
       (isCopySuccess || copyStep === 'success') &&
       !isCopyProcessing
     ) {
-      console.log('useCopySuccessMonitor: ✅ ALL CONDITIONS MET - Progressing to success step');
-      console.log('useCopySuccessMonitor: Current step is processing ✓');
-      console.log(
-        'useCopySuccessMonitor: Copy success detected via flag or copyStep ✓'
-      );
-      console.log('useCopySuccessMonitor: Copy processing is false ✓');
-      console.log('useCopySuccessMonitor: SUCCESS STATE PROPAGATION CONFIRMED - State synchronized properly');
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: ✅ ALL CONDITIONS MET - Progressing to success step');
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Current step is processing ✓');
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Copy success detected via flag or copyStep ✓');
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Copy processing is false ✓');
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: SUCCESS STATE PROPAGATION CONFIRMED - Executing immediate transition');
       
-      // Use a small delay to ensure UI state is stable
-      const progressionTimer = setTimeout(() => {
-        console.log('useCopySuccessMonitor: 🚀 EXECUTING STEP TRANSITION TO SUCCESS');
-        setCurrentStep('success');
-      }, 100);
-
-      return () => {
-        console.log('useCopySuccessMonitor: Cleaning up progression timer');
-        clearTimeout(progressionTimer);
-      };
+      // PHASE 3: Immediate transition without delay to ensure reliable progression
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: 🚀 EXECUTING IMMEDIATE STEP TRANSITION TO SUCCESS');
+      setCurrentStep('success');
+      
+      return; // Exit early to prevent other logic
     }
     
-    // Enhanced detailed logging when conditions are not met
+    // PHASE 3: Enhanced detailed logging when conditions are not met
     if (currentStep === 'processing') {
       const reasons = [];
       if (!isCopySuccess && copyStep !== 'success') {
-        reasons.push('Copy success flag is false');
-        console.log('useCopySuccessMonitor: ❌ Waiting for copy success flag or copyStep to indicate success');
-        console.log('useCopySuccessMonitor: STATE SYNC ISSUE - success state should propagate after copy');
+        reasons.push('Copy success flag is false and copyStep is not success');
+        console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: ❌ Waiting for copy success flag or copyStep to indicate success');
+        console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Current copy success state:', { isCopySuccess, copyStep });
       }
       if (isCopyProcessing) {
         reasons.push('Copy still in progress');
-        console.log('useCopySuccessMonitor: ❌ Copy still in progress');
+        console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: ❌ Copy still in progress');
       }
       
       if (reasons.length > 0) {
-        console.log('useCopySuccessMonitor: Conditions not met for step progression:', reasons.join(', '));
+        console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Conditions not met for step progression:', reasons.join(', '));
+        console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Will continue monitoring until success state propagates properly');
       }
     } else {
-      console.log('useCopySuccessMonitor: Not monitoring - current step is not processing:', currentStep, 'copyStep:', copyStep);
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Not monitoring - current step is not processing:', currentStep, 'copyStep:', copyStep);
     }
   }, [isCopySuccess, currentStep, isCopyProcessing, copyStep, setCurrentStep]);
 
-  // No fallback timeout mechanism - rely entirely on proper state synchronization
-  // This ensures that success is only reported when the state properly flows through all hooks
+  // PHASE 3: Additional effect to monitor copy dialog state changes specifically
+  useEffect(() => {
+    console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Copy dialog state change detected', {
+      copyStep,
+      isCopySuccess,
+      isCopyProcessing,
+      currentStep,
+      timestamp: new Date().toISOString()
+    });
+
+    // PHASE 3: Handle case where copy dialog completes but wizard hasn't transitioned yet
+    if (copyStep === 'success' && currentStep === 'processing' && !isCopyProcessing) {
+      console.log('🔍 PHASE 3 FIX - useCopySuccessMonitor: Copy dialog reports success - triggering wizard progression');
+      setCurrentStep('success');
+    }
+  }, [copyStep, isCopySuccess, isCopyProcessing, currentStep, setCurrentStep]);
 };

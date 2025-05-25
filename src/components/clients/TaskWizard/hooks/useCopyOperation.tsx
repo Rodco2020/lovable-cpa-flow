@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
@@ -56,12 +55,12 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     });
   }, [copyStep, copyTargetClientId, copySelectedTaskIds, isCopyProcessing, isCopySuccessFromDialog, isDetectingTaskTypes]);
 
-  // State to track copy success with proper synchronization
+  // PHASE 3: Fixed state to track copy success with enhanced synchronization
   const [isCopySuccess, setIsCopySuccess] = useState(false);
 
-  // Synchronize success state from copy dialog hook with enhanced logging
+  // PHASE 3: Enhanced synchronization of success state from copy dialog hook
   useEffect(() => {
-    console.log('🔍 PHASE 1 DIAGNOSTIC - useCopyOperation: Synchronizing success state from copy dialog', {
+    console.log('🔍 PHASE 3 FIX - useCopyOperation: Synchronizing success state from copy dialog', {
       isCopySuccessFromDialog,
       currentIsCopySuccess: isCopySuccess,
       copyStep,
@@ -69,24 +68,35 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       timestamp: new Date().toISOString()
     });
 
-    // Update local success state to match copy dialog success state
+    // PHASE 3: Update local success state to match copy dialog success state with immediate propagation
     if (isCopySuccessFromDialog !== isCopySuccess) {
-      console.log('🔍 PHASE 1 DIAGNOSTIC - useCopyOperation: SUCCESS STATE CHANGE DETECTED', {
+      console.log('🔍 PHASE 3 FIX - useCopyOperation: SUCCESS STATE CHANGE DETECTED - Immediate synchronization', {
         from: isCopySuccess,
         to: isCopySuccessFromDialog,
-        reason: 'Copy dialog hook state updated'
+        reason: 'Copy dialog hook state updated',
+        copyStep,
+        isCopyProcessing
       });
       setIsCopySuccess(isCopySuccessFromDialog);
     }
 
-    // Enhanced state verification for step progression
+    // PHASE 3: Enhanced verification for step progression readiness
     if (isCopySuccessFromDialog && !isCopyProcessing) {
-      console.log('🔍 PHASE 1 DIAGNOSTIC - useCopyOperation: COPY OPERATION FULLY COMPLETED', {
+      console.log('🔍 PHASE 3 FIX - useCopyOperation: COPY OPERATION FULLY COMPLETED - Ready for immediate step progression', {
         isCopySuccess: isCopySuccessFromDialog,
         isCopyProcessing,
         copyStep,
-        message: 'Ready for wizard step progression'
+        message: 'Success state confirmed and propagated for wizard step progression'
       });
+    }
+
+    // PHASE 3: Handle copyStep success indication
+    if (copyStep === 'success' && !isCopySuccess) {
+      console.log('🔍 PHASE 3 FIX - useCopyOperation: Copy step indicates success - updating local state', {
+        copyStep,
+        previousIsCopySuccess: isCopySuccess
+      });
+      setIsCopySuccess(true);
     }
   }, [isCopySuccessFromDialog, isCopyProcessing, copyStep, isCopySuccess]);
 
@@ -194,7 +204,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       await handleCopyExecute();
       
       console.log('🔍 PHASE 2 FIX - useCopyOperation: handleCopyExecute() COMPLETED successfully');
-      console.log('🔍 PHASE 2 FIX - useCopyOperation: Copy operation completed successfully with database verification');
+      console.log('🔍 PHASE 3 FIX - useCopyOperation: Copy operation completed - success state should propagate automatically');
       
     } catch (error) {
       console.error('🔍 PHASE 2 FIX - useCopyOperation: Copy operation failed:', error);
