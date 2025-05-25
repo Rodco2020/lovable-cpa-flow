@@ -1,4 +1,3 @@
-
 export type WizardAction = 'copy-from-client' | 'template-assignment' | 'bulk-operations' | 'template-builder';
 
 export type WizardStep = 'action-selection' | 'client-selection' | 'task-selection' | 'configuration' | 'confirmation' | 'processing' | 'success';
