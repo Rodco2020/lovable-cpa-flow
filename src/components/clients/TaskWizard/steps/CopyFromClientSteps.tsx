@@ -8,6 +8,7 @@ import { ProcessingStep } from '../../CopyTasks/ProcessingStep';
 import { SuccessStep } from '../../CopyTasks/SuccessStep';
 import { Client } from '@/types/client';
 import { WizardStep as WizardStepType } from '../types';
+import { CopyTaskStep } from '../../CopyTasks/types';
 
 interface CopyFromClientStepsProps {
   currentStep: WizardStepType;
@@ -46,6 +47,24 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
     ? clients.filter((client: Client) => client.id !== initialClientId) 
     : [];
 
+  // Convert string step to CopyTaskStep type
+  const getCopyTaskStep = (step: string): CopyTaskStep => {
+    switch (step) {
+      case 'select-client':
+        return 'select-client';
+      case 'select-tasks':
+        return 'select-tasks';
+      case 'confirm':
+        return 'confirm';
+      case 'processing':
+        return 'processing';
+      case 'success':
+        return 'success';
+      default:
+        return 'select-tasks'; // fallback
+    }
+  };
+
   switch (currentStep) {
     case 'client-selection':
       return (
@@ -70,9 +89,10 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
             targetClientId={copyTargetClientId}
             selectedTaskIds={copySelectedTaskIds}
             setSelectedTaskIds={onTaskSelectionChange}
-            step={copyStep}
+            step={getCopyTaskStep(copyStep)}
             handleBack={() => onStepChange('client-selection')}
             handleNext={() => onStepChange('confirmation')}
+            isTemplateBuilder={false}
           />
         );
       }
@@ -92,7 +112,7 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
             selectedAdHocTaskCount={selectedAdHocCount}
             selectedRecurringTaskCount={selectedRecurringCount}
             selectedCount={copySelectedTaskIds.length}
-            step={copyStep}
+            step={getCopyTaskStep(copyStep)}
             handleBack={() => onStepChange('task-selection')}
             handleCopy={async () => {
               onStepChange('processing');
