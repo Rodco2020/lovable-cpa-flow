@@ -65,6 +65,14 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
     }
   };
 
+  // Calculate progress based on processing state
+  const getProcessingProgress = () => {
+    if (isCopyProcessing) {
+      return 75; // Show 75% while actively processing
+    }
+    return 100; // Show 100% when complete but before transition
+  };
+
   switch (currentStep) {
     case 'client-selection':
       return (
@@ -114,11 +122,7 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
             selectedCount={copySelectedTaskIds.length}
             step={getCopyTaskStep(copyStep)}
             handleBack={() => onStepChange('task-selection')}
-            handleCopy={async () => {
-              onStepChange('processing');
-              await onCopyExecute();
-              onStepChange('success');
-            }}
+            handleCopy={onCopyExecute}
             isProcessing={isCopyProcessing}
           />
         );
@@ -126,7 +130,7 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
       return null;
 
     case 'processing':
-      return <ProcessingStep progress={isCopyProcessing ? 50 : 100} />;
+      return <ProcessingStep progress={getProcessingProgress()} />;
 
     case 'success':
       return (

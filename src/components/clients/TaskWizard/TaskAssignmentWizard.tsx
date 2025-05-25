@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { WizardProvider, useWizard } from './WizardContext';
 import { WizardProgressIndicator } from './WizardProgressIndicator';
@@ -61,13 +61,23 @@ const WizardContent: React.FC<{
     handleSelectClient: handleCopySelectClient,
     handleCopy: handleCopyExecute,
     isProcessing: isCopyProcessing,
+    isSuccess: isCopySuccess
   } = useCopyTasksDialog(initialClientId || '', onClose);
 
-  React.useEffect(() => {
-    if (initialClientId) {
+  // Memoized effect to set initial target client ID - fixes infinite loop
+  useEffect(() => {
+    if (initialClientId && !targetClientId) {
       setTargetClientId(initialClientId);
     }
-  }, [initialClientId, setTargetClientId]);
+  }, [initialClientId, targetClientId, setTargetClientId]);
+
+  // Monitor copy success and transition wizard step
+  useEffect(() => {
+    if (isCopySuccess && currentStep === 'processing') {
+      console.log('Copy operation completed successfully, transitioning to success step');
+      setCurrentStep('success');
+    }
+  }, [isCopySuccess, currentStep, setCurrentStep]);
 
   const {
     handleActionSelect,
@@ -86,17 +96,31 @@ const WizardContent: React.FC<{
     assignmentConfig
   });
 
-  const getSourceClientName = () => {
+  const getSourceClientName = useCallback(() => {
     if (!initialClientId || !Array.isArray(clients)) return '';
     const sourceClient = clients.find((c: Client) => c.id === initialClientId);
     return sourceClient?.legalName || '';
-  };
+  }, [initialClientId, clients]);
 
-  const getTargetClientName = () => {
+  const getTargetClientName = useCallback(() => {
     if (!copyTargetClientId || !Array.isArray(clients)) return '';
     const targetClient = clients.find((c: Client) => c.id === copyTargetClientId);
     return targetClient?.legalName || '';
-  };
+  }, [copyTargetClientId, clients]);
+
+  // Enhanced copy execution with proper step management
+  const handleEnhancedCopyExecute = useCallback(async () => {
+    try {
+      console.log('Starting copy operation...');
+      setCurrentStep('processing');
+      await handleCopyExecute();
+      console.log('Copy operation initiated');
+    } catch (error) {
+      console.error('Copy operation failed:', error);
+      // On error, go back to confirmation step
+      setCurrentStep('confirmation');
+    }
+  }, [handleCopyExecute, setCurrentStep]);
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -121,7 +145,7 @@ const WizardContent: React.FC<{
               onClientSelect={handleClientSelect}
               onTaskSelectionChange={setCopySelectedTaskIds}
               onStepChange={setCurrentStep}
-              onCopyExecute={handleCopyExecute}
+              onCopyExecute={handleEnhancedCopyExecute}
               isCopyProcessing={isCopyProcessing}
               getSourceClientName={getSourceClientName}
               getTargetClientName={getTargetClientName}

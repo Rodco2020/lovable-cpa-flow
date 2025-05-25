@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { WizardState, WizardContextType, WizardAction, WizardStep } from './types';
 
 const initialState: WizardState = {
@@ -19,64 +19,57 @@ interface WizardProviderProps {
 export const WizardProvider: React.FC<WizardProviderProps> = ({ children }) => {
   const [state, setState] = useState<WizardState>(initialState);
 
-  const setCurrentStep = (step: WizardStep) => {
+  const setCurrentStep = useCallback((step: WizardStep) => {
     setState(prev => ({ ...prev, currentStep: step }));
-  };
+  }, []);
 
-  const setSelectedAction = (action: WizardAction) => {
+  const setSelectedAction = useCallback((action: WizardAction) => {
     setState(prev => ({ ...prev, selectedAction: action }));
-  };
+  }, []);
 
-  const setSourceClientId = (id: string) => {
+  const setSourceClientId = useCallback((id: string) => {
     setState(prev => ({ ...prev, sourceClientId: id }));
-  };
+  }, []);
 
-  const setTargetClientId = (id: string) => {
+  const setTargetClientId = useCallback((id: string) => {
     setState(prev => ({ ...prev, targetClientId: id }));
-  };
+  }, []);
 
-  const setSelectedTaskIds = (ids: string[]) => {
+  const setSelectedTaskIds = useCallback((ids: string[]) => {
     setState(prev => ({ ...prev, selectedTaskIds: ids }));
-  };
+  }, []);
 
-  const setIsProcessing = (processing: boolean) => {
+  const setIsProcessing = useCallback((processing: boolean) => {
     setState(prev => ({ ...prev, isProcessing: processing }));
-  };
+  }, []);
 
-  const setIsComplete = (complete: boolean) => {
+  const setIsComplete = useCallback((complete: boolean) => {
     setState(prev => ({ ...prev, isComplete: complete }));
-  };
+  }, []);
 
-  const resetWizard = () => {
+  const resetWizard = useCallback(() => {
     setState(initialState);
-  };
+  }, []);
 
   // Step progression logic
   const stepOrder: WizardStep[] = ['action-selection', 'client-selection', 'task-selection', 'configuration', 'confirmation', 'processing', 'success'];
 
-  const goToNextStep = () => {
+  const goToNextStep = useCallback(() => {
     const currentIndex = stepOrder.indexOf(state.currentStep);
     if (currentIndex < stepOrder.length - 1) {
       setCurrentStep(stepOrder[currentIndex + 1]);
     }
-  };
+  }, [state.currentStep, setCurrentStep]);
 
-  const goToPreviousStep = () => {
+  const goToPreviousStep = useCallback(() => {
     const currentIndex = stepOrder.indexOf(state.currentStep);
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
     }
-  };
+  }, [state.currentStep, setCurrentStep]);
 
-  const canGoNext = (() => {
-    const currentIndex = stepOrder.indexOf(state.currentStep);
-    return currentIndex < stepOrder.length - 1 && !state.isProcessing;
-  })();
-
-  const canGoPrevious = (() => {
-    const currentIndex = stepOrder.indexOf(state.currentStep);
-    return currentIndex > 0 && !state.isProcessing;
-  })();
+  const canGoNext = stepOrder.indexOf(state.currentStep) < stepOrder.length - 1 && !state.isProcessing;
+  const canGoPrevious = stepOrder.indexOf(state.currentStep) > 0 && !state.isProcessing;
 
   const contextValue: WizardContextType = {
     ...state,
