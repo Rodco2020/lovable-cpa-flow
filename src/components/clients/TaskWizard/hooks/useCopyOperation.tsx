@@ -22,7 +22,6 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
   });
 
   // Use the existing copy dialog hook for copy operations
-  // Pass a flag to disable internal step management for wizard use
   const {
     step: copyStep,
     targetClientId: copyTargetClientId,
@@ -31,7 +30,8 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     handleSelectClient: handleCopySelectClient,
     handleCopy: handleCopyExecute,
     isProcessing: isCopyProcessing,
-    isSuccess: isCopySuccess
+    isSuccess: isCopySuccess,
+    isDetectingTaskTypes
   } = useCopyTasksDialog(initialClientId || '', onClose || (() => {}));
 
   // Enhanced logging for copy state changes with detailed debugging
@@ -42,6 +42,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
       isCopySuccess,
       copyTargetClientId,
       selectedTaskCount: copySelectedTaskIds.length,
+      isDetectingTaskTypes,
       timestamp: new Date().toISOString()
     });
 
@@ -53,7 +54,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     if (!isCopyProcessing && isCopySuccess) {
       console.log('useCopyOperation: BOTH CONDITIONS MET - Processing=false, Success=true');
     }
-  }, [copyStep, isCopyProcessing, isCopySuccess, copyTargetClientId, copySelectedTaskIds.length]);
+  }, [copyStep, isCopyProcessing, isCopySuccess, copyTargetClientId, copySelectedTaskIds.length, isDetectingTaskTypes]);
 
   const getSourceClientName = useCallback(() => {
     if (!initialClientId || !Array.isArray(clients)) return '';
@@ -101,6 +102,7 @@ export const useCopyOperation = (initialClientId?: string, onClose?: () => void)
     setCopySelectedTaskIds,
     isCopyProcessing,
     isCopySuccess,
+    isDetectingTaskTypes,
     
     // Copy operation handlers
     handleCopySelectClient,

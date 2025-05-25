@@ -12,8 +12,6 @@ import { getRecurringTaskById, getTaskInstanceById } from './clientTaskService';
 
 /**
  * Formats a recurring task from database format to application type
- * @param data Database record
- * @returns Formatted RecurringTask object
  */
 const formatRecurringTaskFromDB = (data: any): RecurringTask => {
   const recurrencePattern = {
@@ -49,8 +47,6 @@ const formatRecurringTaskFromDB = (data: any): RecurringTask => {
 
 /**
  * Formats a task instance from database format to application type
- * @param data Database record
- * @returns Formatted TaskInstance object
  */
 const formatTaskInstanceFromDB = (data: any): TaskInstance => {
   return {
@@ -73,9 +69,6 @@ const formatTaskInstanceFromDB = (data: any): TaskInstance => {
 
 /**
  * Prepares a recurring task for database insertion
- * @param sourceTask Original task to copy
- * @param targetClientId Target client ID
- * @returns Object ready for database insert
  */
 const prepareRecurringTaskForInsert = (sourceTask: RecurringTask, targetClientId: string) => {
   return {
@@ -103,9 +96,6 @@ const prepareRecurringTaskForInsert = (sourceTask: RecurringTask, targetClientId
 
 /**
  * Prepares a task instance for database insertion
- * @param sourceTask Original task to copy
- * @param targetClientId Target client ID
- * @returns Object ready for database insert
  */
 const prepareTaskInstanceForInsert = (sourceTask: TaskInstance, targetClientId: string) => {
   return {
@@ -125,21 +115,30 @@ const prepareTaskInstanceForInsert = (sourceTask: TaskInstance, targetClientId: 
 
 /**
  * Copy a recurring task to another client
- * @param taskId ID of the recurring task to copy
- * @param targetClientId ID of the target client
- * @returns The newly created recurring task
  */
 export const copyRecurringTask = async (taskId: string, targetClientId: string): Promise<RecurringTask> => {
   try {
+    console.log(`taskCopyService: Copying recurring task ${taskId} to client ${targetClientId}`);
+    
     // First, get the source task
     const sourceTask = await getRecurringTaskById(taskId);
     
     if (!sourceTask) {
-      throw new Error(`Recurring task with ID ${taskId} not found`);
+      const error = `Recurring task with ID ${taskId} not found`;
+      console.error('taskCopyService:', error);
+      throw new Error(error);
     }
+    
+    console.log('taskCopyService: Source recurring task found:', sourceTask.name);
     
     // Create a new task based on the source task but with the target client ID
     const newTaskData = prepareRecurringTaskForInsert(sourceTask, targetClientId);
+    
+    console.log('taskCopyService: Prepared recurring task data for insertion:', {
+      name: newTaskData.name,
+      client_id: newTaskData.client_id,
+      recurrence_type: newTaskData.recurrence_type
+    });
     
     // Create the new task in the database
     const { data, error } = await supabase
@@ -149,35 +148,45 @@ export const copyRecurringTask = async (taskId: string, targetClientId: string):
       .single();
     
     if (error) {
-      console.error('Error copying recurring task:', error);
+      console.error('taskCopyService: Error inserting recurring task:', error);
       throw error;
     }
+    
+    console.log('taskCopyService: Successfully copied recurring task:', data.id);
     
     // Convert the database response to our RecurringTask type
     return formatRecurringTaskFromDB(data);
   } catch (error) {
-    console.error('Error in copyRecurringTask:', error);
+    console.error('taskCopyService: Error in copyRecurringTask:', error);
     throw error;
   }
 };
 
 /**
  * Copy an ad-hoc task to another client
- * @param taskId ID of the task instance to copy
- * @param targetClientId ID of the target client
- * @returns The newly created task instance
  */
 export const copyAdHocTask = async (taskId: string, targetClientId: string): Promise<TaskInstance> => {
   try {
+    console.log(`taskCopyService: Copying ad-hoc task ${taskId} to client ${targetClientId}`);
+    
     // First, get the source task
     const sourceTask = await getTaskInstanceById(taskId);
     
     if (!sourceTask) {
-      throw new Error(`Ad-hoc task with ID ${taskId} not found`);
+      const error = `Ad-hoc task with ID ${taskId} not found`;
+      console.error('taskCopyService:', error);
+      throw new Error(error);
     }
+    
+    console.log('taskCopyService: Source ad-hoc task found:', sourceTask.name);
     
     // Create a new task based on the source task but with the target client ID
     const newTaskData = prepareTaskInstanceForInsert(sourceTask, targetClientId);
+    
+    console.log('taskCopyService: Prepared ad-hoc task data for insertion:', {
+      name: newTaskData.name,
+      client_id: newTaskData.client_id
+    });
     
     // Create the new task in the database
     const { data, error } = await supabase
@@ -187,24 +196,22 @@ export const copyAdHocTask = async (taskId: string, targetClientId: string): Pro
       .single();
     
     if (error) {
-      console.error('Error copying ad-hoc task:', error);
+      console.error('taskCopyService: Error inserting ad-hoc task:', error);
       throw error;
     }
+    
+    console.log('taskCopyService: Successfully copied ad-hoc task:', data.id);
     
     // Convert the database response to our TaskInstance type
     return formatTaskInstanceFromDB(data);
   } catch (error) {
-    console.error('Error in copyAdHocTask:', error);
+    console.error('taskCopyService: Error in copyAdHocTask:', error);
     throw error;
   }
 };
 
 /**
  * Copy multiple tasks (both recurring and ad-hoc) to another client
- * @param recurringTaskIds Array of recurring task IDs to copy
- * @param adHocTaskIds Array of ad-hoc task IDs to copy
- * @param targetClientId ID of the target client
- * @returns Object containing arrays of copied recurring and ad-hoc tasks
  */
 export const copyClientTasks = async (
   recurringTaskIds: string[],
@@ -212,32 +219,61 @@ export const copyClientTasks = async (
   targetClientId: string
 ): Promise<{ recurring: RecurringTask[], adHoc: TaskInstance[] }> => {
   try {
+    console.log('taskCopyService: Starting bulk copy operation', {
+      recurringCount: recurringTaskIds.length,
+      adHocCount: adHocTaskIds.length,
+      targetClientId
+    });
+    
     const copiedRecurringTasks: RecurringTask[] = [];
     const copiedAdHocTasks: TaskInstance[] = [];
+    const errors: string[] = [];
     
     // Copy recurring tasks
     if (recurringTaskIds.length > 0) {
+      console.log('taskCopyService: Copying recurring tasks...');
       for (const taskId of recurringTaskIds) {
         try {
           const copiedTask = await copyRecurringTask(taskId, targetClientId);
           copiedRecurringTasks.push(copiedTask);
+          console.log(`taskCopyService: Successfully copied recurring task: ${copiedTask.name}`);
         } catch (error) {
-          console.error(`Failed to copy recurring task ${taskId}:`, error);
-          // Continue with other tasks even if one fails
+          const errorMsg = `Failed to copy recurring task ${taskId}: ${error}`;
+          console.error('taskCopyService:', errorMsg);
+          errors.push(errorMsg);
         }
       }
     }
     
     // Copy ad-hoc tasks
     if (adHocTaskIds.length > 0) {
+      console.log('taskCopyService: Copying ad-hoc tasks...');
       for (const taskId of adHocTaskIds) {
         try {
           const copiedTask = await copyAdHocTask(taskId, targetClientId);
           copiedAdHocTasks.push(copiedTask);
+          console.log(`taskCopyService: Successfully copied ad-hoc task: ${copiedTask.name}`);
         } catch (error) {
-          console.error(`Failed to copy ad-hoc task ${taskId}:`, error);
-          // Continue with other tasks even if one fails
+          const errorMsg = `Failed to copy ad-hoc task ${taskId}: ${error}`;
+          console.error('taskCopyService:', errorMsg);
+          errors.push(errorMsg);
         }
+      }
+    }
+    
+    console.log('taskCopyService: Bulk copy operation completed', {
+      recurringCopied: copiedRecurringTasks.length,
+      adHocCopied: copiedAdHocTasks.length,
+      errors: errors.length
+    });
+    
+    // If there were errors but some tasks were copied, log them but don't fail
+    if (errors.length > 0) {
+      console.warn('taskCopyService: Some tasks failed to copy:', errors);
+      
+      // If ALL tasks failed, throw an error
+      if (copiedRecurringTasks.length === 0 && copiedAdHocTasks.length === 0) {
+        throw new Error(`All copy operations failed: ${errors.join(', ')}`);
       }
     }
     
@@ -246,7 +282,7 @@ export const copyClientTasks = async (
       adHoc: copiedAdHocTasks
     };
   } catch (error) {
-    console.error('Error in copyClientTasks:', error);
+    console.error('taskCopyService: Error in copyClientTasks:', error);
     throw error;
   }
 };
