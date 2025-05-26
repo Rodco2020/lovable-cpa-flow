@@ -291,28 +291,26 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
                           Edit
                         </Button>
                         {task.isActive && (
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeactivate(task.id);
-                              }}
-                            >
-                              Deactivate
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => handleDeleteClick(task.id, task.name, e)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
-                          </>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeactivate(task.id);
+                            }}
+                          >
+                            Deactivate
+                          </Button>
                         )}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => handleDeleteClick(task.id, task.name, e)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
