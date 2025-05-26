@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Client, IndustryType } from '@/types/client';
+import { Client, IndustryType, PaymentTerms, BillingFrequency } from '@/types/client';
 import { TaskTemplate } from '@/types/task';
 import { assignTemplatesToClients, getAvailableTemplates } from '@/services/templateAssignmentService';
 import { AssignmentConfig } from '../../TaskWizard/AssignmentConfiguration';
@@ -86,8 +86,8 @@ export const useTemplateAssignment = () => {
         billingAddress: client.billing_address,
         industry: client.industry as IndustryType,
         status: client.status as 'Active' | 'Inactive',
-        paymentTerms: client.payment_terms,
-        billingFrequency: client.billing_frequency,
+        paymentTerms: client.payment_terms as PaymentTerms,
+        billingFrequency: client.billing_frequency as BillingFrequency,
         expectedMonthlyRevenue: client.expected_monthly_revenue,
         defaultTaskPriority: client.default_task_priority,
         staffLiaisonId: client.staff_liaison_id,
