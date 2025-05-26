@@ -67,6 +67,13 @@ export const TemplateAssignmentTab: React.FC = () => {
     setStep('selection');
   };
 
+  const handleTemplateToggle = (templateId: string) => {
+    const newSelection = selectedTemplateIds.includes(templateId)
+      ? selectedTemplateIds.filter(id => id !== templateId)
+      : [...selectedTemplateIds, templateId];
+    setSelectedTemplateIds(newSelection);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Progress Header */}
@@ -115,7 +122,7 @@ export const TemplateAssignmentTab: React.FC = () => {
         {step === 'selection' && (
           <SelectionStep
             selectedTemplateIds={selectedTemplateIds}
-            setSelectedTemplateIds={setSelectedTemplateIds}
+            handleTemplateToggle={handleTemplateToggle}
             availableTemplates={availableTemplates}
             isTemplatesLoading={isTemplatesLoading}
             selectedClientIds={selectedClientIds}
@@ -134,6 +141,7 @@ export const TemplateAssignmentTab: React.FC = () => {
             setAssignmentConfig={setAssignmentConfig}
             selectedTemplateIds={selectedTemplateIds}
             selectedClientIds={selectedClientIds}
+            availableTemplates={availableTemplates}
             onBack={() => setStep('selection')}
             onNext={() => setStep('confirmation')}
           />
@@ -194,7 +202,7 @@ const StepIndicator: React.FC<StepIndicatorProps> = ({ label, isActive, isComple
 // Step Components
 interface SelectionStepProps {
   selectedTemplateIds: string[];
-  setSelectedTemplateIds: (ids: string[]) => void;
+  handleTemplateToggle: (id: string) => void;
   availableTemplates: any[];
   isTemplatesLoading: boolean;
   selectedClientIds: string[];
@@ -208,7 +216,7 @@ interface SelectionStepProps {
 
 const SelectionStep: React.FC<SelectionStepProps> = ({
   selectedTemplateIds,
-  setSelectedTemplateIds,
+  handleTemplateToggle,
   availableTemplates,
   isTemplatesLoading,
   selectedClientIds,
@@ -233,9 +241,8 @@ const SelectionStep: React.FC<SelectionStepProps> = ({
           <TemplateBrowser
             templates={availableTemplates}
             selectedTemplateIds={selectedTemplateIds}
-            onSelectionChange={setSelectedTemplateIds}
+            onSelectTemplate={handleTemplateToggle}
             isLoading={isTemplatesLoading}
-            allowMultiple={true}
           />
         </CardContent>
       </Card>
@@ -310,6 +317,7 @@ interface ConfigurationStepProps {
   setAssignmentConfig: (config: any) => void;
   selectedTemplateIds: string[];
   selectedClientIds: string[];
+  availableTemplates: any[];
   onBack: () => void;
   onNext: () => void;
 }
@@ -319,34 +327,39 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({
   setAssignmentConfig,
   selectedTemplateIds,
   selectedClientIds,
+  availableTemplates,
   onBack,
   onNext
-}) => (
-  <div className="space-y-6">
-    <Card>
-      <CardHeader>
-        <CardTitle>Assignment Configuration</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <AssignmentConfiguration
-          config={assignmentConfig}
-          onChange={setAssignmentConfig}
-          templateCount={selectedTemplateIds.length}
-          clientCount={selectedClientIds.length}
-        />
-      </CardContent>
-    </Card>
+}) => {
+  const selectedTemplates = availableTemplates.filter(t => selectedTemplateIds.includes(t.id));
 
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onBack}>
-        Back to Selection
-      </Button>
-      <Button onClick={onNext}>
-        Review & Confirm
-      </Button>
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Assignment Configuration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AssignmentConfiguration
+            selectedTemplates={selectedTemplates}
+            selectedClientIds={selectedClientIds}
+            config={assignmentConfig}
+            onConfigChange={setAssignmentConfig}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onBack}>
+          Back to Selection
+        </Button>
+        <Button onClick={onNext}>
+          Review & Confirm
+        </Button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface ConfirmationStepProps {
   selectedTemplateIds: string[];

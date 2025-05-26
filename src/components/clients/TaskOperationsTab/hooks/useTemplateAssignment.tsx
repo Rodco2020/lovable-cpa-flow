@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Client } from '@/types/client';
+import { Client, IndustryType } from '@/types/client';
 import { TaskTemplate } from '@/types/task';
 import { assignTemplatesToClients, getAvailableTemplates } from '@/services/templateAssignmentService';
 import { AssignmentConfig } from '../../TaskWizard/AssignmentConfiguration';
@@ -84,7 +84,7 @@ export const useTemplateAssignment = () => {
         email: client.email,
         phone: client.phone,
         billingAddress: client.billing_address,
-        industry: client.industry,
+        industry: client.industry as IndustryType,
         status: client.status as 'Active' | 'Inactive',
         paymentTerms: client.payment_terms,
         billingFrequency: client.billing_frequency,
@@ -134,6 +134,8 @@ export const useTemplateAssignment = () => {
         success: true
       };
 
+      const startTime = Date.now();
+
       // Initialize progress
       setProgress({
         completed: 0,
@@ -181,7 +183,6 @@ export const useTemplateAssignment = () => {
         }
       }
 
-      const startTime = Date.now();
       results.success = results.errors.length === 0;
       setOperationResults(results);
 
