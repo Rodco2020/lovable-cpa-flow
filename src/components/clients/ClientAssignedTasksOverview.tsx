@@ -41,7 +41,8 @@ import {
   Search,
   Check,
   CheckCircle,
-  Pencil
+  Pencil,
+  Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -57,6 +58,7 @@ import {
 } from '@/services/clientService';
 import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
 import { EditAdHocTaskContainer } from './EditAdHocTaskContainer';
+import ClientTaskManagementDialog from './ClientTaskManagementDialog';
 
 interface FormattedTask {
   id: string;
@@ -111,6 +113,9 @@ const ClientAssignedTasksOverview: React.FC = () => {
   const [editRecurringTaskDialogOpen, setEditRecurringTaskDialogOpen] = useState(false);
   const [editAdHocTaskDialogOpen, setEditAdHocTaskDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
+
+  // Task Management Dialog state
+  const [taskManagementDialogOpen, setTaskManagementDialogOpen] = useState(false);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -414,7 +419,14 @@ const ClientAssignedTasksOverview: React.FC = () => {
             <CardTitle>Client-Assigned Tasks Overview</CardTitle>
             <CardDescription>View and manage all client tasks across your practice</CardDescription>
           </div>
-          <div className="mt-2 md:mt-0">
+          <div className="mt-2 md:mt-0 flex items-center gap-3">
+            <Button 
+              onClick={() => setTaskManagementDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Manage Tasks
+            </Button>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList>
                 <TabsTrigger value="all">All Tasks</TabsTrigger>
@@ -695,6 +707,12 @@ const ClientAssignedTasksOverview: React.FC = () => {
         onOpenChange={setEditAdHocTaskDialogOpen}
         taskId={selectedTaskId}
         onSaveComplete={handleEditComplete}
+      />
+
+      {/* Task Management Dialog */}
+      <ClientTaskManagementDialog
+        open={taskManagementDialogOpen}
+        onOpenChange={setTaskManagementDialogOpen}
       />
     </Card>
   );
