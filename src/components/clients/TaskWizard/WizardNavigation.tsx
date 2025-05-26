@@ -52,6 +52,13 @@ export const WizardNavigation: React.FC = () => {
     if (currentStep === 'success' || currentStep === 'processing') {
       return false;
     }
+
+    // For copy from client confirmation, progression is handled by the
+    // "Copy Tasks" button rather than the Next button. Hide Next to
+    // prevent advancing without starting the copy operation.
+    if (currentStep === 'confirmation' && selectedAction === 'copy-from-client') {
+      return false;
+    }
     
     // For action-selection step, only show if an action is selected
     if (currentStep === 'action-selection') {
