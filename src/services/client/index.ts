@@ -21,11 +21,11 @@ export {
   getStaffForLiaisonDropdown
 } from './staffLiaisonService';
 
-// Re-export client-task functionality for backward compatibility
+// Re-export client-task functionality using new modular structure
 export {
   getClientAdHocTasks,
   getClientRecurringTasks
-} from '../clientTaskService';
+} from '../clientTask';
 
 // Re-export task copy functionality for backward compatibility
 export {
