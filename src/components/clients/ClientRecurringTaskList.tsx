@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { deactivateRecurringTask } from '@/services/taskService';
+import { deactivateRecurringTask, deleteRecurringTaskAssignment } from '@/services/taskService';
 import { getClientRecurringTasks } from '@/services/clientService';
 import { RecurringTask } from '@/types/task';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -9,10 +9,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock, Pencil, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import TaskListPagination from './TaskListPagination';
 import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
 import { useSkillNames } from '@/hooks/useSkillNames';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ClientRecurringTaskListProps {
   clientId: string;
@@ -41,6 +51,8 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [editingTaskId, setEditingTaskId] = useState<string | undefined>(undefined);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; name: string } | null>(null);
   const tasksPerPage = 5;
   
   // Get all skill IDs from all tasks to fetch their names
@@ -60,6 +72,33 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
     } catch (error) {
       console.error("Error deactivating task:", error);
       toast.error("An error occurred while deactivating the task");
+    }
+  };
+
+  const handleDeleteClick = (taskId: string, taskName: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click event
+    setTaskToDelete({ id: taskId, name: taskName });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      const success = await deleteRecurringTaskAssignment(taskToDelete.id);
+      if (success) {
+        toast.success("Task assignment deleted successfully");
+        await refetch();
+        if (onRefreshNeeded) onRefreshNeeded();
+      } else {
+        toast.error("Failed to delete task assignment");
+      }
+    } catch (error) {
+      console.error("Error deleting task assignment:", error);
+      toast.error("An error occurred while deleting the task assignment");
+    } finally {
+      setDeleteDialogOpen(false);
+      setTaskToDelete(null);
     }
   };
 
@@ -176,119 +215,157 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center">
-          <Clock className="mr-2 h-5 w-5" />
-          Recurring Tasks ({tasks.length})
-        </CardTitle>
-        {isRefreshing && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-            Refreshing...
-          </div>
-        )}
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Recurrence</TableHead>
-                <TableHead>Next Due</TableHead>
-                <TableHead>Hours</TableHead>
-                <TableHead>Skills</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentTasks.map(task => (
-                <TableRow 
-                  key={task.id} 
-                  className={onViewTask ? "cursor-pointer hover:bg-muted/50" : ""}
-                  onClick={() => onViewTask ? onViewTask(task.id) : null}
-                >
-                  <TableCell className="font-medium">{task.name}</TableCell>
-                  <TableCell>{formatRecurrencePattern(task.recurrencePattern)}</TableCell>
-                  <TableCell>
-                    {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'Not set'}
-                  </TableCell>
-                  <TableCell>
-                    {task.estimatedHours}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {task.requiredSkills && task.requiredSkills.length > 0 ? (
-                        task.requiredSkills.map((skillId, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {skillId}
-                          </Badge>
-                        ))
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            Recurring Tasks ({tasks.length})
+          </CardTitle>
+          {isRefreshing && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Refreshing...
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Recurrence</TableHead>
+                  <TableHead>Next Due</TableHead>
+                  <TableHead>Hours</TableHead>
+                  <TableHead>Skills</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentTasks.map(task => (
+                  <TableRow 
+                    key={task.id} 
+                    className={onViewTask ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={() => onViewTask ? onViewTask(task.id) : null}
+                  >
+                    <TableCell className="font-medium">{task.name}</TableCell>
+                    <TableCell>{formatRecurrencePattern(task.recurrencePattern)}</TableCell>
+                    <TableCell>
+                      {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'Not set'}
+                    </TableCell>
+                    <TableCell>
+                      {task.estimatedHours}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {task.requiredSkills && task.requiredSkills.length > 0 ? (
+                          task.requiredSkills.map((skillId, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {skillId}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-xs">None</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {task.isActive ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
+                          <CheckCircle className="mr-1 h-3 w-3" /> Active
+                        </Badge>
                       ) : (
-                        <span className="text-muted-foreground text-xs">None</span>
+                        <Badge variant="secondary">Inactive</Badge>
                       )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {task.isActive ? (
-                      <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
-                        <CheckCircle className="mr-1 h-3 w-3" /> Active
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Inactive</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => handleEditClick(task.id, e)}
-                      >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      {task.isActive && (
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeactivate(task.id);
-                          }}
+                          onClick={(e) => handleEditClick(task.id, e)}
                         >
-                          Deactivate
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Edit
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {totalPages > 1 && (
-          <div className="mt-4">
-            <TaskListPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
+                        {task.isActive && (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeactivate(task.id);
+                              }}
+                            >
+                              Deactivate
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => handleDeleteClick(task.id, task.name, e)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        )}
-        
-        {/* Edit Task Dialog */}
-        <EditRecurringTaskContainer
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          taskId={editingTaskId}
-          onSaveComplete={handleSaveComplete}
-        />
-      </CardContent>
-    </Card>
+
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <TaskListPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+          
+          {/* Edit Task Dialog */}
+          <EditRecurringTaskContainer
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            taskId={editingTaskId}
+            onSaveComplete={handleSaveComplete}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task Assignment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the assignment "{taskToDelete?.name}"? 
+              This will permanently remove the recurring task assignment from this client. 
+              The task template will remain available for other clients.
+              <br /><br />
+              <strong>This action cannot be undone.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Assignment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

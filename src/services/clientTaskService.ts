@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { TaskInstance, RecurringTask, TaskPriority, TaskCategory, RecurrencePattern, TaskStatus } from '@/types/task';
 import { getRecurringTasks, getTaskInstances } from './taskService';
@@ -212,3 +211,5 @@ export const getClientRecurringTasks = async (clientId: string): Promise<Recurri
     throw error;
   }
 };
+
+export { deleteRecurringTaskAssignment } from './taskService';

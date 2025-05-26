@@ -1109,3 +1109,25 @@ export const initializeTaskData = async () => {
 
 // Initialize data on module import
 initializeTaskData();
+
+export const deleteRecurringTaskAssignment = async (taskId: string): Promise<boolean> => {
+  try {
+    console.log(`Deleting recurring task assignment with ID: ${taskId}`);
+    
+    const { error } = await supabase
+      .from('recurring_tasks')
+      .delete()
+      .eq('id', taskId);
+    
+    if (error) {
+      console.error('Error deleting recurring task assignment:', error);
+      return false;
+    }
+    
+    console.log('Successfully deleted recurring task assignment');
+    return true;
+  } catch (err) {
+    console.error('Unexpected error deleting recurring task assignment:', err);
+    return false;
+  }
+};
