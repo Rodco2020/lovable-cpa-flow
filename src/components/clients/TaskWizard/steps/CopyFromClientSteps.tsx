@@ -117,19 +117,24 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
         const selectedRecurringCount = Math.ceil(copySelectedTaskIds.length * 0.4);
         
         return (
-          <ConfirmationStep 
-            sourceClientId={initialClientId}
-            targetClientId={copyTargetClientId}
-            sourceClientName={getSourceClientName()}
-            targetClientName={getTargetClientName()}
-            selectedAdHocTaskCount={selectedAdHocCount}
-            selectedRecurringTaskCount={selectedRecurringCount}
-            selectedCount={copySelectedTaskIds.length}
-            step={getCopyTaskStep(copyStep)}
-            handleBack={() => onStepChange('task-selection')}
-            handleCopy={onCopyExecute}
-            isProcessing={isCopyProcessing}
-          />
+          <WizardStep 
+            title="Confirm Copy Operation"
+            description="Review the tasks to be copied and confirm the operation"
+          >
+            <ConfirmationStep 
+              sourceClientId={initialClientId}
+              targetClientId={copyTargetClientId}
+              sourceClientName={getSourceClientName()}
+              targetClientName={getTargetClientName()}
+              selectedAdHocTaskCount={selectedAdHocCount}
+              selectedRecurringTaskCount={selectedRecurringCount}
+              selectedCount={copySelectedTaskIds.length}
+              step={getCopyTaskStep(copyStep)}
+              handleBack={() => onStepChange('task-selection')}
+              handleCopy={onCopyExecute}
+              isProcessing={isCopyProcessing}
+            />
+          </WizardStep>
         );
       }
       return null;

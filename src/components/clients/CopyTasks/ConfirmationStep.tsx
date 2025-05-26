@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
-import { DialogFooter } from './DialogFooter';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, CheckCircle2, Clock, Copy } from 'lucide-react';
 import { CopyTaskStep } from './types';
 
 interface ConfirmationStepProps {
@@ -81,14 +81,25 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         </AlertDescription>
       </Alert>
 
-      <DialogFooter
-        step={step}
-        handleBack={handleBack}
-        handleNext={() => {}}
-        handleCopy={() => handleCopy()}
-        isProcessing={isProcessing}
-        isSuccess={false}
-      />
+      {/* Action buttons */}
+      <div className="flex justify-between mt-6">
+        <Button 
+          variant="outline" 
+          onClick={handleBack}
+          disabled={isProcessing}
+        >
+          Back
+        </Button>
+        
+        <Button 
+          onClick={handleCopy}
+          disabled={isProcessing}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <Copy className="h-4 w-4 mr-2" />
+          {isProcessing ? 'Copying Tasks...' : 'Copy Tasks'}
+        </Button>
+      </div>
     </div>
   );
 };

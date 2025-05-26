@@ -53,10 +53,14 @@ export const WizardNavigation: React.FC = () => {
       return false;
     }
 
-    // For copy from client confirmation, progression is handled by the
-    // "Copy Tasks" button rather than the Next button. Hide Next to
-    // prevent advancing without starting the copy operation.
+    // FIXED: For copy-from-client confirmation, the "Copy Tasks" button handles progression
+    // Hide Next button to prevent manual advancement without executing the copy operation
     if (currentStep === 'confirmation' && selectedAction === 'copy-from-client') {
+      return false;
+    }
+
+    // For template-assignment confirmation, also use action-specific button
+    if (currentStep === 'confirmation' && selectedAction === 'template-assignment') {
       return false;
     }
     
