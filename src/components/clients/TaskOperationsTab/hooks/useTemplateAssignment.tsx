@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,24 +76,45 @@ export const useTemplateAssignment = () => {
         return [];
       }
 
-      return data.map(client => ({
-        id: client.id,
-        legalName: client.legal_name,
-        primaryContact: client.primary_contact,
-        email: client.email,
-        phone: client.phone,
-        billingAddress: client.billing_address,
-        industry: client.industry as IndustryType,
-        status: client.status as 'Active' | 'Inactive',
-        paymentTerms: client.payment_terms as PaymentTerms,
-        billingFrequency: client.billing_frequency as BillingFrequency,
-        expectedMonthlyRevenue: client.expected_monthly_revenue,
-        defaultTaskPriority: client.default_task_priority,
-        staffLiaisonId: client.staff_liaison_id,
-        notificationPreferences: client.notification_preferences,
-        createdAt: new Date(client.created_at),
-        updatedAt: new Date(client.updated_at)
-      }));
+      return data.map(client => {
+        // Parse notification preferences safely
+        let notificationPreferences = {
+          emailReminders: true,
+          taskNotifications: true
+        };
+
+        if (client.notification_preferences) {
+          try {
+            if (typeof client.notification_preferences === 'string') {
+              notificationPreferences = JSON.parse(client.notification_preferences);
+            } else if (typeof client.notification_preferences === 'object') {
+              notificationPreferences = client.notification_preferences as any;
+            }
+          } catch (e) {
+            console.warn('Failed to parse notification preferences for client:', client.id, e);
+            // Keep default values
+          }
+        }
+
+        return {
+          id: client.id,
+          legalName: client.legal_name,
+          primaryContact: client.primary_contact,
+          email: client.email,
+          phone: client.phone,
+          billingAddress: client.billing_address,
+          industry: client.industry as IndustryType,
+          status: client.status as 'Active' | 'Inactive',
+          paymentTerms: client.payment_terms as PaymentTerms,
+          billingFrequency: client.billing_frequency as BillingFrequency,
+          expectedMonthlyRevenue: client.expected_monthly_revenue,
+          defaultTaskPriority: client.default_task_priority,
+          staffLiaisonId: client.staff_liaison_id,
+          notificationPreferences,
+          createdAt: new Date(client.created_at),
+          updatedAt: new Date(client.updated_at)
+        };
+      });
     }
   });
 
