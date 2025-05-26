@@ -6,6 +6,7 @@ import TaskListPagination from './TaskListPagination';
 import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
 import { useSkillNames } from '@/hooks/useSkillNames';
 import { useRecurringTaskOperations } from './hooks/useRecurringTaskOperations';
+import { usePagination } from './hooks/usePagination';
 import RecurringTaskTable from './RecurringTaskTable';
 import RecurringTaskDeleteDialog from './RecurringTaskDeleteDialog';
 import { 
@@ -20,11 +21,27 @@ interface ClientRecurringTaskListProps {
   onViewTask?: (taskId: string) => void;
 }
 
+/**
+ * ClientRecurringTaskList Component
+ * 
+ * Displays a paginated list of recurring tasks for a specific client.
+ * Provides functionality to:
+ * - View task details
+ * - Edit task assignments
+ * - Deactivate active tasks
+ * - Delete task assignments with confirmation
+ * - Handle loading, error, and empty states
+ * 
+ * @param clientId - The ID of the client whose tasks to display
+ * @param onRefreshNeeded - Optional callback triggered when data needs to be refreshed
+ * @param onViewTask - Optional callback triggered when a task is clicked for viewing
+ */
 const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ 
   clientId, 
   onRefreshNeeded,
   onViewTask 
 }) => {
+  // Task operations and data management
   const {
     tasks,
     loading,
@@ -40,33 +57,46 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
     refetch
   } = useRecurringTaskOperations({ clientId, onRefreshNeeded });
 
-  const [currentPage, setCurrentPage] = useState(1);
+  // Pagination management
+  const {
+    currentPage,
+    totalPages,
+    currentItems: currentTasks,
+    setCurrentPage
+  } = usePagination({
+    items: tasks,
+    itemsPerPage: 5
+  });
+
+  // Edit dialog state
   const [editingTaskId, setEditingTaskId] = useState<string | undefined>(undefined);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const tasksPerPage = 5;
   
   // Get all skill IDs from all tasks to fetch their names
   const allSkillIds = tasks.flatMap(task => task.requiredSkills);
   const { skillsMap, isLoading: loadingSkills } = useSkillNames(allSkillIds);
 
+  /**
+   * Handles the edit button click for a task
+   * Prevents event propagation to avoid triggering row click
+   */
   const handleEditClick = (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTaskId(taskId);
     setIsEditDialogOpen(true);
   };
 
+  /**
+   * Handles successful save completion
+   * Refreshes the task list and notifies parent if needed
+   */
   const handleSaveComplete = async () => {
     await refetch();
     if (onRefreshNeeded) onRefreshNeeded();
     setEditingTaskId(undefined);
   };
 
-  // Get current tasks for pagination
-  const indexOfLastTask = currentPage * tasksPerPage;
-  const indexOfFirstTask = indexOfLastTask - tasksPerPage;
-  const currentTasks = tasks.slice(indexOfFirstTask, indexOfLastTask);
-  const totalPages = Math.ceil(tasks.length / tasksPerPage);
-
+  // Handle different states
   if (loading) {
     return <RecurringTaskLoadingState />;
   }
