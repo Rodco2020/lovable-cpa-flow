@@ -5,10 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { CheckCircle } from 'lucide-react';
 import { RecurringTask, RecurrencePattern } from '@/types/task';
+import { Skill } from '@/types/skill';
 import RecurringTaskActions from './RecurringTaskActions';
 
 interface RecurringTaskTableRowProps {
   task: RecurringTask;
+  skillsMap?: Record<string, Skill>;
   onViewTask?: (taskId: string) => void;
   onEdit: (taskId: string, e: React.MouseEvent) => void;
   onDeactivate: (taskId: string) => void;
@@ -17,6 +19,7 @@ interface RecurringTaskTableRowProps {
 
 const RecurringTaskTableRow: React.FC<RecurringTaskTableRowProps> = ({
   task,
+  skillsMap = {},
   onViewTask,
   onEdit,
   onDeactivate,
@@ -45,6 +48,27 @@ const RecurringTaskTableRow: React.FC<RecurringTaskTableRowProps> = ({
     }
   };
 
+  const renderSkills = () => {
+    if (!task.requiredSkills || task.requiredSkills.length === 0) {
+      return <span className="text-muted-foreground text-xs">None</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {task.requiredSkills.map((skillId, idx) => {
+          const skill = skillsMap[skillId];
+          const displayName = skill?.name || skillId;
+          
+          return (
+            <Badge key={idx} variant="secondary" className="text-xs">
+              {displayName}
+            </Badge>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <TableRow 
       key={task.id} 
@@ -60,17 +84,7 @@ const RecurringTaskTableRow: React.FC<RecurringTaskTableRowProps> = ({
         {task.estimatedHours}
       </TableCell>
       <TableCell>
-        <div className="flex flex-wrap gap-1">
-          {task.requiredSkills && task.requiredSkills.length > 0 ? (
-            task.requiredSkills.map((skillId, idx) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {skillId}
-              </Badge>
-            ))
-          ) : (
-            <span className="text-muted-foreground text-xs">None</span>
-          )}
-        </div>
+        {renderSkills()}
       </TableCell>
       <TableCell>
         {task.isActive ? (

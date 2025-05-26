@@ -2,10 +2,12 @@
 import React from 'react';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RecurringTask } from '@/types/task';
+import { Skill } from '@/types/skill';
 import RecurringTaskTableRow from './RecurringTaskTableRow';
 
 interface RecurringTaskTableProps {
   tasks: RecurringTask[];
+  skillsMap?: Record<string, Skill>;
   onViewTask?: (taskId: string) => void;
   onEdit: (taskId: string, e: React.MouseEvent) => void;
   onDeactivate: (taskId: string) => void;
@@ -14,6 +16,7 @@ interface RecurringTaskTableProps {
 
 const RecurringTaskTable: React.FC<RecurringTaskTableProps> = ({
   tasks,
+  skillsMap,
   onViewTask,
   onEdit,
   onDeactivate,
@@ -38,6 +41,7 @@ const RecurringTaskTable: React.FC<RecurringTaskTableProps> = ({
             <RecurringTaskTableRow
               key={task.id}
               task={task}
+              skillsMap={skillsMap}
               onViewTask={onViewTask}
               onEdit={onEdit}
               onDeactivate={onDeactivate}

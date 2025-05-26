@@ -127,6 +127,7 @@ const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({
         <CardContent>
           <RecurringTaskTable
             tasks={currentTasks}
+            skillsMap={skillsMap}
             onViewTask={onViewTask}
             onEdit={handleEditClick}
             onDeactivate={handleDeactivate}
