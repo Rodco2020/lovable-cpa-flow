@@ -65,6 +65,29 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
     }
   };
 
+  // Enhanced copy handler that immediately advances wizard to processing step
+  const handleCopyWithStepProgression = async () => {
+    try {
+      console.log('CopyFromClientSteps: Starting copy with step progression');
+      
+      // CRITICAL FIX: Immediately advance to processing step when copy starts
+      onStepChange('processing');
+      
+      // Execute the copy operation
+      await onCopyExecute();
+      
+      console.log('CopyFromClientSteps: Copy completed, advancing to success');
+      
+      // Advance to success step when copy completes
+      onStepChange('success');
+    } catch (error) {
+      console.error('CopyFromClientSteps: Copy operation failed:', error);
+      // On error, go back to confirmation step
+      onStepChange('confirmation');
+      throw error;
+    }
+  };
+
   // Calculate progress based on processing state
   const getProcessingProgress = () => {
     if (isCopyProcessing) {
@@ -75,7 +98,7 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
 
   // Simple completion notification (no auto-progression)
   const handleProcessingComplete = () => {
-    console.log('CopyFromClientSteps: Processing step completed - relying on useCopySuccessMonitor for progression');
+    console.log('CopyFromClientSteps: Processing step completed - progression handled by copy handler');
   };
 
   switch (currentStep) {
@@ -131,7 +154,7 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
               selectedCount={copySelectedTaskIds.length}
               step={getCopyTaskStep(copyStep)}
               handleBack={() => onStepChange('task-selection')}
-              handleCopy={onCopyExecute}
+              handleCopy={handleCopyWithStepProgression}
               isProcessing={isCopyProcessing}
             />
           </WizardStep>
