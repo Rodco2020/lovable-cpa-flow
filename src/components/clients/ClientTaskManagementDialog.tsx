@@ -16,6 +16,7 @@ import {
   Users,
   Calendar
 } from 'lucide-react';
+import { TemplateAssignmentTab } from './TaskOperationsTab/TemplateAssignmentTab';
 
 interface ClientTaskManagementDialogProps {
   open: boolean;
@@ -24,7 +25,7 @@ interface ClientTaskManagementDialogProps {
 
 /**
  * Main dialog for managing client tasks across the practice
- * Phase 1: Core infrastructure with tabbed interface
+ * Phase 2: Integrated template assignment functionality
  */
 const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
   open,
@@ -84,26 +85,6 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
-
-/**
- * Template Assignment Tab - Phase 1 placeholder
- */
-const TemplateAssignmentTab: React.FC = () => {
-  return (
-    <div className="p-6 text-center">
-      <div className="max-w-md mx-auto">
-        <FileCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Create Tasks from Templates</h3>
-        <p className="text-muted-foreground mb-4">
-          Assign task templates to clients and customize recurrence patterns, due dates, and priorities.
-        </p>
-        <Badge variant="outline" className="mb-2">
-          Coming in Phase 2
-        </Badge>
-      </div>
-    </div>
   );
 };
 
