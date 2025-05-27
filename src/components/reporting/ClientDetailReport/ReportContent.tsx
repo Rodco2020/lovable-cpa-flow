@@ -21,31 +21,86 @@ export const ReportContent: React.FC<ReportContentProps> = ({
   onFiltersChange
 }) => {
   return (
-    <>
-      <ClientReportFiltersPanel 
-        filters={filters} 
-        onFiltersChange={onFiltersChange}
-      />
+    <div className="space-y-6">
+      {/* Filters Panel */}
+      <section aria-labelledby="filters-heading">
+        <h2 id="filters-heading" className="sr-only">
+          Report Filters
+        </h2>
+        <ClientReportFiltersPanel 
+          filters={filters} 
+          onFiltersChange={onFiltersChange}
+        />
+      </section>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="tasks">Task Breakdown</TabsTrigger>
-          <TabsTrigger value="charts">Charts & Analytics</TabsTrigger>
-        </TabsList>
+      {/* Main Report Tabs */}
+      <section aria-labelledby="report-content-heading">
+        <h2 id="report-content-heading" className="sr-only">
+          Report Content
+        </h2>
+        
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3">
+            <TabsTrigger 
+              value="overview"
+              className="text-sm"
+            >
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Info</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="tasks"
+              className="text-sm"
+            >
+              <span className="hidden sm:inline">Task Breakdown</span>
+              <span className="sm:hidden">Tasks</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="charts"
+              className="text-sm"
+            >
+              <span className="hidden sm:inline">Charts & Analytics</span>
+              <span className="sm:hidden">Charts</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="overview">
-          <ClientReportOverview data={reportData} customization={customization} />
-        </TabsContent>
+          <TabsContent 
+            value="overview"
+            className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+            tabIndex={-1}
+          >
+            <div role="tabpanel" aria-labelledby="overview-tab">
+              <ClientReportOverview 
+                data={reportData} 
+                customization={customization} 
+              />
+            </div>
+          </TabsContent>
 
-        <TabsContent value="tasks">
-          <ClientTaskBreakdown data={reportData} customization={customization} />
-        </TabsContent>
+          <TabsContent 
+            value="tasks"
+            className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+            tabIndex={-1}
+          >
+            <div role="tabpanel" aria-labelledby="tasks-tab">
+              <ClientTaskBreakdown 
+                data={reportData} 
+                customization={customization} 
+              />
+            </div>
+          </TabsContent>
 
-        <TabsContent value="charts">
-          <ClientReportCharts data={reportData} />
-        </TabsContent>
-      </Tabs>
-    </>
+          <TabsContent 
+            value="charts"
+            className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+            tabIndex={-1}
+          >
+            <div role="tabpanel" aria-labelledby="charts-tab">
+              <ClientReportCharts data={reportData} />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </section>
+    </div>
   );
 };
