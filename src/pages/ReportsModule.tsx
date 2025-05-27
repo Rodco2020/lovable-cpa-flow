@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StaffLiaisonReport from "@/components/reporting/StaffLiaisonReport";
 import StaffReport from "@/components/reporting/StaffReport";
+import ClientDetailReport from "@/components/reporting/ClientDetailReport";
 
 const ReportsModule: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const ReportsModule: React.FC = () => {
         <TabsList>
           <TabsTrigger value="staff-liaison">Staff Liaison Revenue</TabsTrigger>
           <TabsTrigger value="staff-skills">Staff Skills & Availability</TabsTrigger>
+          <TabsTrigger value="client-detail">Client Detail Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="staff-liaison" className="space-y-4">
@@ -27,6 +29,10 @@ const ReportsModule: React.FC = () => {
 
         <TabsContent value="staff-skills" className="space-y-4">
           <StaffReport />
+        </TabsContent>
+
+        <TabsContent value="client-detail" className="space-y-4">
+          <ClientDetailReport />
         </TabsContent>
       </Tabs>
 
