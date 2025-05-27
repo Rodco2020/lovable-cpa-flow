@@ -10,16 +10,17 @@ import {
   TableBody,
   TableCell
 } from '@/components/ui/table';
-import { Clock, Pencil } from 'lucide-react';
+import { Clock, Pencil, Trash2 } from 'lucide-react';
 import { FormattedTask } from '../types';
 import { formatRecurrencePattern, formatDate } from '../utils';
 
 interface TaskTableProps {
   tasks: FormattedTask[];
   onEditTask: (taskId: string, taskType: 'Ad-hoc' | 'Recurring') => void;
+  onDeleteTask: (taskId: string, taskType: 'Ad-hoc' | 'Recurring', taskName: string) => void;
 }
 
-export const TaskTable: React.FC<TaskTableProps> = ({ tasks, onEditTask }) => {
+export const TaskTable: React.FC<TaskTableProps> = ({ tasks, onEditTask, onDeleteTask }) => {
   return (
     <div className="rounded-md border">
       <Table>
@@ -113,14 +114,25 @@ export const TaskTable: React.FC<TaskTableProps> = ({ tasks, onEditTask }) => {
                 )}
               </TableCell>
               <TableCell>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => onEditTask(task.id, task.taskType)}
-                  title={`Edit ${task.taskType} Task`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onEditTask(task.id, task.taskType)}
+                    title={`Edit ${task.taskType} Task`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onDeleteTask(task.id, task.taskType, task.taskName)}
+                    title={`Delete ${task.taskType} Task`}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

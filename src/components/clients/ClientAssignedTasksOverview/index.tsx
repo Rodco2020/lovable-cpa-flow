@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings } from 'lucide-react';
+import { toast } from 'sonner';
 import { EditRecurringTaskContainer } from '../EditRecurringTaskContainer';
 import { EditAdHocTaskContainer } from '../EditAdHocTaskContainer';
 import ClientTaskManagementDialog from '../ClientTaskManagementDialog';
@@ -17,6 +18,8 @@ import { useTasksData } from './hooks/useTasksData';
 import { useTaskFiltering } from './hooks/useTaskFiltering';
 import { TaskFilters } from './components/TaskFilters';
 import { TaskContentArea } from './components/TaskContentArea';
+import { DeleteTaskDialog } from './components/DeleteTaskDialog';
+import { deleteRecurringTaskAssignment, deleteTaskInstance } from '@/services/clientTask';
 
 const ClientAssignedTasksOverview: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -25,6 +28,15 @@ const ClientAssignedTasksOverview: React.FC = () => {
   const [editRecurringTaskDialogOpen, setEditRecurringTaskDialogOpen] = useState(false);
   const [editAdHocTaskDialogOpen, setEditAdHocTaskDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
+
+  // Delete task modal state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    id: string;
+    name: string;
+    type: 'Ad-hoc' | 'Recurring';
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Task Management Dialog state
   const [taskManagementDialogOpen, setTaskManagementDialogOpen] = useState(false);
@@ -55,6 +67,47 @@ const ClientAssignedTasksOverview: React.FC = () => {
       setEditRecurringTaskDialogOpen(true);
     } else {
       setEditAdHocTaskDialogOpen(true);
+    }
+  };
+
+  // Handle task delete initiation
+  const handleDeleteTask = (taskId: string, taskType: 'Ad-hoc' | 'Recurring', taskName: string) => {
+    setTaskToDelete({
+      id: taskId,
+      name: taskName,
+      type: taskType
+    });
+    setDeleteDialogOpen(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (!taskToDelete) return;
+
+    setIsDeleting(true);
+    
+    try {
+      let success = false;
+      
+      if (taskToDelete.type === 'Recurring') {
+        success = await deleteRecurringTaskAssignment(taskToDelete.id);
+      } else {
+        success = await deleteTaskInstance(taskToDelete.id);
+      }
+
+      if (success) {
+        toast.success(`${taskToDelete.type} task deleted successfully`);
+        handleEditComplete(); // Refresh the data
+      } else {
+        toast.error(`Failed to delete ${taskToDelete.type.toLowerCase()} task`);
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error(`An error occurred while deleting the ${taskToDelete.type.toLowerCase()} task`);
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setTaskToDelete(null);
     }
   };
 
@@ -109,6 +162,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
             totalTasks={formattedTasks}
             onResetFilters={handleResetAllFilters}
             onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
           />
         </div>
       </CardContent>
@@ -126,6 +180,16 @@ const ClientAssignedTasksOverview: React.FC = () => {
         onOpenChange={setEditAdHocTaskDialogOpen}
         taskId={selectedTaskId}
         onSaveComplete={handleEditComplete}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteTaskDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        taskName={taskToDelete?.name || null}
+        taskType={taskToDelete?.type || null}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
 
       {/* Task Management Dialog */}

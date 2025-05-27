@@ -12,7 +12,10 @@ export { getRecurringTaskById, getClientRecurringTasks } from './recurringTaskOp
 export { getTaskInstanceById, getClientAdHocTasks } from './taskInstanceOperations';
 
 // Re-export from taskService for backward compatibility
-export { deleteRecurringTaskAssignment } from '../taskService';
+export { 
+  deleteRecurringTaskAssignment,
+  deleteTaskInstance 
+} from '../taskService';
 
 // Export types for consumers who need them
 export type { RecurringTaskData, TaskInstanceData } from './types';
