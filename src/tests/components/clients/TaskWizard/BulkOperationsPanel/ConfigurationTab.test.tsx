@@ -14,7 +14,8 @@ describe('ConfigurationTab', () => {
   const mockConfig: BulkOperationConfig = {
     operationType: 'template-assignment',
     batchSize: 10,
-    concurrency: 3
+    concurrency: 3,
+    validationRules: []
   };
 
   const mockOnConfigChange = jest.fn();
