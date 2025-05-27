@@ -23,7 +23,10 @@ export const processSingleAssignment = async (operation: BatchOperation): Promis
   console.log(`Processing assignment: ${operation.clientId} - ${operation.templateId}`);
 
   try {
-    if (operation.config.taskType === 'recurring') {
+    // Determine task type from config
+    const taskType = operation.config.taskType || operation.config.assignmentType;
+    
+    if (taskType === 'recurring') {
       return await createRecurringTask(operation);
     } else {
       return await createAdHocTask(operation);
@@ -52,14 +55,14 @@ const createRecurringTask = async (operation: BatchOperation): Promise<any> => {
   }
 
   // Prepare recurring task data
-  const recurringTaskData = {
+  const recurringTaskData: any = {
     template_id: operation.templateId,
     client_id: operation.clientId,
     name: template.name,
     description: template.description,
     estimated_hours: operation.config.preserveEstimatedHours 
       ? template.default_estimated_hours 
-      : template.default_estimated_hours,
+      : (operation.config.estimatedHours || template.default_estimated_hours),
     required_skills: operation.config.preserveSkills 
       ? template.required_skills 
       : template.required_skills,
@@ -126,14 +129,14 @@ const createAdHocTask = async (operation: BatchOperation): Promise<any> => {
   }
 
   // Prepare task instance data
-  const taskInstanceData = {
+  const taskInstanceData: any = {
     template_id: operation.templateId,
     client_id: operation.clientId,
     name: template.name,
     description: template.description,
     estimated_hours: operation.config.preserveEstimatedHours 
       ? template.default_estimated_hours 
-      : template.default_estimated_hours,
+      : (operation.config.estimatedHours || template.default_estimated_hours),
     required_skills: operation.config.preserveSkills 
       ? template.required_skills 
       : template.required_skills,
@@ -175,7 +178,7 @@ const createAdHocTask = async (operation: BatchOperation): Promise<any> => {
 const createTaskInstanceFromRecurring = async (recurringTask: any, operation: BatchOperation): Promise<any> => {
   console.log(`Creating task instance from recurring task: ${recurringTask.id}`);
 
-  const taskInstanceData = {
+  const taskInstanceData: any = {
     template_id: recurringTask.template_id,
     client_id: recurringTask.client_id,
     recurring_task_id: recurringTask.id,

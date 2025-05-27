@@ -30,12 +30,22 @@ export interface OperationResults {
   results: any[];
 }
 
-export const createInitialProgress = (total: number): OperationProgress => ({
+export const createInitialProgress = (total: number = 0): OperationProgress => ({
   completed: 0,
   total,
   percentage: 0,
   operations: [],
   errors: []
+});
+
+export const createInitialResults = (): OperationResults => ({
+  success: false,
+  totalOperations: 0,
+  successfulOperations: 0,
+  failedOperations: 0,
+  errors: [],
+  processingTime: 0,
+  results: []
 });
 
 export const updateProgress = (

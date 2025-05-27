@@ -39,6 +39,7 @@ export interface BulkOperationError {
   clientId: string;
   templateId: string;
   error: string;
+  details?: any;
 }
 
 export interface ProgressUpdate {

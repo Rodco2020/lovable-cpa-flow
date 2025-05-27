@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { AssignmentConfig } from '../../../TaskWizard/AssignmentConfiguration';
-import { OperationProgress, OperationResults, createInitialProgress, createInitialResults } from '../utils/progressTracker';
+import { OperationProgress, OperationResults, createInitialProgress } from '../utils/progressTracker';
 
 /**
  * Hook for managing assignment operation state
@@ -16,12 +16,17 @@ export const useAssignmentState = () => {
   // Configuration state
   const [assignmentConfig, setAssignmentConfig] = useState<AssignmentConfig>({
     assignmentType: 'ad-hoc',
-    customizePerClient: false
+    customizePerClient: false,
+    taskType: 'adhoc',
+    priority: 'Medium',
+    preserveEstimatedHours: true,
+    preserveSkills: true,
+    generateImmediately: false
   });
   
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState<OperationProgress>(createInitialProgress());
+  const [progress, setProgress] = useState<OperationProgress>(createInitialProgress(0));
   const [operationResults, setOperationResults] = useState<OperationResults | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,10 +35,15 @@ export const useAssignmentState = () => {
     setSelectedClientIds([]);
     setAssignmentConfig({
       assignmentType: 'ad-hoc',
-      customizePerClient: false
+      customizePerClient: false,
+      taskType: 'adhoc',
+      priority: 'Medium',
+      preserveEstimatedHours: true,
+      preserveSkills: true,
+      generateImmediately: false
     });
     setIsProcessing(false);
-    setProgress(createInitialProgress());
+    setProgress(createInitialProgress(0));
     setOperationResults(null);
     setError(null);
   };
