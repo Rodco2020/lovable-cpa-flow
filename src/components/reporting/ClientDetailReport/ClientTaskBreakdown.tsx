@@ -57,8 +57,8 @@ export const ClientTaskBreakdown: React.FC<ClientTaskBreakdownProps> = ({
     }, {} as Record<string, any[]>);
   };
 
-  const recurringGroups = groupTasks(taskBreakdown.recurring, customization.groupTasksBy);
-  const adhocGroups = groupTasks(taskBreakdown.adhoc, customization.groupTasksBy);
+  const recurringGroups = groupTasks(taskBreakdown.recurring || [], customization.groupTasksBy);
+  const adhocGroups = groupTasks(taskBreakdown.adhoc || [], customization.groupTasksBy);
 
   const TaskTable = ({ tasks, title }: { tasks: any[], title: string }) => (
     <Card>
@@ -145,19 +145,19 @@ export const ClientTaskBreakdown: React.FC<ClientTaskBreakdownProps> = ({
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center p-4 border rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
-                {taskBreakdown.recurring.length}
+                {(taskBreakdown.recurring || []).length}
               </div>
               <p className="text-sm text-muted-foreground">Recurring Tasks</p>
             </div>
             <div className="text-center p-4 border rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                {taskBreakdown.adhoc.length}
+                {(taskBreakdown.adhoc || []).length}
               </div>
               <p className="text-sm text-muted-foreground">Ad-hoc Tasks</p>
             </div>
             <div className="text-center p-4 border rounded-lg">
               <div className="text-2xl font-bold text-purple-600">
-                {taskBreakdown.recurring.length + taskBreakdown.adhoc.length}
+                {(taskBreakdown.recurring || []).length + (taskBreakdown.adhoc || []).length}
               </div>
               <p className="text-sm text-muted-foreground">Total Tasks</p>
             </div>
