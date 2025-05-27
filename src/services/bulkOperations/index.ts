@@ -12,6 +12,11 @@ export { processBulkAssignments } from './batchProcessor';
 export { validateBulkOperation } from './validationService';
 export { getTemplatesForBulkOperations } from './templateDataService';
 
+// Export utility functions for advanced use cases
+export { createBatchOperations, calculateTotalOperations } from './operationCreator';
+export { showCompletionToast, showErrorToast } from './notificationManager';
+export { initializeBulkResult, finalizeBulkResult } from './resultManager';
+
 // Export types for consumers
 export type {
   BulkAssignment,

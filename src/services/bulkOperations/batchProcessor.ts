@@ -1,17 +1,40 @@
 
-import { toast } from '@/hooks/use-toast';
-import { BulkAssignment, BulkOperationConfig, BulkOperationResult, BulkOperationError, ProgressUpdate, BatchOperation } from './types';
-import { processSingleAssignment } from './taskCreationService';
-import { createProgressUpdate } from './progressTracker';
+import { BulkAssignment, BulkOperationConfig, BulkOperationResult, ProgressUpdate } from './types';
+import { createBatchOperations } from './operationCreator';
+import { processBatchesWithConcurrency } from './concurrencyManager';
+import { showCompletionToast, showErrorToast } from './notificationManager';
+import { initializeBulkResult, finalizeBulkResult } from './resultManager';
 
 /**
  * Batch Processing Service
  * 
- * Handles the core batch processing logic for bulk operations.
+ * Main orchestrator for bulk operations processing. This module coordinates
+ * the execution of bulk assignments by managing the workflow from operation
+ * creation through completion notification.
+ * 
+ * Key responsibilities:
+ * - Orchestrating the overall bulk processing workflow
+ * - Coordinating between different service modules
+ * - Managing error handling at the highest level
+ * - Ensuring consistent result reporting
  */
 
 /**
  * Process bulk template assignments with progress tracking
+ * 
+ * Main entry point for bulk assignment processing. Orchestrates the entire
+ * workflow from operation creation to completion notification.
+ * 
+ * Workflow:
+ * 1. Initialize result tracking
+ * 2. Create individual batch operations from bulk assignment
+ * 3. Process operations with concurrency control
+ * 4. Finalize results and notify user
+ * 
+ * @param assignment - The bulk assignment containing clients, templates, and configuration
+ * @param operationConfig - Configuration for batch processing (batch size, concurrency)
+ * @param onProgress - Optional callback function for progress updates
+ * @returns Promise resolving to the complete operation result
  */
 export const processBulkAssignments = async (
   assignment: BulkAssignment,
@@ -19,21 +42,14 @@ export const processBulkAssignments = async (
   onProgress?: (progress: ProgressUpdate) => void
 ): Promise<BulkOperationResult> => {
   const startTime = Date.now();
-  const result: BulkOperationResult = {
-    totalOperations: 0,
-    successfulOperations: 0,
-    failedOperations: 0,
-    errors: [],
-    processingTime: 0,
-    results: []
-  };
+  const result = initializeBulkResult();
 
   try {
-    // Create batch operations
+    // Create batch operations from the bulk assignment
     const operations = createBatchOperations(assignment);
     result.totalOperations = operations.length;
 
-    // Process operations in batches
+    // Process operations with concurrency control
     await processBatchesWithConcurrency(
       operations,
       operationConfig,
@@ -42,140 +58,18 @@ export const processBulkAssignments = async (
       onProgress
     );
 
-    result.processingTime = Date.now() - startTime;
+    // Finalize results and show completion notification
+    finalizeBulkResult(result, startTime);
     showCompletionToast(result);
 
     return result;
   } catch (error) {
     console.error('Error in bulk assignments:', error);
-    result.processingTime = Date.now() - startTime;
     
-    toast({
-      title: "Bulk Assignment Failed",
-      description: "An unexpected error occurred during bulk processing.",
-      variant: "destructive",
-    });
+    // Ensure processing time is recorded even on failure
+    finalizeBulkResult(result, startTime);
+    showErrorToast(error);
 
     return result;
-  }
-};
-
-/**
- * Create batch operations from assignment
- */
-const createBatchOperations = (assignment: BulkAssignment): BatchOperation[] => {
-  const operations: BatchOperation[] = [];
-  assignment.clientIds.forEach(clientId => {
-    assignment.templateIds.forEach(templateId => {
-      operations.push({
-        id: `${clientId}-${templateId}`,
-        clientId,
-        templateId,
-        config: assignment.config
-      });
-    });
-  });
-  return operations;
-};
-
-/**
- * Process batches with concurrency control
- */
-const processBatchesWithConcurrency = async (
-  operations: BatchOperation[],
-  operationConfig: BulkOperationConfig,
-  result: BulkOperationResult,
-  startTime: number,
-  onProgress?: (progress: ProgressUpdate) => void
-) => {
-  const batchSize = operationConfig.batchSize;
-  const concurrency = operationConfig.concurrency;
-  
-  for (let i = 0; i < operations.length; i += batchSize) {
-    const batch = operations.slice(i, i + batchSize);
-    
-    // Process batch with concurrency control
-    const batchPromises = batch.map(async (operation, batchIndex) => {
-      try {
-        // Add delay for concurrency control
-        if (batchIndex >= concurrency) {
-          await new Promise(resolve => setTimeout(resolve, 100 * (batchIndex - concurrency + 1)));
-        }
-
-        const operationResult = await processSingleAssignment(operation);
-        result.successfulOperations++;
-        result.results.push(operationResult);
-
-        // Update progress
-        updateProgress(result, startTime, operation, onProgress);
-
-        return operationResult;
-      } catch (error) {
-        result.failedOperations++;
-        const errorDetail: BulkOperationError = {
-          clientId: operation.clientId,
-          templateId: operation.templateId,
-          error: error instanceof Error ? error.message : String(error)
-        };
-        result.errors.push(errorDetail);
-
-        // Update progress for failed operations too
-        updateProgress(result, startTime, operation, onProgress, true);
-
-        throw error;
-      }
-    });
-
-    // Wait for batch to complete (continue on individual failures)
-    await Promise.allSettled(batchPromises);
-    
-    // Small delay between batches to prevent overwhelming the system
-    if (i + batchSize < operations.length) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-  }
-};
-
-/**
- * Update progress and notify callback
- */
-const updateProgress = (
-  result: BulkOperationResult,
-  startTime: number,
-  operation: BatchOperation,
-  onProgress?: (progress: ProgressUpdate) => void,
-  isError: boolean = false
-) => {
-  if (onProgress) {
-    const currentOperation = isError 
-      ? `Error processing ${operation.clientId} - ${operation.templateId}`
-      : `Processing ${operation.clientId} - ${operation.templateId}`;
-    
-    const progress = createProgressUpdate(
-      result.successfulOperations + result.failedOperations,
-      result.totalOperations,
-      currentOperation,
-      startTime
-    );
-    
-    onProgress(progress);
-  }
-};
-
-/**
- * Show completion toast based on results
- */
-const showCompletionToast = (result: BulkOperationResult) => {
-  if (result.failedOperations === 0) {
-    toast({
-      title: "Bulk Assignment Completed",
-      description: `Successfully processed ${result.successfulOperations} assignments.`,
-    });
-  } else {
-    toast({
-      title: "Bulk Assignment Completed with Errors",
-      description: `${result.successfulOperations} successful, ${result.failedOperations} failed.`,
-      variant: "destructive",
-    });
   }
 };
