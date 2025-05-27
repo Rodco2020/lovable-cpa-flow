@@ -37,7 +37,35 @@ describe('useClientDetailReport', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetClientsList.mockResolvedValue([]);
-    mockGetClientDetailReport.mockResolvedValue({} as any);
+    mockGetClientDetailReport.mockResolvedValue({
+      client: {
+        id: 'test-client',
+        legalName: 'Test Client',
+        primaryContact: 'John Doe',
+        email: 'test@example.com',
+        phone: '123-456-7890',
+        industry: 'Technology',
+        status: 'Active',
+        expectedMonthlyRevenue: 5000,
+        staffLiaisonName: 'Jane Smith'
+      },
+      taskMetrics: {
+        totalTasks: 10,
+        completedTasks: 5,
+        pendingTasks: 5,
+        overdueTasks: 1,
+        averageCompletionTime: 2.5,
+        completionRate: 50
+      },
+      revenueMetrics: {
+        expectedRevenue: 5000,
+        actualRevenue: 4500,
+        variance: -500,
+        variancePercentage: -10
+      },
+      taskBreakdown: [],
+      timeline: []
+    } as any);
   });
 
   it('should initialize with default state', () => {
@@ -159,7 +187,7 @@ describe('useClientDetailReport', () => {
     });
 
     expect(mockExportService.exportToPDF).toHaveBeenCalledWith(
-      {},
+      expect.any(Object),
       {
         format: 'pdf',
         includeCharts: result.current.customization.showCharts,
