@@ -40,8 +40,11 @@ export const executeTemplateAssignment = async (
     // Update current operation
     const currentProgress = calculateProgress(completedOperations, totalOperations, startTime);
     setProgress({
-      ...currentProgress,
-      currentOperation: `Assigning template: ${template?.name || templateId}...`
+      completed: currentProgress.completed || completedOperations,
+      total: currentProgress.total || totalOperations,
+      percentage: currentProgress.percentage || 0,
+      currentOperation: `Assigning template: ${template?.name || templateId}...`,
+      estimatedTimeRemaining: currentProgress.estimatedTimeRemaining
     });
 
     try {
@@ -57,7 +60,12 @@ export const executeTemplateAssignment = async (
       completedOperations += selectedClientIds.length;
       
       const progressUpdate = calculateProgress(completedOperations, totalOperations, startTime);
-      setProgress(progressUpdate);
+      setProgress({
+        completed: progressUpdate.completed || completedOperations,
+        total: progressUpdate.total || totalOperations,
+        percentage: progressUpdate.percentage || 0,
+        estimatedTimeRemaining: progressUpdate.estimatedTimeRemaining
+      });
 
       // Small delay to show progress
       await new Promise(resolve => setTimeout(resolve, 100));
