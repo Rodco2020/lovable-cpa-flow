@@ -52,20 +52,25 @@ describe('useClientDetailReport', () => {
       taskMetrics: {
         totalTasks: 10,
         completedTasks: 5,
-        pendingTasks: 5,
+        activeTasks: 5,
         overdueTasks: 1,
-        averageCompletionTime: 2.5,
-        completionRate: 50
+        totalEstimatedHours: 20,
+        completedHours: 10,
+        remainingHours: 10,
+        completionRate: 50,
+        averageTaskDuration: 2.5
       },
       revenueMetrics: {
-        expectedRevenue: 5000,
-        actualRevenue: 4500,
-        variance: -500,
-        variancePercentage: -10
+        expectedMonthlyRevenue: 5000,
+        ytdProjectedRevenue: 60000,
+        taskValueBreakdown: []
       },
-      taskBreakdown: [],
+      taskBreakdown: {
+        recurring: [],
+        adhoc: []
+      },
       timeline: []
-    } as any);
+    });
   });
 
   it('should initialize with default state', () => {
