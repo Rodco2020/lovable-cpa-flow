@@ -706,6 +706,31 @@ export const updateTaskInstance = async (id: string, taskData: Partial<TaskInsta
   }
 };
 
+/**
+ * Deletes an ad-hoc task instance by ID
+ */
+export const deleteTaskInstance = async (taskId: string): Promise<boolean> => {
+  try {
+    console.log(`Deleting task instance with ID: ${taskId}`);
+    
+    const { error } = await supabase
+      .from('task_instances')
+      .delete()
+      .eq('id', taskId);
+    
+    if (error) {
+      console.error('Error deleting task instance:', error);
+      return false;
+    }
+    
+    console.log('Successfully deleted task instance');
+    return true;
+  } catch (err) {
+    console.error('Unexpected error deleting task instance:', err);
+    return false;
+  }
+};
+
 // Task Generation Engine
 export const generateTaskInstances = async (
   fromDate: Date,

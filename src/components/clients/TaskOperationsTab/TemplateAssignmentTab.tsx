@@ -141,10 +141,14 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({ on
 
           {currentStep === 'complete' && (
             <CompleteStep
-              operationResults={operationResults}
+              operationResults={{
+                success: operationResults.success,
+                tasksCreated: operationResults.tasksCreated || 0,
+                errors: operationResults.errors || []
+              }}
               onReset={handleReset}
               onClose={onClose}
-              error={error}
+              error={error ? new Error(error) : null}
             />
           )}
         </div>
