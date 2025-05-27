@@ -46,10 +46,10 @@ export const ClientTaskBreakdown: React.FC<ClientTaskBreakdownProps> = ({
 }) => {
   const { taskBreakdown } = data;
 
-  const groupTasks = (tasks: any[], groupBy: string) => {
+  const groupTasks = (tasks: any[], groupBy: string): Record<string, any[]> => {
     if (groupBy === 'none') return { 'All Tasks': tasks };
     
-    return tasks.reduce((groups, task) => {
+    return tasks.reduce((groups: Record<string, any[]>, task) => {
       const key = task[groupBy] || 'Other';
       if (!groups[key]) groups[key] = [];
       groups[key].push(task);
