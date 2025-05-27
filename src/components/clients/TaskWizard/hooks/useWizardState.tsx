@@ -27,7 +27,12 @@ export const useWizardState = (initialClientId?: string) => {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [assignmentConfig, setAssignmentConfig] = useState<AssignmentConfig>({
     assignmentType: 'ad-hoc',
-    customizePerClient: false
+    customizePerClient: false,
+    taskType: 'adhoc',
+    priority: 'Medium',
+    preserveEstimatedHours: true,
+    preserveSkills: true,
+    generateImmediately: false
   });
   const [isAssignmentProcessing, setIsAssignmentProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
