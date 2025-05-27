@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TaskTemplate, TaskPriority, TaskCategory } from '@/types/task';
 import { Skill } from '@/types/skill';
 import { 
@@ -13,7 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, AlertTriangle, X } from 'lucide-react';
 
 interface TaskTemplateFormProps {
   editingTemplate: TaskTemplate | null;
@@ -25,6 +27,8 @@ interface TaskTemplateFormProps {
   onSkillChange: (skillId: string, checked: boolean) => void;
   onSubmit: (e: React.FormEvent) => void;
   isSkillSelected: (skillId: string) => boolean;
+  getUnmatchedSkills?: (availableSkills: Array<{id: string, name: string}>) => string[];
+  cleanupSkills?: (availableSkills: Array<{id: string, name: string}>) => void;
 }
 
 /**
@@ -40,11 +44,24 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
   onFormChange,
   onSkillChange,
   onSubmit,
-  isSkillSelected
+  isSkillSelected,
+  getUnmatchedSkills,
+  cleanupSkills
 }) => {
   // Define available priorities and categories
   const priorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
   const categories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
+
+  // Get unmatched skills when skills are loaded
+  const unmatchedSkills = getUnmatchedSkills ? getUnmatchedSkills(skills) : [];
+
+  // Clean up skills when component mounts or skills change
+  useEffect(() => {
+    if (skills.length > 0 && cleanupSkills && editingTemplate) {
+      // Only cleanup for existing templates, not new ones
+      cleanupSkills(skills);
+    }
+  }, [skills, cleanupSkills, editingTemplate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -54,6 +71,11 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
     } else {
       onFormChange(name, value);
     }
+  };
+
+  // Handle removal of unmatched skills
+  const handleRemoveUnmatchedSkill = (skillId: string) => {
+    onSkillChange(skillId, false);
   };
 
   return (
@@ -154,6 +176,31 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
         
         <div className="space-y-2">
           <label className="text-sm font-medium">Required Skills</label>
+          
+          {/* Show warning for unmatched skills */}
+          {unmatchedSkills.length > 0 && (
+            <Alert className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Some skills are no longer available. You can remove them or they will be automatically cleaned up when you save.
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {unmatchedSkills.map(skillId => (
+                    <Badge key={skillId} variant="destructive" className="flex items-center gap-1">
+                      {skillId}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveUnmatchedSkill(skillId)}
+                        className="ml-1 hover:bg-destructive-foreground/20 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {isLoadingSkills ? (
             <div className="flex items-center py-2">
               <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />

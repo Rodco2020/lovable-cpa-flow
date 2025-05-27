@@ -92,6 +92,7 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
   };
 
   // Helper function to check if a skill is selected
+  // This function now handles both exact matches and flexible matching
   const isSkillSelected = (skillId: string): boolean => {
     if (!formData.requiredSkills) return false;
     
@@ -102,7 +103,40 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     );
     
     console.log(`Checking if skill ${normalizedSkillId} is selected:`, isSelected);
+    console.log('Current form skills:', formData.requiredSkills);
     return isSelected;
+  };
+
+  // Get all skills that are stored but don't match available skills
+  // This helps identify legacy or custom skills that need special handling
+  const getUnmatchedSkills = (availableSkills: Array<{id: string, name: string}>) => {
+    if (!formData.requiredSkills) return [];
+    
+    const availableSkillIds = availableSkills.map(skill => skill.id.toString());
+    const unmatchedSkills = formData.requiredSkills.filter(
+      skillId => !availableSkillIds.includes(skillId.toString())
+    );
+    
+    console.log('Unmatched skills found:', unmatchedSkills);
+    return unmatchedSkills;
+  };
+
+  // Clean up skills to remove any that don't exist in the available skills
+  const cleanupSkills = (availableSkills: Array<{id: string, name: string}>) => {
+    if (!formData.requiredSkills) return;
+    
+    const availableSkillIds = availableSkills.map(skill => skill.id.toString());
+    const validSkills = formData.requiredSkills.filter(
+      skillId => availableSkillIds.includes(skillId.toString())
+    );
+    
+    if (validSkills.length !== formData.requiredSkills.length) {
+      console.log('Cleaning up skills. Before:', formData.requiredSkills, 'After:', validSkills);
+      setFormData(prev => ({
+        ...prev,
+        requiredSkills: validSkills
+      }));
+    }
   };
 
   // Prepare form data for submission
@@ -124,6 +158,8 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     updateField,
     handleSkillChange,
     isSkillSelected,
+    getUnmatchedSkills,
+    cleanupSkills,
     prepareFormDataForSubmission,
   };
 }
