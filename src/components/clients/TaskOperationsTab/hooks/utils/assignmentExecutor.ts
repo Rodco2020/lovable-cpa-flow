@@ -37,10 +37,12 @@ export const executeTemplateAssignment = async (
   for (const templateId of selectedTemplateIds) {
     const template = availableTemplates.find(t => t.id === templateId);
     
-    setProgress(prev => ({
-      ...prev,
+    // Update current operation
+    const currentProgress = calculateProgress(completedOperations, totalOperations, startTime);
+    setProgress({
+      ...currentProgress,
       currentOperation: `Assigning template: ${template?.name || templateId}...`
-    }));
+    });
 
     try {
       const result = await assignTemplatesToClients({
@@ -55,10 +57,7 @@ export const executeTemplateAssignment = async (
       completedOperations += selectedClientIds.length;
       
       const progressUpdate = calculateProgress(completedOperations, totalOperations, startTime);
-      setProgress(prev => ({
-        ...prev,
-        ...progressUpdate
-      }));
+      setProgress(progressUpdate);
 
       // Small delay to show progress
       await new Promise(resolve => setTimeout(resolve, 100));
