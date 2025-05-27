@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TaskTemplate, TaskPriority, TaskCategory } from '@/types/task';
 import { Skill } from '@/types/skill';
 import { 
@@ -52,16 +52,32 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
   const priorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
   const categories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
 
+  // Track if we've performed initial skill cleanup for editing templates
+  const [hasPerformedInitialCleanup, setHasPerformedInitialCleanup] = useState(false);
+
   // Get unmatched skills when skills are loaded
   const unmatchedSkills = getUnmatchedSkills ? getUnmatchedSkills(skills) : [];
 
-  // Clean up skills when component mounts or skills change
+  // Handle skills loading and form initialization
   useEffect(() => {
-    if (skills.length > 0 && cleanupSkills && editingTemplate) {
-      // Only cleanup for existing templates, not new ones
-      cleanupSkills(skills);
+    if (skills.length > 0 && editingTemplate && !hasPerformedInitialCleanup) {
+      console.log('TaskTemplateForm: Skills loaded, performing initial setup for editing template');
+      console.log('Available skills:', skills.map(s => ({ id: s.id, name: s.name })));
+      console.log('Template required skills:', editingTemplate.requiredSkills);
+      
+      // Only cleanup for existing templates, not new ones, and only once
+      if (cleanupSkills) {
+        cleanupSkills(skills);
+      }
+      
+      setHasPerformedInitialCleanup(true);
     }
-  }, [skills, cleanupSkills, editingTemplate]);
+  }, [skills, cleanupSkills, editingTemplate, hasPerformedInitialCleanup]);
+
+  // Reset cleanup flag when switching between templates
+  useEffect(() => {
+    setHasPerformedInitialCleanup(false);
+  }, [editingTemplate?.id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -75,7 +91,18 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
 
   // Handle removal of unmatched skills
   const handleRemoveUnmatchedSkill = (skillId: string) => {
+    console.log('Removing unmatched skill:', skillId);
     onSkillChange(skillId, false);
+  };
+
+  // Handle skill checkbox change with detailed logging
+  const handleSkillCheckboxChange = (skillId: string, checked: boolean) => {
+    console.log('TaskTemplateForm: Skill checkbox changed:', {
+      skillId,
+      checked,
+      skillName: skills.find(s => s.id === skillId)?.name
+    });
+    onSkillChange(skillId, checked);
   };
 
   return (
@@ -211,8 +238,15 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
               {skills.length > 0 ? (
                 skills.map(skill => {
                   // Always convert skill ID to string for consistency
-                  const skillIdStr = skill.id.toString();
+                  const skillIdStr = String(skill.id);
                   const selected = isSkillSelected(skillIdStr);
+                  
+                  console.log('Rendering skill checkbox:', {
+                    skillId: skillIdStr,
+                    skillName: skill.name,
+                    selected,
+                    formDataSkills: formData.requiredSkills
+                  });
                   
                   return (
                     <div key={skillIdStr} className="flex items-center space-x-2">
@@ -220,8 +254,8 @@ const TaskTemplateForm: React.FC<TaskTemplateFormProps> = ({
                         id={`skill-${skillIdStr}`}
                         checked={selected}
                         onCheckedChange={(checked) => {
-                          console.log(`Checkbox for skill ${skillIdStr} changed to:`, checked);
-                          onSkillChange(skillIdStr, checked === true);
+                          console.log(`Checkbox change for skill ${skill.name} (${skillIdStr}):`, checked);
+                          handleSkillCheckboxChange(skillIdStr, checked === true);
                         }}
                         disabled={isSubmitting}
                       />

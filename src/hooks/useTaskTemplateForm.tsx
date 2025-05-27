@@ -24,11 +24,18 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     // Important: Ensure the requiredSkills array is properly normalized
     // Convert each skill ID to string format to ensure consistent comparison
     const normalizedSkills = Array.isArray(template.requiredSkills) 
-      ? template.requiredSkills.map(skillId => skillId.toString())
+      ? template.requiredSkills.map(skillId => {
+          // Handle both string and number skill IDs by converting to string
+          const normalizedId = String(skillId).trim();
+          console.log('Normalizing skill ID:', skillId, '-> normalized:', normalizedId);
+          return normalizedId;
+        })
       : [];
     
-    console.log('Normalizing template data, skills before:', template.requiredSkills);
-    console.log('Normalized skills:', normalizedSkills);
+    console.log('Normalizing template data:');
+    console.log('- Template name:', template.name);
+    console.log('- Original skills:', template.requiredSkills);
+    console.log('- Normalized skills:', normalizedSkills);
     
     return {
       name: template.name,
@@ -42,8 +49,11 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
 
   // Reset form data to initial values or use provided template
   const resetForm = (template: TaskTemplate | null = null) => {
+    console.log('Resetting form with template:', template?.name || 'new template');
     if (template) {
-      setFormData(normalizeTemplateData(template));
+      const normalizedData = normalizeTemplateData(template);
+      console.log('Setting form data to:', normalizedData);
+      setFormData(normalizedData);
     } else {
       setFormData({
         name: '',
@@ -58,30 +68,38 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
 
   // Update a single form field
   const updateField = (key: string, value: any) => {
+    console.log('Updating field:', key, 'with value:', value);
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
   // Handle skill selection/deselection
   const handleSkillChange = (skillId: string, checked: boolean) => {
-    // Ensure skillId is a string
-    const normalizedSkillId = skillId.toString();
+    // Ensure skillId is a string and normalize it
+    const normalizedSkillId = String(skillId).trim();
     
-    // Create a new array to ensure React detects the state change
     // Get current skills (or empty array if undefined)
     const currentSkills = formData.requiredSkills || [];
+    
+    console.log('Skill change requested:', {
+      skillId: normalizedSkillId,
+      checked,
+      currentSkills
+    });
     
     let updatedSkills: string[];
     if (checked) {
       // Add skill only if it doesn't already exist
-      updatedSkills = [...currentSkills];
-      if (!updatedSkills.includes(normalizedSkillId)) {
-        updatedSkills.push(normalizedSkillId);
+      if (!currentSkills.some(s => String(s).trim() === normalizedSkillId)) {
+        updatedSkills = [...currentSkills, normalizedSkillId];
+        console.log('Adding skill:', normalizedSkillId, '-> updated skills:', updatedSkills);
+      } else {
+        updatedSkills = [...currentSkills];
+        console.log('Skill already exists, no change needed');
       }
-      console.log(`Adding skill ${normalizedSkillId}`, updatedSkills);
     } else {
       // Remove skill
-      updatedSkills = currentSkills.filter(s => s.toString() !== normalizedSkillId);
-      console.log(`Removing skill ${normalizedSkillId}`, updatedSkills);
+      updatedSkills = currentSkills.filter(s => String(s).trim() !== normalizedSkillId);
+      console.log('Removing skill:', normalizedSkillId, '-> updated skills:', updatedSkills);
     }
     
     // Update form data with new skills array
@@ -94,16 +112,25 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
   // Helper function to check if a skill is selected
   // This function now handles both exact matches and flexible matching
   const isSkillSelected = (skillId: string): boolean => {
-    if (!formData.requiredSkills) return false;
+    if (!formData.requiredSkills) {
+      console.log('No required skills in form data');
+      return false;
+    }
     
-    // Convert both to strings for comparison
-    const normalizedSkillId = skillId.toString();
+    // Convert skill ID to string for comparison
+    const normalizedSkillId = String(skillId).trim();
+    
+    // Check if the skill is in the current selection
     const isSelected = formData.requiredSkills.some(
-      selectedId => selectedId.toString() === normalizedSkillId
+      selectedId => String(selectedId).trim() === normalizedSkillId
     );
     
-    console.log(`Checking if skill ${normalizedSkillId} is selected:`, isSelected);
-    console.log('Current form skills:', formData.requiredSkills);
+    console.log('Checking skill selection:', {
+      skillId: normalizedSkillId,
+      currentSkills: formData.requiredSkills,
+      isSelected
+    });
+    
     return isSelected;
   };
 
@@ -112,12 +139,17 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
   const getUnmatchedSkills = (availableSkills: Array<{id: string, name: string}>) => {
     if (!formData.requiredSkills) return [];
     
-    const availableSkillIds = availableSkills.map(skill => skill.id.toString());
+    const availableSkillIds = availableSkills.map(skill => String(skill.id).trim());
     const unmatchedSkills = formData.requiredSkills.filter(
-      skillId => !availableSkillIds.includes(skillId.toString())
+      skillId => !availableSkillIds.includes(String(skillId).trim())
     );
     
-    console.log('Unmatched skills found:', unmatchedSkills);
+    console.log('Unmatched skills analysis:', {
+      availableSkillIds,
+      formSkills: formData.requiredSkills,
+      unmatchedSkills
+    });
+    
     return unmatchedSkills;
   };
 
@@ -125,13 +157,17 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
   const cleanupSkills = (availableSkills: Array<{id: string, name: string}>) => {
     if (!formData.requiredSkills) return;
     
-    const availableSkillIds = availableSkills.map(skill => skill.id.toString());
+    const availableSkillIds = availableSkills.map(skill => String(skill.id).trim());
     const validSkills = formData.requiredSkills.filter(
-      skillId => availableSkillIds.includes(skillId.toString())
+      skillId => availableSkillIds.includes(String(skillId).trim())
     );
     
     if (validSkills.length !== formData.requiredSkills.length) {
-      console.log('Cleaning up skills. Before:', formData.requiredSkills, 'After:', validSkills);
+      console.log('Cleaning up skills:', {
+        before: formData.requiredSkills,
+        after: validSkills,
+        removed: formData.requiredSkills.filter(s => !validSkills.includes(s))
+      });
       setFormData(prev => ({
         ...prev,
         requiredSkills: validSkills
@@ -148,7 +184,7 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
       requiredSkills: formData.requiredSkills || []
     };
     
-    console.log('Prepared form data for submission:', preparedData);
+    console.log('Preparing form data for submission:', preparedData);
     return preparedData;
   };
 

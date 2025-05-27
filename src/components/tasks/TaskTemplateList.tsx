@@ -46,6 +46,8 @@ const TaskTemplateList: React.FC = () => {
     updateField, 
     handleSkillChange, 
     isSkillSelected,
+    getUnmatchedSkills,
+    cleanupSkills,
     prepareFormDataForSubmission 
   } = useTaskTemplateForm();
 
@@ -78,16 +80,28 @@ const TaskTemplateList: React.FC = () => {
   };
 
   const handleCreateTemplate = () => {
+    console.log('Creating new template');
     setEditingTemplate(null);
     resetForm();
     setIsDialogOpen(true);
   };
 
   const handleEditTemplate = (template: TaskTemplate) => {
-    console.log('Editing template with skills:', template.requiredSkills);
+    console.log('TaskTemplateList: Starting edit for template:', {
+      id: template.id,
+      name: template.name,
+      requiredSkills: template.requiredSkills
+    });
+    
+    // Ensure we have the template data properly set
     setEditingTemplate(template);
-    resetForm(template);
-    setIsDialogOpen(true);
+    
+    // Wait for next tick to ensure editingTemplate is set before resetting form
+    setTimeout(() => {
+      console.log('TaskTemplateList: Resetting form with template data');
+      resetForm(template);
+      setIsDialogOpen(true);
+    }, 0);
   };
 
   const handleArchiveTemplate = async (id: string) => {
@@ -215,6 +229,8 @@ const TaskTemplateList: React.FC = () => {
           onSkillChange={handleSkillChange}
           onSubmit={handleSubmit}
           isSkillSelected={isSkillSelected}
+          getUnmatchedSkills={getUnmatchedSkills}
+          cleanupSkills={cleanupSkills}
         />
       </Dialog>
     </div>
