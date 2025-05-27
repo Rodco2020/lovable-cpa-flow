@@ -17,6 +17,7 @@ import StaffModule from "./pages/StaffModule";
 import TaskModule from "./pages/TaskModule";
 import SchedulerModule from "./pages/SchedulerModule";
 import ForecastingModule from "./pages/ForecastingModule";
+import ReportsModule from "./pages/ReportsModule";
 import StaffReportPage from "./pages/reports/StaffReportPage";
 // Import the TooltipProvider
 import { TooltipProvider } from "./components/ui/tooltip";
@@ -92,6 +93,14 @@ function App() {
                   element={
                     <PrivateRoute>
                       <ForecastingModule />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/reports/*"
+                  element={
+                    <PrivateRoute>
+                      <ReportsModule />
                     </PrivateRoute>
                   }
                 />
