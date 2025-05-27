@@ -1,10 +1,10 @@
-
 import { ClientDetailReportData, ClientReportFilters } from '@/types/clientReporting';
 import { reportingDataService } from './reportingDataService';
 import { reportCache } from '@/services/cacheService';
 import { performanceMonitoringService } from '@/services/performanceMonitoringService';
 import { dataValidationService } from '@/services/dataValidationService';
 import { logError } from '@/services/errorLoggingService';
+import { supabase } from '@/lib/supabaseClient';
 
 /**
  * Optimized Client Detail Report Service
@@ -42,7 +42,7 @@ export const getOptimizedClientDetailReport = async (
         15 * 60 * 1000 // 15 minutes cache for reports
       );
     },
-    { clientId, filtersApplied: Object.keys(filters).length }
+    { clientReference: clientId, filtersApplied: Object.keys(filters).length }
   );
 };
 
@@ -121,6 +121,3 @@ export const warmUpReportCache = async (): Promise<void> => {
     });
   }
 };
-
-// Import supabase for the clients list query
-import { supabase } from '@/lib/supabaseClient';

@@ -1,3 +1,4 @@
+
 import { logError } from '@/services/errorLoggingService';
 
 /**
@@ -96,8 +97,8 @@ class PerformanceMonitoringService {
     if (duration > this.SLOW_THRESHOLD) {
       logError(`Slow operation detected: ${startData.name}`, 'warning', {
         component: startData.component,
-        duration: `${duration.toFixed(2)}ms`,
-        metadata: startData.metadata
+        details: `${duration.toFixed(2)}ms`,
+        data: startData.metadata
       });
     }
 

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { logError } from '@/services/errorLoggingService';
 
@@ -85,8 +84,8 @@ class RevenueCalculationService {
     } catch (error) {
       logError('Revenue calculation failed', 'error', {
         component: 'RevenueCalculationService',
-        clientId,
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        data: { clientReference: clientId }
       });
       throw error;
     }
@@ -120,8 +119,8 @@ class RevenueCalculationService {
     } catch (error) {
       logError('Task revenue calculation failed', 'error', {
         component: 'RevenueCalculationService',
-        clientId,
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        data: { clientReference: clientId }
       });
       throw error;
     }

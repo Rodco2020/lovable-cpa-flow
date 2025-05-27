@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { ClientDetailReportData, ClientReportFilters } from '@/types/clientReporting';
 import { StaffLiaisonReportData, ReportFilters } from '@/types/reporting';
@@ -110,8 +109,8 @@ class ReportingDataService {
     } catch (error) {
       logError('Failed to generate client report', 'error', {
         component: 'ReportingDataService',
-        clientId,
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        data: { clientReference: clientId }
       });
       throw error;
     }

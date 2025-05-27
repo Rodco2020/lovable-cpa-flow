@@ -1,4 +1,3 @@
-
 import { logError } from '@/services/errorLoggingService';
 import { performanceMonitoringService } from '@/services/performanceMonitoringService';
 
@@ -68,7 +67,7 @@ class CacheService {
     this.stats.totalRequests++;
     
     const timingId = this.config.enableMetrics 
-      ? performanceMonitoringService.startTiming('cache-get', 'CacheService', { key })
+      ? performanceMonitoringService.startTiming('cache-get', 'CacheService', { cacheKey: key })
       : null;
 
     const entry = this.cache.get(key);
@@ -102,7 +101,7 @@ class CacheService {
    */
   set<T>(key: string, data: T, ttl?: number): void {
     const timingId = this.config.enableMetrics 
-      ? performanceMonitoringService.startTiming('cache-set', 'CacheService', { key })
+      ? performanceMonitoringService.startTiming('cache-set', 'CacheService', { cacheKey: key })
       : null;
 
     try {
@@ -128,8 +127,8 @@ class CacheService {
     } catch (error) {
       logError('Cache set operation failed', 'error', {
         component: 'CacheService',
-        key,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        data: { cacheKey: key }
       });
     } finally {
       if (timingId) {
@@ -152,7 +151,7 @@ class CacheService {
     }
 
     const timingId = this.config.enableMetrics 
-      ? performanceMonitoringService.startTiming('cache-load', 'CacheService', { key })
+      ? performanceMonitoringService.startTiming('cache-load', 'CacheService', { cacheKey: key })
       : null;
 
     try {
@@ -280,7 +279,8 @@ class CacheService {
         } catch (error) {
           logError(`Cache warm-up failed for key: ${key}`, 'warning', {
             component: 'CacheService',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            details: error instanceof Error ? error.message : 'Unknown error',
+            data: { cacheKey: key }
           });
         }
       });
