@@ -57,7 +57,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/skills"
+                  path="/skills/*"
                   element={
                     <PrivateRoute>
                       <SkillsModule />
