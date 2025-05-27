@@ -1,117 +1,161 @@
 
-import { BatchOperation, BulkOperationConfig, BulkOperationResult, BulkOperationError } from './types';
+import { BatchOperation, BulkOperationResult, ProgressUpdate } from './types';
 import { processSingleAssignment } from './taskCreationService';
-import { updateProgressCallback } from './progressManager';
+import { addErrorToBulkResult } from './resultManager';
 
 /**
  * Concurrency Manager Service
  * 
- * Handles the execution of batch operations with configurable concurrency control.
- * This module manages the parallel processing of operations while respecting
- * batch size and concurrency limits to prevent system overload.
+ * Handles batch processing with concurrency control to optimize performance
+ * while preventing system overload. Manages the execution of operations
+ * in controlled batches with configurable concurrency limits.
  */
 
 /**
- * Process batches with concurrency control
+ * Process operations in batches with concurrency control
  * 
- * Executes batch operations in controlled chunks, managing concurrency to prevent
- * overwhelming the system while maximizing throughput.
+ * Takes a list of operations and processes them in controlled batches,
+ * respecting concurrency limits to prevent overwhelming the system.
  * 
  * @param operations - Array of batch operations to process
- * @param operationConfig - Configuration for batch processing
- * @param result - Result object to update with progress
- * @param startTime - Start time for progress calculations
- * @param onProgress - Optional progress callback function
+ * @param config - Configuration for batch processing
+ * @param result - Bulk result object to update with progress
+ * @param startTime - Operation start time for progress calculation
+ * @param onProgress - Optional progress callback
  */
 export const processBatchesWithConcurrency = async (
   operations: BatchOperation[],
-  operationConfig: BulkOperationConfig,
+  config: { batchSize: number; concurrency: number },
   result: BulkOperationResult,
   startTime: number,
-  onProgress?: (progress: any) => void
+  onProgress?: (progress: ProgressUpdate) => void
 ): Promise<void> => {
-  const batchSize = operationConfig.batchSize;
-  const concurrency = operationConfig.concurrency;
-  
-  for (let i = 0; i < operations.length; i += batchSize) {
-    const batch = operations.slice(i, i + batchSize);
+  console.log(`Processing ${operations.length} operations with concurrency ${config.concurrency}`);
+
+  // Split operations into batches
+  const batches = createBatches(operations, config.batchSize);
+  let completedOperations = 0;
+
+  // Process batches with concurrency control
+  for (let i = 0; i < batches.length; i += config.concurrency) {
+    const currentBatches = batches.slice(i, i + config.concurrency);
     
-    // Process batch with concurrency control
-    const batchPromises = batch.map(async (operation, batchIndex) => {
-      try {
-        // Add delay for concurrency control
-        if (batchIndex >= concurrency) {
-          await addConcurrencyDelay(batchIndex, concurrency);
-        }
+    // Process current batch group concurrently
+    const batchPromises = currentBatches.map(batch => 
+      processBatch(batch, result, completedOperations, operations.length, startTime, onProgress)
+    );
 
-        const operationResult = await processSingleAssignment(operation);
-        result.successfulOperations++;
-        result.results.push(operationResult);
-
-        // Update progress
-        updateProgressCallback(result, startTime, operation, onProgress, false);
-
-        return operationResult;
-      } catch (error) {
-        handleOperationError(error, operation, result, startTime, onProgress);
-        throw error;
+    // Wait for all batches in current group to complete
+    const batchResults = await Promise.allSettled(batchPromises);
+    
+    // Update completed count
+    batchResults.forEach(batchResult => {
+      if (batchResult.status === 'fulfilled') {
+        completedOperations += batchResult.value;
+      } else {
+        console.error('Batch processing failed:', batchResult.reason);
+        // Add batch-level error to result
+        addErrorToBulkResult(result, '', '', `Batch processing failed: ${batchResult.reason}`);
       }
     });
 
-    // Wait for batch to complete (continue on individual failures)
-    await Promise.allSettled(batchPromises);
-    
-    // Small delay between batches to prevent overwhelming the system
-    if (i + batchSize < operations.length) {
-      await addBatchDelay();
+    // Report progress after each batch group
+    if (onProgress) {
+      const progress = createProgressUpdate(
+        completedOperations,
+        operations.length,
+        'Processing batches...',
+        startTime
+      );
+      onProgress(progress);
     }
   }
+
+  console.log(`Completed processing ${completedOperations} operations`);
 };
 
 /**
- * Add delay for concurrency control
- * 
- * @param batchIndex - Current batch index
- * @param concurrency - Maximum concurrency level
+ * Create batches from operations array
  */
-const addConcurrencyDelay = async (batchIndex: number, concurrency: number): Promise<void> => {
-  const delayMs = 100 * (batchIndex - concurrency + 1);
-  await new Promise(resolve => setTimeout(resolve, delayMs));
+const createBatches = (operations: BatchOperation[], batchSize: number): BatchOperation[][] => {
+  const batches: BatchOperation[][] = [];
+  
+  for (let i = 0; i < operations.length; i += batchSize) {
+    batches.push(operations.slice(i, i + batchSize));
+  }
+  
+  return batches;
 };
 
 /**
- * Add delay between batches
+ * Process a single batch of operations
  */
-const addBatchDelay = async (): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 50));
-};
-
-/**
- * Handle operation error and update result
- * 
- * @param error - The error that occurred
- * @param operation - The operation that failed
- * @param result - Result object to update
- * @param startTime - Start time for progress calculations
- * @param onProgress - Optional progress callback function
- */
-const handleOperationError = (
-  error: unknown,
-  operation: BatchOperation,
+const processBatch = async (
+  batch: BatchOperation[],
   result: BulkOperationResult,
+  currentCompleted: number,
+  totalOperations: number,
   startTime: number,
-  onProgress?: (progress: any) => void
-): void => {
-  result.failedOperations++;
-  
-  const errorDetail: BulkOperationError = {
-    clientId: operation.clientId,
-    templateId: operation.templateId,
-    error: error instanceof Error ? error.message : String(error)
-  };
-  
-  result.errors.push(errorDetail);
+  onProgress?: (progress: ProgressUpdate) => void
+): Promise<number> => {
+  let batchCompleted = 0;
 
-  // Update progress for failed operations too
-  updateProgressCallback(result, startTime, operation, onProgress, true);
+  for (const operation of batch) {
+    try {
+      // Update progress for current operation
+      if (onProgress) {
+        const progress = createProgressUpdate(
+          currentCompleted + batchCompleted,
+          totalOperations,
+          `Processing ${operation.clientId} - ${operation.templateId}`,
+          startTime
+        );
+        onProgress(progress);
+      }
+
+      // Process single assignment
+      const operationResult = await processSingleAssignment(operation);
+      
+      // Add result to bulk result
+      result.results.push(operationResult);
+      result.successfulOperations++;
+      
+      console.log(`Successfully processed operation: ${operation.id}`);
+      
+    } catch (error) {
+      console.error(`Failed to process operation ${operation.id}:`, error);
+      
+      // Add error to bulk result
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addErrorToBulkResult(result, operation.clientId, operation.templateId, errorMessage);
+      result.failedOperations++;
+    }
+    
+    batchCompleted++;
+  }
+
+  return batchCompleted;
+};
+
+/**
+ * Create progress update object
+ */
+const createProgressUpdate = (
+  completed: number,
+  total: number,
+  currentOperation: string,
+  startTime: number
+): ProgressUpdate => {
+  const percentage = total > 0 ? (completed / total) * 100 : 0;
+  const elapsedTime = Date.now() - startTime;
+  const estimatedTotal = completed > 0 ? (elapsedTime / completed) * total : 0;
+  const estimatedTimeRemaining = estimatedTotal - elapsedTime;
+
+  return {
+    completed,
+    total,
+    currentOperation,
+    percentage,
+    estimatedTimeRemaining: Math.max(0, estimatedTimeRemaining)
+  };
 };

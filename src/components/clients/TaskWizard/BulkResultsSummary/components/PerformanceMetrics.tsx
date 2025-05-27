@@ -1,6 +1,8 @@
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { TrendingUp, Zap, Target } from 'lucide-react';
 import { PerformanceMetricsProps } from '../types';
 import { formatTime } from '../utils';
 
@@ -8,53 +10,60 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
   result,
   successRate
 }) => {
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <h4 className="font-medium">Performance Metrics</h4>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span>Total Processing Time:</span>
-            <span className="font-medium">{formatTime(result.processingTime)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Average Time per Operation:</span>
-            <span className="font-medium">
-              {result.totalOperations > 0 
-                ? (result.processingTime / result.totalOperations).toFixed(0) + 'ms'
-                : 'N/A'}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Operations per Second:</span>
-            <span className="font-medium">
-              {result.processingTime > 0 
-                ? ((result.totalOperations / result.processingTime) * 1000).toFixed(2)
-                : 'N/A'}
-            </span>
-          </div>
-        </div>
-      </div>
+  const averageTimePerOperation = result.totalOperations > 0 
+    ? result.processingTime / result.totalOperations 
+    : 0;
 
-      <div className="space-y-2">
-        <h4 className="font-medium">Result Breakdown</h4>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span>Tasks Created:</span>
-            <span className="font-medium">{result.results.length}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Operations Failed:</span>
-            <span className="font-medium">{result.errors.length}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Success Rate:</span>
-            <Badge variant={successRate >= 95 ? "default" : successRate >= 80 ? "secondary" : "destructive"}>
+  const throughputPerSecond = result.processingTime > 0 
+    ? (result.totalOperations / (result.processingTime / 1000)).toFixed(1)
+    : '0';
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Performance Metrics</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Target className="h-5 w-5 text-green-500" />
+            </div>
+            <div className="text-lg font-semibold text-green-600">
               {successRate.toFixed(1)}%
-            </Badge>
+            </div>
+            <div className="text-xs text-muted-foreground">Success Rate</div>
+          </div>
+
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Zap className="h-5 w-5 text-blue-500" />
+            </div>
+            <div className="text-lg font-semibold text-blue-600">
+              {throughputPerSecond}
+            </div>
+            <div className="text-xs text-muted-foreground">Operations/sec</div>
+          </div>
+
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <TrendingUp className="h-5 w-5 text-purple-500" />
+            </div>
+            <div className="text-lg font-semibold text-purple-600">
+              {formatTime(averageTimePerOperation)}
+            </div>
+            <div className="text-xs text-muted-foreground">Avg per operation</div>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Success Rate</span>
+            <span>{successRate.toFixed(1)}%</span>
+          </div>
+          <Progress value={successRate} className="w-full" />
+        </div>
+      </CardContent>
+    </Card>
   );
 };

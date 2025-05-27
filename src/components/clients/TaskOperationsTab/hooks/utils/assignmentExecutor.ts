@@ -1,12 +1,11 @@
 
 import { TaskTemplate } from '@/types/task';
 import { AssignmentConfig } from '../../../TaskWizard/AssignmentConfiguration';
-import { assignTemplatesToClients } from '@/services/templateAssignmentService';
-import { toast } from '@/hooks/use-toast';
-import { OperationProgress, OperationResults, calculateProgress } from './progressTracker';
+import { processBulkAssignments } from '@/services/bulkOperations';
+import { OperationProgress, OperationResults } from './progressTracker';
 
 /**
- * Executes template assignment operation with progress tracking
+ * Executes template assignment operations
  */
 export const executeTemplateAssignment = async (
   selectedTemplateIds: string[],
@@ -15,91 +14,77 @@ export const executeTemplateAssignment = async (
   availableTemplates: TaskTemplate[],
   setProgress: (progress: OperationProgress) => void
 ): Promise<OperationResults> => {
-  const totalOperations = selectedTemplateIds.length * selectedClientIds.length;
-  let completedOperations = 0;
-  const results: OperationResults = {
-    tasksCreated: 0,
-    errors: [],
-    success: true
-  };
-
   const startTime = Date.now();
+  const totalOperations = selectedTemplateIds.length * selectedClientIds.length;
 
   // Initialize progress
   setProgress({
     completed: 0,
     total: totalOperations,
     percentage: 0,
-    currentOperation: 'Starting assignment...'
+    currentOperation: 'Initializing assignment...',
+    operations: [],
+    errors: []
   });
 
-  // Process each template
-  for (const templateId of selectedTemplateIds) {
-    const template = availableTemplates.find(t => t.id === templateId);
+  try {
+    // Create bulk assignment request
+    const bulkAssignment = {
+      templateIds: selectedTemplateIds,
+      clientIds: selectedClientIds,
+      config: assignmentConfig
+    };
+
+    // Configure operation settings
+    const operationConfig = {
+      operationType: 'template-assignment',
+      batchSize: 10,
+      concurrency: 3
+    };
+
+    // Execute bulk assignment with progress tracking
+    const result = await processBulkAssignments(
+      bulkAssignment,
+      operationConfig,
+      (progressUpdate) => {
+        setProgress({
+          completed: progressUpdate.completed,
+          total: progressUpdate.total,
+          percentage: progressUpdate.percentage,
+          currentOperation: progressUpdate.currentOperation,
+          estimatedTimeRemaining: progressUpdate.estimatedTimeRemaining,
+          operations: [],
+          errors: []
+        });
+      }
+    );
+
+    // Convert to operation results format
+    const operationResults: OperationResults = {
+      success: result.failedOperations === 0,
+      totalOperations: result.totalOperations,
+      successfulOperations: result.successfulOperations,
+      failedOperations: result.failedOperations,
+      errors: result.errors.map(e => `${e.clientId} - ${e.templateId}: ${e.error}`),
+      processingTime: Date.now() - startTime,
+      results: result.results
+    };
+
+    return operationResults;
+
+  } catch (error) {
+    console.error('Assignment execution failed:', error);
     
-    // Update current operation
-    const currentProgress = calculateProgress(completedOperations, totalOperations, startTime);
-    setProgress({
-      completed: currentProgress.completed || completedOperations,
-      total: currentProgress.total || totalOperations,
-      percentage: currentProgress.percentage || 0,
-      currentOperation: `Assigning template: ${template?.name || templateId}...`,
-      estimatedTimeRemaining: currentProgress.estimatedTimeRemaining
-    });
+    const operationResults: OperationResults = {
+      success: false,
+      totalOperations,
+      successfulOperations: 0,
+      failedOperations: totalOperations,
+      errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
+      processingTime: Date.now() - startTime,
+      results: []
+    };
 
-    try {
-      const result = await assignTemplatesToClients({
-        templateId,
-        clientIds: selectedClientIds,
-        config: assignmentConfig
-      });
-
-      results.tasksCreated += result.tasksCreated;
-      results.errors.push(...result.errors);
-
-      completedOperations += selectedClientIds.length;
-      
-      const progressUpdate = calculateProgress(completedOperations, totalOperations, startTime);
-      setProgress({
-        completed: progressUpdate.completed || completedOperations,
-        total: progressUpdate.total || totalOperations,
-        percentage: progressUpdate.percentage || 0,
-        estimatedTimeRemaining: progressUpdate.estimatedTimeRemaining
-      });
-
-      // Small delay to show progress
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-    } catch (error) {
-      console.error(`Error assigning template ${templateId}:`, error);
-      results.errors.push(`Failed to assign template ${template?.name || templateId}: ${error}`);
-      completedOperations += selectedClientIds.length;
-    }
+    return operationResults;
   }
-
-  results.success = results.errors.length === 0;
-
-  // Final progress update
-  setProgress({
-    completed: totalOperations,
-    total: totalOperations,
-    percentage: 100,
-    currentOperation: 'Assignment complete'
-  });
-
-  // Show completion toast
-  if (results.success) {
-    toast({
-      title: "Assignment Successful",
-      description: `Successfully created ${results.tasksCreated} tasks.`,
-    });
-  } else {
-    toast({
-      title: "Assignment Completed with Errors",
-      description: `Created ${results.tasksCreated} tasks with ${results.errors.length} errors.`,
-      variant: "destructive",
-    });
-  }
-
-  return results;
 };

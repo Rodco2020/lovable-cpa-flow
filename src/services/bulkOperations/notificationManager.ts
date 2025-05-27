@@ -5,61 +5,76 @@ import { BulkOperationResult } from './types';
 /**
  * Notification Manager Service
  * 
- * Handles user notifications for bulk operations, including success messages,
- * error notifications, and completion summaries. This module centralizes
- * all user-facing notification logic.
+ * Handles user notifications for bulk operations, providing feedback
+ * on operation completion, errors, and important status updates.
  */
 
 /**
- * Show completion toast based on operation results
- * 
- * Analyzes the operation results and displays an appropriate toast notification
- * to inform the user of the operation outcome.
- * 
- * @param result - The completed operation result
+ * Show completion notification with operation summary
  */
 export const showCompletionToast = (result: BulkOperationResult): void => {
+  const successRate = result.totalOperations > 0 
+    ? (result.successfulOperations / result.totalOperations) * 100 
+    : 0;
+
   if (result.failedOperations === 0) {
-    showSuccessToast(result);
+    // All operations successful
+    toast({
+      title: "Bulk Operation Completed",
+      description: `Successfully processed ${result.successfulOperations} operations in ${(result.processingTime / 1000).toFixed(1)}s`,
+    });
+  } else if (result.successfulOperations === 0) {
+    // All operations failed
+    toast({
+      title: "Bulk Operation Failed",
+      description: `All ${result.totalOperations} operations failed. Please check the error details.`,
+      variant: "destructive",
+    });
   } else {
-    showPartialSuccessToast(result);
+    // Partial success
+    toast({
+      title: "Bulk Operation Completed with Issues",
+      description: `${result.successfulOperations} successful, ${result.failedOperations} failed (${successRate.toFixed(1)}% success rate)`,
+      variant: "destructive",
+    });
   }
 };
 
 /**
- * Show success toast for completely successful operations
- * 
- * @param result - The operation result
+ * Show error notification for operation failures
  */
-const showSuccessToast = (result: BulkOperationResult): void => {
+export const showErrorToast = (error: unknown): void => {
+  const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+  
   toast({
-    title: "Bulk Assignment Completed",
-    description: `Successfully processed ${result.successfulOperations} assignments.`,
-  });
-};
-
-/**
- * Show partial success toast for operations with some failures
- * 
- * @param result - The operation result
- */
-const showPartialSuccessToast = (result: BulkOperationResult): void => {
-  toast({
-    title: "Bulk Assignment Completed with Errors",
-    description: `${result.successfulOperations} successful, ${result.failedOperations} failed.`,
+    title: "Bulk Operation Error",
+    description: errorMessage,
     variant: "destructive",
   });
 };
 
 /**
- * Show error toast for completely failed operations
- * 
- * @param error - The error that occurred
+ * Show progress notification for long-running operations
  */
-export const showErrorToast = (error?: unknown): void => {
-  toast({
-    title: "Bulk Assignment Failed",
-    description: "An unexpected error occurred during bulk processing.",
-    variant: "destructive",
-  });
+export const showProgressToast = (completed: number, total: number): void => {
+  const percentage = total > 0 ? (completed / total) * 100 : 0;
+  
+  if (percentage === 25 || percentage === 50 || percentage === 75) {
+    toast({
+      title: "Operation Progress",
+      description: `${completed} of ${total} operations completed (${percentage.toFixed(0)}%)`,
+    });
+  }
+};
+
+/**
+ * Show warning notification for large operations
+ */
+export const showLargeOperationWarning = (operationCount: number): void => {
+  if (operationCount > 100) {
+    toast({
+      title: "Large Operation Detected",
+      description: `You're about to process ${operationCount} operations. This may take several minutes.`,
+    });
+  }
 };

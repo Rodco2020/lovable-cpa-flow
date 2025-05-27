@@ -1,36 +1,57 @@
 
 import React from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Circle } from 'lucide-react';
 
 interface StepIndicatorProps {
-  label: string;
-  isActive: boolean;
-  isComplete: boolean;
+  currentStep: 'selection' | 'configuration' | 'confirmation' | 'processing' | 'complete';
 }
 
-/**
- * StepIndicator Component
- * 
- * Displays a visual indicator for each step in the assignment wizard.
- * Shows completion status with appropriate styling and icons.
- */
-export const StepIndicator: React.FC<StepIndicatorProps> = ({ 
-  label, 
-  isActive, 
-  isComplete 
-}) => (
-  <div className={`flex items-center space-x-2 ${
-    isActive ? 'text-primary' : 
-    isComplete ? 'text-green-600' : 
-    'text-muted-foreground'
-  }`}>
-    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-      isActive ? 'bg-primary text-primary-foreground' : 
-      isComplete ? 'bg-green-600 text-white' : 
-      'bg-muted text-muted-foreground'
-    }`}>
-      {isComplete ? <CheckCircle className="h-3 w-3" /> : isActive ? '●' : '○'}
+export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => {
+  const steps = [
+    { key: 'selection', label: 'Selection' },
+    { key: 'configuration', label: 'Configuration' },
+    { key: 'confirmation', label: 'Confirmation' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'complete', label: 'Complete' }
+  ];
+
+  const getCurrentStepIndex = () => {
+    return steps.findIndex(step => step.key === currentStep);
+  };
+
+  const currentIndex = getCurrentStepIndex();
+
+  return (
+    <div className="flex items-center justify-between w-full">
+      {steps.map((step, index) => (
+        <div key={step.key} className="flex items-center">
+          <div className="flex flex-col items-center">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+              index < currentIndex
+                ? 'bg-green-100 border-green-500 text-green-600'
+                : index === currentIndex
+                ? 'bg-blue-100 border-blue-500 text-blue-600'
+                : 'bg-gray-100 border-gray-300 text-gray-400'
+            }`}>
+              {index < currentIndex ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : (
+                <Circle className="w-4 h-4" />
+              )}
+            </div>
+            <span className={`mt-2 text-xs font-medium ${
+              index <= currentIndex ? 'text-gray-900' : 'text-gray-400'
+            }`}>
+              {step.label}
+            </span>
+          </div>
+          {index < steps.length - 1 && (
+            <div className={`flex-1 h-0.5 mx-4 ${
+              index < currentIndex ? 'bg-green-500' : 'bg-gray-300'
+            }`} />
+          )}
+        </div>
+      ))}
     </div>
-    <span className="font-medium">{label}</span>
-  </div>
-);
+  );
+};

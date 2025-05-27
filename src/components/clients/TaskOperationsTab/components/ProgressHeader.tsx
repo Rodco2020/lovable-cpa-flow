@@ -1,71 +1,68 @@
 
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { StepIndicator } from './StepIndicator';
-
-type WizardStep = 'selection' | 'configuration' | 'confirmation' | 'processing' | 'complete';
+import { Clock, CheckCircle, XCircle } from 'lucide-react';
 
 interface ProgressHeaderProps {
-  currentStep: WizardStep;
+  totalOperations: number;
+  completedOperations: number;
+  failedOperations: number;
+  isProcessing: boolean;
+  processingTime?: number;
 }
 
-/**
- * ProgressHeader Component
- * 
- * Displays the current step and progress indicators for the assignment wizard.
- */
-export const ProgressHeader: React.FC<ProgressHeaderProps> = ({ currentStep }) => {
-  const getStepNumber = (step: WizardStep): number => {
-    const steps = { selection: 1, configuration: 2, confirmation: 3, processing: 4, complete: 5 };
-    return steps[step];
-  };
-
-  const isStepComplete = (stepName: WizardStep): boolean => {
-    const stepOrder = ['selection', 'configuration', 'confirmation', 'processing', 'complete'];
-    const currentIndex = stepOrder.indexOf(currentStep);
-    const stepIndex = stepOrder.indexOf(stepName);
-    return stepIndex < currentIndex;
-  };
-
+export const ProgressHeader: React.FC<ProgressHeaderProps> = ({
+  totalOperations,
+  completedOperations,
+  failedOperations,
+  isProcessing,
+  processingTime
+}) => {
+  const successfulOperations = completedOperations - failedOperations;
+  const remainingOperations = totalOperations - completedOperations;
+  
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Assign Templates to Clients</h2>
-        <div className="flex items-center gap-2">
-          <Badge variant={currentStep === 'complete' ? 'default' : 'outline'}>
-            Step {getStepNumber(currentStep)} of 5
-          </Badge>
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Clock className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium">Processing</span>
+              {isProcessing && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  Active
+                </Badge>
+              )}
+            </div>
+            
+            {processingTime && (
+              <div className="text-sm text-muted-foreground">
+                {(processingTime / 1000).toFixed(1)}s elapsed
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm">{successfulOperations} successful</span>
+            </div>
+            
+            {failedOperations > 0 && (
+              <div className="flex items-center space-x-2">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <span className="text-sm">{failedOperations} failed</span>
+              </div>
+            )}
+            
+            <div className="text-sm text-muted-foreground">
+              {remainingOperations} remaining
+            </div>
+          </div>
         </div>
-      </div>
-      
-      {/* Progress Steps */}
-      <div className="flex items-center space-x-4 text-sm">
-        <StepIndicator 
-          label="Selection" 
-          isActive={currentStep === 'selection'} 
-          isComplete={isStepComplete('selection')}
-        />
-        <StepIndicator 
-          label="Configuration" 
-          isActive={currentStep === 'configuration'} 
-          isComplete={isStepComplete('configuration')}
-        />
-        <StepIndicator 
-          label="Confirmation" 
-          isActive={currentStep === 'confirmation'} 
-          isComplete={isStepComplete('confirmation')}
-        />
-        <StepIndicator 
-          label="Processing" 
-          isActive={currentStep === 'processing'} 
-          isComplete={isStepComplete('processing')}
-        />
-        <StepIndicator 
-          label="Complete" 
-          isActive={currentStep === 'complete'} 
-          isComplete={false}
-        />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

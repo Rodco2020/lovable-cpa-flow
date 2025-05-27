@@ -1,131 +1,158 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  FileCheck, 
-  Users, 
-  AlertCircle,
-  Settings
-} from 'lucide-react';
-import { TemplateBrowser } from '../../TaskWizard/TemplateBrowser';
-import { MultiClientSelector } from '../../TaskWizard/MultiClientSelector';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { ChevronRight } from 'lucide-react';
+import { TaskTemplate } from '@/types/task';
+import { Client } from '@/types/client';
 
 interface SelectionStepProps {
   selectedTemplateIds: string[];
-  handleTemplateToggle: (id: string) => void;
-  availableTemplates: any[];
+  setSelectedTemplateIds: (ids: string[]) => void;
+  availableTemplates: TaskTemplate[];
   isTemplatesLoading: boolean;
   selectedClientIds: string[];
   setSelectedClientIds: (ids: string[]) => void;
-  availableClients: any[];
+  availableClients: Client[];
   isClientsLoading: boolean;
-  canProceed: boolean;
-  validationErrors: string[];
   onNext: () => void;
+  canGoNext: boolean;
 }
 
-/**
- * SelectionStep Component
- * 
- * First step of the template assignment wizard.
- * Handles template and client selection with validation.
- */
 export const SelectionStep: React.FC<SelectionStepProps> = ({
   selectedTemplateIds,
-  handleTemplateToggle,
+  setSelectedTemplateIds,
   availableTemplates,
   isTemplatesLoading,
   selectedClientIds,
   setSelectedClientIds,
   availableClients,
   isClientsLoading,
-  canProceed,
-  validationErrors,
-  onNext
-}) => (
-  <div className="space-y-6">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Template Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5" />
-            Select Templates
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TemplateBrowser
-            templates={availableTemplates}
-            selectedTemplateIds={selectedTemplateIds}
-            onSelectTemplate={handleTemplateToggle}
-            isLoading={isTemplatesLoading}
-          />
-        </CardContent>
-      </Card>
+  onNext,
+  canGoNext
+}) => {
+  const handleTemplateToggle = (templateId: string) => {
+    setSelectedTemplateIds(
+      selectedTemplateIds.includes(templateId)
+        ? selectedTemplateIds.filter(id => id !== templateId)
+        : [...selectedTemplateIds, templateId]
+    );
+  };
 
-      {/* Client Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Select Clients
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MultiClientSelector
-            clients={availableClients}
-            selectedClientIds={selectedClientIds}
-            onSelectionChange={setSelectedClientIds}
-            isLoading={isClientsLoading}
-          />
-        </CardContent>
-      </Card>
+  const handleClientToggle = (clientId: string) => {
+    setSelectedClientIds(
+      selectedClientIds.includes(clientId)
+        ? selectedClientIds.filter(id => id !== clientId)
+        : [...selectedClientIds, clientId]
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-lg font-semibold">Select Templates and Clients</h3>
+        <p className="text-sm text-muted-foreground">
+          Choose the task templates and clients for bulk assignment
+        </p>
+      </div>
+
+      <Tabs defaultValue="templates" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="templates">
+            Templates ({selectedTemplateIds.length} selected)
+          </TabsTrigger>
+          <TabsTrigger value="clients">
+            Clients ({selectedClientIds.length} selected)
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="templates" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Available Templates</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isTemplatesLoading ? (
+                <div className="text-center py-4">Loading templates...</div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {availableTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                    >
+                      <Checkbox
+                        checked={selectedTemplateIds.includes(template.id)}
+                        onCheckedChange={() => handleTemplateToggle(template.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{template.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {template.description}
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="outline">{template.category}</Badge>
+                          <Badge variant="outline">{template.defaultPriority}</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {template.defaultEstimatedHours}h
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="clients" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Available Clients</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isClientsLoading ? (
+                <div className="text-center py-4">Loading clients...</div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {availableClients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                    >
+                      <Checkbox
+                        checked={selectedClientIds.includes(client.id)}
+                        onCheckedChange={() => handleClientToggle(client.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{client.legalName}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {client.industry} • {client.status}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex justify-end">
+        <Button 
+          onClick={onNext} 
+          disabled={!canGoNext}
+          className="flex items-center space-x-2"
+        >
+          <span>Next</span>
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
     </div>
-
-    {/* Validation Errors */}
-    {validationErrors.length > 0 && (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          <div className="space-y-1">
-            {validationErrors.map((error, index) => (
-              <div key={index}>• {error}</div>
-            ))}
-          </div>
-        </AlertDescription>
-      </Alert>
-    )}
-
-    {/* Selection Summary */}
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Templates: </span>
-              <span className="font-medium">{selectedTemplateIds.length} selected</span>
-            </div>
-            <div className="text-sm">
-              <span className="text-muted-foreground">Clients: </span>
-              <span className="font-medium">{selectedClientIds.length} selected</span>
-            </div>
-            <div className="text-sm">
-              <span className="text-muted-foreground">Total Operations: </span>
-              <span className="font-medium">{selectedTemplateIds.length * selectedClientIds.length}</span>
-            </div>
-          </div>
-          <Button 
-            onClick={onNext} 
-            disabled={!canProceed}
-            className="flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Configure Assignment
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-);
+  );
+};

@@ -1,55 +1,78 @@
 
 /**
- * Tracks progress of assignment operations
+ * Progress Tracker Utilities
+ * 
+ * Utilities for tracking and managing operation progress.
  */
+
 export interface OperationProgress {
   completed: number;
   total: number;
-  currentOperation?: string;
   percentage: number;
+  currentOperation?: string;
   estimatedTimeRemaining?: number;
+  operations?: Array<{
+    id: string;
+    description: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    error?: string;
+  }>;
+  errors?: string[];
 }
 
 export interface OperationResults {
-  tasksCreated: number;
-  errors: string[];
   success: boolean;
+  totalOperations: number;
+  successfulOperations: number;
+  failedOperations: number;
+  errors: string[];
+  processingTime: number;
+  results: any[];
 }
 
-/**
- * Creates initial progress state
- */
-export const createInitialProgress = (): OperationProgress => ({
+export const createInitialProgress = (total: number): OperationProgress => ({
   completed: 0,
-  total: 0,
-  percentage: 0
+  total,
+  percentage: 0,
+  operations: [],
+  errors: []
 });
 
-/**
- * Creates initial operation results
- */
-export const createInitialResults = (): OperationResults => ({
-  tasksCreated: 0,
-  errors: [],
-  success: true
+export const updateProgress = (
+  current: OperationProgress,
+  updates: Partial<OperationProgress>
+): OperationProgress => ({
+  ...current,
+  ...updates,
+  percentage: updates.total ? (updates.completed || current.completed) / updates.total * 100 : current.percentage
 });
 
-/**
- * Calculates progress percentage and estimated time remaining
- */
-export const calculateProgress = (
-  completed: number,
-  total: number,
-  startTime: number
-): Partial<OperationProgress> => {
-  const percentage = total > 0 ? (completed / total) * 100 : 0;
-  const estimatedTimeRemaining = total > completed ? 
-    ((Date.now() - startTime) / completed) * (total - completed) / 1000 : 0;
+export const addOperationToProgress = (
+  current: OperationProgress,
+  operation: {
+    id: string;
+    description: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    error?: string;
+  }
+): OperationProgress => ({
+  ...current,
+  operations: [
+    ...(current.operations || []),
+    operation
+  ]
+});
 
-  return {
-    completed,
-    total,
-    percentage,
-    estimatedTimeRemaining
-  };
-};
+export const updateOperationStatus = (
+  current: OperationProgress,
+  operationId: string,
+  status: 'pending' | 'processing' | 'completed' | 'failed',
+  error?: string
+): OperationProgress => ({
+  ...current,
+  operations: (current.operations || []).map(op =>
+    op.id === operationId
+      ? { ...op, status, error }
+      : op
+  )
+});
