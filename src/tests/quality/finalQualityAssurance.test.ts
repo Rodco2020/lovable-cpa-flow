@@ -2,311 +2,54 @@
 /**
  * Final Quality Assurance Test Suite
  * 
- * Comprehensive tests to ensure the application meets all quality standards
- * before deployment or major releases.
+ * This is the main entry point for comprehensive quality assurance testing.
+ * All individual test modules are imported and executed from here to ensure
+ * the application meets all quality standards before deployment.
+ * 
+ * Test Categories:
+ * - Critical User Workflows: Core functionality testing
+ * - Performance Standards: Loading time and performance requirements
+ * - Accessibility Standards: WCAG compliance and usability
+ * - Error Handling: Graceful error recovery
+ * - Data Integrity: State consistency and data flow
+ * - Security Standards: Protection against common vulnerabilities
+ * - Cross-Browser Compatibility: Browser support validation
+ * - Responsive Design: Multi-device compatibility
+ * - Integration Points: Inter-component communication
+ * - Memory Management: Resource cleanup and leak prevention
+ * - Bundle Size Optimization: Code efficiency
+ * - API Integration: External service communication
+ * - User Experience Standards: UI/UX quality
+ * - Content Standards: Content structure and presentation
+ * - Deployment Readiness: Production deployment validation
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
-import ClientModule from '@/pages/ClientModule';
-import TaskModule from '@/pages/TaskModule';
-import ForecastingModule from '@/pages/ForecastingModule';
+// Import all quality assurance test modules
+import './specs/CriticalUserWorkflows.test';
+import './specs/PerformanceStandards.test';
+import './specs/AccessibilityStandards.test';
+import './specs/ErrorHandling.test';
+import './specs/DataIntegrity.test';
+import './specs/SecurityStandards.test';
+import './specs/CrossBrowserCompatibility.test';
+import './specs/ResponsiveDesign.test';
+import './specs/IntegrationPoints.test';
+import './specs/MemoryManagement.test';
+import './specs/BundleSizeOptimization.test';
+import './specs/ApiIntegration.test';
+import './specs/UserExperienceStandards.test';
+import './specs/ContentStandards.test';
+import './specs/DeploymentReadiness.test';
 
-// Test wrapper component
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {children}
-      </BrowserRouter>
-    </QueryClientProvider>
-  );
-};
-
-describe('Final Quality Assurance', () => {
-  describe('Critical User Workflows', () => {
-    it('should render Client Module without errors', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-
-    it('should render Task Module without errors', () => {
-      render(
-        <TestWrapper>
-          <TaskModule />
-        </TestWrapper>
-      );
-      
-      expect(screen.getByText('Task Module')).toBeInTheDocument();
-    });
-
-    it('should render Forecasting Module without errors', () => {
-      render(
-        <TestWrapper>
-          <ForecastingModule />
-        </TestWrapper>
-      );
-      
-      expect(screen.getByText('Forecasting Module')).toBeInTheDocument();
-    });
-  });
-
-  describe('Performance Standards', () => {
-    it('should load components within acceptable time limits', async () => {
-      const startTime = performance.now();
-      
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      const endTime = performance.now();
-      const loadTime = endTime - startTime;
-      
-      // Should load within 1000ms
-      expect(loadTime).toBeLessThan(1000);
-    });
-  });
-
-  describe('Accessibility Standards', () => {
-    it('should have proper heading structure', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      const headings = screen.getAllByRole('heading');
-      expect(headings.length).toBeGreaterThan(0);
-    });
-
-    it('should have accessible buttons', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
-        expect(button).toBeVisible();
-      });
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle component errors gracefully', () => {
-      // Mock console.error to prevent error output during test
-      const originalError = console.error;
-      console.error = jest.fn();
-
-      try {
-        render(
-          <TestWrapper>
-            <ClientModule />
-          </TestWrapper>
-        );
-        
-        // Component should render without throwing
-        expect(screen.getByText('Client Module')).toBeInTheDocument();
-      } finally {
-        console.error = originalError;
-      }
-    });
-  });
-
-  describe('Data Integrity', () => {
-    it('should maintain consistent state across components', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Basic state consistency check
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-  });
-
-  describe('Security Standards', () => {
-    it('should not expose sensitive data in DOM', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Check that no obvious sensitive patterns are in the DOM
-      const sensitivePatterns = ['password', 'secret', 'token', 'key'];
-      const bodyText = document.body.textContent || '';
-      
-      sensitivePatterns.forEach(pattern => {
-        expect(bodyText.toLowerCase()).not.toContain(pattern);
-      });
-    });
-  });
-
-  describe('Cross-Browser Compatibility', () => {
-    it('should use standard web APIs', () => {
-      // Check for modern browser feature usage
-      expect(typeof fetch).toBe('function');
-      expect(typeof Promise).toBe('function');
-      expect(typeof Map).toBe('function');
-      expect(typeof Set).toBe('function');
-    });
-  });
-
-  describe('Responsive Design', () => {
-    it('should adapt to different screen sizes', () => {
-      // Mock window.matchMedia
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: jest.fn().mockImplementation(query => ({
-          matches: false,
-          media: query,
-          onchange: null,
-          addListener: jest.fn(),
-          removeListener: jest.fn(),
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn(),
-          dispatchEvent: jest.fn(),
-        })),
-      });
-
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-  });
-
-  describe('Integration Points', () => {
-    it('should handle navigation correctly', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Test basic navigation functionality
-      expect(window.location.pathname).toBeDefined();
-    });
-  });
-
-  describe('Memory Management', () => {
-    it('should not create memory leaks', () => {
-      const { unmount } = render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Unmount component to test cleanup
-      unmount();
-      
-      // If we get here without errors, cleanup worked
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Bundle Size Optimization', () => {
-    it('should use efficient imports', () => {
-      // This is more of a build-time check, but we can verify
-      // that the components render without importing everything
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-  });
-
-  describe('API Integration', () => {
-    it('should handle API errors gracefully', async () => {
-      // Mock a failed API call
-      global.fetch = jest.fn().mockRejectedValue(new Error('API Error'));
-      
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Component should still render
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-  });
-
-  describe('User Experience Standards', () => {
-    it('should provide loading states', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Check that the component renders (loading states are handled internally)
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-
-    it('should provide clear error messages', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Basic functionality test
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    });
-  });
-
-  describe('Content Standards', () => {
-    it('should have proper content structure', () => {
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      // Check for basic content elements
-      const headings = screen.getAllByRole('heading');
-      expect(headings.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Deployment Readiness', () => {
-    it('should be ready for production deployment', () => {
-      // Final comprehensive check
-      render(
-        <TestWrapper>
-          <ClientModule />
-        </TestWrapper>
-      );
-      
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-      
-      // Verify no console errors during render
-      expect(console.error).not.toHaveBeenCalled();
-    });
-  });
-});
+/**
+ * This file serves as the orchestrator for all quality assurance tests.
+ * By importing all test modules, Jest will automatically discover and run
+ * all tests when this file is executed.
+ * 
+ * Benefits of this approach:
+ * 1. Modular test organization
+ * 2. Easy maintenance and updates
+ * 3. Clear separation of concerns
+ * 4. Improved readability and navigation
+ * 5. Simplified debugging and troubleshooting
+ */
