@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, FileText } from "lucide-react";
 import { getClientTasksByLiaison } from "@/services/reporting/staffLiaisonReportService";
-import { ReportFilters } from "@/types/reporting";
+import { ReportFilters, ClientTaskDetail } from "@/types/reporting";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface StaffLiaisonDrillDownProps {
@@ -52,7 +52,7 @@ export const StaffLiaisonDrillDown: React.FC<StaffLiaisonDrillDownProps> = ({
     data: tasks, 
     isLoading, 
     error 
-  } = useQuery({
+  } = useQuery<ClientTaskDetail[]>({
     queryKey: ["liaison-tasks", selectedLiaisonId, filters],
     queryFn: () => selectedLiaisonId ? getClientTasksByLiaison(selectedLiaisonId, filters) : Promise.resolve([]),
     enabled: !!selectedLiaisonId,
@@ -119,7 +119,7 @@ export const StaffLiaisonDrillDown: React.FC<StaffLiaisonDrillDownProps> = ({
     }
     acc[task.clientName].push(task);
     return acc;
-  }, {} as Record<string, typeof tasks>) || {};
+  }, {} as Record<string, ClientTaskDetail[]>) || {};
 
   return (
     <div className="space-y-6">
