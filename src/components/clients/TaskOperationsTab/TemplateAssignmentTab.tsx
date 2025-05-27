@@ -143,7 +143,7 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({ on
             <CompleteStep
               operationResults={{
                 success: operationResults.success,
-                tasksCreated: operationResults.tasksCreated || 0,
+                tasksCreated: operationResults.tasksCreated || operationResults.successfulOperations || 0,
                 errors: operationResults.errors || []
               }}
               onReset={handleReset}
