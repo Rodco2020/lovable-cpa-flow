@@ -32,7 +32,7 @@ export class RevenueDataAccess {
   async getActiveClients(): Promise<ClientData[]> {
     const { data, error } = await supabase
       .from('clients')
-      .select('expected_monthly_revenue, status')
+      .select('id, legal_name, expected_monthly_revenue')
       .eq('status', 'Active');
 
     if (error) throw error;
