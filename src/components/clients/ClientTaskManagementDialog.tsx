@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -33,6 +32,10 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('templates');
 
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
@@ -66,7 +69,7 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
 
             <div className="flex-1 mt-4 overflow-auto">
               <TabsContent value="templates" className="h-full">
-                <TemplateAssignmentTab />
+                <TemplateAssignmentTab onClose={handleClose} />
               </TabsContent>
 
               <TabsContent value="copy" className="h-full">

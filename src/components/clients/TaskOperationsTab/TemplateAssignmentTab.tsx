@@ -11,7 +11,11 @@ import { ConfirmationStep } from './components/ConfirmationStep';
 import { ProcessingStep } from './components/ProcessingStep';
 import { CompleteStep } from './components/CompleteStep';
 
-export const TemplateAssignmentTab: React.FC = () => {
+interface TemplateAssignmentTabProps {
+  onClose?: () => void;
+}
+
+export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({ onClose }) => {
   const {
     selectedTemplateIds,
     setSelectedTemplateIds,
@@ -139,6 +143,7 @@ export const TemplateAssignmentTab: React.FC = () => {
             <CompleteStep
               operationResults={operationResults}
               onReset={handleReset}
+              onClose={onClose}
               error={error}
             />
           )}
