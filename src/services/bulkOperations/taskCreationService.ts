@@ -101,6 +101,11 @@ const createRecurringTask = async (operation: BatchOperation): Promise<any> => {
     status: 'Unscheduled'
   };
 
+  // Add due date if specified in config
+  if (operation.config.dueDate) {
+    recurringTaskData.due_date = operation.config.dueDate.toISOString();
+  }
+
   // Add recurrence-specific fields
   if (operation.config.recurrenceType === 'Weekly' && operation.config.weekdays) {
     recurringTaskData.weekdays = operation.config.weekdays;
@@ -176,7 +181,7 @@ const createAdHocTask = async (operation: BatchOperation): Promise<any> => {
     status: 'Unscheduled'
   };
 
-  // Add due date if specified
+  // Add due date if specified in config
   if (operation.config.dueDate) {
     taskInstanceData.due_date = operation.config.dueDate.toISOString();
   }
@@ -222,10 +227,15 @@ const createTaskInstanceFromRecurring = async (recurringTask: any, operation: Ba
     status: 'Unscheduled'
   };
 
-  // Calculate due date based on recurrence pattern
-  const dueDate = calculateNextDueDate(recurringTask);
-  if (dueDate) {
-    taskInstanceData.due_date = dueDate.toISOString();
+  // Use the due date from the recurring task if available, otherwise calculate
+  if (recurringTask.due_date) {
+    taskInstanceData.due_date = recurringTask.due_date;
+  } else {
+    // Calculate due date based on recurrence pattern
+    const dueDate = calculateNextDueDate(recurringTask);
+    if (dueDate) {
+      taskInstanceData.due_date = dueDate.toISOString();
+    }
   }
 
   // Insert task instance
