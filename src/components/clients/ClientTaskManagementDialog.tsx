@@ -81,7 +81,7 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
               <TabsContent value="templates" className="h-full">
                 <TemplateAssignmentTab 
                   onClose={handleClose}
-                  onTasksRefresh={onTaskOperationSuccess}
+                  onTasksRefresh={handleTaskOperationSuccess}
                 />
               </TabsContent>
 
