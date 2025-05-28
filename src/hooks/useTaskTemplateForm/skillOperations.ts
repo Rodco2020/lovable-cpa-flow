@@ -1,13 +1,13 @@
 
-import { TaskTemplateFormData } from './types';
+import { TaskTemplate } from '@/types/task';
 
 /**
  * Custom hook for managing skill-related operations in task template forms
  * Handles skill selection, validation, and cleanup logic
  */
 export function useSkillOperations(
-  formData: Partial<TaskTemplateFormData>,
-  setFormData: (updater: (prev: Partial<TaskTemplateFormData>) => Partial<TaskTemplateFormData>) => void
+  formData: Partial<TaskTemplate>,
+  setFormData: (updater: (prev: Partial<TaskTemplate>) => Partial<TaskTemplate>) => void
 ) {
   // Handle skill selection/deselection
   const handleSkillChange = (skillId: string, checked: boolean) => {

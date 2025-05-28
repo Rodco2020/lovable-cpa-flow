@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { TaskTemplate } from '@/types/task';
 import { Skill } from '@/types/skill';
 import { Dialog } from '@/components/ui/dialog';
-import { useTaskTemplateForm } from '@/hooks/useTaskTemplateForm';
+import { useTaskTemplateForm } from '@/hooks/useTaskTemplateForm/index';
 import TaskTemplateForm from './TaskTemplateForm';
 
 interface TaskTemplateDialogProps {

@@ -1,12 +1,12 @@
 
-import { TaskTemplate } from '@/types/task';
+import { TaskTemplate, TaskPriority } from '@/types/task';
 
-export interface TaskTemplateFormData extends Partial<TaskTemplate> {
+export interface TaskTemplateFormData {
   name: string;
   description: string;
   defaultEstimatedHours: number;
   requiredSkills: string[];
-  defaultPriority: string;
+  defaultPriority: TaskPriority;
   category: string;
 }
 
