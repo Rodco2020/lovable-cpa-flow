@@ -23,6 +23,21 @@ const FormFields: React.FC<FormFieldsProps> = ({
   const priorities: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
   const categories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
 
+  // Enhanced input change handler with debugging
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    console.log('FormFields: Input change detected:', {
+      name: e.target.name,
+      value: e.target.value,
+      type: e.target.type
+    });
+    
+    // Ensure the event is properly handled
+    e.preventDefault();
+    onInputChange(e);
+  };
+
+  console.log('FormFields: Rendering with formData:', formData);
+
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -34,10 +49,11 @@ const FormFields: React.FC<FormFieldsProps> = ({
             id="name"
             name="name"
             value={formData.name || ''}
-            onChange={onInputChange}
+            onChange={handleInputChange}
             placeholder="Enter template name"
             required
             disabled={isSubmitting}
+            autoComplete="off"
           />
         </div>
         
@@ -49,8 +65,8 @@ const FormFields: React.FC<FormFieldsProps> = ({
             id="category"
             name="category"
             value={formData.category || 'Other'}
-            onChange={onInputChange}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            onChange={handleInputChange}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isSubmitting}
           >
             {categories.map(category => (
@@ -68,7 +84,7 @@ const FormFields: React.FC<FormFieldsProps> = ({
           id="description"
           name="description"
           value={formData.description || ''}
-          onChange={onInputChange}
+          onChange={handleInputChange}
           placeholder="Describe the task template"
           rows={3}
           disabled={isSubmitting}
@@ -87,9 +103,10 @@ const FormFields: React.FC<FormFieldsProps> = ({
             min="0.25"
             step="0.25"
             value={formData.defaultEstimatedHours || 1}
-            onChange={onInputChange}
+            onChange={handleInputChange}
             required
             disabled={isSubmitting}
+            autoComplete="off"
           />
         </div>
         
@@ -101,8 +118,8 @@ const FormFields: React.FC<FormFieldsProps> = ({
             id="defaultPriority"
             name="defaultPriority"
             value={formData.defaultPriority || 'Medium'}
-            onChange={onInputChange}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            onChange={handleInputChange}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isSubmitting}
           >
             {priorities.map(priority => (

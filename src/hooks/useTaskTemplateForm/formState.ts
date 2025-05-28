@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { TaskTemplate } from '@/types/task';
 
 /**
@@ -8,16 +8,19 @@ import { TaskTemplate } from '@/types/task';
  */
 export function useTaskTemplateFormState(initialTemplate: TaskTemplate | null = null) {
   // Form state for new/edited template
-  const [formData, setFormData] = useState<Partial<TaskTemplate>>(
-    initialTemplate ? normalizeTemplateData(initialTemplate) : {
+  const [formData, setFormData] = useState<Partial<TaskTemplate>>(() => {
+    const initial = initialTemplate ? normalizeTemplateData(initialTemplate) : {
       name: '',
       description: '',
       defaultEstimatedHours: 1,
       requiredSkills: [],
-      defaultPriority: 'Medium',
-      category: 'Other',
-    }
-  );
+      defaultPriority: 'Medium' as const,
+      category: 'Other' as const,
+    };
+    
+    console.log('useTaskTemplateFormState: Initial state:', initial);
+    return initial;
+  });
 
   // Function to normalize template data when initializing
   function normalizeTemplateData(template: TaskTemplate): Partial<TaskTemplate> {
@@ -48,33 +51,51 @@ export function useTaskTemplateFormState(initialTemplate: TaskTemplate | null = 
   }
 
   // Reset form data to initial values or use provided template
-  const resetForm = (template: TaskTemplate | null = null) => {
-    console.log('Resetting form with template:', template?.name || 'new template');
+  const resetForm = useCallback((template: TaskTemplate | null = null) => {
+    console.log('useTaskTemplateFormState: Resetting form with template:', template?.name || 'new template');
     if (template) {
       const normalizedData = normalizeTemplateData(template);
-      console.log('Setting form data to:', normalizedData);
+      console.log('useTaskTemplateFormState: Setting form data to:', normalizedData);
       setFormData(normalizedData);
     } else {
-      setFormData({
+      const newFormData = {
         name: '',
         description: '',
         defaultEstimatedHours: 1,
         requiredSkills: [],
-        defaultPriority: 'Medium',
-        category: 'Other',
-      });
+        defaultPriority: 'Medium' as const,
+        category: 'Other' as const,
+      };
+      console.log('useTaskTemplateFormState: Setting form data to new template defaults:', newFormData);
+      setFormData(newFormData);
     }
-  };
+  }, []);
 
-  // Update a single form field
-  const updateField = (key: string, value: any) => {
-    console.log('Updating field:', key, 'with value:', value);
-    setFormData(prev => ({ ...prev, [key]: value }));
-  };
+  // Update a single form field with debugging
+  const updateField = useCallback((key: string, value: any) => {
+    console.log('useTaskTemplateFormState: Updating field:', key, 'with value:', value);
+    setFormData(prev => {
+      const updated = { ...prev, [key]: value };
+      console.log('useTaskTemplateFormState: Updated form data:', updated);
+      return updated;
+    });
+  }, []);
+
+  // Enhanced setFormData wrapper with debugging
+  const setFormDataWrapper = useCallback((updater: (prev: Partial<TaskTemplate>) => Partial<TaskTemplate>) => {
+    setFormData(prev => {
+      const updated = updater(prev);
+      console.log('useTaskTemplateFormState: Form data updated via setter:', {
+        previous: prev,
+        updated: updated
+      });
+      return updated;
+    });
+  }, []);
 
   return {
     formData,
-    setFormData,
+    setFormData: setFormDataWrapper,
     resetForm,
     updateField,
   };

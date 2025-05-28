@@ -29,14 +29,34 @@ const SkillSelection: React.FC<SkillSelectionProps> = ({
   unmatchedSkills,
   onRemoveUnmatchedSkill
 }) => {
-  const handleSkillCheckboxChange = (skillId: string, checked: boolean) => {
-    console.log('SkillSelection: Skill checkbox changed:', {
+  // Enhanced checkbox change handler with debugging
+  const handleSkillCheckboxChange = (skillId: string, checked: boolean | 'indeterminate') => {
+    console.log('SkillSelection: Checkbox change detected:', {
       skillId,
       checked,
-      skillName: skills.find(s => s.id === skillId)?.name
+      skillName: skills.find(s => s.id === skillId)?.name,
+      currentlySelected: isSkillSelected(skillId)
     });
-    onSkillChange(skillId, checked);
+    
+    // Handle indeterminate state by treating it as false
+    const isChecked = checked === true;
+    
+    // Call the parent handler
+    onSkillChange(skillId, isChecked);
   };
+
+  // Enhanced unmatched skill removal handler
+  const handleRemoveUnmatchedSkill = (skillId: string) => {
+    console.log('SkillSelection: Removing unmatched skill:', skillId);
+    onRemoveUnmatchedSkill(skillId);
+  };
+
+  console.log('SkillSelection: Rendering with skills:', {
+    skillsCount: skills.length,
+    unmatchedSkillsCount: unmatchedSkills.length,
+    isLoadingSkills,
+    isSubmitting
+  });
 
   return (
     <div className="space-y-2">
@@ -54,7 +74,7 @@ const SkillSelection: React.FC<SkillSelectionProps> = ({
                   {skillId}
                   <button
                     type="button"
-                    onClick={() => onRemoveUnmatchedSkill(skillId)}
+                    onClick={() => handleRemoveUnmatchedSkill(skillId)}
                     className="ml-1 hover:bg-destructive-foreground/20 rounded-full p-0.5"
                   >
                     <X className="h-3 w-3" />
@@ -79,10 +99,11 @@ const SkillSelection: React.FC<SkillSelectionProps> = ({
               const skillIdStr = String(skill.id);
               const selected = isSkillSelected(skillIdStr);
               
-              console.log('Rendering skill checkbox:', {
+              console.log('SkillSelection: Rendering skill checkbox:', {
                 skillId: skillIdStr,
                 skillName: skill.name,
-                selected
+                selected,
+                proficiencyLevel: skill.proficiencyLevel
               });
               
               return (
@@ -91,12 +112,21 @@ const SkillSelection: React.FC<SkillSelectionProps> = ({
                     id={`skill-${skillIdStr}`}
                     checked={selected}
                     onCheckedChange={(checked) => {
-                      console.log(`Checkbox change for skill ${skill.name} (${skillIdStr}):`, checked);
-                      handleSkillCheckboxChange(skillIdStr, checked === true);
+                      console.log(`SkillSelection: Checkbox onCheckedChange for ${skill.name} (${skillIdStr}):`, checked);
+                      handleSkillCheckboxChange(skillIdStr, checked);
                     }}
                     disabled={isSubmitting}
                   />
-                  <label htmlFor={`skill-${skillIdStr}`} className="text-sm">
+                  <label 
+                    htmlFor={`skill-${skillIdStr}`} 
+                    className="text-sm cursor-pointer"
+                    onClick={(e) => {
+                      console.log(`SkillSelection: Label clicked for ${skill.name}`);
+                      // Prevent default to avoid double-triggering
+                      e.preventDefault();
+                      handleSkillCheckboxChange(skillIdStr, !selected);
+                    }}
+                  >
                     {skill.name}
                     {skill.proficiencyLevel && (
                       <span className="text-xs text-gray-500 ml-1">
@@ -108,7 +138,9 @@ const SkillSelection: React.FC<SkillSelectionProps> = ({
               );
             })
           ) : (
-            <p className="text-sm text-muted-foreground">No skills found. Please add skills in the Skills Module.</p>
+            <p className="text-sm text-muted-foreground col-span-3">
+              No skills found. Please add skills in the Skills Module.
+            </p>
           )}
         </div>
       )}
