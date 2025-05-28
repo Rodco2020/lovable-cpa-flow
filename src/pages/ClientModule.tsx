@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Building, Users, DollarSign, FileText, PlusCircle, CalendarClock, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientDashboardStats } from '@/hooks/useClientDashboardStats';
+import { ClientDashboardStats } from '@/services/client/clientDashboardService';
 
 const ClientModule: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   
-  // Fetch real-time dashboard statistics
+  // Fetch real-time dashboard statistics with proper typing
   const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useClientDashboardStats();
 
   // Effect to detect navigation back to the client list
