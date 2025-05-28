@@ -13,9 +13,13 @@ import { CompleteStep } from './components/CompleteStep';
 
 interface TemplateAssignmentTabProps {
   onClose?: () => void;
+  onTasksRefresh?: () => void;
 }
 
-export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({ onClose }) => {
+export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({ 
+  onClose, 
+  onTasksRefresh 
+}) => {
   const {
     selectedTemplateIds,
     setSelectedTemplateIds,
@@ -62,6 +66,10 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({ on
     const success = await executeAssignment();
     if (success) {
       setCurrentStep('complete');
+      // Trigger refresh of the tasks overview when assignment completes successfully
+      if (onTasksRefresh) {
+        onTasksRefresh();
+      }
     }
   };
 

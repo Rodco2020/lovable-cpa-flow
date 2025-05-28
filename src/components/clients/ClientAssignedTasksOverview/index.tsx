@@ -116,6 +116,12 @@ const ClientAssignedTasksOverview: React.FC = () => {
     resetFilters();
     setActiveTab('all');
   };
+
+  // Handle refresh from task management operations
+  const handleTasksRefresh = () => {
+    console.log('Refreshing tasks after management operation');
+    handleEditComplete(); // This triggers a full data refresh
+  };
   
   return (
     <Card>
@@ -196,6 +202,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
       <ClientTaskManagementDialog
         open={taskManagementDialogOpen}
         onOpenChange={setTaskManagementDialogOpen}
+        onTasksRefresh={handleTasksRefresh}
       />
     </Card>
   );

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -20,6 +21,7 @@ import { TemplateAssignmentTab } from './TaskOperationsTab/TemplateAssignmentTab
 interface ClientTaskManagementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTasksRefresh?: () => void;
 }
 
 /**
@@ -28,12 +30,20 @@ interface ClientTaskManagementDialogProps {
  */
 const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
   open,
-  onOpenChange
+  onOpenChange,
+  onTasksRefresh
 }) => {
   const [activeTab, setActiveTab] = useState('templates');
 
   const handleClose = () => {
     onOpenChange(false);
+  };
+
+  const handleTaskOperationSuccess = () => {
+    // Call the refresh callback when tasks are successfully created
+    if (onTasksRefresh) {
+      onTasksRefresh();
+    }
   };
 
   return (
@@ -69,7 +79,10 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
 
             <div className="flex-1 mt-4 overflow-auto">
               <TabsContent value="templates" className="h-full">
-                <TemplateAssignmentTab onClose={handleClose} />
+                <TemplateAssignmentTab 
+                  onClose={handleClose}
+                  onTasksRefresh={onTaskOperationSuccess}
+                />
               </TabsContent>
 
               <TabsContent value="copy" className="h-full">
