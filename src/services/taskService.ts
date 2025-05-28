@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabaseClient';
+import { getAllSkills } from '@/services/skillService';
 import { 
   TaskTemplate, 
   RecurringTask, 
@@ -13,6 +14,28 @@ import {
 
 // Mock data storage for non-migrated functions
 let taskInstances: TaskInstance[] = [];
+
+/**
+ * Resolve skill IDs to skill names
+ */
+const resolveSkillNames = async (skillIds: string[]): Promise<string[]> => {
+  if (!skillIds || skillIds.length === 0) return [];
+  
+  try {
+    const skills = await getAllSkills();
+    const skillsMap = skills.reduce((map, skill) => {
+      map[skill.id] = skill.name;
+      return map;
+    }, {} as Record<string, string>);
+    
+    // Convert skill IDs to names, fallback to ID if name not found
+    return skillIds.map(skillId => skillsMap[skillId] || skillId);
+  } catch (error) {
+    console.error('Error resolving skill names:', error);
+    // Fallback to returning the original skill IDs if resolution fails
+    return skillIds;
+  }
+};
 
 // Helper function to normalize skill IDs or names
 // Previously this attempted to filter skills against a fixed list of names,
@@ -264,7 +287,7 @@ const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
 };
 
 // Helper function to map RecurringTask to Supabase format
-const mapRecurringTaskToSupabase = (task: RecurringTask | Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): any => {
+const mapRecurringTaskToSupabase = async (task: RecurringTask | Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt' | 'lastGeneratedDate' | 'isActive' | 'status'>): Promise<any> => {
   // Validate required fields are present
   if (!task.templateId) {
     throw new Error('Template ID is required');
@@ -282,13 +305,16 @@ const mapRecurringTaskToSupabase = (task: RecurringTask | Omit<RecurringTask, 'i
     throw new Error('Recurrence pattern type is required');
   }
   
+  // Resolve skill IDs to names if needed
+  const resolvedSkills = await resolveSkillNames(task.requiredSkills || []);
+  
   return {
     template_id: task.templateId,
     client_id: task.clientId,
     name: task.name,
     description: task.description || null,
     estimated_hours: task.estimatedHours,
-    required_skills: task.requiredSkills,
+    required_skills: resolvedSkills, // Store skill names
     priority: task.priority,
     category: task.category,
     status: 'status' in task ? task.status : 'Unscheduled',
@@ -373,8 +399,8 @@ export const createRecurringTask = async (task: Omit<RecurringTask, 'id' | 'crea
       task.recurrencePattern.monthOfYear = 1;
     }
     
-    // Convert task to Supabase format
-    const newTaskData = mapRecurringTaskToSupabase(task);
+    // Convert task to Supabase format with skill name resolution
+    const newTaskData = await mapRecurringTaskToSupabase(task);
     
     console.log('Mapped task data for Supabase:', JSON.stringify(newTaskData, null, 2));
     
@@ -501,7 +527,7 @@ const mapSupabaseToTaskInstance = (data: any): TaskInstance => {
 };
 
 // Helper function to map TaskInstance to Supabase format
-const mapTaskInstanceToSupabase = (task: TaskInstance | Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt'>): any => {
+const mapTaskInstanceToSupabase = async (task: TaskInstance | Omit<TaskInstance, 'id' | 'createdAt' | 'updatedAt'>): Promise<any> => {
   // Validate required fields
   if (!task.templateId) {
     throw new Error('Template ID is required');
@@ -515,6 +541,9 @@ const mapTaskInstanceToSupabase = (task: TaskInstance | Omit<TaskInstance, 'id' 
     throw new Error('Task name is required');
   }
   
+  // Resolve skill IDs to names if needed
+  const resolvedSkills = await resolveSkillNames(task.requiredSkills || []);
+  
   return {
     template_id: task.templateId,
     recurring_task_id: task.recurringTaskId || null,
@@ -522,7 +551,7 @@ const mapTaskInstanceToSupabase = (task: TaskInstance | Omit<TaskInstance, 'id' 
     name: task.name,
     description: task.description || null,
     estimated_hours: task.estimatedHours,
-    required_skills: task.requiredSkills,
+    required_skills: resolvedSkills, // Store skill names
     priority: task.priority,
     category: task.category,
     status: task.status,
@@ -596,7 +625,7 @@ export const createAdHocTask = async (task: Omit<TaskInstance, 'id' | 'createdAt
       throw new Error('Due date is required for ad-hoc tasks');
     }
     
-    const newTaskData = mapTaskInstanceToSupabase({
+    const newTaskData = await mapTaskInstanceToSupabase({
       ...task,
       status: 'Unscheduled'
     });

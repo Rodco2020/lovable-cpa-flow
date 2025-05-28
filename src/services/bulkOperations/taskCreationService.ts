@@ -1,5 +1,6 @@
 
 import { supabase } from '@/lib/supabaseClient';
+import { getAllSkills } from '@/services/skillService';
 import { BatchOperation } from './types';
 
 /**
@@ -9,6 +10,28 @@ import { BatchOperation } from './types';
  * This service is responsible for creating both ad-hoc and recurring tasks
  * based on the configuration provided in each operation.
  */
+
+/**
+ * Resolve skill IDs to skill names
+ */
+const resolveSkillNames = async (skillIds: string[]): Promise<string[]> => {
+  if (!skillIds || skillIds.length === 0) return [];
+  
+  try {
+    const skills = await getAllSkills();
+    const skillsMap = skills.reduce((map, skill) => {
+      map[skill.id] = skill.name;
+      return map;
+    }, {} as Record<string, string>);
+    
+    // Convert skill IDs to names, fallback to ID if name not found
+    return skillIds.map(skillId => skillsMap[skillId] || skillId);
+  } catch (error) {
+    console.error('Error resolving skill names:', error);
+    // Fallback to returning the original skill IDs if resolution fails
+    return skillIds;
+  }
+};
 
 /**
  * Process a single assignment operation
@@ -54,6 +77,12 @@ const createRecurringTask = async (operation: BatchOperation): Promise<any> => {
     throw new Error(`Failed to fetch template: ${templateError.message}`);
   }
 
+  // Resolve skill IDs to names
+  const templateSkills = operation.config.preserveSkills 
+    ? template.required_skills 
+    : template.required_skills;
+  const resolvedSkills = await resolveSkillNames(templateSkills || []);
+
   // Prepare recurring task data
   const recurringTaskData: any = {
     template_id: operation.templateId,
@@ -63,9 +92,7 @@ const createRecurringTask = async (operation: BatchOperation): Promise<any> => {
     estimated_hours: operation.config.preserveEstimatedHours 
       ? template.default_estimated_hours 
       : (operation.config.estimatedHours || template.default_estimated_hours),
-    required_skills: operation.config.preserveSkills 
-      ? template.required_skills 
-      : template.required_skills,
+    required_skills: resolvedSkills, // Store skill names instead of IDs
     priority: operation.config.priority || template.default_priority,
     category: template.category,
     recurrence_type: operation.config.recurrenceType || 'Monthly',
@@ -128,6 +155,12 @@ const createAdHocTask = async (operation: BatchOperation): Promise<any> => {
     throw new Error(`Failed to fetch template: ${templateError.message}`);
   }
 
+  // Resolve skill IDs to names
+  const templateSkills = operation.config.preserveSkills 
+    ? template.required_skills 
+    : template.required_skills;
+  const resolvedSkills = await resolveSkillNames(templateSkills || []);
+
   // Prepare task instance data
   const taskInstanceData: any = {
     template_id: operation.templateId,
@@ -137,9 +170,7 @@ const createAdHocTask = async (operation: BatchOperation): Promise<any> => {
     estimated_hours: operation.config.preserveEstimatedHours 
       ? template.default_estimated_hours 
       : (operation.config.estimatedHours || template.default_estimated_hours),
-    required_skills: operation.config.preserveSkills 
-      ? template.required_skills 
-      : template.required_skills,
+    required_skills: resolvedSkills, // Store skill names instead of IDs
     priority: operation.config.priority || template.default_priority,
     category: template.category,
     status: 'Unscheduled'
@@ -185,7 +216,7 @@ const createTaskInstanceFromRecurring = async (recurringTask: any, operation: Ba
     name: recurringTask.name,
     description: recurringTask.description,
     estimated_hours: recurringTask.estimated_hours,
-    required_skills: recurringTask.required_skills,
+    required_skills: recurringTask.required_skills, // Already resolved to names
     priority: recurringTask.priority,
     category: recurringTask.category,
     status: 'Unscheduled'

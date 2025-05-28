@@ -55,16 +55,11 @@ const RecurringTaskTableRow: React.FC<RecurringTaskTableRowProps> = ({
 
     return (
       <div className="flex flex-wrap gap-1">
-        {task.requiredSkills.map((skillId, idx) => {
-          const skill = skillsMap[skillId];
-          const displayName = skill?.name || skillId;
-          
-          return (
-            <Badge key={idx} variant="secondary" className="text-xs">
-              {displayName}
-            </Badge>
-          );
-        })}
+        {task.requiredSkills.map((skillName, idx) => (
+          <Badge key={idx} variant="secondary" className="text-xs">
+            {skillName}
+          </Badge>
+        ))}
       </div>
     );
   };

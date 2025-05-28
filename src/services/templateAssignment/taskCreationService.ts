@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { getAllSkills } from '@/services/skillService';
 import { AssignmentConfig } from '@/components/clients/TaskWizard/AssignmentConfiguration';
 
 /**
@@ -7,6 +8,28 @@ import { AssignmentConfig } from '@/components/clients/TaskWizard/AssignmentConf
  * 
  * Handles the creation of ad-hoc and recurring tasks from templates.
  */
+
+/**
+ * Resolve skill IDs to skill names
+ */
+const resolveSkillNames = async (skillIds: string[]): Promise<string[]> => {
+  if (!skillIds || skillIds.length === 0) return [];
+  
+  try {
+    const skills = await getAllSkills();
+    const skillsMap = skills.reduce((map, skill) => {
+      map[skill.id] = skill.name;
+      return map;
+    }, {} as Record<string, string>);
+    
+    // Convert skill IDs to names, fallback to ID if name not found
+    return skillIds.map(skillId => skillsMap[skillId] || skillId);
+  } catch (error) {
+    console.error('Error resolving skill names:', error);
+    // Fallback to returning the original skill IDs if resolution fails
+    return skillIds;
+  }
+};
 
 /**
  * Create an ad-hoc task instance from template
@@ -17,13 +40,16 @@ export const createAdHocTask = async (
   template: any,
   config: AssignmentConfig
 ) => {
+  // Resolve skill IDs to names
+  const resolvedSkills = await resolveSkillNames(template.required_skills || []);
+  
   const taskData = {
     template_id: templateId,
     client_id: clientId,
     name: template.name,
     description: template.description,
     estimated_hours: config.estimatedHours || template.default_estimated_hours,
-    required_skills: template.required_skills,
+    required_skills: resolvedSkills, // Store skill names instead of IDs
     priority: config.priority || template.default_priority,
     category: template.category,
     status: 'Unscheduled',
@@ -49,13 +75,16 @@ export const createRecurringTask = async (
   template: any,
   config: AssignmentConfig
 ) => {
+  // Resolve skill IDs to names
+  const resolvedSkills = await resolveSkillNames(template.required_skills || []);
+  
   const recurringTaskData = {
     template_id: templateId,
     client_id: clientId,
     name: template.name,
     description: template.description,
     estimated_hours: config.estimatedHours || template.default_estimated_hours,
-    required_skills: template.required_skills,
+    required_skills: resolvedSkills, // Store skill names instead of IDs
     priority: config.priority || template.default_priority,
     category: template.category,
     status: 'Unscheduled',
