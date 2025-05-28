@@ -127,6 +127,41 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
               className="w-full p-2 border rounded"
             />
           </div>
+
+          {/* Day of Month field */}
+          {(config.recurrenceType === 'Monthly' || 
+            config.recurrenceType === 'Quarterly' || 
+            config.recurrenceType === 'Annually') && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Day of Month</label>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                value={config.dayOfMonth || ''}
+                onChange={(e) => onConfigChange({
+                  ...config,
+                  dayOfMonth: parseInt(e.target.value) || undefined
+                })}
+                placeholder="Enter day (1-31)"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+          )}
+
+          {/* First Due Date field */}
+          <div>
+            <label className="block text-sm font-medium mb-2">First Due Date</label>
+            <input
+              type="date"
+              value={config.dueDate ? config.dueDate.toISOString().split('T')[0] : ''}
+              onChange={(e) => onConfigChange({
+                ...config,
+                dueDate: e.target.value ? new Date(e.target.value) : undefined
+              })}
+              className="w-full p-2 border rounded"
+            />
+          </div>
         </div>
       )}
 

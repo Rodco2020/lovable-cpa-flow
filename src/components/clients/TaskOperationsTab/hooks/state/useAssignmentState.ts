@@ -21,7 +21,12 @@ export const useAssignmentState = () => {
     priority: 'Medium',
     preserveEstimatedHours: true,
     preserveSkills: true,
-    generateImmediately: false
+    generateImmediately: false,
+    // Initialize new fields
+    recurrenceType: 'Monthly',
+    interval: 1,
+    dayOfMonth: undefined,
+    dueDate: undefined
   });
   
   // Processing state
@@ -40,7 +45,11 @@ export const useAssignmentState = () => {
       priority: 'Medium',
       preserveEstimatedHours: true,
       preserveSkills: true,
-      generateImmediately: false
+      generateImmediately: false,
+      recurrenceType: 'Monthly',
+      interval: 1,
+      dayOfMonth: undefined,
+      dueDate: undefined
     });
     setIsProcessing(false);
     setProgress(createInitialProgress(0));

@@ -5,7 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { AssignmentConfig } from '../../TaskWizard/AssignmentConfiguration';
 
 interface ConfigurationStepProps {
@@ -23,6 +28,34 @@ export const ConfigurationStep: React.FC<ConfigurationStepProps> = ({
 }) => {
   const updateConfig = (updates: Partial<AssignmentConfig>) => {
     setAssignmentConfig({ ...assignmentConfig, ...updates });
+  };
+
+  const handleFirstDueDateChange = (date: Date | undefined) => {
+    updateConfig({ dueDate: date });
+  };
+
+  // Helper to determine if day of month field should be shown
+  const shouldShowDayOfMonth = () => {
+    return assignmentConfig.taskType === 'recurring' && 
+           (assignmentConfig.recurrenceType === 'Monthly' || 
+            assignmentConfig.recurrenceType === 'Quarterly' || 
+            assignmentConfig.recurrenceType === 'Annually');
+  };
+
+  // Helper to determine if first due date field should be shown
+  const shouldShowFirstDueDate = () => {
+    return assignmentConfig.taskType === 'recurring';
+  };
+
+  // Validation helper
+  const canProceed = () => {
+    if (assignmentConfig.taskType === 'recurring') {
+      // Check if day of month is required and provided
+      if (shouldShowDayOfMonth() && !assignmentConfig.dayOfMonth) {
+        return false;
+      }
+    }
+    return true;
   };
 
   return (
@@ -124,6 +157,64 @@ export const ConfigurationStep: React.FC<ConfigurationStepProps> = ({
                   </Select>
                 </div>
               </div>
+
+              {/* Day of Month field - shown for Monthly, Quarterly, and Annually */}
+              {shouldShowDayOfMonth() && (
+                <div className="space-y-2">
+                  <Label htmlFor="dayOfMonth">Day of Month</Label>
+                  <Input
+                    id="dayOfMonth"
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={assignmentConfig.dayOfMonth || ''}
+                    onChange={(e) => updateConfig({ dayOfMonth: parseInt(e.target.value) || undefined })}
+                    placeholder="Enter day (1-31)"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Day of the month when the task should recur (1-31)
+                  </p>
+                </div>
+              )}
+
+              {/* First Due Date field - shown for all recurring tasks */}
+              {shouldShowFirstDueDate() && (
+                <div className="space-y-2">
+                  <Label htmlFor="firstDueDate">First Due Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !assignmentConfig.dueDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {assignmentConfig.dueDate ? (
+                          format(assignmentConfig.dueDate, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={assignmentConfig.dueDate}
+                        onSelect={handleFirstDueDateChange}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    When should the first instance of this recurring task be due?
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -175,7 +266,11 @@ export const ConfigurationStep: React.FC<ConfigurationStepProps> = ({
           <ChevronLeft className="w-4 h-4" />
           <span>Back</span>
         </Button>
-        <Button onClick={onNext} className="flex items-center space-x-2">
+        <Button 
+          onClick={onNext} 
+          disabled={!canProceed()}
+          className="flex items-center space-x-2"
+        >
           <span>Next</span>
           <ChevronRight className="w-4 h-4" />
         </Button>
