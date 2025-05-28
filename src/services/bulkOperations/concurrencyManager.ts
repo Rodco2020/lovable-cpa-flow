@@ -1,5 +1,5 @@
 
-import { BatchOperation, BulkOperationResult, ProgressUpdate } from './types';
+import { BatchOperation, BulkOperationResult, ProgressUpdate, BatchProcessingConfig } from './types';
 import { processSingleAssignment } from './taskCreationService';
 import { addErrorToBulkResult } from './resultManager';
 
@@ -25,7 +25,7 @@ import { addErrorToBulkResult } from './resultManager';
  */
 export const processBatchesWithConcurrency = async (
   operations: BatchOperation[],
-  config: { batchSize: number; concurrency: number },
+  config: BatchProcessingConfig,
   result: BulkOperationResult,
   startTime: number,
   onProgress?: (progress: ProgressUpdate) => void

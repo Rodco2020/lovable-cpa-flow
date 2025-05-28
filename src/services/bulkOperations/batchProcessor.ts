@@ -1,5 +1,5 @@
 
-import { BulkAssignment, BulkOperationConfig, BulkOperationResult, ProgressUpdate } from './types';
+import { BulkAssignment, BulkOperationConfig, BulkOperationResult, ProgressUpdate, BatchProcessingConfig } from './types';
 import { createBatchOperations } from './operationCreator';
 import { processBatchesWithConcurrency } from './concurrencyManager';
 import { showCompletionToast, showErrorToast } from './notificationManager';
@@ -32,13 +32,13 @@ import { initializeBulkResult, finalizeBulkResult } from './resultManager';
  * 4. Finalize results and notify user
  * 
  * @param assignment - The bulk assignment containing clients, templates, and configuration
- * @param operationConfig - Configuration for batch processing (batch size, concurrency)
+ * @param processingConfig - Configuration for batch processing (batch size, concurrency)
  * @param onProgress - Optional callback function for progress updates
  * @returns Promise resolving to the complete operation result
  */
 export const processBulkAssignments = async (
   assignment: BulkAssignment,
-  operationConfig: BulkOperationConfig,
+  processingConfig: BatchProcessingConfig,
   onProgress?: (progress: ProgressUpdate) => void
 ): Promise<BulkOperationResult> => {
   const startTime = Date.now();
@@ -52,7 +52,7 @@ export const processBulkAssignments = async (
     // Process operations with concurrency control
     await processBatchesWithConcurrency(
       operations,
-      operationConfig,
+      processingConfig,
       result,
       startTime,
       onProgress

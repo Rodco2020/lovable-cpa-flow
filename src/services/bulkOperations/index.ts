@@ -22,6 +22,7 @@ export type {
   BulkAssignment,
   BatchOperation,
   BulkOperationConfig,
+  BatchProcessingConfig,
   BulkOperationResult,
   BulkOperationError,
   ProgressUpdate

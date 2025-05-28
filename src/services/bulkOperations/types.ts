@@ -34,6 +34,12 @@ export interface BulkOperationConfig {
   monthOfYear?: number;
 }
 
+export interface BatchProcessingConfig {
+  operationType?: string;
+  batchSize: number;
+  concurrency: number;
+}
+
 export interface BulkOperationResult {
   totalOperations: number;
   successfulOperations: number;

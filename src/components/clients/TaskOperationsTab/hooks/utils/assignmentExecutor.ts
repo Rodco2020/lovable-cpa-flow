@@ -2,6 +2,7 @@
 import { TaskTemplate } from '@/types/task';
 import { AssignmentConfig } from '../../../TaskWizard/AssignmentConfiguration';
 import { processBulkAssignments } from '@/services/bulkOperations';
+import { BatchProcessingConfig } from '@/services/bulkOperations/types';
 import { OperationProgress, OperationResults } from './progressTracker';
 
 /**
@@ -35,8 +36,8 @@ export const executeTemplateAssignment = async (
       config: assignmentConfig
     };
 
-    // Configure operation settings
-    const operationConfig = {
+    // Configure batch processing settings
+    const processingConfig: BatchProcessingConfig = {
       operationType: 'template-assignment',
       batchSize: 10,
       concurrency: 3
@@ -45,7 +46,7 @@ export const executeTemplateAssignment = async (
     // Execute bulk assignment with progress tracking
     const result = await processBulkAssignments(
       bulkAssignment,
-      operationConfig,
+      processingConfig,
       (progressUpdate) => {
         setProgress({
           completed: progressUpdate.completed,
