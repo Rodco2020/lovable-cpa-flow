@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,12 +7,17 @@ import ClientForm from '@/components/clients/ClientForm';
 import ClientDetail from '@/components/clients/ClientDetail';
 import ClientAssignedTasksOverview from '@/components/clients/ClientAssignedTasksOverview';
 import { Button } from '@/components/ui/button';
-import { Building, Users, DollarSign, FileText, PlusCircle, CalendarClock } from 'lucide-react';
+import { Building, Users, DollarSign, FileText, PlusCircle, CalendarClock, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useClientDashboardStats } from '@/hooks/useClientDashboardStats';
+
 const ClientModule: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  
+  // Fetch real-time dashboard statistics
+  const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useClientDashboardStats();
 
   // Effect to detect navigation back to the client list
   useEffect(() => {
@@ -20,11 +26,43 @@ const ClientModule: React.FC = () => {
       queryClient.invalidateQueries({
         queryKey: ['clients']
       });
+      // Also invalidate dashboard stats to get fresh data
+      queryClient.invalidateQueries({
+        queryKey: ['clientDashboardStats']
+      });
     }
   }, [location, queryClient]);
-  return <div className="container mx-auto py-6 space-y-6">
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Helper function to display stat value with loading state
+  const displayStatValue = (value: number | undefined, isLoading: boolean) => {
+    if (isLoading) {
+      return <Loader2 className="h-5 w-5 animate-spin" />;
+    }
+    return value?.toLocaleString() || '0';
+  };
+
+  // Helper function to display revenue with loading state
+  const displayRevenueValue = (value: number | undefined, isLoading: boolean) => {
+    if (isLoading) {
+      return <Loader2 className="h-5 w-5 animate-spin" />;
+    }
+    return formatCurrency(value || 0);
+  };
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
       <Routes>
-        <Route path="/" element={<>
+        <Route path="/" element={
+          <>
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="font-bold text-6xl">Client Module</h1>
@@ -43,7 +81,9 @@ const ClientModule: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Total Clients</div>
-                  <div className="text-2xl font-semibold">24</div>
+                  <div className="text-2xl font-semibold">
+                    {displayStatValue(dashboardStats?.totalClients, statsLoading)}
+                  </div>
                 </div>
               </div>
               
@@ -53,7 +93,9 @@ const ClientModule: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Active Clients</div>
-                  <div className="text-2xl font-semibold">18</div>
+                  <div className="text-2xl font-semibold">
+                    {displayStatValue(dashboardStats?.activeClients, statsLoading)}
+                  </div>
                 </div>
               </div>
               
@@ -63,7 +105,9 @@ const ClientModule: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Monthly Revenue</div>
-                  <div className="text-2xl font-semibold">$42,500</div>
+                  <div className="text-2xl font-semibold">
+                    {displayRevenueValue(dashboardStats?.totalMonthlyRevenue, statsLoading)}
+                  </div>
                 </div>
               </div>
               
@@ -73,10 +117,20 @@ const ClientModule: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Active Engagements</div>
-                  <div className="text-2xl font-semibold">36</div>
+                  <div className="text-2xl font-semibold">
+                    {displayStatValue(dashboardStats?.activeEngagements, statsLoading)}
+                  </div>
                 </div>
               </div>
             </div>
+            
+            {statsError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-600 text-sm">
+                  Error loading dashboard statistics. Please refresh the page to try again.
+                </p>
+              </div>
+            )}
             
             <Tabs defaultValue="clients" className="space-y-4">
               <TabsList>
@@ -95,11 +149,14 @@ const ClientModule: React.FC = () => {
                 <ClientAssignedTasksOverview />
               </TabsContent>
             </Tabs>
-          </>} />
+          </>
+        } />
         <Route path="/new" element={<ClientForm />} />
         <Route path="/:id" element={<ClientDetail />} />
         <Route path="/:id/edit" element={<ClientForm />} />
       </Routes>
-    </div>;
+    </div>
+  );
 };
+
 export default ClientModule;
