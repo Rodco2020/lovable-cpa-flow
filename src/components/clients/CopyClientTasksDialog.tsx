@@ -4,6 +4,9 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useCopyTasksDialog } from './CopyTasks/hooks/useCopyTasksDialog';
 import { useCopyDialogState } from './CopyTasks/hooks/useCopyDialogState';
 import { CopyDialogStepRenderer } from './CopyTasks/CopyDialogStepRenderer';
+import { ErrorBoundary } from './CopyTasks/ErrorBoundary';
+import { AnalyticsProvider } from './CopyTasks/AnalyticsProvider';
+import { MonitoringWrapper } from './CopyTasks/MonitoringWrapper';
 
 interface CopyClientTasksDialogProps {
   /** The client ID to use as the default source (backward compatibility) */
@@ -26,6 +29,7 @@ interface CopyClientTasksDialogProps {
  * - Enhanced validation and error handling
  * - Proper type safety throughout the workflow
  * - Integration with the service layer
+ * - Production monitoring and performance optimization
  */
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({ 
   clientId, // Legacy prop - maintained for backward compatibility
@@ -103,29 +107,35 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
-        <CopyDialogStepRenderer
-          step={step}
-          sourceClientId={sourceClientId}
-          targetClientId={targetClientId}
-          selectedTaskIds={selectedTaskIds}
-          availableSourceClients={availableSourceClients}
-          availableTargetClients={availableTargetClients}
-          isClientsLoading={isClientsLoading}
-          copyProgress={copyProgress}
-          displaySourceClientName={displaySourceClientName}
-          targetClientName={targetClientName}
-          selectedAdHocTasksCount={selectedAdHocTasksCount}
-          selectedRecurringTasksCount={selectedRecurringTasksCount}
-          adHocTasksCount={adHocTasksCount}
-          recurringTasksCount={recurringTasksCount}
-          isProcessing={isProcessing}
-          handleSelectSourceClient={handleSelectSourceClient}
-          handleSelectTargetClient={handleSelectTargetClient}
-          handleBack={handleBack}
-          handleNext={handleNext}
-          handleCopy={handleCopy}
-          setSelectedTaskIds={setSelectedTaskIds}
-        />
+        <AnalyticsProvider>
+          <MonitoringWrapper componentName="CopyClientTasksDialog" operationId={sourceClientId || ''}>
+            <ErrorBoundary onError={(error) => console.error('Copy Tasks Dialog Error:', error)}>
+              <CopyDialogStepRenderer
+                step={step}
+                sourceClientId={sourceClientId}
+                targetClientId={targetClientId}
+                selectedTaskIds={selectedTaskIds}
+                availableSourceClients={availableSourceClients}
+                availableTargetClients={availableTargetClients}
+                isClientsLoading={isClientsLoading}
+                copyProgress={copyProgress}
+                displaySourceClientName={displaySourceClientName}
+                targetClientName={targetClientName}
+                selectedAdHocTasksCount={selectedAdHocTasksCount}
+                selectedRecurringTasksCount={selectedRecurringTasksCount}
+                adHocTasksCount={adHocTasksCount}
+                recurringTasksCount={recurringTasksCount}
+                isProcessing={isProcessing}
+                handleSelectSourceClient={handleSelectSourceClient}
+                handleSelectTargetClient={handleSelectTargetClient}
+                handleBack={handleBack}
+                handleNext={handleNext}
+                handleCopy={handleCopy}
+                setSelectedTaskIds={setSelectedTaskIds}
+              />
+            </ErrorBoundary>
+          </MonitoringWrapper>
+        </AnalyticsProvider>
       </DialogContent>
     </Dialog>
   );
