@@ -42,6 +42,15 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
 
   const [currentStep, setCurrentStep] = React.useState<'selection' | 'configuration' | 'confirmation' | 'processing' | 'complete'>('selection');
 
+  // Define the steps for the template assignment workflow
+  const templateSteps = [
+    { key: 'selection', label: 'Selection' },
+    { key: 'configuration', label: 'Configuration' },
+    { key: 'confirmation', label: 'Confirmation' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'complete', label: 'Complete' }
+  ];
+
   const handleNext = () => {
     const validationErrors = validateSelection();
     if (validationErrors.length > 0) {
@@ -101,7 +110,10 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          <StepIndicator currentStep={currentStep} />
+          <StepIndicator 
+            currentStep={currentStep} 
+            steps={templateSteps}
+          />
 
           {currentStep === 'selection' && (
             <SelectionStep
