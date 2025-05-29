@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy } from 'lucide-react';
-import { StepIndicator } from './components/StepIndicator';
+import { EnhancedStepIndicator } from './components/EnhancedStepIndicator';
 import { CopyStepRenderer } from './components/CopyStepRenderer';
 import { useCopyTabController } from './hooks/useCopyTabController';
 
@@ -27,7 +27,8 @@ interface CopyTasksTabProps {
  * - Client filtering (excludes source client, only active clients)
  * - Task refresh triggering after successful operations
  * - Error handling and validation
- * - Step-by-step wizard interface
+ * - Step-by-step wizard interface with visual progress indicators
+ * - Dynamic source client context display
  */
 export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({ 
   initialClientId = '',
@@ -70,12 +71,22 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
           <Copy className="h-5 w-5" />
           <span>Copy Tasks Between Clients</span>
         </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Copy tasks from one client to another with a guided step-by-step process.
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          <StepIndicator 
+          <EnhancedStepIndicator 
             currentStep={currentStep}
-            steps={copySteps}
+            steps={copySteps.map(step => ({
+              key: step.key,
+              label: step.label,
+              icon: Copy, // Will be overridden in the component
+              description: ''
+            }))}
+            sourceClientName={getSourceClientName()}
+            targetClientName={getTargetClientName()}
           />
 
           <CopyStepRenderer

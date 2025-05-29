@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Copy, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Client } from '@/types/client';
 import { ProcessingStep } from './ProcessingStep';
 import { CompleteStep } from './CompleteStep';
-import { SelectClientStep } from '../../CopyTasks/SelectClientStep';
-import { SelectTasksStep } from '../../CopyTasks/SelectTasksStep';
+import { SelectSourceClientStep } from '../../CopyTasks/SelectSourceClientStep';
+import { SelectTargetClientStep } from '../../CopyTasks/SelectTargetClientStep';
+import { EnhancedSelectTasksStep } from '../../CopyTasks/EnhancedSelectTasksStep';
 import { EnhancedConfirmationStep } from './EnhancedConfirmationStep';
 
 interface CopyStepRendererProps {
@@ -57,21 +57,13 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
       case 'selection':
         return (
           <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold">Select Target Client</h3>
-              <p className="text-sm text-muted-foreground">
-                Choose which client to copy tasks to from <strong>{getSourceClientName()}</strong>
-              </p>
-            </div>
-
-            <SelectClientStep
+            <SelectTargetClientStep
               sourceClientId={initialClientId}
-              targetClientId={targetClientId || ''}
+              targetClientId={targetClientId}
               onSelectClient={onSelectClient}
               availableClients={availableClients}
-              setSelectedClientId={onSelectClient}
               isLoading={isClientsLoading}
-              stepType="target"
+              sourceClientName={getSourceClientName()}
             />
 
             <div className="flex justify-between">
@@ -93,46 +85,47 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
       case 'task-selection':
         return (
           <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold">Select Tasks to Copy</h3>
-              <p className="text-sm text-muted-foreground">
-                Choose which tasks to copy from <strong>{getSourceClientName()}</strong> to <strong>{getTargetClientName()}</strong>
-              </p>
-            </div>
-
-            <SelectTasksStep
-              clientId={initialClientId}
+            <EnhancedSelectTasksStep
+              sourceClientId={initialClientId}
               targetClientId={targetClientId}
               selectedTaskIds={selectedTaskIds}
               setSelectedTaskIds={setSelectedTaskIds}
-              step="select-tasks"
-              handleBack={onBack}
-              handleNext={onNext}
             />
+
+            <div className="flex justify-between">
+              <Button 
+                variant="outline" 
+                onClick={onBack}
+                disabled={isProcessing}
+                className="flex items-center space-x-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Back</span>
+              </Button>
+              <Button 
+                onClick={onNext} 
+                disabled={!canGoNext || isProcessing}
+                className="flex items-center space-x-2"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         );
 
       case 'confirmation':
         return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold">Confirm Copy Operation</h3>
-              <p className="text-sm text-muted-foreground">
-                Review the details before copying tasks
-              </p>
-            </div>
-
-            <EnhancedConfirmationStep
-              sourceClientId={initialClientId}
-              targetClientId={targetClientId || ''}
-              sourceClientName={getSourceClientName()}
-              targetClientName={getTargetClientName()}
-              selectedTaskIds={selectedTaskIds}
-              onExecute={onExecuteCopy}
-              onBack={onBack}
-              isProcessing={isProcessing}
-            />
-          </div>
+          <EnhancedConfirmationStep
+            sourceClientId={initialClientId}
+            targetClientId={targetClientId || ''}
+            sourceClientName={getSourceClientName()}
+            targetClientName={getTargetClientName()}
+            selectedTaskIds={selectedTaskIds}
+            onExecute={onExecuteCopy}
+            onBack={onBack}
+            isProcessing={isProcessing}
+          />
         );
 
       case 'processing':
@@ -141,6 +134,9 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
             progress={75}
             isProcessing={isProcessing}
             currentOperation="Copying tasks between clients..."
+            sourceClientName={getSourceClientName()}
+            targetClientName={getTargetClientName()}
+            totalTasks={selectedTaskIds.length}
           />
         );
 
@@ -155,6 +151,8 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
             onReset={onReset}
             onClose={onClose}
             error={null}
+            sourceClientName={getSourceClientName()}
+            targetClientName={getTargetClientName()}
           />
         );
 
