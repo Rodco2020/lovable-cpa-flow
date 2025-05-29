@@ -1,9 +1,9 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings } from 'lucide-react';
 import { useTemplateAssignment } from './hooks/useTemplateAssignment';
+import { useOperationProgress } from './hooks/useOperationProgress';
 import { StepIndicator } from './components/StepIndicator';
 import { SelectionStep } from './components/SelectionStep';
 import { ConfigurationStep } from './components/ConfigurationStep';
@@ -31,14 +31,18 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
     isClientsLoading,
     assignmentConfig,
     setAssignmentConfig,
-    isProcessing,
-    progress,
-    operationResults,
-    error,
     executeAssignment,
     resetOperation,
     validateSelection
   } = useTemplateAssignment();
+
+  const { 
+    progressState, 
+    startOperation, 
+    updateProgress, 
+    completeOperation, 
+    resetProgress 
+  } = useOperationProgress();
 
   const [currentStep, setCurrentStep] = React.useState<'selection' | 'configuration' | 'confirmation' | 'processing' | 'complete'>('selection');
 
@@ -51,7 +55,7 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
     { key: 'complete', label: 'Complete' }
   ];
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     const validationErrors = validateSelection();
     if (validationErrors.length > 0) {
       return;
@@ -68,37 +72,82 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
         handleExecuteAssignment();
         break;
     }
-  };
+  }, [currentStep, validateSelection]);
 
-  const handleExecuteAssignment = async () => {
-    setCurrentStep('processing');
-    const success = await executeAssignment();
-    if (success) {
-      setCurrentStep('complete');
-      // Trigger refresh of the tasks overview when assignment completes successfully
-      if (onTasksRefresh) {
-        onTasksRefresh();
+  const handleExecuteAssignment = useCallback(async () => {
+    try {
+      setCurrentStep('processing');
+      startOperation('Assigning templates to clients');
+      
+      // Simulate progress updates during the assignment process
+      updateProgress(25, 'Validating template assignments');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      
+      updateProgress(50, 'Creating task instances');
+      const success = await executeAssignment();
+      
+      updateProgress(75, 'Finalizing assignments');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      
+      if (success) {
+        const tasksCreated = selectedTemplateIds.length * selectedClientIds.length;
+        completeOperation({
+          success: true,
+          tasksCreated,
+          errors: []
+        });
+        
+        setCurrentStep('complete');
+        
+        // Trigger refresh of the tasks overview when assignment completes successfully
+        if (onTasksRefresh) {
+          console.log('Template assignment completed successfully, triggering refresh');
+          onTasksRefresh();
+        }
+      } else {
+        completeOperation({
+          success: false,
+          tasksCreated: 0,
+          errors: ['Assignment operation failed']
+        });
+        // Stay on processing step to show error
       }
+    } catch (error) {
+      console.error('Assignment execution failed:', error);
+      completeOperation({
+        success: false,
+        tasksCreated: 0,
+        errors: [error instanceof Error ? error.message : 'Unknown error occurred']
+      });
     }
-  };
+  }, [
+    selectedTemplateIds.length, 
+    selectedClientIds.length, 
+    startOperation, 
+    updateProgress, 
+    executeAssignment, 
+    completeOperation, 
+    onTasksRefresh
+  ]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     resetOperation();
+    resetProgress();
     setCurrentStep('selection');
-  };
+  }, [resetOperation, resetProgress]);
 
-  const canGoNext = () => {
+  const canGoNext = useCallback(() => {
     switch (currentStep) {
       case 'selection':
         return selectedTemplateIds.length > 0 && selectedClientIds.length > 0;
       case 'configuration':
         return true;
       case 'confirmation':
-        return !isProcessing;
+        return !progressState.isProcessing;
       default:
         return false;
     }
-  };
+  }, [currentStep, selectedTemplateIds.length, selectedClientIds.length, progressState.isProcessing]);
 
   return (
     <Card>
@@ -148,27 +197,28 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
               availableClients={availableClients}
               onExecute={handleExecuteAssignment}
               onBack={() => setCurrentStep('configuration')}
-              isProcessing={isProcessing}
+              isProcessing={progressState.isProcessing}
             />
           )}
 
           {currentStep === 'processing' && (
             <ProcessingStep
-              progress={progress}
-              isProcessing={isProcessing}
+              progress={progressState.progress}
+              isProcessing={progressState.isProcessing}
+              currentOperation={progressState.currentOperation}
             />
           )}
 
           {currentStep === 'complete' && (
             <CompleteStep
               operationResults={{
-                success: operationResults.success,
-                tasksCreated: operationResults.tasksCreated || operationResults.successfulOperations || 0,
-                errors: operationResults.errors || []
+                success: progressState.operationResults?.success || false,
+                tasksCreated: progressState.operationResults?.tasksCreated || 0,
+                errors: progressState.operationResults?.errors || []
               }}
               onReset={handleReset}
               onClose={onClose}
-              error={error ? new Error(error) : null}
+              error={progressState.operationResults?.success === false ? new Error('Operation failed') : null}
             />
           )}
         </div>

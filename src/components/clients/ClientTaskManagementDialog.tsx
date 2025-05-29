@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { TemplateAssignmentTab } from './TaskOperationsTab/TemplateAssignmentTab';
 import { CopyTasksTab } from './TaskOperationsTab/CopyTasksTab';
+import { useDialogState } from './TaskOperationsTab/hooks/useDialogState';
+import { useOperationProgress } from './TaskOperationsTab/hooks/useOperationProgress';
 
 interface ClientTaskManagementDialogProps {
   open: boolean;
@@ -28,7 +30,7 @@ interface ClientTaskManagementDialogProps {
 
 /**
  * Main dialog for managing client tasks across the practice
- * Phase 2: Integrated template assignment and copy tasks functionality
+ * Phase 2: Unified state management and progress tracking
  */
 const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
   open,
@@ -36,45 +38,103 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
   onTasksRefresh,
   initialClientId
 }) => {
-  const [activeTab, setActiveTab] = useState('templates');
+  const { state: dialogState, setActiveTab, resetDialogState } = useDialogState();
+  const { progressState, resetProgress } = useOperationProgress();
 
-  const handleClose = () => {
+  // Handle dialog close with proper cleanup
+  const handleClose = useCallback(() => {
+    // Reset all state when dialog closes
+    resetDialogState();
+    resetProgress();
     onOpenChange(false);
-  };
+  }, [resetDialogState, resetProgress, onOpenChange]);
 
-  const handleTaskOperationSuccess = () => {
+  // Handle dialog open/close state changes
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      handleClose();
+    } else {
+      onOpenChange(open);
+    }
+  }, [handleClose, onOpenChange]);
+
+  // Handle tab changes with state cleanup
+  const handleTabChange = useCallback((value: string) => {
+    // Reset progress when switching tabs (unless currently processing)
+    if (!progressState.isProcessing) {
+      resetProgress();
+    }
+    setActiveTab(value as any);
+  }, [setActiveTab, resetProgress, progressState.isProcessing]);
+
+  // Handle successful task operations
+  const handleTaskOperationSuccess = useCallback(() => {
     // Call the refresh callback when tasks are successfully created or copied
     if (onTasksRefresh) {
+      console.log('Task operation completed successfully, triggering refresh');
       onTasksRefresh();
     }
-  };
+  }, [onTasksRefresh]);
+
+  // Reset state when dialog is closed
+  useEffect(() => {
+    if (!open) {
+      resetDialogState();
+      resetProgress();
+    }
+  }, [open, resetDialogState, resetProgress]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
             Manage Tasks
+            {progressState.isProcessing && (
+              <Badge variant="secondary" className="ml-2">
+                Processing...
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <Tabs 
+            value={dialogState.activeTab} 
+            onValueChange={handleTabChange} 
+            className="h-full flex flex-col"
+          >
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="templates" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="templates" 
+                className="flex items-center gap-2"
+                disabled={progressState.isProcessing}
+              >
                 <FileCheck className="h-4 w-4" />
                 From Templates
               </TabsTrigger>
-              <TabsTrigger value="copy" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="copy" 
+                className="flex items-center gap-2"
+                disabled={progressState.isProcessing}
+              >
                 <Copy className="h-4 w-4" />
                 Copy Tasks
               </TabsTrigger>
-              <TabsTrigger value="reports" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="reports" 
+                className="flex items-center gap-2"
+                disabled={progressState.isProcessing}
+              >
                 <BarChart3 className="h-4 w-4" />
                 Reports
               </TabsTrigger>
-              <TabsTrigger value="bulk" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="bulk" 
+                className="flex items-center gap-2"
+                disabled={progressState.isProcessing}
+              >
                 <Users className="h-4 w-4" />
                 Bulk Operations
               </TabsTrigger>

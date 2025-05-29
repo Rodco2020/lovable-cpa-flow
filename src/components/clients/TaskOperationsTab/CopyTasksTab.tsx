@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy } from 'lucide-react';
 import { useCopyTasksDialog } from '../CopyTasks/hooks/useCopyTasksDialog';
+import { useOperationProgress } from './hooks/useOperationProgress';
 import { useQuery } from '@tanstack/react-query';
 import { getAllClients } from '@/services/clientService';
 import { Client } from '@/types/client';
@@ -49,10 +50,16 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
     handleBack,
     handleNext,
     handleCopy,
-    isProcessing,
-    isSuccess,
     resetDialog
   } = useCopyTasksDialog(initialClientId, () => onClose?.());
+
+  const { 
+    progressState, 
+    startOperation, 
+    updateProgress, 
+    completeOperation, 
+    resetProgress 
+  } = useOperationProgress();
 
   // Sync dialog step with our local step state
   React.useEffect(() => {
@@ -77,48 +84,76 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
     }
   }, [dialogStep]);
 
-  const handleExecuteCopy = async () => {
+  const handleExecuteCopy = useCallback(async () => {
     try {
+      setCurrentStep('processing');
+      startOperation('Copying tasks between clients');
+      
+      // Simulate progress updates during the copy process
+      updateProgress(25, 'Preparing task data for copy');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      
+      updateProgress(50, 'Copying tasks to target client');
       await handleCopy();
+      
+      updateProgress(75, 'Finalizing task assignments');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      
+      const tasksCreated = selectedTaskIds.length;
+      completeOperation({
+        success: true,
+        tasksCreated,
+        errors: []
+      });
+      
+      setCurrentStep('complete');
+      
       // Trigger refresh of the tasks overview when copy completes successfully
       if (onTasksRefresh) {
+        console.log('Copy operation completed successfully, triggering refresh');
         onTasksRefresh();
       }
     } catch (error) {
       console.error('Copy operation failed:', error);
+      completeOperation({
+        success: false,
+        tasksCreated: 0,
+        errors: [error instanceof Error ? error.message : 'Copy operation failed']
+      });
       // Error handling is managed by the dialog hook
     }
-  };
+  }, [selectedTaskIds.length, startOperation, updateProgress, handleCopy, completeOperation, onTasksRefresh]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     resetDialog();
+    resetProgress();
     setCurrentStep('selection');
-  };
+  }, [resetDialog, resetProgress]);
 
-  const canGoNext = () => {
+  const canGoNext = useCallback(() => {
     switch (currentStep) {
       case 'selection':
         return !!targetClientId;
       case 'task-selection':
         return selectedTaskIds.length > 0;
       case 'confirmation':
-        return !isProcessing;
+        return !progressState.isProcessing;
       default:
         return false;
     }
-  };
+  }, [currentStep, targetClientId, selectedTaskIds.length, progressState.isProcessing]);
 
-  const getSourceClientName = () => {
+  const getSourceClientName = useCallback(() => {
     if (!initialClientId) return '';
     const sourceClient = clients.find((c: Client) => c.id === initialClientId);
     return sourceClient?.legalName || '';
-  };
+  }, [initialClientId, clients]);
 
-  const getTargetClientName = () => {
+  const getTargetClientName = useCallback(() => {
     if (!targetClientId) return '';
     const targetClient = clients.find((c: Client) => c.id === targetClientId);
     return targetClient?.legalName || '';
-  };
+  }, [targetClientId, clients]);
 
   return (
     <Card>
@@ -143,8 +178,8 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
             setSelectedTaskIds={setSelectedTaskIds}
             availableClients={availableClients}
             isClientsLoading={isClientsLoading}
-            isProcessing={isProcessing}
-            isSuccess={isSuccess}
+            isProcessing={progressState.isProcessing}
+            isSuccess={progressState.operationResults?.success || false}
             canGoNext={canGoNext()}
             getSourceClientName={getSourceClientName}
             getTargetClientName={getTargetClientName}
