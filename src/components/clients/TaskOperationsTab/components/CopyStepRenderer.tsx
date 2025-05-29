@@ -146,11 +146,14 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
       case 'complete':
         return (
           <CompleteStep
-            isSuccess={isSuccess}
-            tasksCreated={selectedTaskIds.length}
-            errors={[]}
+            operationResults={{
+              success: isSuccess,
+              tasksCreated: selectedTaskIds.length,
+              errors: []
+            }}
             onReset={onReset}
             onClose={onClose}
+            error={null}
           />
         );
 
