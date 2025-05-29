@@ -30,8 +30,9 @@ export const useCopyTasksDialog = (
   defaultSourceClientId?: string, 
   onClose?: () => void
 ): UseCopyTasksDialogReturn => {
+  // Always start with select-source-client step for the 6-step workflow
   const [step, setStep] = useState<CopyTaskStep>('select-source-client');
-  const [sourceClientId, setSourceClientId] = useState<string | null>(defaultSourceClientId || null);
+  const [sourceClientId, setSourceClientId] = useState<string | null>(null);
   const [targetClientId, setTargetClientId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -94,14 +95,12 @@ export const useCopyTasksDialog = (
     
     if (errors.length === 0) {
       setSourceClientId(clientId);
-      // Auto-advance if we have a default source
-      if (step === 'select-source-client' && defaultSourceClientId) {
-        setStep('select-target-client');
-      }
+      console.log('Source client selected:', clientId);
+      // No auto-advance - user must manually proceed to next step
     }
     
     logPerformance('source-client-selection', endTiming('source-client-selection'));
-  }, [step, defaultSourceClientId, validateSourceClient, startTiming, endTiming, logPerformance]);
+  }, [validateSourceClient, startTiming, endTiming, logPerformance]);
 
   const handleSelectTargetClient = useCallback((clientId: string) => {
     startTiming('target-client-selection');
@@ -116,14 +115,12 @@ export const useCopyTasksDialog = (
     
     if (errors.length === 0) {
       setTargetClientId(clientId);
-      // Auto-advance to task selection
-      if (step === 'select-target-client') {
-        setStep('select-tasks');
-      }
+      console.log('Target client selected:', clientId);
+      // No auto-advance - user must manually proceed to next step
     }
     
     logPerformance('target-client-selection', endTiming('target-client-selection'));
-  }, [sourceClientId, step, validateTargetClient, startTiming, endTiming, logPerformance]);
+  }, [sourceClientId, validateTargetClient, startTiming, endTiming, logPerformance]);
 
   const handleBack = useCallback(() => {
     startTiming('navigation-back');
@@ -139,7 +136,7 @@ export const useCopyTasksDialog = (
       // Clear state based on which step we're going back to
       switch (previousStep) {
         case 'select-source-client':
-          setSourceClientId(defaultSourceClientId || null);
+          setSourceClientId(null);
           setTargetClientId(null);
           setSelectedTaskIds([]);
           break;
@@ -154,7 +151,7 @@ export const useCopyTasksDialog = (
     }
     
     logPerformance('navigation-back', endTiming('navigation-back'));
-  }, [step, defaultSourceClientId, stepOrder, startTiming, endTiming, logPerformance]);
+  }, [step, stepOrder, startTiming, endTiming, logPerformance]);
 
   const handleNext = useCallback(() => {
     startTiming('navigation-next');
@@ -181,6 +178,7 @@ export const useCopyTasksDialog = (
       if (currentIndex < stepOrder.length - 1) {
         const nextStep = stepOrder[currentIndex + 1];
         setStep(nextStep);
+        console.log('Advanced to step:', nextStep);
       }
     }
     
@@ -256,7 +254,7 @@ export const useCopyTasksDialog = (
     startTiming('dialog-reset');
     
     setStep('select-source-client');
-    setSourceClientId(defaultSourceClientId || null);
+    setSourceClientId(null);
     setTargetClientId(null);
     setSelectedTaskIds([]);
     setIsProcessing(false);
@@ -264,7 +262,7 @@ export const useCopyTasksDialog = (
     setValidationErrors([]);
     
     logPerformance('dialog-reset', endTiming('dialog-reset'));
-  }, [defaultSourceClientId, startTiming, endTiming, logPerformance]);
+  }, [startTiming, endTiming, logPerformance]);
 
   // Enhanced validation for next step progression
   const canGoNext = React.useMemo(() => {

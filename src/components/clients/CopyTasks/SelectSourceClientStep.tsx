@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Search, Users, ArrowRight } from 'lucide-react';
+import { Search, Users, ArrowRight, CheckCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SelectSourceClientStepProps } from './types';
 
@@ -49,13 +49,15 @@ export const SelectSourceClientStep: React.FC<SelectSourceClientStepProps> = ({
     );
   }
 
+  const selectedClient = filteredClients.find(c => c.id === sourceClientId);
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Users className="h-5 w-5" />
-            <span>Select Source Client</span>
+            <span>Step 1: Select Source Client</span>
             <Badge variant="secondary" className="ml-2">
               FROM
             </Badge>
@@ -97,7 +99,12 @@ export const SelectSourceClientStep: React.FC<SelectSourceClientStepProps> = ({
                       }`}>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium">{client.legalName}</h4>
+                            <h4 className="font-medium flex items-center space-x-2">
+                              <span>{client.legalName}</span>
+                              {sourceClientId === client.id && (
+                                <CheckCircle className="h-4 w-4 text-primary" />
+                              )}
+                            </h4>
                             <Badge variant="outline" className="text-xs">
                               {client.status}
                             </Badge>
@@ -125,21 +132,30 @@ export const SelectSourceClientStep: React.FC<SelectSourceClientStepProps> = ({
           )}
 
           {/* Selection Summary */}
-          {sourceClientId && (
-            <div className="mt-4 p-4 bg-muted rounded-lg">
+          {selectedClient && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center space-x-2">
-                <ArrowRight className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">
-                  Selected Source Client: {
-                    filteredClients.find(c => c.id === sourceClientId)?.legalName
-                  }
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  Selected Source Client: {selectedClient.legalName}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-green-600 mt-1">
                 Tasks will be copied FROM this client to your target client.
               </p>
             </div>
           )}
+
+          {/* Step Instructions */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-800 mb-2">Next Steps:</h4>
+            <ol className="text-xs text-blue-600 space-y-1">
+              <li>1. Select your source client above</li>
+              <li>2. Choose the target client to copy tasks to</li>
+              <li>3. Select which tasks to copy</li>
+              <li>4. Review and confirm the operation</li>
+            </ol>
+          </div>
         </CardContent>
       </Card>
     </div>

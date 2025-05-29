@@ -22,14 +22,16 @@ interface CopyClientTasksDialogProps {
 }
 
 /**
- * Enhanced Copy Client Tasks Dialog
+ * Enhanced Copy Client Tasks Dialog - Now with 6-step workflow
  * 
- * Provides a workflow for copying tasks between clients with:
- * - Backward compatibility with existing usage patterns
- * - Enhanced validation and error handling
- * - Proper type safety throughout the workflow
- * - Integration with the service layer
- * - Production monitoring and performance optimization
+ * The dialog always starts with source client selection to provide a complete
+ * and consistent user experience. The workflow includes:
+ * 1. Select Source Client
+ * 2. Select Target Client  
+ * 3. Select Tasks
+ * 4. Confirm Operation
+ * 5. Processing
+ * 6. Success
  */
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({ 
   clientId, // Legacy prop - maintained for backward compatibility
@@ -38,17 +40,9 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
   sourceClientName = '',
   defaultSourceClientId
 }) => {
-  // Determine the actual default source client ID with validation
-  const actualDefaultSourceClientId = React.useMemo(() => {
-    const sourceId = defaultSourceClientId || clientId;
-    
-    // Validate that we have a valid source client ID
-    if (!sourceId || typeof sourceId !== 'string' || sourceId.trim() === '') {
-      console.warn('CopyClientTasksDialog: No valid source client ID provided');
-      return '';
-    }
-    
-    return sourceId;
+  // Store the default source for pre-selection but don't auto-advance
+  const preferredSourceClientId = React.useMemo(() => {
+    return defaultSourceClientId || clientId || '';
   }, [defaultSourceClientId, clientId]);
 
   const {
@@ -65,8 +59,9 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     isProcessing,
     isSuccess,
     resetDialog,
-    canGoNext
-  } = useCopyTasksDialog(actualDefaultSourceClientId, () => onOpenChange(false));
+    canGoNext,
+    validationErrors
+  } = useCopyTasksDialog(undefined, () => onOpenChange(false)); // No auto-advance
 
   const {
     copyProgress,
@@ -97,12 +92,20 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     onOpenChange(open);
   }, [resetDialog, onOpenChange]);
 
-  // Validation check for required props
+  // Pre-select the preferred source client when dialog opens
   React.useEffect(() => {
-    if (open && !actualDefaultSourceClientId) {
-      console.error('CopyClientTasksDialog: Dialog opened without valid source client ID');
+    if (open && preferredSourceClientId && !sourceClientId && step === 'select-source-client') {
+      console.log('Pre-selecting source client:', preferredSourceClientId);
+      handleSelectSourceClient(preferredSourceClientId);
     }
-  }, [open, actualDefaultSourceClientId]);
+  }, [open, preferredSourceClientId, sourceClientId, step, handleSelectSourceClient]);
+
+  // Show validation errors
+  React.useEffect(() => {
+    if (validationErrors.length > 0) {
+      console.warn('Copy dialog validation errors:', validationErrors);
+    }
+  }, [validationErrors]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -110,6 +113,17 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         <AnalyticsProvider>
           <MonitoringWrapper componentName="CopyClientTasksDialog" operationId={sourceClientId || ''}>
             <ErrorBoundary onError={(error) => console.error('Copy Tasks Dialog Error:', error)}>
+              {/* Show validation errors */}
+              {validationErrors.length > 0 && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="text-sm text-red-600">
+                    {validationErrors.map((error, index) => (
+                      <div key={index}>{error}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <CopyDialogStepRenderer
                 step={step}
                 sourceClientId={sourceClientId}

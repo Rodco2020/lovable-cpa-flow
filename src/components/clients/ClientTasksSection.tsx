@@ -91,7 +91,7 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
         </TabsContent>
       </Tabs>
       
-      {/* Enhanced Copy Dialog with proper integration */}
+      {/* Enhanced Copy Dialog - Always start with source selection step */}
       <CopyClientTasksDialog 
         open={isCopyDialogOpen}
         onOpenChange={(open) => {
@@ -101,7 +101,6 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
             handleCopySuccess();
           }
         }}
-        defaultSourceClientId={clientId}
         sourceClientName={clientName}
       />
       
