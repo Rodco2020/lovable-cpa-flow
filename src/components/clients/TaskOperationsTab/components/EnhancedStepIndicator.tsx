@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { CheckCircle, Circle, Users, Target, Copy, FileCheck, Cog, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface StepConfig {
   key: string;
@@ -16,49 +17,57 @@ interface EnhancedStepIndicatorProps {
   targetClientName?: string;
 }
 
+/**
+ * Enhanced Step Indicator - Updated for 6-Step Workflow
+ * 
+ * This component has been enhanced to support the complete 6-step workflow:
+ * 1. Select Source Client - Choose the client to copy FROM
+ * 2. Select Target Client - Choose the client to copy TO  
+ * 3. Select Tasks - Choose which tasks to copy
+ * 4. Confirm Operation - Review and confirm the copy
+ * 5. Processing - Execute the copy operation
+ * 6. Complete - Show results and cleanup
+ * 
+ * Features:
+ * - Dynamic step icons based on step type
+ * - Progress percentage calculation
+ * - Client context display
+ * - Visual step completion indicators
+ * - Enhanced tooltips and descriptions
+ */
+
+const STEP_ICON_MAP = {
+  'select-source-client': Users,
+  'selection': Target,
+  'task-selection': Copy,
+  'confirmation': FileCheck,
+  'processing': Cog,
+  'complete': CheckCircle2
+} as const;
+
+const STEP_DESCRIPTIONS = {
+  'select-source-client': 'Choose source client',
+  'selection': 'Choose target client', 
+  'task-selection': 'Select tasks to copy',
+  'confirmation': 'Review and confirm',
+  'processing': 'Copying in progress',
+  'complete': 'Operation complete'
+} as const;
+
 const getStepIcon = (stepKey: string) => {
-  switch (stepKey) {
-    case 'select-source-client':
-      return Users;
-    case 'select-target-client':
-    case 'selection':
-      return Target;
-    case 'select-tasks':
-    case 'task-selection':
-      return Copy;
-    case 'confirm':
-    case 'confirmation':
-      return FileCheck;
-    case 'processing':
-      return Cog;
-    case 'success':
-    case 'complete':
-      return CheckCircle2;
-    default:
-      return Circle;
-  }
+  return STEP_ICON_MAP[stepKey as keyof typeof STEP_ICON_MAP] || Circle;
 };
 
 const getStepDescription = (stepKey: string, sourceClientName?: string, targetClientName?: string) => {
+  const baseDescription = STEP_DESCRIPTIONS[stepKey as keyof typeof STEP_DESCRIPTIONS] || '';
+  
   switch (stepKey) {
     case 'select-source-client':
-      return sourceClientName ? `Source: ${sourceClientName}` : 'Choose source client';
-    case 'select-target-client':
+      return sourceClientName ? `Source: ${sourceClientName}` : baseDescription;
     case 'selection':
-      return targetClientName ? `Target: ${targetClientName}` : 'Choose target client';
-    case 'select-tasks':
-    case 'task-selection':
-      return 'Select tasks to copy';
-    case 'confirm':
-    case 'confirmation':
-      return 'Review and confirm';
-    case 'processing':
-      return 'Copying tasks';
-    case 'success':
-    case 'complete':
-      return 'Copy completed';
+      return targetClientName ? `Target: ${targetClientName}` : baseDescription;
     default:
-      return '';
+      return baseDescription;
   }
 };
 
@@ -73,19 +82,20 @@ export const EnhancedStepIndicator: React.FC<EnhancedStepIndicatorProps> = ({
   };
 
   const currentIndex = getCurrentStepIndex();
+  const progressPercentage = Math.round(((currentIndex + 1) / steps.length) * 100);
 
   return (
     <div className="w-full">
-      {/* Progress Bar */}
+      {/* Enhanced Progress Bar */}
       <div className="mb-6">
         <div className="flex justify-between text-xs text-gray-500 mb-2">
           <span>Step {currentIndex + 1} of {steps.length}</span>
-          <span>{Math.round(((currentIndex + 1) / steps.length) * 100)}% Complete</span>
+          <span>{progressPercentage}% Complete</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
             className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300 ease-in-out"
-            style={{ width: `${((currentIndex + 1) / steps.length) * 100}%` }}
+            style={{ width: `${progressPercentage}%` }}
           />
         </div>
       </div>
@@ -142,25 +152,41 @@ export const EnhancedStepIndicator: React.FC<EnhancedStepIndicatorProps> = ({
         })}
       </div>
 
-      {/* Context Information */}
+      {/* Enhanced Context Information */}
       {(sourceClientName || targetClientName) && (
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
           <div className="flex items-center justify-center space-x-4 text-sm">
             {sourceClientName && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">From:</span>
-                <span className="font-medium text-orange-700">{sourceClientName}</span>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+                  FROM
+                </Badge>
+                <span className="font-medium text-orange-800">{sourceClientName}</span>
               </div>
             )}
             {sourceClientName && targetClientName && (
               <span className="text-gray-400">→</span>
             )}
             {targetClientName && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">To:</span>
-                <span className="font-medium text-blue-700">{targetClientName}</span>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                  TO
+                </Badge>
+                <span className="font-medium text-blue-800">{targetClientName}</span>
               </div>
             )}
+          </div>
+          
+          {/* Step Progress Indicator */}
+          <div className="mt-2 text-center">
+            <span className="text-xs text-gray-500">
+              {currentStep === 'select-source-client' && 'Select the client to copy tasks from'}
+              {currentStep === 'selection' && 'Select the client to copy tasks to'}
+              {currentStep === 'task-selection' && 'Choose which tasks to copy'}
+              {currentStep === 'confirmation' && 'Review your selections before copying'}
+              {currentStep === 'processing' && 'Copying tasks between clients...'}
+              {currentStep === 'complete' && 'Copy operation completed'}
+            </span>
           </div>
         </div>
       )}
