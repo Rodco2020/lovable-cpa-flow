@@ -16,11 +16,12 @@ interface CopyTasksTabProps {
  * Copy Tasks Tab Component
  * 
  * Provides a workflow for copying tasks between clients with the following steps:
- * 1. Selection - Choose target client
- * 2. Task Selection - Select which tasks to copy
- * 3. Confirmation - Review and confirm the operation
- * 4. Processing - Execute the copy operation with progress tracking
- * 5. Complete - Show results and cleanup
+ * 1. Source Selection - Choose source client
+ * 2. Target Selection - Choose target client
+ * 3. Task Selection - Select which tasks to copy
+ * 4. Confirmation - Review and confirm the operation
+ * 5. Processing - Execute the copy operation with progress tracking
+ * 6. Complete - Show results and cleanup
  * 
  * Features:
  * - Enhanced progress tracking with detailed status messages
@@ -41,6 +42,7 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
     currentStep,
     
     // State management
+    sourceClientId,
     targetClientId,
     selectedTaskIds,
     setSelectedTaskIds,
@@ -52,7 +54,8 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
     isSuccess,
     
     // Event handlers
-    onSelectClient,
+    onSelectSourceClient,
+    onSelectTargetClient,
     onBack,
     onNext,
     onExecuteCopy,
@@ -92,6 +95,7 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
           <CopyStepRenderer
             currentStep={currentStep}
             initialClientId={initialClientId}
+            sourceClientId={sourceClientId}
             targetClientId={targetClientId}
             selectedTaskIds={selectedTaskIds}
             setSelectedTaskIds={setSelectedTaskIds}
@@ -102,7 +106,8 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
             canGoNext={canGoNext()}
             getSourceClientName={getSourceClientName}
             getTargetClientName={getTargetClientName}
-            onSelectClient={onSelectClient}
+            onSelectSourceClient={onSelectSourceClient}
+            onSelectTargetClient={onSelectTargetClient}
             onBack={onBack}
             onNext={onNext}
             onExecuteCopy={onExecuteCopy}

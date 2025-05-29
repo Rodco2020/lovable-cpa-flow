@@ -64,7 +64,7 @@ export const useCopyTabState = (
     resetDialog,
     isProcessing,
     isSuccess
-  } = useCopyTasksDialog({ defaultSourceClientId: initialClientId }, onClose);
+  } = useCopyTasksDialog(initialClientId, onClose);
 
   // Sync dialog step with our local step state using the mapping
   useEffect(() => {
