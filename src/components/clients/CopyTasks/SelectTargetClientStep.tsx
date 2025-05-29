@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Search, Target, ArrowRight, AlertCircle } from 'lucide-react';
+import { Search, Target, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Client } from '@/types/client';
@@ -16,15 +16,23 @@ interface SelectTargetClientStepProps {
   availableClients: Client[];
   isLoading: boolean;
   sourceClientName?: string;
+  validationErrors?: string[];
 }
 
+/**
+ * Enhanced Target Client Selection Step
+ * 
+ * Provides validation, error handling, and improved UX for selecting
+ * the target client in the copy workflow.
+ */
 export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
   sourceClientId,
   targetClientId,
   onSelectClient,
   availableClients,
   isLoading,
-  sourceClientName
+  sourceClientName,
+  validationErrors = []
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -43,6 +51,9 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
     onSelectClient(clientId);
   };
 
+  const hasValidationErrors = validationErrors.length > 0;
+  const hasTargetSelected = targetClientId && targetClientId !== sourceClientId;
+
   if (isLoading) {
     return (
       <Card>
@@ -50,7 +61,7 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
           <CardTitle className="flex items-center space-x-2">
             <Target className="h-5 w-5" />
             <span>Select Target Client</span>
-            <Badge variant="default" className="ml-2">TO</Badge>
+            <Badge variant="default" className="ml-2 bg-blue-500 text-white">TO</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -70,6 +81,9 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
             <Target className="h-5 w-5" />
             <span>Select Target Client</span>
             <Badge variant="default" className="ml-2 bg-blue-500 text-white">TO</Badge>
+            {hasTargetSelected && (
+              <CheckCircle className="h-4 w-4 text-green-500 ml-2" />
+            )}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Choose the client who will receive the copied tasks from{' '}
@@ -77,6 +91,20 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Validation Errors */}
+          {hasValidationErrors && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc list-inside space-y-1">
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Context Alert */}
           <Alert className="bg-blue-50 border-blue-200">
             <ArrowRight className="h-4 w-4 text-blue-600" />
@@ -108,6 +136,8 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {filteredClients.map((client) => {
                   const isSameAsSource = client.id === sourceClientId;
+                  const isSelected = targetClientId === client.id;
+                  
                   return (
                     <div key={client.id} className="flex items-center space-x-2">
                       <RadioGroupItem 
@@ -117,12 +147,16 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
                       />
                       <Label
                         htmlFor={`target-${client.id}`}
-                        className={`flex-1 ${isSameAsSource ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                        className={`flex-1 ${
+                          isSameAsSource 
+                            ? 'cursor-not-allowed opacity-50' 
+                            : 'cursor-pointer'
+                        }`}
                       >
                         <Card className={`p-3 transition-all ${
                           isSameAsSource 
                             ? 'bg-gray-100 border-gray-200 opacity-50' 
-                            : targetClientId === client.id 
+                            : isSelected
                             ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200' 
                             : 'hover:bg-accent'
                         }`}>
@@ -133,6 +167,11 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
                                 {isSameAsSource && (
                                   <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
                                     Source Client
+                                  </Badge>
+                                )}
+                                {isSelected && !isSameAsSource && (
+                                  <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+                                    Selected
                                   </Badge>
                                 )}
                               </h4>
@@ -164,30 +203,20 @@ export const SelectTargetClientStep: React.FC<SelectTargetClientStepProps> = ({
           )}
 
           {/* Selection Summary */}
-          {targetClientId && targetClientId !== sourceClientId && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          {hasTargetSelected && (
+            <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center space-x-2">
-                <Target className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
                   Selected Target Client: {
                     filteredClients.find(c => c.id === targetClientId)?.legalName
                   }
                 </span>
               </div>
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-green-600 mt-1">
                 Tasks will be copied TO this client from your selected source client.
               </p>
             </div>
-          )}
-
-          {/* Same Client Warning */}
-          {targetClientId === sourceClientId && (
-            <Alert className="bg-orange-50 border-orange-200">
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-700">
-                You cannot copy tasks to the same client. Please select a different target client.
-              </AlertDescription>
-            </Alert>
           )}
         </CardContent>
       </Card>

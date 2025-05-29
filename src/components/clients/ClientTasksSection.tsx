@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Copy, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ interface ClientTasksSectionProps {
 
 /**
  * Component that handles displaying and managing client tasks
+ * Enhanced with proper copy workflow integration and validation
  */
 const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({ 
   clientId, 
@@ -23,6 +25,26 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
 }) => {
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+
+  // Validate required props
+  if (!clientId || !clientName) {
+    console.warn('ClientTasksSection: Missing required props (clientId or clientName)');
+    return null;
+  }
+
+  const handleCopyDialogClose = () => {
+    setIsCopyDialogOpen(false);
+  };
+
+  const handleCopySuccess = async () => {
+    // Refresh client data after successful copy operation
+    try {
+      await onRefreshClient();
+      console.log('Client data refreshed after copy operation');
+    } catch (error) {
+      console.error('Failed to refresh client data after copy:', error);
+    }
+  };
   
   return (
     <div className="mt-6">
@@ -69,11 +91,17 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
         </TabsContent>
       </Tabs>
       
-      {/* Existing Copy Dialog - unchanged functionality */}
+      {/* Enhanced Copy Dialog with proper integration */}
       <CopyClientTasksDialog 
         open={isCopyDialogOpen}
-        onOpenChange={setIsCopyDialogOpen}
-        clientId={clientId}
+        onOpenChange={(open) => {
+          setIsCopyDialogOpen(open);
+          if (!open) {
+            // Trigger refresh when dialog closes after successful operation
+            handleCopySuccess();
+          }
+        }}
+        defaultSourceClientId={clientId}
         sourceClientName={clientName}
       />
       

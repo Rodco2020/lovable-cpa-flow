@@ -6,22 +6,46 @@ import { useCopyDialogState } from './CopyTasks/hooks/useCopyDialogState';
 import { CopyDialogStepRenderer } from './CopyTasks/CopyDialogStepRenderer';
 
 interface CopyClientTasksDialogProps {
-  clientId?: string; // Made optional for backward compatibility
+  /** The client ID to use as the default source (backward compatibility) */
+  clientId?: string;
+  /** Controls the dialog open/close state */
   open: boolean;
+  /** Callback when dialog state changes */
   onOpenChange: (open: boolean) => void;
+  /** Display name of the source client (for UI purposes) */
   sourceClientName?: string;
-  defaultSourceClientId?: string; // New prop for setting default source
+  /** Preferred way to set default source client ID */
+  defaultSourceClientId?: string;
 }
 
+/**
+ * Enhanced Copy Client Tasks Dialog
+ * 
+ * Provides a workflow for copying tasks between clients with:
+ * - Backward compatibility with existing usage patterns
+ * - Enhanced validation and error handling
+ * - Proper type safety throughout the workflow
+ * - Integration with the service layer
+ */
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({ 
-  clientId, // Legacy prop - will be used as defaultSourceClientId if provided
+  clientId, // Legacy prop - maintained for backward compatibility
   open, 
   onOpenChange,
   sourceClientName = '',
   defaultSourceClientId
 }) => {
-  // Determine the actual default source client ID (backward compatibility)
-  const actualDefaultSourceClientId = defaultSourceClientId || clientId;
+  // Determine the actual default source client ID with validation
+  const actualDefaultSourceClientId = React.useMemo(() => {
+    const sourceId = defaultSourceClientId || clientId;
+    
+    // Validate that we have a valid source client ID
+    if (!sourceId || typeof sourceId !== 'string' || sourceId.trim() === '') {
+      console.warn('CopyClientTasksDialog: No valid source client ID provided');
+      return '';
+    }
+    
+    return sourceId;
+  }, [defaultSourceClientId, clientId]);
 
   const {
     step,
@@ -61,13 +85,20 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     step
   );
 
-  // Reset the dialog when it's closed
-  const handleOpenChange = (open: boolean) => {
+  // Enhanced dialog state management with validation
+  const handleOpenChange = React.useCallback((open: boolean) => {
     if (!open) {
       resetDialog();
     }
     onOpenChange(open);
-  };
+  }, [resetDialog, onOpenChange]);
+
+  // Validation check for required props
+  React.useEffect(() => {
+    if (open && !actualDefaultSourceClientId) {
+      console.error('CopyClientTasksDialog: Dialog opened without valid source client ID');
+    }
+  }, [open, actualDefaultSourceClientId]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
