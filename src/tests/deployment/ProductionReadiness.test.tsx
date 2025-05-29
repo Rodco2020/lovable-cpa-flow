@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TestWrapper } from '../quality/testUtils/TestWrapper';
 import CopyClientTasksDialog from '@/components/clients/CopyClientTasksDialog';
-import { ClientTasksSection } from '@/components/clients/ClientTasksSection';
+import ClientTasksSection from '@/components/clients/ClientTasksSection';
 import { vi } from 'vitest';
 
 // Mock services for production readiness testing

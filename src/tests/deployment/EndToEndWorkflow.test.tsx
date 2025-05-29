@@ -51,12 +51,19 @@ describe('End-to-End Workflow Tests', () => {
 
   test('Complete copy task workflow', async () => {
     // Setup monitoring
-    const performanceEntries: PerformanceEntry[] = [];
+    const performanceEntries: PerformanceMeasure[] = [];
     const originalMeasure = performance.measure;
-    performance.measure = vi.fn((name, startMark, endMark) => {
-      const entry = { name, startTime: 0, duration: 5, entryType: 'measure', toJSON: () => ({}) };
-      performanceEntries.push(entry as PerformanceEntry);
-      return entry as PerformanceEntry;
+    performance.measure = vi.fn((name: string, startMark?: string, endMark?: string): PerformanceMeasure => {
+      const entry: PerformanceMeasure = { 
+        name, 
+        startTime: 0, 
+        duration: 5, 
+        entryType: 'measure', 
+        detail: null,
+        toJSON: () => ({})
+      };
+      performanceEntries.push(entry);
+      return entry;
     });
 
     // Start monitoring
