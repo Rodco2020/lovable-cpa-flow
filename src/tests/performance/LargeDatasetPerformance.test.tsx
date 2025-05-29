@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TestWrapper } from '../quality/testUtils/TestWrapper';
 import { EnhancedTaskSelectionList } from '@/components/clients/CopyTasks/components/EnhancedTaskSelectionList';
+import { TaskCategory } from '@/types/task';
 import { vi } from 'vitest';
 
 describe('Large Dataset Performance Tests', () => {
@@ -27,12 +28,14 @@ describe('Large Dataset Performance Tests', () => {
     );
   };
 
+  const validCategories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
+
   it('should handle 1000+ tasks efficiently', () => {
     const largeTasks = Array.from({ length: 1500 }, (_, i) => ({
       id: `task-${i}`,
       name: `Task ${i}`,
       taskType: 'recurring' as const,
-      category: `Category ${i % 10}`,
+      category: validCategories[i % validCategories.length],
       priority: ['Low', 'Medium', 'High'][i % 3] as 'Low' | 'Medium' | 'High',
       estimatedHours: 2,
       requiredSkills: ['Skill A'],
@@ -76,7 +79,7 @@ describe('Large Dataset Performance Tests', () => {
       id: `task-${i}`,
       name: `Task ${i}`,
       taskType: 'recurring' as const,
-      category: 'Test',
+      category: 'Tax' as TaskCategory,
       priority: 'Medium' as const,
       estimatedHours: 2,
       requiredSkills: ['Skill A'],
