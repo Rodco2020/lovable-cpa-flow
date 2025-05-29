@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { SelectSourceClientStepProps } from './types';
 
 export const SelectSourceClientStep: React.FC<SelectSourceClientStepProps> = ({
-  onSelectSourceClient,
+  onSelectClient,
   availableClients,
   sourceClientId,
   setSourceClientId,
@@ -27,8 +27,10 @@ export const SelectSourceClientStep: React.FC<SelectSourceClientStepProps> = ({
   }, [availableClients, searchTerm]);
 
   const handleClientSelect = (clientId: string) => {
-    setSourceClientId(clientId);
-    onSelectSourceClient(clientId);
+    if (setSourceClientId) {
+      setSourceClientId(clientId);
+    }
+    onSelectClient(clientId);
   };
 
   if (isLoading) {
