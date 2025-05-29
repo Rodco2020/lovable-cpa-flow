@@ -22,6 +22,15 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = React.useState<'selection' | 'task-selection' | 'confirmation' | 'processing' | 'complete'>('selection');
 
+  // Define the steps for the copy tasks workflow
+  const copySteps = [
+    { key: 'selection', label: 'Select Target Client' },
+    { key: 'task-selection', label: 'Select Tasks' },
+    { key: 'confirmation', label: 'Confirm Copy' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'complete', label: 'Complete' }
+  ];
+
   // Fetch available clients for selection
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -123,13 +132,7 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
         <div className="space-y-6">
           <StepIndicator 
             currentStep={currentStep}
-            steps={[
-              { key: 'selection', label: 'Select Target Client' },
-              { key: 'task-selection', label: 'Select Tasks' },
-              { key: 'confirmation', label: 'Confirm Copy' },
-              { key: 'processing', label: 'Processing' },
-              { key: 'complete', label: 'Complete' }
-            ]}
+            steps={copySteps}
           />
 
           <CopyStepRenderer

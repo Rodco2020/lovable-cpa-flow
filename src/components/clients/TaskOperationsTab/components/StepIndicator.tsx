@@ -2,19 +2,17 @@
 import React from 'react';
 import { CheckCircle, Circle } from 'lucide-react';
 
-interface StepIndicatorProps {
-  currentStep: 'selection' | 'configuration' | 'confirmation' | 'processing' | 'complete';
+interface StepConfig {
+  key: string;
+  label: string;
 }
 
-export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => {
-  const steps = [
-    { key: 'selection', label: 'Selection' },
-    { key: 'configuration', label: 'Configuration' },
-    { key: 'confirmation', label: 'Confirmation' },
-    { key: 'processing', label: 'Processing' },
-    { key: 'complete', label: 'Complete' }
-  ];
+interface StepIndicatorProps {
+  currentStep: string;
+  steps: StepConfig[];
+}
 
+export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, steps }) => {
   const getCurrentStepIndex = () => {
     return steps.findIndex(step => step.key === currentStep);
   };
