@@ -1,4 +1,5 @@
 
+
 import { CopyTaskStep } from '../../../CopyTasks/hooks/useCopyTasksDialog/types';
 import { CopyTabStep } from '../useCopyTabSteps';
 
@@ -9,23 +10,23 @@ import { CopyTabStep } from '../useCopyTabSteps';
  * This ensures consistent step handling across all entry points.
  */
 
-// Optimized mapping table for better performance
+// Optimized mapping table for better performance - Fixed to match actual CopyTaskStep type
 const DIALOG_TO_TAB_MAPPING: Record<CopyTaskStep, CopyTabStep> = {
   'select-source-client': 'select-source-client',
-  'selection': 'selection',
-  'task-selection': 'task-selection',
-  'confirmation': 'confirmation',
+  'select-target-client': 'selection',
+  'select-tasks': 'task-selection',
+  'confirm': 'confirmation',
   'processing': 'processing',
-  'complete': 'complete'
+  'success': 'complete'
 };
 
 const TAB_TO_DIALOG_MAPPING: Record<CopyTabStep, CopyTaskStep> = {
   'select-source-client': 'select-source-client',
-  'selection': 'selection',
-  'task-selection': 'task-selection',
-  'confirmation': 'confirmation',
+  'selection': 'select-target-client',
+  'task-selection': 'select-tasks',
+  'confirmation': 'confirm',
   'processing': 'processing',
-  'complete': 'complete'
+  'complete': 'success'
 };
 
 /**
@@ -65,3 +66,4 @@ export const isValidStep = (step: string): boolean => {
 export const getAllValidSteps = (): CopyTaskStep[] => {
   return Object.keys(DIALOG_TO_TAB_MAPPING) as CopyTaskStep[];
 };
+
