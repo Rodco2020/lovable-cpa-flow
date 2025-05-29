@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TestWrapper } from '../quality/testUtils/TestWrapper';
 import { EnhancedTaskSelectionList } from '@/components/clients/CopyTasks/components/EnhancedTaskSelectionList';
-import { TaskCategory } from '@/types/task';
+import { TaskCategory, TaskStatus } from '@/types/task';
 import { vi } from 'vitest';
 
 describe('Large Dataset Performance Tests', () => {
@@ -29,6 +29,7 @@ describe('Large Dataset Performance Tests', () => {
   };
 
   const validCategories: TaskCategory[] = ["Tax", "Audit", "Advisory", "Compliance", "Bookkeeping", "Other"];
+  const validStatuses: TaskStatus[] = ["Unscheduled", "Scheduled", "In Progress", "Completed", "Canceled"];
 
   it('should handle 1000+ tasks efficiently', () => {
     const largeTasks = Array.from({ length: 1500 }, (_, i) => ({
@@ -40,7 +41,7 @@ describe('Large Dataset Performance Tests', () => {
       estimatedHours: 2,
       requiredSkills: ['Skill A'],
       description: `Description for task ${i}`,
-      status: 'Active' as const,
+      status: validStatuses[i % validStatuses.length],
       clientId: 'client-1',
       templateId: 'template-1',
       recurrencePattern: {
@@ -84,7 +85,7 @@ describe('Large Dataset Performance Tests', () => {
       estimatedHours: 2,
       requiredSkills: ['Skill A'],
       description: `Description ${i}`,
-      status: 'Active' as const,
+      status: 'Unscheduled' as TaskStatus,
       clientId: 'client-1',
       templateId: 'template-1',
       recurrencePattern: {
