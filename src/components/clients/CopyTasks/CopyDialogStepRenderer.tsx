@@ -6,6 +6,8 @@ import { SelectTasksStep } from './SelectTasksStep';
 import { ConfirmationStep } from './ConfirmationStep';
 import { ProcessingStep } from './ProcessingStep';
 import { SuccessStep } from './SuccessStep';
+import { VisualStepIndicator } from './components/VisualStepIndicator';
+import { UserGuidancePanel } from './components/UserGuidancePanel';
 import { CopyTaskStep } from './types';
 import { Client } from '@/types/client';
 
@@ -56,81 +58,102 @@ export const CopyDialogStepRenderer: React.FC<CopyDialogStepRendererProps> = ({
   handleCopy,
   setSelectedTaskIds
 }) => {
-  switch (step) {
-    case 'select-source-client':
-      return (
-        <SelectSourceClientStep 
-          onSelectSourceClient={handleSelectSourceClient}
-          availableClients={availableSourceClients}
-          sourceClientId={sourceClientId || ''}
-          setSourceClientId={(id) => handleSelectSourceClient(id)}
-          isLoading={isClientsLoading}
-        />
-      );
+  return (
+    <div className="space-y-6">
+      {/* Enhanced Visual Step Indicator */}
+      <VisualStepIndicator
+        currentStep={step}
+        sourceClientName={displaySourceClientName}
+        targetClientName={targetClientName}
+      />
 
-    case 'select-target-client':
-      return (
-        <SelectClientStep 
-          sourceClientId={sourceClientId}
-          onSelectClient={handleSelectTargetClient}
-          availableClients={availableTargetClients}
-          targetClientId={targetClientId || ''}
-          setSelectedClientId={(id) => handleSelectTargetClient(id)}
-          isLoading={isClientsLoading}
-          stepType="target"
-        />
-      );
-      
-    case 'select-tasks':
-      if (sourceClientId && targetClientId) {
-        return (
-          <SelectTasksStep 
-            clientId={sourceClientId}
-            targetClientId={targetClientId}
-            selectedTaskIds={selectedTaskIds}
-            setSelectedTaskIds={setSelectedTaskIds}
-            step={step}
-            handleBack={handleBack}
-            handleNext={handleNext}
-          />
-        );
-      }
-      return null;
-      
-    case 'confirm':
-      if (sourceClientId && targetClientId) {
-        return (
-          <ConfirmationStep 
-            sourceClientId={sourceClientId}
-            targetClientId={targetClientId}
-            sourceClientName={displaySourceClientName}
-            targetClientName={targetClientName}
-            selectedAdHocTaskCount={selectedAdHocTasksCount}
-            selectedRecurringTaskCount={selectedRecurringTasksCount}
-            selectedCount={selectedTaskIds.length}
-            step={step}
-            handleBack={handleBack}
-            handleCopy={handleCopy}
-            isProcessing={isProcessing}
-          />
-        );
-      }
-      return null;
-      
-    case 'processing':
-      return <ProcessingStep progress={copyProgress} />;
-      
-    case 'success':
-      return (
-        <SuccessStep 
-          sourceClientName={displaySourceClientName}
-          targetClientName={targetClientName}
-          adHocTasksCount={adHocTasksCount}
-          recurringTasksCount={recurringTasksCount}
-        />
-      );
+      {/* User Guidance Panel */}
+      <UserGuidancePanel 
+        currentStep={step === 'select-target-client' ? 'select-client' : step}
+      />
 
-    default:
-      return null;
-  }
+      {/* Step Content */}
+      <div className="step-content">
+        {(() => {
+          switch (step) {
+            case 'select-source-client':
+              return (
+                <SelectSourceClientStep 
+                  onSelectSourceClient={handleSelectSourceClient}
+                  availableClients={availableSourceClients}
+                  sourceClientId={sourceClientId || ''}
+                  setSourceClientId={(id) => handleSelectSourceClient(id)}
+                  isLoading={isClientsLoading}
+                />
+              );
+
+            case 'select-target-client':
+              return (
+                <SelectClientStep 
+                  sourceClientId={sourceClientId}
+                  onSelectClient={handleSelectTargetClient}
+                  availableClients={availableTargetClients}
+                  targetClientId={targetClientId || ''}
+                  setSelectedClientId={(id) => handleSelectTargetClient(id)}
+                  isLoading={isClientsLoading}
+                  stepType="target"
+                />
+              );
+              
+            case 'select-tasks':
+              if (sourceClientId && targetClientId) {
+                return (
+                  <SelectTasksStep 
+                    clientId={sourceClientId}
+                    targetClientId={targetClientId}
+                    selectedTaskIds={selectedTaskIds}
+                    setSelectedTaskIds={setSelectedTaskIds}
+                    step={step}
+                    handleBack={handleBack}
+                    handleNext={handleNext}
+                  />
+                );
+              }
+              return null;
+              
+            case 'confirm':
+              if (sourceClientId && targetClientId) {
+                return (
+                  <ConfirmationStep 
+                    sourceClientId={sourceClientId}
+                    targetClientId={targetClientId}
+                    sourceClientName={displaySourceClientName}
+                    targetClientName={targetClientName}
+                    selectedAdHocTaskCount={selectedAdHocTasksCount}
+                    selectedRecurringTaskCount={selectedRecurringTasksCount}
+                    selectedCount={selectedTaskIds.length}
+                    step={step}
+                    handleBack={handleBack}
+                    handleCopy={handleCopy}
+                    isProcessing={isProcessing}
+                  />
+                );
+              }
+              return null;
+              
+            case 'processing':
+              return <ProcessingStep progress={copyProgress} />;
+              
+            case 'success':
+              return (
+                <SuccessStep 
+                  sourceClientName={displaySourceClientName}
+                  targetClientName={targetClientName}
+                  adHocTasksCount={adHocTasksCount}
+                  recurringTasksCount={recurringTasksCount}
+                />
+              );
+
+            default:
+              return null;
+          }
+        })()}
+      </div>
+    </div>
+  );
 };

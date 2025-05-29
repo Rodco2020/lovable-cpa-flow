@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { copyClientTasks } from '@/services/taskCopyService';
 import { useTaskTypeDetection } from './useTaskTypeDetection';
+import { usePerformanceMonitoring } from './usePerformanceMonitoring';
 import { CopyTaskStep } from '../types';
 
 interface UseCopyTasksDialogReturn {
@@ -22,14 +23,9 @@ interface UseCopyTasksDialogReturn {
   isDetectingTaskTypes: boolean;
   canGoNext: boolean;
   validationErrors: string[];
+  performanceMetrics: any;
 }
 
-/**
- * Enhanced Copy Tasks Dialog Hook
- * 
- * Provides state management and validation for the copy tasks workflow.
- * Includes proper error handling, validation, and service integration.
- */
 export const useCopyTasksDialog = (
   defaultSourceClientId?: string, 
   onClose?: () => void
@@ -43,13 +39,16 @@ export const useCopyTasksDialog = (
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
+  // Performance monitoring
+  const { metrics, startTiming, endTiming, logPerformance } = usePerformanceMonitoring();
+
   // Task type detection for proper service routing
   const { data: taskTypeData, isLoading: isDetectingTaskTypes } = useTaskTypeDetection(
     sourceClientId || '',
     selectedTaskIds
   );
 
-  // Step navigation logic for 6-step workflow
+  // Step navigation logic
   const stepOrder: CopyTaskStep[] = [
     'select-source-client',
     'select-target-client', 
@@ -59,7 +58,7 @@ export const useCopyTasksDialog = (
     'success'
   ];
 
-  // Validation functions
+  // Enhanced validation functions
   const validateSourceClient = useCallback((clientId: string): string[] => {
     const errors: string[] = [];
     if (!clientId || clientId.trim() === '') {
@@ -88,19 +87,25 @@ export const useCopyTasksDialog = (
   }, []);
 
   const handleSelectSourceClient = useCallback((clientId: string) => {
+    startTiming('source-client-selection');
+    
     const errors = validateSourceClient(clientId);
     setValidationErrors(errors);
     
     if (errors.length === 0) {
       setSourceClientId(clientId);
-      // Auto-advance to target client selection if we have a default source
+      // Auto-advance if we have a default source
       if (step === 'select-source-client' && defaultSourceClientId) {
         setStep('select-target-client');
       }
     }
-  }, [step, defaultSourceClientId, validateSourceClient]);
+    
+    logPerformance('source-client-selection', endTiming('source-client-selection'));
+  }, [step, defaultSourceClientId, validateSourceClient, startTiming, endTiming, logPerformance]);
 
   const handleSelectTargetClient = useCallback((clientId: string) => {
+    startTiming('target-client-selection');
+    
     if (!sourceClientId) {
       setValidationErrors(['Source client must be selected first']);
       return;
@@ -116,9 +121,13 @@ export const useCopyTasksDialog = (
         setStep('select-tasks');
       }
     }
-  }, [sourceClientId, step, validateTargetClient]);
+    
+    logPerformance('target-client-selection', endTiming('target-client-selection'));
+  }, [sourceClientId, step, validateTargetClient, startTiming, endTiming, logPerformance]);
 
   const handleBack = useCallback(() => {
+    startTiming('navigation-back');
+    
     const currentIndex = stepOrder.indexOf(step);
     if (currentIndex > 0) {
       const previousStep = stepOrder[currentIndex - 1];
@@ -143,9 +152,13 @@ export const useCopyTasksDialog = (
           break;
       }
     }
-  }, [step, defaultSourceClientId, stepOrder]);
+    
+    logPerformance('navigation-back', endTiming('navigation-back'));
+  }, [step, defaultSourceClientId, stepOrder, startTiming, endTiming, logPerformance]);
 
   const handleNext = useCallback(() => {
+    startTiming('navigation-next');
+    
     // Validate current step before proceeding
     let errors: string[] = [];
     
@@ -170,7 +183,9 @@ export const useCopyTasksDialog = (
         setStep(nextStep);
       }
     }
-  }, [step, sourceClientId, targetClientId, selectedTaskIds, validateSourceClient, validateTargetClient, validateTaskSelection, stepOrder]);
+    
+    logPerformance('navigation-next', endTiming('navigation-next'));
+  }, [step, sourceClientId, targetClientId, selectedTaskIds, validateSourceClient, validateTargetClient, validateTaskSelection, stepOrder, startTiming, endTiming, logPerformance]);
 
   const handleCopy = useCallback(async () => {
     if (!sourceClientId || !targetClientId || selectedTaskIds.length === 0) {
@@ -185,6 +200,7 @@ export const useCopyTasksDialog = (
     }
 
     try {
+      startTiming('copy-operation');
       setStep('processing');
       setIsProcessing(true);
       setIsSuccess(false);
@@ -223,17 +239,22 @@ export const useCopyTasksDialog = (
           onClose();
         }, 2000);
       }
+      
+      logPerformance('copy-operation', endTiming('copy-operation'));
     } catch (error) {
       console.error('Copy operation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setValidationErrors([errorMessage]);
       setStep('select-tasks'); // Return to task selection on error
+      logPerformance('copy-operation-error', endTiming('copy-operation'));
     } finally {
       setIsProcessing(false);
     }
-  }, [sourceClientId, targetClientId, selectedTaskIds, taskTypeData, queryClient, onClose]);
+  }, [sourceClientId, targetClientId, selectedTaskIds, taskTypeData, queryClient, onClose, startTiming, endTiming, logPerformance]);
 
   const resetDialog = useCallback(() => {
+    startTiming('dialog-reset');
+    
     setStep('select-source-client');
     setSourceClientId(defaultSourceClientId || null);
     setTargetClientId(null);
@@ -241,7 +262,9 @@ export const useCopyTasksDialog = (
     setIsProcessing(false);
     setIsSuccess(false);
     setValidationErrors([]);
-  }, [defaultSourceClientId]);
+    
+    logPerformance('dialog-reset', endTiming('dialog-reset'));
+  }, [defaultSourceClientId, startTiming, endTiming, logPerformance]);
 
   // Enhanced validation for next step progression
   const canGoNext = React.useMemo(() => {
@@ -277,6 +300,7 @@ export const useCopyTasksDialog = (
     resetDialog,
     isDetectingTaskTypes,
     canGoNext,
-    validationErrors
+    validationErrors,
+    performanceMetrics: metrics
   };
 };
