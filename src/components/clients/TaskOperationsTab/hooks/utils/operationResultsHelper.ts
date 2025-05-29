@@ -13,7 +13,7 @@ export const createOperationResults = (
 ): OperationResults => {
   return {
     success,
-    tasksCreated,
+    tasksCreated, // Make this required
     errors,
     totalOperations: tasksCreated + errors.length,
     successfulOperations: success ? tasksCreated : 0,

@@ -1,23 +1,20 @@
 
 import { useState, useCallback } from 'react';
+import { OperationResults } from './utils/progressTracker';
 
 export interface OperationProgressState {
   isProcessing: boolean;
   progress: number;
   currentOperation: string;
   estimatedTimeRemaining?: number;
-  operationResults?: {
-    success: boolean;
-    tasksCreated: number;
-    errors: string[];
-  };
+  operationResults?: OperationResults;
 }
 
 interface UseOperationProgressReturn {
   progressState: OperationProgressState;
   startOperation: (operationName: string) => void;
   updateProgress: (progress: number, currentOperation?: string, estimatedTime?: number) => void;
-  completeOperation: (results: { success: boolean; tasksCreated: number; errors: string[] }) => void;
+  completeOperation: (results: OperationResults) => void;
   resetProgress: () => void;
 }
 
@@ -55,11 +52,7 @@ export const useOperationProgress = (): UseOperationProgressReturn => {
     }));
   }, []);
 
-  const completeOperation = useCallback((results: { 
-    success: boolean; 
-    tasksCreated: number; 
-    errors: string[] 
-  }) => {
+  const completeOperation = useCallback((results: OperationResults) => {
     setProgressState(prev => ({
       ...prev,
       isProcessing: false,

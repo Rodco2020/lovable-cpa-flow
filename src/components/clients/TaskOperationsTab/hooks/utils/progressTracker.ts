@@ -1,3 +1,4 @@
+
 /**
  * Progress Tracker Utilities
  * 
@@ -27,7 +28,7 @@ export interface OperationResults {
   errors: string[];
   processingTime: number;
   results: any[];
-  tasksCreated?: number; // Add this property to match UI expectations
+  tasksCreated: number; // Make this required instead of optional
 }
 
 export const createInitialProgress = (total: number = 0): OperationProgress => ({
@@ -45,7 +46,8 @@ export const createInitialResults = (): OperationResults => ({
   failedOperations: 0,
   errors: [],
   processingTime: 0,
-  results: []
+  results: [],
+  tasksCreated: 0
 });
 
 export const updateProgress = (

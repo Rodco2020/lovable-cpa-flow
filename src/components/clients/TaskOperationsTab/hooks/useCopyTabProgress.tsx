@@ -1,6 +1,7 @@
 
 import { useCallback } from 'react';
 import { useOperationProgress } from './useOperationProgress';
+import { createOperationResults } from './utils/operationResultsHelper';
 
 interface CopyTabProgressReturn {
   progressState: any;
@@ -49,11 +50,8 @@ export const useCopyTabProgress = (): CopyTabProgressReturn => {
       await new Promise(resolve => setTimeout(resolve, 200));
       
       const tasksCreated = selectedTaskIds.length;
-      completeOperation({
-        success: true,
-        tasksCreated,
-        errors: []
-      });
+      const operationResults = createOperationResults(true, tasksCreated, []);
+      completeOperation(operationResults);
       
       // Trigger refresh of the tasks overview when copy completes successfully
       if (onTasksRefresh) {
@@ -62,11 +60,12 @@ export const useCopyTabProgress = (): CopyTabProgressReturn => {
       }
     } catch (error) {
       console.error('Copy operation failed:', error);
-      completeOperation({
-        success: false,
-        tasksCreated: 0,
-        errors: [error instanceof Error ? error.message : 'Copy operation failed']
-      });
+      const operationResults = createOperationResults(
+        false, 
+        0, 
+        [error instanceof Error ? error.message : 'Copy operation failed']
+      );
+      completeOperation(operationResults);
       throw error;
     }
   }, [startOperation, updateProgress, completeOperation]);
