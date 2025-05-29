@@ -87,6 +87,14 @@ export const BulkSelectionControls: React.FC<BulkSelectionControlsProps> = ({
     return `${selectedCount} of ${totalCount} selected`;
   };
 
+  const handleCheckboxChange = () => {
+    if (isAllSelected || isPartiallySelected) {
+      onDeselectAll();
+    } else {
+      onSelectAll();
+    }
+  };
+
   return (
     <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
       {/* Selection Header */}
@@ -95,19 +103,9 @@ export const BulkSelectionControls: React.FC<BulkSelectionControlsProps> = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               checked={isAllSelected}
-              ref={(el) => {
-                if (el) {
-                  el.indeterminate = isPartiallySelected;
-                }
-              }}
-              onCheckedChange={() => {
-                if (isAllSelected || isPartiallySelected) {
-                  onDeselectAll();
-                } else {
-                  onSelectAll();
-                }
-              }}
+              onCheckedChange={handleCheckboxChange}
               aria-label={`${isAllSelected ? 'Deselect all' : 'Select all'} tasks`}
+              className={isPartiallySelected ? 'data-[state=checked]:bg-primary/50' : ''}
             />
             <span className="text-sm font-medium">{getSelectionStatus()}</span>
           </div>
