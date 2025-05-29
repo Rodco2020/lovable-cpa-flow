@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings } from 'lucide-react';
 import { useTemplateAssignment } from './hooks/useTemplateAssignment';
 import { useOperationProgress } from './hooks/useOperationProgress';
+import { createOperationResults } from './hooks/utils/operationResultsHelper';
 import { StepIndicator } from './components/StepIndicator';
 import { SelectionStep } from './components/SelectionStep';
 import { ConfigurationStep } from './components/ConfigurationStep';
@@ -91,11 +92,8 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
       
       if (success) {
         const tasksCreated = selectedTemplateIds.length * selectedClientIds.length;
-        completeOperation({
-          success: true,
-          tasksCreated,
-          errors: []
-        });
+        const operationResults = createOperationResults(true, tasksCreated, []);
+        completeOperation(operationResults);
         
         setCurrentStep('complete');
         
@@ -105,20 +103,18 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
           onTasksRefresh();
         }
       } else {
-        completeOperation({
-          success: false,
-          tasksCreated: 0,
-          errors: ['Assignment operation failed']
-        });
+        const operationResults = createOperationResults(false, 0, ['Assignment operation failed']);
+        completeOperation(operationResults);
         // Stay on processing step to show error
       }
     } catch (error) {
       console.error('Assignment execution failed:', error);
-      completeOperation({
-        success: false,
-        tasksCreated: 0,
-        errors: [error instanceof Error ? error.message : 'Unknown error occurred']
-      });
+      const operationResults = createOperationResults(
+        false, 
+        0, 
+        [error instanceof Error ? error.message : 'Unknown error occurred']
+      );
+      completeOperation(operationResults);
     }
   }, [
     selectedTemplateIds.length, 
@@ -211,11 +207,7 @@ export const TemplateAssignmentTab: React.FC<TemplateAssignmentTabProps> = ({
 
           {currentStep === 'complete' && (
             <CompleteStep
-              operationResults={{
-                success: progressState.operationResults?.success || false,
-                tasksCreated: progressState.operationResults?.tasksCreated || 0,
-                errors: progressState.operationResults?.errors || []
-              }}
+              operationResults={progressState.operationResults || createOperationResults(false, 0, ['No results available'])}
               onReset={handleReset}
               onClose={onClose}
               error={progressState.operationResults?.success === false ? new Error('Operation failed') : null}
