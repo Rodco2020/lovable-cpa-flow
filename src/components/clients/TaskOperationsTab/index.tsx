@@ -1,45 +1,42 @@
 
+// Optimized exports - Phase 5 Cleanup
+// Removed unused exports and consolidated related functionality
+
+// Core tab components
 export { TemplateAssignmentTab } from './TemplateAssignmentTab';
 export { CopyTasksTab } from './CopyTasksTab';
+
+// Progress and operation management
 export { OperationProgress } from './OperationProgress';
+
+// Essential hooks only
 export { useTemplateAssignment } from './hooks/useTemplateAssignment';
-
-// Export unified state management hooks
-export { useDialogState } from './hooks/useDialogState';
-export { useOperationProgress } from './hooks/useOperationProgress';
-
-// Export new copy tab hooks
 export { useCopyTabController } from './hooks/useCopyTabController';
 export { useCopyTabState } from './hooks/useCopyTabState';
-export { useCopyTabProgress } from './hooks/useCopyTabProgress';
 export { useCopyTabSteps } from './hooks/useCopyTabSteps';
 
-// Export step components for potential reuse
+// Core step components
 export { StepIndicator } from './components/StepIndicator';
-export { SelectionStep } from './components/SelectionStep';
-export { ConfigurationStep } from './components/ConfigurationStep';
-export { ConfirmationStep } from './components/ConfirmationStep';
-export { ProcessingStep } from './components/ProcessingStep';
-export { CompleteStep } from './components/CompleteStep';
-export { ProgressHeader } from './components/ProgressHeader';
+export { EnhancedStepIndicator } from './components/EnhancedStepIndicator';
 export { CopyStepRenderer } from './components/CopyStepRenderer';
 
-// Export utility types for external use
-export type { OperationProgress as OperationProgressType, OperationResults } from './hooks/utils/progressTracker';
-export type { DialogTab } from './hooks/useDialogState';
-
-// Export enhanced copy components for Phase 3
+// Enhanced components for Phase 3+ features
 export { EnhancedConfirmationStep } from './components/EnhancedConfirmationStep';
-export { EnhancedTaskFilterPanel } from '../CopyTasks/components/EnhancedTaskFilterPanel';
-export { EnhancedTaskSelectionList } from '../CopyTasks/components/EnhancedTaskSelectionList';
-export { SelectTasksStepEnhanced } from '../CopyTasks/SelectTasksStepEnhanced';
+export { ProcessingStep } from './components/ProcessingStep';
+export { CompleteStep } from './components/CompleteStep';
 
-// Export enhanced hooks
-export { useEnhancedTaskSelection } from '../CopyTasks/hooks/useEnhancedTaskSelection';
-export type { UnifiedTask, TaskWithType, AdHocTaskWithType } from '../CopyTasks/hooks/useEnhancedTaskSelection';
-
-// Export new copy tab types
+// Essential types only
 export type { CopyTabStep } from './hooks/useCopyTabSteps';
+export type { OperationProgress as OperationProgressType, OperationResults } from './hooks/utils/progressTracker';
 
-// Export step mapping utilities
-export { mapDialogStepToCopyTabStep, mapCopyTabStepToDialogStep } from './hooks/utils/stepMapping';
+// Utility functions for step mapping
+export { mapDialogStepToCopyTabStep, mapCopyTabStepToDialogStep, isValidStep } from './hooks/utils/stepMapping';
+
+// Performance optimization utilities (new in Phase 5)
+export { useOptimizedMemo, useDebouncedCallback, usePerformanceMonitor } from './hooks/utils/performanceOptimizer';
+
+// Remove duplicate and unused exports that were causing confusion:
+// - Removed duplicate progress types
+// - Removed unused dialog state hooks
+// - Removed redundant component exports
+// - Consolidated similar functionality

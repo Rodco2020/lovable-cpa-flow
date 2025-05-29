@@ -1,44 +1,67 @@
 
+import { CopyTaskStep } from '../../useCopyTasksDialog/types';
 import { CopyTabStep } from '../useCopyTabSteps';
-import { CopyTaskStep } from '../../../CopyTasks/hooks/useCopyTasksDialog/types';
 
 /**
- * Maps between CopyTaskStep (6-step dialog) and CopyTabStep (Task Operations Tab)
+ * Optimized Step Mapping Utilities - Phase 5 Cleanup
+ * 
+ * Removed duplicate logic and optimized mappings between dialog and tab steps.
+ * This ensures consistent step handling across all entry points.
  */
-export const mapDialogStepToCopyTabStep = (dialogStep: CopyTaskStep): CopyTabStep => {
-  switch (dialogStep) {
-    case 'select-source-client':
-      return 'select-source-client';
-    case 'select-target-client':
-      return 'selection';
-    case 'select-tasks':
-      return 'task-selection';
-    case 'confirm':
-      return 'confirmation';
-    case 'processing':
-      return 'processing';
-    case 'success':
-      return 'complete';
-    default:
-      return 'select-source-client';
-  }
+
+// Optimized mapping table for better performance
+const DIALOG_TO_TAB_MAPPING: Record<CopyTaskStep, CopyTabStep> = {
+  'select-source-client': 'select-source-client',
+  'selection': 'selection',
+  'task-selection': 'task-selection',
+  'confirmation': 'confirmation',
+  'processing': 'processing',
+  'complete': 'complete'
 };
 
-export const mapCopyTabStepToDialogStep = (tabStep: CopyTabStep): CopyTaskStep => {
-  switch (tabStep) {
-    case 'select-source-client':
-      return 'select-source-client';
-    case 'selection':
-      return 'select-target-client';
-    case 'task-selection':
-      return 'select-tasks';
-    case 'confirmation':
-      return 'confirm';
-    case 'processing':
-      return 'processing';
-    case 'complete':
-      return 'success';
-    default:
-      return 'select-source-client';
+const TAB_TO_DIALOG_MAPPING: Record<CopyTabStep, CopyTaskStep> = {
+  'select-source-client': 'select-source-client',
+  'selection': 'selection',
+  'task-selection': 'task-selection',
+  'confirmation': 'confirmation',
+  'processing': 'processing',
+  'complete': 'complete'
+};
+
+/**
+ * Maps dialog step to copy tab step with performance optimization
+ */
+export const mapDialogStepToCopyTabStep = (dialogStep: CopyTaskStep): CopyTabStep => {
+  const mapped = DIALOG_TO_TAB_MAPPING[dialogStep];
+  if (!mapped) {
+    console.warn('Unknown dialog step:', dialogStep, 'defaulting to select-source-client');
+    return 'select-source-client';
   }
+  return mapped;
+};
+
+/**
+ * Maps copy tab step to dialog step with performance optimization
+ */
+export const mapCopyTabStepToDialogStep = (tabStep: CopyTabStep): CopyTaskStep => {
+  const mapped = TAB_TO_DIALOG_MAPPING[tabStep];
+  if (!mapped) {
+    console.warn('Unknown tab step:', tabStep, 'defaulting to select-source-client');
+    return 'select-source-client';
+  }
+  return mapped;
+};
+
+/**
+ * Validates if a step is valid for both dialog and tab workflows
+ */
+export const isValidStep = (step: string): boolean => {
+  return step in DIALOG_TO_TAB_MAPPING;
+};
+
+/**
+ * Gets all valid steps for validation purposes
+ */
+export const getAllValidSteps = (): CopyTaskStep[] => {
+  return Object.keys(DIALOG_TO_TAB_MAPPING) as CopyTaskStep[];
 };

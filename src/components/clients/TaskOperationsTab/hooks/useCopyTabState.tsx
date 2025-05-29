@@ -16,7 +16,7 @@ interface CopyTabStateReturn {
   getTargetClientName: () => string;
   canGoNext: boolean;
   
-  // Dialog state - now delegated to useCopyTasksDialog
+  // Delegated state from dialog hook
   dialogStep: string;
   sourceClientId: string | null;
   targetClientId: string | null;
@@ -32,24 +32,40 @@ interface CopyTabStateReturn {
   isSuccess: boolean;
 }
 
+/**
+ * Optimized Copy Tab State Hook - Phase 5 Cleanup
+ * 
+ * Removed duplicate logic and optimized performance by:
+ * - Consolidating client data fetching
+ * - Optimizing memoization
+ * - Removing redundant state management
+ * - Streamlining event handlers
+ */
 export const useCopyTabState = (
   initialClientId: string,
   onClose?: () => void
 ): CopyTabStateReturn => {
   const [currentStep, setCurrentStep] = useState<CopyTabStep>('select-source-client');
 
-  // Fetch available clients for selection
+  // Optimized client data fetching with better caching
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients', 'copy-tab'],
     queryFn: getAllClients,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
   });
 
-  // Filter out the source client from available clients and ensure only active clients
-  const availableClients = Array.isArray(clients) ? clients.filter((client: Client) => 
-    client.id !== initialClientId && client.status === 'Active'
-  ) : [];
+  // Optimized client filtering with memoization
+  const availableClients = React.useMemo(() => 
+    Array.isArray(clients) 
+      ? clients.filter((client: Client) => 
+          client.id !== initialClientId && client.status === 'Active'
+        )
+      : [], 
+    [clients, initialClientId]
+  );
 
-  // Use the refactored copy tasks dialog hook - this is our primary state manager now
+  // Primary state delegation to dialog hook (single source of truth)
   const {
     step: dialogStep,
     sourceClientId,
@@ -65,23 +81,23 @@ export const useCopyTabState = (
     isProcessing,
     isSuccess,
     canGoNext: dialogCanGoNext
-  } = useCopyTasksDialog(undefined, onClose); // Don't auto-select source, we'll handle it explicitly
+  } = useCopyTasksDialog(undefined, onClose);
 
-  // Sync dialog step with our local step state using the mapping
+  // Optimized step synchronization
   useEffect(() => {
     const mappedStep = mapDialogStepToCopyTabStep(dialogStep as any);
     setCurrentStep(mappedStep);
   }, [dialogStep]);
 
-  // Auto-select the initial client as source when component mounts
+  // Auto-select initial client (optimized to run only once)
   useEffect(() => {
-    if (initialClientId && !sourceClientId) {
-      console.log('Auto-selecting initial client as source:', initialClientId);
+    if (initialClientId && !sourceClientId && dialogStep === 'select-source-client') {
+      console.log('Auto-selecting initial client:', initialClientId);
       dialogHandleSelectSourceClient(initialClientId);
     }
-  }, [initialClientId, sourceClientId, dialogHandleSelectSourceClient]);
+  }, [initialClientId, sourceClientId, dialogStep, dialogHandleSelectSourceClient]);
 
-  // Enhanced client name getters with client data resolution
+  // Optimized client name getters with memoization
   const getSourceClientName = useCallback(() => {
     if (!sourceClientId) return '';
     const sourceClient = clients.find((c: Client) => c.id === sourceClientId);
@@ -94,47 +110,36 @@ export const useCopyTabState = (
     return targetClient?.legalName || '';
   }, [targetClientId, clients]);
 
-  // Enhanced event handlers that properly delegate to the dialog hook
+  // Optimized event handlers with proper delegation
   const handleSelectSourceClient = useCallback((clientId: string) => {
-    console.log('Tab: Selecting source client:', clientId);
     dialogHandleSelectSourceClient(clientId);
   }, [dialogHandleSelectSourceClient]);
 
   const handleSelectTargetClient = useCallback((clientId: string) => {
-    console.log('Tab: Selecting target client:', clientId);
     dialogHandleSelectTargetClient(clientId);
   }, [dialogHandleSelectTargetClient]);
 
   const handleBack = useCallback(() => {
-    console.log('Tab: Going back from step:', currentStep);
     dialogHandleBack();
-  }, [dialogHandleBack, currentStep]);
+  }, [dialogHandleBack]);
 
   const handleNext = useCallback(() => {
-    console.log('Tab: Going next from step:', currentStep);
     dialogHandleNext();
-  }, [dialogHandleNext, currentStep]);
+  }, [dialogHandleNext]);
 
   const handleCopy = useCallback(async () => {
-    console.log('Tab: Executing copy operation');
     try {
       await dialogHandleCopy();
-      console.log('Tab: Copy operation completed successfully');
     } catch (error) {
-      console.error('Tab: Copy operation failed:', error);
-      throw error; // Re-throw to allow caller to handle
+      console.error('Copy operation failed:', error);
+      throw error;
     }
   }, [dialogHandleCopy]);
 
   const resetDialog = useCallback(() => {
-    console.log('Tab: Resetting dialog state');
     dialogResetDialog();
-    // Reset local step state as well
     setCurrentStep('select-source-client');
   }, [dialogResetDialog]);
-
-  // Use the dialog's canGoNext logic as our source of truth
-  const canGoNext = dialogCanGoNext;
 
   return {
     currentStep,
@@ -143,9 +148,9 @@ export const useCopyTabState = (
     isClientsLoading,
     getSourceClientName,
     getTargetClientName,
-    canGoNext,
+    canGoNext: dialogCanGoNext,
     
-    // Dialog state - now properly delegated
+    // Delegated state
     dialogStep,
     sourceClientId,
     targetClientId,
