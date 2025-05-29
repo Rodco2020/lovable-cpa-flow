@@ -10,6 +10,7 @@ import { SelectSourceClientStep } from '../../CopyTasks/SelectSourceClientStep';
 import { SelectTargetClientStep } from '../../CopyTasks/SelectTargetClientStep';
 import { EnhancedSelectTasksStep } from '../../CopyTasks/EnhancedSelectTasksStep';
 import { EnhancedConfirmationStep } from './EnhancedConfirmationStep';
+import { createOperationResults } from '../hooks/utils/operationResultsHelper';
 
 interface CopyStepRendererProps {
   currentStep: string;
@@ -27,7 +28,7 @@ interface CopyStepRendererProps {
   onSelectClient: (clientId: string) => void;
   onBack: () => void;
   onNext: () => void;
-  onExecuteCopy: () => void;
+  onExecuteCopy: () => Promise<void>;
   onReset: () => void;
   onClose?: () => void;
 }
@@ -141,13 +142,15 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
         );
 
       case 'complete':
+        const operationResults = createOperationResults(
+          isSuccess,
+          selectedTaskIds.length,
+          isSuccess ? [] : ['Copy operation failed']
+        );
+
         return (
           <CompleteStep
-            operationResults={{
-              success: isSuccess,
-              tasksCreated: selectedTaskIds.length,
-              errors: []
-            }}
+            operationResults={operationResults}
             onReset={onReset}
             onClose={onClose}
             error={null}

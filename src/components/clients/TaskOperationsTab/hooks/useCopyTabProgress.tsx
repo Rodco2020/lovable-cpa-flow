@@ -28,7 +28,7 @@ export const useCopyTabProgress = (): CopyTabProgressReturn => {
     selectedTaskIds: string[],
     baseCopyHandler: () => Promise<void>,
     onTasksRefresh?: () => void
-  ) => {
+  ): Promise<void> => {
     try {
       startOperation('Copying tasks between clients');
       
