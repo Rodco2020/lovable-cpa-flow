@@ -1,3 +1,4 @@
+
 export { TemplateAssignmentTab } from './TemplateAssignmentTab';
 export { CopyTasksTab } from './CopyTasksTab';
 export { OperationProgress } from './OperationProgress';
@@ -6,6 +7,12 @@ export { useTemplateAssignment } from './hooks/useTemplateAssignment';
 // Export unified state management hooks
 export { useDialogState } from './hooks/useDialogState';
 export { useOperationProgress } from './hooks/useOperationProgress';
+
+// Export new copy tab hooks
+export { useCopyTabController } from './hooks/useCopyTabController';
+export { useCopyTabState } from './hooks/useCopyTabState';
+export { useCopyTabProgress } from './hooks/useCopyTabProgress';
+export { useCopyTabSteps } from './hooks/useCopyTabSteps';
 
 // Export step components for potential reuse
 export { StepIndicator } from './components/StepIndicator';
@@ -30,3 +37,6 @@ export { SelectTasksStepEnhanced } from '../CopyTasks/SelectTasksStepEnhanced';
 // Export enhanced hooks
 export { useEnhancedTaskSelection } from '../CopyTasks/hooks/useEnhancedTaskSelection';
 export type { UnifiedTask, TaskWithType, AdHocTaskWithType } from '../CopyTasks/hooks/useEnhancedTaskSelection';
+
+// Export new copy tab types
+export type { CopyTabStep } from './hooks/useCopyTabSteps';
