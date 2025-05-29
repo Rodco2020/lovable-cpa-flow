@@ -68,7 +68,8 @@ export const executeTemplateAssignment = async (
       failedOperations: result.failedOperations,
       errors: result.errors.map(e => `${e.clientId} - ${e.templateId}: ${e.error}`),
       processingTime: Date.now() - startTime,
-      results: result.results
+      results: result.results,
+      tasksCreated: result.successfulOperations // Add the missing required property
     };
 
     return operationResults;
@@ -83,7 +84,8 @@ export const executeTemplateAssignment = async (
       failedOperations: totalOperations,
       errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
       processingTime: Date.now() - startTime,
-      results: []
+      results: [],
+      tasksCreated: 0 // Add the missing required property
     };
 
     return operationResults;
