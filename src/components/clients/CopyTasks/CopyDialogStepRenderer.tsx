@@ -79,7 +79,7 @@ export const CopyDialogStepRenderer: React.FC<CopyDialogStepRendererProps> = ({
             case 'select-source-client':
               return (
                 <SelectSourceClientStep 
-                  onSelectSourceClient={handleSelectSourceClient}
+                  onSelectClient={handleSelectSourceClient}
                   availableClients={availableSourceClients}
                   sourceClientId={sourceClientId || ''}
                   setSourceClientId={(id) => handleSelectSourceClient(id)}
