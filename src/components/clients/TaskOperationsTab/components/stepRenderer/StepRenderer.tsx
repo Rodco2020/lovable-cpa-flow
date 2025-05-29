@@ -55,6 +55,18 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   onReset,
   onClose
 }) => {
+  // Log current state for debugging integration
+  React.useEffect(() => {
+    console.log('StepRenderer: Current step:', currentStep, {
+      sourceClientId,
+      targetClientId,
+      selectedTasksCount: selectedTaskIds.length,
+      canGoNext,
+      isProcessing,
+      isSuccess
+    });
+  }, [currentStep, sourceClientId, targetClientId, selectedTaskIds.length, canGoNext, isProcessing, isSuccess]);
+
   switch (currentStep) {
     case 'select-source-client':
       return (
@@ -145,6 +157,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
       );
 
     default:
+      console.warn('StepRenderer: Unknown step:', currentStep);
       return <ErrorStep onReset={onReset} />;
   }
 };

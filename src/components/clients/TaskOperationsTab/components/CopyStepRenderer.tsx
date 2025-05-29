@@ -30,19 +30,18 @@ interface CopyStepRendererProps {
 /**
  * CopyStepRenderer Component
  * 
- * Handles the rendering of different steps in the copy tasks workflow.
- * This component has been refactored to improve maintainability by:
- * - Extracting individual step components into focused, reusable modules
- * - Centralizing step rendering logic in a dedicated StepRenderer component
- * - Maintaining exact same functionality and UI behavior as before
+ * Enhanced to work with the integrated copy dialog system.
+ * This component has been updated to:
+ * - Work seamlessly with the refactored useCopyTasksDialog hook
+ * - Maintain exact same functionality and UI behavior as before
+ * - Support proper state synchronization between tab and dialog systems
+ * - Handle all 6-step workflow progression: select-source-client → selection → task-selection → confirmation → processing → complete
  * 
- * Workflow Steps:
- * 1. select-source-client: Choose which client to copy tasks from
- * 2. selection: Choose which client to copy tasks to
- * 3. task-selection: Select specific tasks to copy
- * 4. confirmation: Review and confirm the copy operation
- * 5. processing: Execute the copy with progress tracking
- * 6. complete: Show results and cleanup options
+ * Integration Features:
+ * - Delegates all state management to the central copy dialog hook
+ * - Maintains backward compatibility with existing interfaces
+ * - Supports proper error handling and validation
+ * - Ensures consistent step progression and navigation
  */
 export const CopyStepRenderer: React.FC<CopyStepRendererProps> = (props) => {
   return (

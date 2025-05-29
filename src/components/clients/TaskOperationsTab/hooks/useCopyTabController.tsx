@@ -30,19 +30,29 @@ export const useCopyTabController = (
     resetDialog
   } = useCopyTabState(initialClientId, onClose);
 
+  // Enhanced copy execution with proper error handling and success callback
   const onExecuteCopy = async () => {
+    console.log('Controller: Executing copy operation');
     try {
       await handleCopy();
+      console.log('Controller: Copy completed, triggering refresh');
+      
+      // Trigger tasks refresh on successful copy
       if (onTasksRefresh) {
         onTasksRefresh();
       }
     } catch (error) {
-      console.error('Copy operation failed:', error);
+      console.error('Controller: Copy operation failed:', error);
+      // Error is already handled by the dialog hook, just log here
     }
   };
 
+  // Enhanced reset with proper cleanup and refresh
   const onReset = () => {
+    console.log('Controller: Resetting copy state');
     resetDialog();
+    
+    // Trigger refresh on reset to ensure UI is up to date
     if (onTasksRefresh) {
       onTasksRefresh();
     }
