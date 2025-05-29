@@ -5,18 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Search, Users, ArrowRight, Target } from 'lucide-react';
+import { Search, Users, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { SelectClientStepProps } from './types';
+import { SelectSourceClientStepProps } from './types';
 
-export const SelectClientStep: React.FC<SelectClientStepProps> = ({
-  sourceClientId,
-  targetClientId,
-  onSelectClient,
+export const SelectSourceClientStep: React.FC<SelectSourceClientStepProps> = ({
+  onSelectSourceClient,
   availableClients,
-  setSelectedClientId,
-  isLoading,
-  stepType = 'target'
+  sourceClientId,
+  setSourceClientId,
+  isLoading
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -28,12 +26,9 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
     );
   }, [availableClients, searchTerm]);
 
-  const selectedClientId = stepType === 'source' ? sourceClientId : targetClientId;
-  const isTargetStep = stepType === 'target';
-
   const handleClientSelect = (clientId: string) => {
-    setSelectedClientId(clientId);
-    onSelectClient(clientId);
+    setSourceClientId(clientId);
+    onSelectSourceClient(clientId);
   };
 
   if (isLoading) {
@@ -41,8 +36,8 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            {isTargetStep ? <Target className="h-5 w-5" /> : <Users className="h-5 w-5" />}
-            <span>Select {isTargetStep ? 'Target' : 'Source'} Client</span>
+            <Users className="h-5 w-5" />
+            <span>Select Source Client</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -59,17 +54,14 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            {isTargetStep ? <Target className="h-5 w-5" /> : <Users className="h-5 w-5" />}
-            <span>Select {isTargetStep ? 'Target' : 'Source'} Client</span>
-            <Badge variant={isTargetStep ? "default" : "secondary"} className="ml-2">
-              {isTargetStep ? 'TO' : 'FROM'}
+            <Users className="h-5 w-5" />
+            <span>Select Source Client</span>
+            <Badge variant="secondary" className="ml-2">
+              FROM
             </Badge>
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {isTargetStep 
-              ? 'Choose the client who will receive the copied tasks.'
-              : 'Choose the client whose tasks you want to copy.'
-            }
+            Choose the client whose tasks you want to copy to another client.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -88,23 +80,20 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
           {filteredClients.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No clients available for selection.</p>
-              {isTargetStep && (
-                <p className="text-xs mt-1">The source client is automatically excluded.</p>
-              )}
+              <p>No clients found matching your search criteria.</p>
             </div>
           ) : (
-            <RadioGroup value={selectedClientId} onValueChange={handleClientSelect}>
+            <RadioGroup value={sourceClientId} onValueChange={handleClientSelect}>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {filteredClients.map((client) => (
                   <div key={client.id} className="flex items-center space-x-2">
-                    <RadioGroupItem value={client.id} id={`${stepType}-${client.id}`} />
+                    <RadioGroupItem value={client.id} id={`source-${client.id}`} />
                     <Label
-                      htmlFor={`${stepType}-${client.id}`}
+                      htmlFor={`source-${client.id}`}
                       className="flex-1 cursor-pointer"
                     >
                       <Card className={`p-3 transition-all hover:bg-accent ${
-                        selectedClientId === client.id ? 'ring-2 ring-primary bg-accent' : ''
+                        sourceClientId === client.id ? 'ring-2 ring-primary bg-accent' : ''
                       }`}>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
@@ -136,18 +125,18 @@ export const SelectClientStep: React.FC<SelectClientStepProps> = ({
           )}
 
           {/* Selection Summary */}
-          {selectedClientId && (
+          {sourceClientId && (
             <div className="mt-4 p-4 bg-muted rounded-lg">
               <div className="flex items-center space-x-2">
                 <ArrowRight className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">
-                  Selected {isTargetStep ? 'Target' : 'Source'} Client: {
-                    filteredClients.find(c => c.id === selectedClientId)?.legalName
+                  Selected Source Client: {
+                    filteredClients.find(c => c.id === sourceClientId)?.legalName
                   }
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Tasks will be copied {isTargetStep ? 'TO' : 'FROM'} this client.
+                Tasks will be copied FROM this client to your target client.
               </p>
             </div>
           )}

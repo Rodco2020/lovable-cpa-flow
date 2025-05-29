@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { SelectSourceClientStep } from './CopyTasks/SelectSourceClientStep';
 import { SelectClientStep } from './CopyTasks/SelectClientStep';
 import { SelectTasksStep } from './CopyTasks/SelectTasksStep';
 import { ConfirmationStep } from './CopyTasks/ConfirmationStep';
@@ -12,58 +13,72 @@ import { getAllClients } from '@/services/clientService';
 import { Client } from '@/types/client';
 
 interface CopyClientTasksDialogProps {
-  clientId: string;
+  clientId?: string; // Made optional for backward compatibility
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sourceClientName?: string;
+  defaultSourceClientId?: string; // New prop for setting default source
 }
 
 const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({ 
-  clientId, 
+  clientId, // Legacy prop - will be used as defaultSourceClientId if provided
   open, 
   onOpenChange,
-  sourceClientName = '' 
+  sourceClientName = '',
+  defaultSourceClientId
 }) => {
   const [copyProgress, setCopyProgress] = useState(0);
+  const [sourceClientName_internal, setSourceClientName_internal] = useState('');
   const [targetClientName, setTargetClientName] = useState('');
   const [adHocTasksCount, setAdHocTasksCount] = useState(0);
   const [recurringTasksCount, setRecurringTasksCount] = useState(0);
   const [selectedAdHocTasksCount, setSelectedAdHocTasksCount] = useState(0);
   const [selectedRecurringTasksCount, setSelectedRecurringTasksCount] = useState(0);
 
-  // Fetch available clients for selection
+  // Determine the actual default source client ID (backward compatibility)
+  const actualDefaultSourceClientId = defaultSourceClientId || clientId;
+
+  // Fetch all clients for selection
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: getAllClients,
   });
 
-  // Filter out the source client from available clients
-  const availableClients = Array.isArray(clients) ? clients.filter((client: Client) => client.id !== clientId) : [];
-
   const {
     step,
+    sourceClientId,
     targetClientId,
     selectedTaskIds,
     setSelectedTaskIds,
-    handleSelectClient,
+    handleSelectSourceClient,
+    handleSelectTargetClient,
     handleBack,
     handleNext,
     handleCopy,
     isProcessing,
     isSuccess,
-    resetDialog
-  } = useCopyTasksDialog(clientId, () => onOpenChange(false));
+    resetDialog,
+    canGoNext
+  } = useCopyTasksDialog(actualDefaultSourceClientId, () => onOpenChange(false));
+
+  // Filter clients for source selection (all active clients)
+  const availableSourceClients = Array.isArray(clients) ? 
+    clients.filter((client: Client) => client.status === 'Active') : [];
+
+  // Filter clients for target selection (exclude source client)
+  const availableTargetClients = Array.isArray(clients) ? 
+    clients.filter((client: Client) => 
+      client.status === 'Active' && client.id !== sourceClientId
+    ) : [];
 
   // Calculate task counts when selectedTaskIds changes
   useEffect(() => {
-    // This is a placeholder - in a real implementation you would need to 
-    // check each task type to determine accurate counts
     setSelectedAdHocTasksCount(Math.floor(selectedTaskIds.length * 0.6));
     setSelectedRecurringTasksCount(Math.ceil(selectedTaskIds.length * 0.4));
   }, [selectedTaskIds]);
 
   // Mock progress update for the copying process
-  React.useEffect(() => {
+  useEffect(() => {
     if (step === 'processing') {
       const interval = setInterval(() => {
         setCopyProgress(prev => {
@@ -79,12 +94,20 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
       return () => clearInterval(interval);
     }
     
-    // Reset progress when not in processing step
     setCopyProgress(0);
   }, [step]);
 
-  // Find the target client name when the targetClientId changes
-  React.useEffect(() => {
+  // Update client names when IDs change
+  useEffect(() => {
+    if (sourceClientId && Array.isArray(clients)) {
+      const client = clients.find((c: Client) => c.id === sourceClientId);
+      if (client) {
+        setSourceClientName_internal(client.legalName || '');
+      }
+    }
+  }, [sourceClientId, clients]);
+
+  useEffect(() => {
     if (targetClientId && Array.isArray(clients)) {
       const client = clients.find((c: Client) => c.id === targetClientId);
       if (client) {
@@ -101,23 +124,37 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
     onOpenChange(open);
   };
 
+  // Use provided sourceClientName or internal name
+  const displaySourceClientName = sourceClientName || sourceClientName_internal;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
-        {step === 'select-client' && (
-          <SelectClientStep 
-            sourceClientId={clientId}
-            onSelectClient={handleSelectClient}
-            availableClients={availableClients}
-            targetClientId={targetClientId || ''}
-            setTargetClientId={(id) => handleSelectClient(id)}
+        {step === 'select-source-client' && (
+          <SelectSourceClientStep 
+            onSelectSourceClient={handleSelectSourceClient}
+            availableClients={availableSourceClients}
+            sourceClientId={sourceClientId || ''}
+            setSourceClientId={(id) => handleSelectSourceClient(id)}
             isLoading={isClientsLoading}
           />
         )}
+
+        {step === 'select-target-client' && (
+          <SelectClientStep 
+            sourceClientId={sourceClientId}
+            onSelectClient={handleSelectTargetClient}
+            availableClients={availableTargetClients}
+            targetClientId={targetClientId || ''}
+            setSelectedClientId={(id) => handleSelectTargetClient(id)}
+            isLoading={isClientsLoading}
+            stepType="target"
+          />
+        )}
         
-        {step === 'select-tasks' && targetClientId && (
+        {step === 'select-tasks' && sourceClientId && targetClientId && (
           <SelectTasksStep 
-            clientId={clientId}
+            clientId={sourceClientId}
             targetClientId={targetClientId}
             selectedTaskIds={selectedTaskIds}
             setSelectedTaskIds={setSelectedTaskIds}
@@ -127,11 +164,11 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
           />
         )}
         
-        {step === 'confirm' && targetClientId && (
+        {step === 'confirm' && sourceClientId && targetClientId && (
           <ConfirmationStep 
-            sourceClientId={clientId}
+            sourceClientId={sourceClientId}
             targetClientId={targetClientId}
-            sourceClientName={sourceClientName}
+            sourceClientName={displaySourceClientName}
             targetClientName={targetClientName}
             selectedAdHocTaskCount={selectedAdHocTasksCount}
             selectedRecurringTaskCount={selectedRecurringTasksCount}
@@ -149,7 +186,7 @@ const CopyClientTasksDialog: React.FC<CopyClientTasksDialogProps> = ({
         
         {step === 'success' && (
           <SuccessStep 
-            sourceClientName={sourceClientName}
+            sourceClientName={displaySourceClientName}
             targetClientName={targetClientName}
             adHocTasksCount={adHocTasksCount}
             recurringTasksCount={recurringTasksCount}

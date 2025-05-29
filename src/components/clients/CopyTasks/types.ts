@@ -1,5 +1,5 @@
 
-export type CopyTaskStep = 'select-client' | 'select-tasks' | 'confirm' | 'processing' | 'success';
+export type CopyTaskStep = 'select-source-client' | 'select-target-client' | 'select-tasks' | 'confirm' | 'processing' | 'success';
 
 export type TaskFilterOption = 'all' | 'recurring' | 'adhoc';
 
@@ -20,17 +20,27 @@ export interface Task {
   [key: string]: any;
 }
 
-// Updated SelectClientStepProps to include sourceClientId
+// Updated SelectClientStepProps to support both source and target selection
 export interface SelectClientStepProps {
-  sourceClientId: string;
+  sourceClientId?: string;
+  targetClientId?: string;
   onSelectClient: (id: string) => void;
   availableClients: any[];
-  targetClientId: string;
-  setTargetClientId: (id: string) => void;
+  setSelectedClientId: (id: string) => void;
+  isLoading: boolean;
+  stepType: 'source' | 'target';
+}
+
+// New interface for source client selection
+export interface SelectSourceClientStepProps {
+  onSelectSourceClient: (id: string) => void;
+  availableClients: any[];
+  sourceClientId: string;
+  setSourceClientId: (id: string) => void;
   isLoading: boolean;
 }
 
-// Updated ConfirmationStepProps to include sourceClientId
+// Updated ConfirmationStepProps to include both source and target
 export interface ConfirmationStepProps {
   sourceClientId: string;
   targetClientId: string;
