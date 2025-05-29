@@ -17,21 +17,24 @@ import {
   Calendar
 } from 'lucide-react';
 import { TemplateAssignmentTab } from './TaskOperationsTab/TemplateAssignmentTab';
+import { CopyTasksTab } from './TaskOperationsTab/CopyTasksTab';
 
 interface ClientTaskManagementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTasksRefresh?: () => void;
+  initialClientId?: string;
 }
 
 /**
  * Main dialog for managing client tasks across the practice
- * Phase 2: Integrated template assignment functionality
+ * Phase 2: Integrated template assignment and copy tasks functionality
  */
 const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
   open,
   onOpenChange,
-  onTasksRefresh
+  onTasksRefresh,
+  initialClientId
 }) => {
   const [activeTab, setActiveTab] = useState('templates');
 
@@ -40,7 +43,7 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
   };
 
   const handleTaskOperationSuccess = () => {
-    // Call the refresh callback when tasks are successfully created
+    // Call the refresh callback when tasks are successfully created or copied
     if (onTasksRefresh) {
       onTasksRefresh();
     }
@@ -86,7 +89,11 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
               </TabsContent>
 
               <TabsContent value="copy" className="h-full">
-                <CopyTasksTab />
+                <CopyTasksTab 
+                  initialClientId={initialClientId}
+                  onClose={handleClose}
+                  onTasksRefresh={handleTaskOperationSuccess}
+                />
               </TabsContent>
 
               <TabsContent value="reports" className="h-full">
@@ -101,26 +108,6 @@ const ClientTaskManagementDialog: React.FC<ClientTaskManagementDialogProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
-
-/**
- * Copy Tasks Tab - Phase 1 placeholder
- */
-const CopyTasksTab: React.FC = () => {
-  return (
-    <div className="p-6 text-center">
-      <div className="max-w-md mx-auto">
-        <Copy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Copy Tasks Between Clients</h3>
-        <p className="text-muted-foreground mb-4">
-          Copy existing tasks from one client to another with bulk selection and customization options.
-        </p>
-        <Badge variant="outline" className="mb-2">
-          Coming in Phase 3
-        </Badge>
-      </div>
-    </div>
   );
 };
 

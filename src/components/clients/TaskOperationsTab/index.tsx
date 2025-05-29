@@ -1,5 +1,6 @@
 
 export { TemplateAssignmentTab } from './TemplateAssignmentTab';
+export { CopyTasksTab } from './CopyTasksTab';
 export { OperationProgress } from './OperationProgress';
 export { useTemplateAssignment } from './hooks/useTemplateAssignment';
 
@@ -11,6 +12,7 @@ export { ConfirmationStep } from './components/ConfirmationStep';
 export { ProcessingStep } from './components/ProcessingStep';
 export { CompleteStep } from './components/CompleteStep';
 export { ProgressHeader } from './components/ProgressHeader';
+export { CopyStepRenderer } from './components/CopyStepRenderer';
 
 // Export utility types for external use
 export type { OperationProgress as OperationProgressType, OperationResults } from './hooks/utils/progressTracker';
