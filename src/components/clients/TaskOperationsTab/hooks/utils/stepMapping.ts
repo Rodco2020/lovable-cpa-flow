@@ -1,5 +1,5 @@
 
-import { CopyTaskStep } from '../../useCopyTasksDialog/types';
+import { CopyTaskStep } from '../../../CopyTasks/hooks/useCopyTasksDialog/types';
 import { CopyTabStep } from '../useCopyTabSteps';
 
 /**
