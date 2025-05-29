@@ -1,4 +1,3 @@
-
 export { TemplateAssignmentTab } from './TemplateAssignmentTab';
 export { CopyTasksTab } from './CopyTasksTab';
 export { OperationProgress } from './OperationProgress';
@@ -21,3 +20,13 @@ export { CopyStepRenderer } from './components/CopyStepRenderer';
 // Export utility types for external use
 export type { OperationProgress as OperationProgressType, OperationResults } from './hooks/utils/progressTracker';
 export type { DialogTab } from './hooks/useDialogState';
+
+// Export enhanced copy components for Phase 3
+export { EnhancedConfirmationStep } from './components/EnhancedConfirmationStep';
+export { EnhancedTaskFilterPanel } from '../CopyTasks/components/EnhancedTaskFilterPanel';
+export { EnhancedTaskSelectionList } from '../CopyTasks/components/EnhancedTaskSelectionList';
+export { SelectTasksStepEnhanced } from '../CopyTasks/SelectTasksStepEnhanced';
+
+// Export enhanced hooks
+export { useEnhancedTaskSelection } from '../CopyTasks/hooks/useEnhancedTaskSelection';
+export type { UnifiedTask, TaskWithType, AdHocTaskWithType } from '../CopyTasks/hooks/useEnhancedTaskSelection';

@@ -1,16 +1,18 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle2, Users, Copy, ArrowRight } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { SelectTasksStep } from '../../CopyTasks/SelectTasksStep';
-import { ConfirmationStep } from '../../CopyTasks/ConfirmationStep';
-import { ProcessingStep } from '../../CopyTasks/ProcessingStep';
-import { SuccessStep } from '../../CopyTasks/SuccessStep';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ChevronLeft, ChevronRight, Copy, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Client } from '@/types/client';
+import { ProcessingStep } from './ProcessingStep';
+import { CompleteStep } from './CompleteStep';
+import { SelectClientStep } from '../../CopyTasks/SelectClientStep';
+import { SelectTasksStep } from '../../CopyTasks/SelectTasksStep';
+import { EnhancedConfirmationStep } from './EnhancedConfirmationStep';
 
 interface CopyStepRendererProps {
-  currentStep: 'selection' | 'task-selection' | 'confirmation' | 'processing' | 'complete';
+  currentStep: string;
   initialClientId: string;
   targetClientId: string | null;
   selectedTaskIds: string[];
@@ -25,7 +27,7 @@ interface CopyStepRendererProps {
   onSelectClient: (clientId: string) => void;
   onBack: () => void;
   onNext: () => void;
-  onExecuteCopy: () => Promise<void>;
+  onExecuteCopy: () => void;
   onReset: () => void;
   onClose?: () => void;
 }
@@ -50,131 +52,127 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
   onReset,
   onClose
 }) => {
-  switch (currentStep) {
-    case 'selection':
-      return (
-        <div className="space-y-4">
-          <div className="text-center">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Select Target Client</h3>
-            <p className="text-muted-foreground mb-6">
-              Choose which client to copy tasks to from <strong>{getSourceClientName()}</strong>
-            </p>
-          </div>
-
-          {isClientsLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-2">Loading clients...</p>
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 'selection':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold">Select Target Client</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose which client to copy tasks to from <strong>{getSourceClientName()}</strong>
+              </p>
             </div>
-          ) : availableClients.length === 0 ? (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                No other clients available for copying tasks.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="grid gap-3 max-h-64 overflow-y-auto">
-              {availableClients.map((client) => (
-                <div
-                  key={client.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    targetClientId === client.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/50'
-                  }`}
-                  onClick={() => onSelectClient(client.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">{client.legalName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {client.industry} • {client.status}
-                      </p>
-                    </div>
-                    {targetClientId === client.id && (
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                    )}
-                  </div>
-                </div>
-              ))}
+
+            <SelectClientStep
+              availableClients={availableClients}
+              targetClientId={targetClientId || ''}
+              setTargetClientId={(id: string) => onSelectClient(id)}
+              isLoading={isClientsLoading}
+              sourceClientId={initialClientId}
+              onSelectClient={onSelectClient}
+            />
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={onNext} 
+                disabled={!canGoNext || isProcessing}
+                className="flex items-center space-x-2"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
-          )}
-
-          <div className="flex justify-end">
-            <Button 
-              onClick={onNext}
-              disabled={!canGoNext}
-              className="flex items-center gap-2"
-            >
-              Select Tasks <ArrowRight className="h-4 w-4" />
-            </Button>
           </div>
-        </div>
-      );
+        );
 
-    case 'task-selection':
-      return targetClientId ? (
-        <SelectTasksStep 
-          clientId={initialClientId}
-          targetClientId={targetClientId}
-          selectedTaskIds={selectedTaskIds}
-          setSelectedTaskIds={setSelectedTaskIds}
-          step="select-tasks"
-          handleBack={onBack}
-          handleNext={onNext}
-        />
-      ) : null;
+      case 'task-selection':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold">Select Tasks to Copy</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose which tasks to copy from <strong>{getSourceClientName()}</strong> to <strong>{getTargetClientName()}</strong>
+              </p>
+            </div>
 
-    case 'confirmation':
-      return targetClientId ? (
-        <ConfirmationStep 
-          sourceClientId={initialClientId}
-          targetClientId={targetClientId}
-          sourceClientName={getSourceClientName()}
-          targetClientName={getTargetClientName()}
-          selectedAdHocTaskCount={Math.floor(selectedTaskIds.length * 0.6)}
-          selectedRecurringTaskCount={Math.ceil(selectedTaskIds.length * 0.4)}
-          selectedCount={selectedTaskIds.length}
-          step="confirm"
-          handleBack={onBack}
-          handleCopy={onExecuteCopy}
-          isProcessing={isProcessing}
-        />
-      ) : null;
+            <SelectTasksStep
+              clientId={initialClientId}
+              targetClientId={targetClientId}
+              selectedTaskIds={selectedTaskIds}
+              setSelectedTaskIds={setSelectedTaskIds}
+              step="select-tasks"
+              handleBack={onBack}
+              handleNext={onNext}
+            />
+          </div>
+        );
 
-    case 'processing':
-      return (
-        <ProcessingStep progress={75} />
-      );
+      case 'confirmation':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold">Confirm Copy Operation</h3>
+              <p className="text-sm text-muted-foreground">
+                Review the details before copying tasks
+              </p>
+            </div>
 
-    case 'complete':
-      return (
-        <div className="space-y-6">
-          <SuccessStep 
-            sourceClientName={getSourceClientName()}
-            targetClientName={getTargetClientName()}
-            adHocTasksCount={Math.floor(selectedTaskIds.length * 0.6)}
-            recurringTasksCount={Math.ceil(selectedTaskIds.length * 0.4)}
+            <EnhancedConfirmationStep
+              sourceClientId={initialClientId}
+              targetClientId={targetClientId || ''}
+              sourceClientName={getSourceClientName()}
+              targetClientName={getTargetClientName()}
+              selectedTaskIds={selectedTaskIds}
+              onExecute={onExecuteCopy}
+              onBack={onBack}
+              isProcessing={isProcessing}
+            />
+          </div>
+        );
+
+      case 'processing':
+        return (
+          <ProcessingStep
+            progress={75}
+            isProcessing={isProcessing}
+            currentOperation="Copying tasks between clients..."
           />
-          
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={onReset}>
-              Copy More Tasks
-            </Button>
-            <Button onClick={onClose}>
-              Done
+        );
+
+      case 'complete':
+        return (
+          <CompleteStep
+            isSuccess={isSuccess}
+            tasksCreated={selectedTaskIds.length}
+            errors={[]}
+            onReset={onReset}
+            onClose={onClose}
+          />
+        );
+
+      default:
+        return (
+          <div className="text-center py-8">
+            <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Unknown Step</h3>
+            <p className="text-muted-foreground">An error occurred in the copy workflow.</p>
+            <Button onClick={onReset} className="mt-4">
+              Reset
             </Button>
           </div>
-        </div>
-      );
+        );
+    }
+  };
 
-    default:
-      return (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Unknown step</p>
-        </div>
-      );
-  }
+  return (
+    <Card>
+      <CardContent className="p-6">
+        {renderStepContent()}
+      </CardContent>
+    </Card>
+  );
 };

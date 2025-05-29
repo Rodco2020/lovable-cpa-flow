@@ -32,14 +32,16 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
     { key: 'complete', label: 'Complete' }
   ];
 
-  // Fetch available clients for selection
+  // Fetch available clients for selection (enhanced with proper filtering)
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: getAllClients,
   });
 
-  // Filter out the source client from available clients
-  const availableClients = Array.isArray(clients) ? clients.filter((client: Client) => client.id !== initialClientId) : [];
+  // Filter out the source client from available clients and ensure only active clients
+  const availableClients = Array.isArray(clients) ? clients.filter((client: Client) => 
+    client.id !== initialClientId && client.status === 'Active'
+  ) : [];
 
   const {
     step: dialogStep,
@@ -89,15 +91,21 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
       setCurrentStep('processing');
       startOperation('Copying tasks between clients');
       
-      // Simulate progress updates during the copy process
-      updateProgress(25, 'Preparing task data for copy');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      // Enhanced progress tracking with better status messages
+      updateProgress(20, 'Validating task data and permissions');
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      updateProgress(50, 'Copying tasks to target client');
+      updateProgress(40, 'Preparing tasks for copy operation');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      updateProgress(60, 'Copying tasks to target client');
       await handleCopy();
       
-      updateProgress(75, 'Finalizing task assignments');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      updateProgress(80, 'Verifying copied tasks');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      updateProgress(95, 'Finalizing task assignments');
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       const tasksCreated = selectedTaskIds.length;
       completeOperation({

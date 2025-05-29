@@ -3,10 +3,10 @@ import React from 'react';
 import { DialogFooter } from './DialogFooter';
 import { CopyTaskStep } from './types';
 import { SelectTasksStepHeader } from './SelectTasksStepHeader';
-import { TaskSearchInput } from './TaskSearchInput';
-import { TaskFilterPanel } from './TaskFilterPanel';
-import { useTaskSelection } from './hooks/useTaskSelection';
-import TaskSelectionPanel from './TaskSelectionPanel';
+import { SelectTasksStepEnhanced } from './SelectTasksStepEnhanced';
+import { useQuery } from '@tanstack/react-query';
+import { getAllClients } from '@/services/clientService';
+import { Client } from '@/types/client';
 
 interface SelectTasksStepProps {
   clientId: string;
@@ -29,71 +29,28 @@ export const SelectTasksStep: React.FC<SelectTasksStepProps> = ({
   handleNext,
   isTemplateBuilder = false,
 }) => {
-  const {
-    searchTerm,
-    setSearchTerm,
-    activeFilter,
-    setActiveFilter,
-    filteredTasks,
-    recurringTasksCount,
-    adHocTasksCount,
-    displayType,
-    isLoading,
-    hasError
-  } = useTaskSelection(clientId);
-  
-  const handleSelectAll = () => {
-    const allTaskIds = filteredTasks.map(task => task.id);
-    setSelectedTaskIds(allTaskIds);
+  // Get client names for display
+  const { data: clients = [] } = useQuery({
+    queryKey: ['clients'],
+    queryFn: getAllClients,
+  });
+
+  const getSourceClientName = () => {
+    const sourceClient = clients.find((c: Client) => c.id === clientId);
+    return sourceClient?.legalName || 'Unknown Client';
   };
-  
-  const handleDeselectAll = () => {
-    setSelectedTaskIds([]);
-  };
-  
-  const handleToggleTaskSelection = (taskId: string) => {
-    setSelectedTaskIds(
-      selectedTaskIds.includes(taskId)
-        ? selectedTaskIds.filter(id => id !== taskId)
-        : [...selectedTaskIds, taskId]
-    );
-  };
-  
+
   return (
     <div className="space-y-4">
       <SelectTasksStepHeader isTemplateBuilder={isTemplateBuilder} />
 
-      {/* Search and filter controls */}
-      <div className="flex flex-col space-y-4">
-        <TaskSearchInput
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
-
-        <TaskFilterPanel
-          activeFilter={activeFilter}
-          setActiveFilter={setActiveFilter}
-          recurringTasksCount={recurringTasksCount}
-          adHocTasksCount={adHocTasksCount}
-          selectedCount={selectedTaskIds.length}
-          totalCount={filteredTasks.length}
-          onSelectAll={handleSelectAll}
-          onDeselectAll={handleDeselectAll}
-        />
-      </div>
-
-      {/* Task list */}
-      <div className="border rounded-md">
-        <TaskSelectionPanel
-          tasks={filteredTasks}
-          selectedTaskIds={selectedTaskIds}
-          onToggleTask={handleToggleTaskSelection}
-          type={displayType}
-          onSelectAll={handleSelectAll}
-          isLoading={isLoading}
-          error={hasError ? new Error('Failed to load tasks') : null}
-        />
-      </div>
+      {/* Enhanced Task Selection */}
+      <SelectTasksStepEnhanced
+        clientId={clientId}
+        selectedTaskIds={selectedTaskIds}
+        setSelectedTaskIds={setSelectedTaskIds}
+        sourceClientName={getSourceClientName()}
+      />
 
       <DialogFooter
         step={step}
