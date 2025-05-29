@@ -1,11 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Copy } from 'lucide-react';
 import { useEnhancedTaskSelection } from './hooks/useEnhancedTaskSelection';
-import { TaskSearchInput } from './TaskSearchInput';
-import { EnhancedTaskFilterPanel } from './components/EnhancedTaskFilterPanel';
+import { AdvancedSearchFilter } from './components/AdvancedSearchFilter';
+import { BulkSelectionControls } from './components/BulkSelectionControls';
 import { EnhancedTaskSelectionList } from './components/EnhancedTaskSelectionList';
 
 interface SelectTasksStepEnhancedProps {
@@ -21,6 +21,8 @@ export const SelectTasksStepEnhanced: React.FC<SelectTasksStepEnhancedProps> = (
   setSelectedTaskIds,
   sourceClientName
 }) => {
+  const [isKeyboardMode, setIsKeyboardMode] = useState(false);
+
   const {
     // Search and filters
     searchTerm,
@@ -72,6 +74,8 @@ export const SelectTasksStepEnhanced: React.FC<SelectTasksStepEnhancedProps> = (
     );
   };
 
+  const hasActiveFilters = categoryFilter || priorityFilter || activeFilter !== 'all' || searchTerm;
+
   if (hasError) {
     return (
       <Card>
@@ -97,36 +101,33 @@ export const SelectTasksStepEnhanced: React.FC<SelectTasksStepEnhancedProps> = (
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Search */}
-          <TaskSearchInput
+          {/* Enhanced Search and Filters */}
+          <AdvancedSearchFilter
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-          />
-
-          {/* Enhanced Filters */}
-          <EnhancedTaskFilterPanel
-            activeFilter={activeFilter}
-            setActiveFilter={setActiveFilter}
             categoryFilter={categoryFilter}
             setCategoryFilter={setCategoryFilter}
             priorityFilter={priorityFilter}
             setPriorityFilter={setPriorityFilter}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            sortOrder={sortOrder}
-            setSortOrder={setSortOrder}
-            recurringTasksCount={recurringTasksCount}
-            adHocTasksCount={adHocTasksCount}
-            selectedCount={selectedTaskIds.length}
-            totalCount={filteredTasks.length}
             availableCategories={availableCategories}
             availablePriorities={availablePriorities}
-            onSelectAll={handleSelectAll}
-            onDeselectAll={handleDeselectAll}
             onClearFilters={handleClearFilters}
+            hasActiveFilters={!!hasActiveFilters}
           />
 
-          {/* Task List */}
+          {/* Bulk Selection Controls */}
+          <BulkSelectionControls
+            tasks={filteredTasks}
+            selectedTaskIds={selectedTaskIds}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            onToggleTask={handleToggleTaskSelection}
+            totalCount={filteredTasks.length}
+            isKeyboardMode={isKeyboardMode}
+            onToggleKeyboardMode={() => setIsKeyboardMode(!isKeyboardMode)}
+          />
+
+          {/* Enhanced Task List */}
           <EnhancedTaskSelectionList
             tasks={filteredTasks}
             selectedTaskIds={selectedTaskIds}

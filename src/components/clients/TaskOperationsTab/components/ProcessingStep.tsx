@@ -1,7 +1,6 @@
 
-import React from 'react';
-import { Progress } from '@/components/ui/progress';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { EnhancedProgressIndicator } from '../../CopyTasks/components/EnhancedProgressIndicator';
 
 interface ProcessingStepProps {
   progress: number;
@@ -16,39 +15,65 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
   currentOperation = '',
   estimatedTimeRemaining
 }) => {
-  const formatTime = (milliseconds: number) => {
-    const seconds = Math.ceil(milliseconds / 1000);
-    if (seconds < 60) {
-      return `${seconds}s`;
+  const [showDetailedView, setShowDetailedView] = useState(false);
+  const [processingSpeed, setProcessingSpeed] = useState(0);
+
+  // Calculate processing speed based on progress changes
+  useEffect(() => {
+    if (isProcessing && progress > 0) {
+      // Simple speed calculation - this would be more sophisticated in a real implementation
+      const speed = progress / 10; // Mock calculation
+      setProcessingSpeed(speed);
     }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
+  }, [progress, isProcessing]);
+
+  // Generate mock steps for demonstration
+  const generateSteps = () => {
+    const baseSteps = [
+      { id: 'validation', label: 'Validating task selection' },
+      { id: 'preparation', label: 'Preparing copy operation' },
+      { id: 'copying', label: 'Copying tasks' },
+      { id: 'verification', label: 'Verifying copied tasks' },
+      { id: 'completion', label: 'Finalizing operation' }
+    ];
+
+    return baseSteps.map((step, index) => {
+      const stepProgress = (index + 1) * 20; // Each step is 20%
+      let status: 'pending' | 'processing' | 'completed' | 'failed' = 'pending';
+      
+      if (progress > stepProgress) {
+        status = 'completed';
+      } else if (progress >= stepProgress - 20 && progress < stepProgress) {
+        status = 'processing';
+      }
+
+      return {
+        ...step,
+        status,
+        progress: status === 'processing' ? ((progress % 20) / 20) * 100 : undefined,
+        estimatedTime: status === 'processing' ? estimatedTimeRemaining : undefined
+      };
+    });
   };
 
-  return (
-    <div className="text-center space-y-6">
-      <div className="flex flex-col items-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <h3 className="text-lg font-semibold mb-2">
-          {isProcessing ? 'Processing Operation' : 'Operation Complete'}
-        </h3>
-        {currentOperation && (
-          <p className="text-muted-foreground mb-4">
-            {currentOperation}
-          </p>
-        )}
-      </div>
+  const steps = generateSteps();
+  const isSuccess = progress >= 100 && !isProcessing;
+  const error = null; // No error handling in this mock
 
-      <div className="max-w-md mx-auto space-y-3">
-        <Progress value={progress} className="w-full" />
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>{Math.round(progress)}% complete</span>
-          {estimatedTimeRemaining && estimatedTimeRemaining > 0 && (
-            <span>~{formatTime(estimatedTimeRemaining)} remaining</span>
-          )}
-        </div>
-      </div>
+  return (
+    <div className="space-y-6 p-6">
+      <EnhancedProgressIndicator
+        totalProgress={progress}
+        currentStep={currentOperation}
+        steps={steps}
+        isProcessing={isProcessing}
+        isSuccess={isSuccess}
+        error={error}
+        estimatedTimeRemaining={estimatedTimeRemaining}
+        processingSpeed={processingSpeed}
+        showDetailedView={showDetailedView}
+        onToggleDetailedView={() => setShowDetailedView(!showDetailedView)}
+      />
     </div>
   );
 };
