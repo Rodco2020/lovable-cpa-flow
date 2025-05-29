@@ -47,10 +47,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ index, style, data }) => {
             <div className="flex items-center space-x-2">
               <h4 className="font-medium text-sm truncate">{task.name}</h4>
               <Badge 
-                variant={task.type === 'recurring' ? 'default' : 'secondary'}
+                variant={task.taskType === 'recurring' ? 'default' : 'secondary'}
                 className="text-xs"
               >
-                {task.type}
+                {task.taskType}
               </Badge>
             </div>
             

@@ -31,7 +31,7 @@ describe('Large Dataset Performance Tests', () => {
     const largeTasks = Array.from({ length: 1500 }, (_, i) => ({
       id: `task-${i}`,
       name: `Task ${i}`,
-      type: 'recurring' as const,
+      taskType: 'recurring' as const,
       category: `Category ${i % 10}`,
       priority: ['Low', 'Medium', 'High'][i % 3] as 'Low' | 'Medium' | 'High',
       estimatedHours: 2,
@@ -40,11 +40,15 @@ describe('Large Dataset Performance Tests', () => {
       status: 'Active' as const,
       clientId: 'client-1',
       templateId: 'template-1',
-      recurrenceType: 'monthly' as const,
-      recurrenceInterval: 1,
+      recurrencePattern: {
+        type: 'Monthly' as const,
+        interval: 1
+      },
+      lastGeneratedDate: null,
       isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      dueDate: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }));
 
     const startTime = performance.now();
@@ -71,7 +75,7 @@ describe('Large Dataset Performance Tests', () => {
     const tasks = Array.from({ length: 100 }, (_, i) => ({
       id: `task-${i}`,
       name: `Task ${i}`,
-      type: 'recurring' as const,
+      taskType: 'recurring' as const,
       category: 'Test',
       priority: 'Medium' as const,
       estimatedHours: 2,
@@ -80,11 +84,15 @@ describe('Large Dataset Performance Tests', () => {
       status: 'Active' as const,
       clientId: 'client-1',
       templateId: 'template-1',
-      recurrenceType: 'monthly' as const,
-      recurrenceInterval: 1,
+      recurrencePattern: {
+        type: 'Monthly' as const,
+        interval: 1
+      },
+      lastGeneratedDate: null,
       isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      dueDate: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }));
 
     const onToggleTask = vi.fn();

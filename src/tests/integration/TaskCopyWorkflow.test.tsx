@@ -111,7 +111,7 @@ describe('Task Copy Workflow Integration Tests', () => {
     const largeTaskList = Array.from({ length: 1000 }, (_, i) => ({
       id: `task-${i}`,
       name: `Task ${i}`,
-      type: i % 2 === 0 ? 'recurring' : 'adhoc',
+      taskType: i % 2 === 0 ? 'recurring' : 'ad-hoc',
     }));
 
     // Mock large dataset
