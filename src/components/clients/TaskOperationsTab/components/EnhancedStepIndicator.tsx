@@ -42,10 +42,10 @@ const getStepIcon = (stepKey: string) => {
 const getStepDescription = (stepKey: string, sourceClientName?: string, targetClientName?: string) => {
   switch (stepKey) {
     case 'select-source-client':
-      return 'Choose source client';
+      return sourceClientName ? `Source: ${sourceClientName}` : 'Choose source client';
     case 'select-target-client':
     case 'selection':
-      return 'Choose target client';
+      return targetClientName ? `Target: ${targetClientName}` : 'Choose target client';
     case 'select-tasks':
     case 'task-selection':
       return 'Select tasks to copy';

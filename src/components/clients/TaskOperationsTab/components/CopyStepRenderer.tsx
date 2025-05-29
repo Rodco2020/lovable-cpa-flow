@@ -15,6 +15,7 @@ import { createOperationResults } from '../hooks/utils/operationResultsHelper';
 interface CopyStepRendererProps {
   currentStep: string;
   initialClientId: string;
+  sourceClientId: string | null;
   targetClientId: string | null;
   selectedTaskIds: string[];
   setSelectedTaskIds: (ids: string[]) => void;
@@ -25,7 +26,8 @@ interface CopyStepRendererProps {
   canGoNext: boolean;
   getSourceClientName: () => string;
   getTargetClientName: () => string;
-  onSelectClient: (clientId: string) => void;
+  onSelectSourceClient: (clientId: string) => void;
+  onSelectTargetClient: (clientId: string) => void;
   onBack: () => void;
   onNext: () => void;
   onExecuteCopy: () => Promise<void>;
@@ -36,6 +38,7 @@ interface CopyStepRendererProps {
 export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
   currentStep,
   initialClientId,
+  sourceClientId,
   targetClientId,
   selectedTaskIds,
   setSelectedTaskIds,
@@ -46,7 +49,8 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
   canGoNext,
   getSourceClientName,
   getTargetClientName,
-  onSelectClient,
+  onSelectSourceClient,
+  onSelectTargetClient,
   onBack,
   onNext,
   onExecuteCopy,
@@ -55,16 +59,14 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
 }) => {
   const renderStepContent = () => {
     switch (currentStep) {
-      case 'selection':
+      case 'select-source-client':
         return (
           <div className="space-y-6">
-            <SelectTargetClientStep
-              sourceClientId={initialClientId}
-              targetClientId={targetClientId}
-              onSelectClient={onSelectClient}
+            <SelectSourceClientStep
+              sourceClientId={sourceClientId}
+              onSelectClient={onSelectSourceClient}
               availableClients={availableClients}
               isLoading={isClientsLoading}
-              sourceClientName={getSourceClientName()}
             />
 
             <div className="flex justify-between">
@@ -83,11 +85,45 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
           </div>
         );
 
+      case 'selection':
+        return (
+          <div className="space-y-6">
+            <SelectTargetClientStep
+              sourceClientId={sourceClientId || ''}
+              targetClientId={targetClientId}
+              onSelectClient={onSelectTargetClient}
+              availableClients={availableClients}
+              isLoading={isClientsLoading}
+              sourceClientName={getSourceClientName()}
+            />
+
+            <div className="flex justify-between">
+              <Button 
+                variant="outline" 
+                onClick={onBack}
+                disabled={isProcessing}
+                className="flex items-center space-x-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Back</span>
+              </Button>
+              <Button 
+                onClick={onNext} 
+                disabled={!canGoNext || isProcessing}
+                className="flex items-center space-x-2"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        );
+
       case 'task-selection':
         return (
           <div className="space-y-6">
             <EnhancedSelectTasksStep
-              sourceClientId={initialClientId}
+              sourceClientId={sourceClientId || ''}
               targetClientId={targetClientId}
               selectedTaskIds={selectedTaskIds}
               setSelectedTaskIds={setSelectedTaskIds}
@@ -118,7 +154,7 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
       case 'confirmation':
         return (
           <EnhancedConfirmationStep
-            sourceClientId={initialClientId}
+            sourceClientId={sourceClientId || ''}
             targetClientId={targetClientId || ''}
             sourceClientName={getSourceClientName()}
             targetClientName={getTargetClientName()}

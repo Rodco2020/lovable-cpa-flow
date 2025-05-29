@@ -5,6 +5,7 @@ import { getAllClients } from '@/services/clientService';
 import { Client } from '@/types/client';
 import { useCopyTasksDialog } from '../../CopyTasks/hooks/useCopyTasksDialog';
 import { CopyTabStep } from './useCopyTabSteps';
+import { mapDialogStepToCopyTabStep } from './utils/stepMapping';
 
 interface CopyTabStateReturn {
   currentStep: CopyTabStep;
@@ -17,21 +18,25 @@ interface CopyTabStateReturn {
   
   // Dialog state
   dialogStep: string;
+  sourceClientId: string | null;
   targetClientId: string | null;
   selectedTaskIds: string[];
   setSelectedTaskIds: (ids: string[]) => void;
+  handleSelectSourceClient: (clientId: string) => void;
   handleSelectTargetClient: (clientId: string) => void;
   handleBack: () => void;
   handleNext: () => void;
   handleCopy: () => Promise<void>;
   resetDialog: () => void;
+  isProcessing: boolean;
+  isSuccess: boolean;
 }
 
 export const useCopyTabState = (
   initialClientId: string,
   onClose?: () => void
 ): CopyTabStateReturn => {
-  const [currentStep, setCurrentStep] = useState<CopyTabStep>('selection');
+  const [currentStep, setCurrentStep] = useState<CopyTabStep>('select-source-client');
 
   // Fetch available clients for selection
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
@@ -44,47 +49,41 @@ export const useCopyTabState = (
     client.id !== initialClientId && client.status === 'Active'
   ) : [];
 
-  // Use the existing copy tasks dialog hook
+  // Use the existing copy tasks dialog hook with the initial client as default source
   const {
     step: dialogStep,
+    sourceClientId,
     targetClientId,
     selectedTaskIds,
     setSelectedTaskIds,
+    handleSelectSourceClient,
     handleSelectTargetClient,
     handleBack,
     handleNext,
     handleCopy,
-    resetDialog
-  } = useCopyTasksDialog(initialClientId, onClose);
+    resetDialog,
+    isProcessing,
+    isSuccess
+  } = useCopyTasksDialog({ defaultSourceClientId: initialClientId }, onClose);
 
-  // Sync dialog step with our local step state
+  // Sync dialog step with our local step state using the mapping
   useEffect(() => {
-    switch (dialogStep) {
-      case 'select-target-client':
-        setCurrentStep('selection');
-        break;
-      case 'select-tasks':
-        setCurrentStep('task-selection');
-        break;
-      case 'confirm':
-        setCurrentStep('confirmation');
-        break;
-      case 'processing':
-        setCurrentStep('processing');
-        break;
-      case 'success':
-        setCurrentStep('complete');
-        break;
-      default:
-        setCurrentStep('selection');
-    }
+    const mappedStep = mapDialogStepToCopyTabStep(dialogStep as any);
+    setCurrentStep(mappedStep);
   }, [dialogStep]);
 
+  // Auto-select the initial client as source when component mounts
+  useEffect(() => {
+    if (initialClientId && !sourceClientId) {
+      handleSelectSourceClient(initialClientId);
+    }
+  }, [initialClientId, sourceClientId, handleSelectSourceClient]);
+
   const getSourceClientName = useCallback(() => {
-    if (!initialClientId) return '';
-    const sourceClient = clients.find((c: Client) => c.id === initialClientId);
+    if (!sourceClientId) return '';
+    const sourceClient = clients.find((c: Client) => c.id === sourceClientId);
     return sourceClient?.legalName || '';
-  }, [initialClientId, clients]);
+  }, [sourceClientId, clients]);
 
   const getTargetClientName = useCallback(() => {
     if (!targetClientId) return '';
@@ -94,6 +93,8 @@ export const useCopyTabState = (
 
   const canGoNext = useCallback(() => {
     switch (currentStep) {
+      case 'select-source-client':
+        return !!sourceClientId;
       case 'selection':
         return !!targetClientId;
       case 'task-selection':
@@ -103,7 +104,7 @@ export const useCopyTabState = (
       default:
         return false;
     }
-  }, [currentStep, targetClientId, selectedTaskIds.length]);
+  }, [currentStep, sourceClientId, targetClientId, selectedTaskIds.length]);
 
   return {
     currentStep,
@@ -116,13 +117,17 @@ export const useCopyTabState = (
     
     // Dialog state
     dialogStep,
+    sourceClientId,
     targetClientId,
     selectedTaskIds,
     setSelectedTaskIds,
+    handleSelectSourceClient,
     handleSelectTargetClient,
     handleBack,
     handleNext,
     handleCopy,
-    resetDialog
+    resetDialog,
+    isProcessing,
+    isSuccess
   };
 };

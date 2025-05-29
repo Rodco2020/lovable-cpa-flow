@@ -40,3 +40,6 @@ export type { UnifiedTask, TaskWithType, AdHocTaskWithType } from '../CopyTasks/
 
 // Export new copy tab types
 export type { CopyTabStep } from './hooks/useCopyTabSteps';
+
+// Export step mapping utilities
+export { mapDialogStepToCopyTabStep, mapCopyTabStepToDialogStep } from './hooks/utils/stepMapping';
