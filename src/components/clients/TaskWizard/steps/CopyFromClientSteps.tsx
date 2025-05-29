@@ -50,8 +50,8 @@ export const CopyFromClientSteps: React.FC<CopyFromClientStepsProps> = ({
   // Convert string step to CopyTaskStep type
   const getCopyTaskStep = (step: string): CopyTaskStep => {
     switch (step) {
-      case 'select-client':
-        return 'select-client';
+      case 'select-target-client':
+        return 'select-target-client';
       case 'select-tasks':
         return 'select-tasks';
       case 'confirm':

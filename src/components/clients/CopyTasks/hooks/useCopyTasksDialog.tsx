@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { copyClientTasks } from '@/services/taskCopyService';
 import { CopyTaskStep } from '../types';

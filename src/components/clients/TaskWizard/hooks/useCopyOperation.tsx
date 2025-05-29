@@ -36,7 +36,7 @@ export const useCopyOperation = (
     targetClientId: copyTargetClientId,
     selectedTaskIds: copySelectedTaskIds,
     setSelectedTaskIds: setCopySelectedTaskIds,
-    handleSelectClient: handleCopySelectClient,
+    handleSelectTargetClient: handleCopySelectClient,
     handleCopy: handleCopyExecute,
     isProcessing: isCopyProcessing,
     isSuccess: isCopySuccessFromDialog,

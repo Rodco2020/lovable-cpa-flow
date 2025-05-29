@@ -34,12 +34,12 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({
       <Button 
         variant="outline" 
         onClick={handleBack}
-        disabled={step === 'select-client'}
+        disabled={step === 'select-source-client'}
       >
         Back
       </Button>
       
-      {step === 'select-tasks' && (
+      {(step === 'select-tasks' || step === 'select-target-client') && (
         <Button 
           onClick={handleNext}
           disabled={disableNext}

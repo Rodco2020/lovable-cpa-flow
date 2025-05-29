@@ -48,7 +48,7 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
     targetClientId,
     selectedTaskIds,
     setSelectedTaskIds,
-    handleSelectClient,
+    handleSelectTargetClient,
     handleBack,
     handleNext,
     handleCopy,
@@ -66,7 +66,7 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
   // Sync dialog step with our local step state
   React.useEffect(() => {
     switch (dialogStep) {
-      case 'select-client':
+      case 'select-target-client':
         setCurrentStep('selection');
         break;
       case 'select-tasks':
@@ -191,7 +191,7 @@ export const CopyTasksTab: React.FC<CopyTasksTabProps> = ({
             canGoNext={canGoNext()}
             getSourceClientName={getSourceClientName}
             getTargetClientName={getTargetClientName}
-            onSelectClient={handleSelectClient}
+            onSelectClient={handleSelectTargetClient}
             onBack={handleBack}
             onNext={handleNext}
             onExecuteCopy={handleExecuteCopy}

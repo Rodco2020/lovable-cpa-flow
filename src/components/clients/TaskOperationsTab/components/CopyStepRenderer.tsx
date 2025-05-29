@@ -65,12 +65,13 @@ export const CopyStepRenderer: React.FC<CopyStepRendererProps> = ({
             </div>
 
             <SelectClientStep
-              availableClients={availableClients}
-              targetClientId={targetClientId || ''}
-              setTargetClientId={(id: string) => onSelectClient(id)}
-              isLoading={isClientsLoading}
               sourceClientId={initialClientId}
+              targetClientId={targetClientId || ''}
               onSelectClient={onSelectClient}
+              availableClients={availableClients}
+              setSelectedClientId={onSelectClient}
+              isLoading={isClientsLoading}
+              stepType="target"
             />
 
             <div className="flex justify-between">
