@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar as CalendarIcon, AlertCircle, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, AlertCircle, AlertTriangle, XCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { getAllSkills } from '@/services/skillService';
 
 // Form schema for validation
 const EditTaskSchema = z.object({
@@ -70,10 +71,18 @@ export function EditRecurringTaskDialog({
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
-  // Available skills for selection
-  const availableSkills: SkillType[] = [
-    "Junior", "Senior", "CPA", "Tax Specialist", "Audit", "Advisory", "Bookkeeping"
-  ];
+  // Fetch skills from database
+  const {
+    data: availableSkills = [],
+    isLoading: isLoadingSkills,
+    error: skillsFetchError,
+    refetch: refetchSkills
+  } = useQuery({
+    queryKey: ['skills'],
+    queryFn: getAllSkills,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2
+  });
   
   // Initialize form with task data when available
   const form = useForm<EditTaskFormValues>({
@@ -192,13 +201,13 @@ export function EditRecurringTaskDialog({
   };
   
   // Handle skill selection
-  const toggleSkill = (skill: string) => {
+  const toggleSkill = (skillId: string) => {
     let updatedSkills: string[];
     
-    if (selectedSkills.includes(skill)) {
-      updatedSkills = selectedSkills.filter(s => s !== skill);
+    if (selectedSkills.includes(skillId)) {
+      updatedSkills = selectedSkills.filter(s => s !== skillId);
     } else {
-      updatedSkills = [...selectedSkills, skill];
+      updatedSkills = [...selectedSkills, skillId];
     }
     
     setSelectedSkills(updatedSkills);
@@ -281,6 +290,11 @@ export function EditRecurringTaskDialog({
     }, 100);
   };
 
+  // Handle skills retry
+  const handleSkillsRetry = () => {
+    refetchSkills();
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -355,6 +369,25 @@ export function EditRecurringTaskDialog({
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
                 You are editing an inactive task. The task will remain inactive after updates.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Skills Loading/Error State */}
+          {skillsFetchError && !isLoadingSkills && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col gap-2">
+                <div>Failed to load skills: {skillsFetchError instanceof Error ? skillsFetchError.message : 'Unknown error'}</div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSkillsRetry}
+                  className="w-fit"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry Loading Skills
+                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -465,33 +498,63 @@ export function EditRecurringTaskDialog({
                 <FormItem>
                   <FormLabel>Required Skills</FormLabel>
                   <div className="border rounded-md p-3 space-y-2">
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {availableSkills.map((skill) => (
-                        <Badge
-                          key={skill}
-                          variant={selectedSkills.includes(skill) ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer hover:bg-secondary transition-colors",
-                            selectedSkills.includes(skill) 
-                              ? "bg-primary text-primary-foreground" 
-                              : "bg-background text-foreground"
-                          )}
-                          onClick={() => toggleSkill(skill)}
-                        >
-                          {skill}
-                          {selectedSkills.includes(skill) && (
-                            <span className="ml-1 text-xs">✓</span>
-                          )}
-                        </Badge>
-                      ))}
-                    </div>
-                    {selectedSkills.length > 0 ? (
-                      <div className="text-xs text-muted-foreground">
-                        Selected: {selectedSkills.join(', ')}
+                    {isLoadingSkills ? (
+                      <div className="flex items-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+                        <span className="text-sm">Loading skills...</span>
                       </div>
+                    ) : skillsFetchError ? (
+                      <div className="text-sm text-destructive">
+                        Failed to load skills. Please try again.
+                      </div>
+                    ) : availableSkills.length > 0 ? (
+                      <>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {availableSkills.map((skill) => {
+                            const skillId = String(skill.id);
+                            const isSelected = selectedSkills.includes(skillId);
+                            
+                            return (
+                              <Badge
+                                key={skillId}
+                                variant={isSelected ? "default" : "outline"}
+                                className={cn(
+                                  "cursor-pointer hover:bg-secondary transition-colors",
+                                  isSelected 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "bg-background text-foreground"
+                                )}
+                                onClick={() => toggleSkill(skillId)}
+                              >
+                                {skill.name}
+                                {skill.proficiencyLevel && (
+                                  <span className="ml-1 text-xs">
+                                    ({skill.proficiencyLevel})
+                                  </span>
+                                )}
+                                {isSelected && (
+                                  <span className="ml-1 text-xs">✓</span>
+                                )}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                        {selectedSkills.length > 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            Selected: {selectedSkills.map(skillId => {
+                              const skill = availableSkills.find(s => String(s.id) === skillId);
+                              return skill?.name || skillId;
+                            }).join(', ')}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">
+                            Click to select required skills
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div className="text-xs text-muted-foreground">
-                        Click to select required skills
+                      <div className="text-sm text-muted-foreground">
+                        No skills available. Please add skills in the Skills Module first.
                       </div>
                     )}
                     {skillsError && (
@@ -827,7 +890,7 @@ export function EditRecurringTaskDialog({
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={isSaving}
+                    disabled={isSaving || isLoadingSkills}
                     aria-busy={isSaving}
                   >
                     {isSaving ? 'Saving...' : 'Save Changes'}
