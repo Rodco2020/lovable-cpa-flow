@@ -94,7 +94,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
     priority: task.priority,
     estimatedHours: task.estimatedHours,
     requiredSkills: task.requiredSkills,
-    nextDueDate: task.dueDate || undefined,
+    nextDueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : undefined,
     recurrencePattern: task.recurrencePattern ? 
       (typeof task.recurrencePattern === 'string' ? task.recurrencePattern : JSON.stringify(task.recurrencePattern)) 
       : undefined
@@ -108,23 +108,23 @@ const ClientAssignedTasksOverview: React.FC = () => {
       appliedFilters['Task Type'] = activeTab === 'recurring' ? 'Recurring' : 'Ad-hoc';
     }
     
-    if (filters.clientId) {
-      const clientName = clients?.find(c => c.id === filters.clientId)?.legalName;
+    if (filters.clientFilter && filters.clientFilter !== 'all') {
+      const clientName = clients?.find(c => c.id === filters.clientFilter)?.legalName;
       if (clientName) {
         appliedFilters['Client'] = clientName;
       }
     }
     
-    if (filters.skillName) {
-      appliedFilters['Skill'] = filters.skillName;
+    if (filters.skillFilter && filters.skillFilter !== 'all') {
+      appliedFilters['Skill'] = filters.skillFilter;
     }
     
-    if (filters.priority) {
-      appliedFilters['Priority'] = filters.priority;
+    if (filters.priorityFilter && filters.priorityFilter !== 'all') {
+      appliedFilters['Priority'] = filters.priorityFilter;
     }
     
-    if (filters.status) {
-      appliedFilters['Status'] = filters.status;
+    if (filters.statusFilter && filters.statusFilter !== 'all') {
+      appliedFilters['Status'] = filters.statusFilter;
     }
     
     return appliedFilters;
