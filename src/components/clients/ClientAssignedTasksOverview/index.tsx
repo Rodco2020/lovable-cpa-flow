@@ -94,8 +94,10 @@ const ClientAssignedTasksOverview: React.FC = () => {
     priority: task.priority,
     estimatedHours: task.estimatedHours,
     requiredSkills: task.requiredSkills,
-    nextDueDate: task.nextDueDate,
-    recurrencePattern: task.recurrencePattern
+    nextDueDate: task.dueDate || undefined,
+    recurrencePattern: task.recurrencePattern ? 
+      (typeof task.recurrencePattern === 'string' ? task.recurrencePattern : JSON.stringify(task.recurrencePattern)) 
+      : undefined
   }));
 
   // Get applied filters for export
@@ -106,15 +108,15 @@ const ClientAssignedTasksOverview: React.FC = () => {
       appliedFilters['Task Type'] = activeTab === 'recurring' ? 'Recurring' : 'Ad-hoc';
     }
     
-    if (filters.client) {
-      const clientName = clients?.find(c => c.id === filters.client)?.legalName;
+    if (filters.clientId) {
+      const clientName = clients?.find(c => c.id === filters.clientId)?.legalName;
       if (clientName) {
         appliedFilters['Client'] = clientName;
       }
     }
     
-    if (filters.skill) {
-      appliedFilters['Skill'] = filters.skill;
+    if (filters.skillName) {
+      appliedFilters['Skill'] = filters.skillName;
     }
     
     if (filters.priority) {

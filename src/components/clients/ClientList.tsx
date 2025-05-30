@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -43,7 +42,7 @@ const ClientList: React.FC = () => {
     industry: client.industry,
     status: client.status,
     expectedMonthlyRevenue: client.expectedMonthlyRevenue,
-    staffLiaisonName: client.staffLiaisonName
+    staffLiaisonName: undefined // Will be populated by the service if needed
   }));
 
   // Get applied filters for export

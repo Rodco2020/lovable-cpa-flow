@@ -29,7 +29,7 @@ export const PrintView: React.FC<PrintViewProps> = ({
 
   return (
     <div className="print-view min-h-screen bg-white p-8">
-      <style jsx>{`
+      <style>{`
         @media print {
           .print-view {
             font-size: 12px;
