@@ -24,5 +24,5 @@ export { ContentDisplaySection } from './ContentDisplaySection';
 
 // Export Phase 5 components - Final Integration and Polish
 export { MetricsErrorBoundary, withMetricsErrorBoundary } from './MetricsErrorBoundary';
-export { LoadingSkeletons, MetricCardSkeleton, MetricsPanelSkeleton, ChartSkeleton, DashboardSkeleton, TaskTableSkeleton } from './LoadingSkeletons';
+export { MetricCardSkeleton, MetricsPanelSkeleton, ChartSkeleton, DashboardSkeleton, TaskTableSkeleton } from './LoadingSkeletons';
 export { default as MetricsChartsEnhanced } from './MetricsChartsEnhanced';

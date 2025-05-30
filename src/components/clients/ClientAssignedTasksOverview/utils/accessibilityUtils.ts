@@ -13,6 +13,8 @@ export interface AccessibilityProps {
   'aria-expanded'?: boolean;
   'aria-selected'?: boolean;
   'aria-current'?: boolean | 'page' | 'step' | 'location' | 'date' | 'time';
+  'aria-live'?: 'polite' | 'assertive' | 'off';
+  'aria-atomic'?: boolean;
   role?: string;
   tabIndex?: number;
 }
