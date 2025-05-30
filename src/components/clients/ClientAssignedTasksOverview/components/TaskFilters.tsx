@@ -30,6 +30,11 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   availableSkills,
   availablePriorities
 }) => {
+  // Filter out any items with empty or invalid values
+  const validClients = clients?.filter(client => client.id && client.id.trim() !== '') || [];
+  const validSkills = availableSkills?.filter(skill => skill && skill.trim() !== '') || [];
+  const validPriorities = availablePriorities?.filter(priority => priority && priority.trim() !== '') || [];
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       <div className="flex-1">
@@ -54,7 +59,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Clients</SelectItem>
-            {clients.map((client) => (
+            {validClients.map((client) => (
               <SelectItem key={client.id} value={client.id}>
                 {client.legalName}
               </SelectItem>
@@ -71,7 +76,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Skills</SelectItem>
-            {availableSkills.map((skill) => (
+            {validSkills.map((skill) => (
               <SelectItem key={skill} value={skill}>
                 {skill}
               </SelectItem>
@@ -88,7 +93,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Priorities</SelectItem>
-            {availablePriorities.map((priority) => (
+            {validPriorities.map((priority) => (
               <SelectItem key={priority} value={priority}>
                 {priority}
               </SelectItem>

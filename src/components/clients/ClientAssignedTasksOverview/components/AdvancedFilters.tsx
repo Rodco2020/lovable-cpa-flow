@@ -57,6 +57,11 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Filter out any items with empty or invalid values
+  const validClients = clients?.filter(client => client.id && client.id.trim() !== '') || [];
+  const validSkills = availableSkills?.filter(skill => skill && skill.trim() !== '') || [];
+  const validPriorities = availablePriorities?.filter(priority => priority && priority.trim() !== '') || [];
+
   // Quick filter presets
   const presets = [
     { id: 'high-priority', label: 'High Priority Tasks', description: 'Tasks with high priority' },
@@ -70,6 +75,9 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     value: string,
     checked: boolean
   ) => {
+    // Ensure value is not empty
+    if (!value || value.trim() === '') return;
+    
     const currentValues = filters[filterKey];
     const newValues = checked 
       ? [...currentValues, value]
@@ -264,7 +272,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                   <SelectValue placeholder="Add skill..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableSkills
+                  {validSkills
                     .filter(skill => !filters.skillFilters.includes(skill))
                     .map(skill => (
                       <SelectItem key={skill} value={skill}>{skill}</SelectItem>
@@ -296,7 +304,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                   <SelectValue placeholder="Add client..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients
+                  {validClients
                     .filter(client => !filters.clientFilters.includes(client.id))
                     .map(client => (
                       <SelectItem key={client.id} value={client.id}>{client.legalName}</SelectItem>
@@ -305,7 +313,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
               </Select>
               <div className="flex flex-wrap gap-1 mt-2">
                 {filters.clientFilters.map(clientId => {
-                  const client = clients.find(c => c.id === clientId);
+                  const client = validClients.find(c => c.id === clientId);
                   return (
                     <Badge key={clientId} variant="secondary" className="text-xs">
                       {client?.legalName || 'Unknown'}
@@ -331,7 +339,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                   <SelectValue placeholder="Add priority..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availablePriorities
+                  {validPriorities
                     .filter(priority => !filters.priorityFilters.includes(priority))
                     .map(priority => (
                       <SelectItem key={priority} value={priority}>{priority}</SelectItem>
