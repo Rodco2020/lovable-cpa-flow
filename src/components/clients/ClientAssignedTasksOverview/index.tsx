@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Card, 
@@ -15,7 +16,7 @@ import { TaskModalsContainer } from './components/TaskModalsContainer';
 import { PrintView } from '@/components/export/PrintView';
 import { ExportService, ExportOptions, TaskExportData } from '@/services/export/exportService';
 import { toast } from 'sonner';
-import { Tabs, TabsList, TabsTrigger, TabsValue } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { AdvancedFilters, AdvancedFilterState } from './components/AdvancedFilters';
@@ -76,6 +77,25 @@ const ClientAssignedTasksOverview: React.FC = () => {
     updateFilter,
     resetFilters
   } = useTaskFiltering(formattedTasks, activeTab);
+
+  // Modal management hook
+  const {
+    editRecurringTaskDialogOpen,
+    setEditRecurringTaskDialogOpen,
+    editAdHocTaskDialogOpen,
+    setEditAdHocTaskDialogOpen,
+    selectedTaskId,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    taskToDelete,
+    isDeleting,
+    taskManagementDialogOpen,
+    setTaskManagementDialogOpen,
+    handleEditTask,
+    handleDeleteTask,
+    handleDeleteConfirm,
+    handleTasksRefresh
+  } = useModalManagement(handleEditComplete);
 
   // Apply advanced filters to the already filtered tasks
   const finalFilteredTasks = React.useMemo(() => {
