@@ -1,98 +1,120 @@
 
 import React from 'react';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ClientMetricsFilters } from '@/types/clientMetrics';
-import { StaffOption } from '@/types/staffOption';
 
 interface FilterControlsProps {
   filters: ClientMetricsFilters;
-  staffOptions: StaffOption[];
-  isStaffLoading: boolean;
-  onFilterChange: (key: keyof ClientMetricsFilters, value: any) => void;
+  onFiltersChange: (filters: ClientMetricsFilters) => void;
+  availableIndustries?: string[];
+  availableStatuses?: string[];
+  onResetFilters: () => void;
 }
 
-/**
- * Filter Controls Component
- * 
- * Renders the individual filter form controls
- */
 export const FilterControls: React.FC<FilterControlsProps> = ({
   filters,
-  staffOptions,
-  isStaffLoading,
-  onFilterChange,
+  onFiltersChange,
+  availableIndustries = [],
+  availableStatuses = [],
+  onResetFilters
 }) => {
-  // Industry options (these could be fetched from database in future)
-  const industryOptions = [
-    'Retail', 'Healthcare', 'Manufacturing', 'Technology', 'Financial Services',
-    'Professional Services', 'Construction', 'Hospitality', 'Education', 'Non-Profit', 'Other'
-  ];
+  // Add comprehensive validation to prevent empty strings
+  const validIndustries = React.useMemo(() => {
+    console.log('Available industries:', availableIndustries);
+    if (!Array.isArray(availableIndustries)) return [];
+    return availableIndustries.filter(industry => 
+      industry && 
+      typeof industry === 'string' && 
+      industry.trim() !== ''
+    );
+  }, [availableIndustries]);
+
+  const validStatuses = React.useMemo(() => {
+    console.log('Available statuses:', availableStatuses);
+    if (!Array.isArray(availableStatuses)) return [];
+    return availableStatuses.filter(status => 
+      status && 
+      typeof status === 'string' && 
+      status.trim() !== ''
+    );
+  }, [availableStatuses]);
+
+  const handleIndustryChange = (value: string) => {
+    console.log('Industry change value:', value);
+    if (value && value !== 'all') {
+      onFiltersChange({
+        ...filters,
+        industry: value
+      });
+    } else {
+      const { industry, ...rest } = filters;
+      onFiltersChange(rest);
+    }
+  };
+
+  const handleStatusChange = (value: string) => {
+    console.log('Status change value:', value);
+    if (value && value !== 'all') {
+      onFiltersChange({
+        ...filters,
+        status: value
+      });
+    } else {
+      const { status, ...rest } = filters;
+      onFiltersChange(rest);
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Staff Liaison Filter */}
-      <div className="space-y-2">
-        <Label className="text-xs">Staff Liaison</Label>
-        <Select
-          value={filters.staffLiaisonId || ''}
-          onValueChange={(value) => onFilterChange('staffLiaisonId', value || null)}
-          disabled={isStaffLoading}
-        >
-          <SelectTrigger className="text-xs">
-            <SelectValue placeholder="All Staff" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Staff</SelectItem>
-            {staffOptions.map((staff) => (
-              <SelectItem key={staff.id} value={staff.id}>
-                {staff.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="flex flex-wrap gap-4">
+      <Select
+        value={filters.industry || 'all'}
+        onValueChange={handleIndustryChange}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Filter by industry" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Industries</SelectItem>
+          {validIndustries.map((industry) => (
+            <SelectItem key={industry} value={industry}>
+              {industry}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      {/* Status Filter */}
-      <div className="space-y-2">
-        <Label className="text-xs">Status</Label>
-        <Select
-          value={filters.status || ''}
-          onValueChange={(value) => onFilterChange('status', value || null)}
-        >
-          <SelectTrigger className="text-xs">
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Select
+        value={filters.status || 'all'}
+        onValueChange={handleStatusChange}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Filter by status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Statuses</SelectItem>
+          {validStatuses.map((status) => (
+            <SelectItem key={status} value={status}>
+              {status}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      {/* Industry Filter */}
-      <div className="space-y-2">
-        <Label className="text-xs">Industry</Label>
-        <Select
-          value={filters.industry || ''}
-          onValueChange={(value) => onFilterChange('industry', value || null)}
-        >
-          <SelectTrigger className="text-xs">
-            <SelectValue placeholder="All Industries" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Industries</SelectItem>
-            {industryOptions.map((industry) => (
-              <SelectItem key={industry} value={industry}>
-                {industry}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <Button 
+        variant="outline" 
+        onClick={onResetFilters}
+        size="sm"
+      >
+        Reset Filters
+      </Button>
     </div>
   );
 };
-
-export default FilterControls;

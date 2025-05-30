@@ -27,23 +27,29 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
 
     let filtered = [...filteredTasks];
 
+    console.log('Advanced filtering - initial tasks:', filtered.length);
+    console.log('Advanced filters state:', advancedFilters);
+
     // Apply multi-select filters
     if (advancedFilters.skillFilters.length > 0) {
       filtered = filtered.filter(task => 
         advancedFilters.skillFilters.some(skill => task.requiredSkills.includes(skill))
       );
+      console.log('After skill filter:', filtered.length);
     }
 
     if (advancedFilters.clientFilters.length > 0) {
       filtered = filtered.filter(task => 
         advancedFilters.clientFilters.includes(task.clientId)
       );
+      console.log('After client filter:', filtered.length);
     }
 
     if (advancedFilters.priorityFilters.length > 0) {
       filtered = filtered.filter(task => 
         advancedFilters.priorityFilters.includes(task.priority)
       );
+      console.log('After priority filter:', filtered.length);
     }
 
     if (advancedFilters.statusFilters.length > 0) {
@@ -63,6 +69,7 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
           return false;
         });
       });
+      console.log('After status filter:', filtered.length);
     }
 
     // Apply date range filter
@@ -79,11 +86,13 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
         }
         return true;
       });
+      console.log('After date filter:', filtered.length);
     }
 
     // Apply preset-specific filters
     if (advancedFilters.preset === 'multi-skill') {
       filtered = filtered.filter(task => task.requiredSkills.length > 1);
+      console.log('After multi-skill preset:', filtered.length);
     }
 
     return filtered;
