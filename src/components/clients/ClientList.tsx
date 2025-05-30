@@ -1,2 +1,2 @@
 
-export { default } from './ClientList';
+export { default } from './ClientList/ClientList';

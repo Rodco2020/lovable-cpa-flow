@@ -1,2 +1,2 @@
 
-export { default as ClientList } from './ClientList';
+export { default } from './ClientList';
