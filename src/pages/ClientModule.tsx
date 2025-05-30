@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientDashboardStats } from '@/hooks/useClientDashboardStats';
 import { useEnhancedClientDashboardStats } from '@/hooks/useEnhancedClientDashboardStats';
 import { ClientMetricsFilters } from '@/types/clientMetrics';
-import { ClientMetricsFilters as ClientMetricsFiltersComponent } from '@/components/clients/ClientMetricsFilters';
+import { ClientMetricsFiltersComponent } from '@/components/clients/ClientMetricsFilters';
 import { MetricsDisplayPanel } from '@/components/clients/MetricsDisplayPanel';
 
 const ClientModule: React.FC = () => {

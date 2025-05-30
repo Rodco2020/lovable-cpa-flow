@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getStaffForLiaisonDropdown } from '@/services/client/staffLiaisonService';
 import { ClientMetricsFilters } from '@/types/clientMetrics';
 
-interface ClientMetricsFiltersProps {
+interface ClientMetricsFiltersComponentProps {
   filters: ClientMetricsFilters;
   onFiltersChange: (filters: ClientMetricsFilters) => void;
   className?: string;
@@ -22,7 +21,7 @@ interface ClientMetricsFiltersProps {
  * 
  * Provides filtering controls for client dashboard metrics
  */
-export const ClientMetricsFilters: React.FC<ClientMetricsFiltersProps> = ({
+export const ClientMetricsFiltersComponent: React.FC<ClientMetricsFiltersComponentProps> = ({
   filters,
   onFiltersChange,
   className = ''
@@ -216,4 +215,4 @@ export const ClientMetricsFilters: React.FC<ClientMetricsFiltersProps> = ({
   );
 };
 
-export default ClientMetricsFilters;
+export default ClientMetricsFiltersComponent;
