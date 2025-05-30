@@ -7,8 +7,10 @@ import {
 import { useTasksData } from './hooks/useTasksData';
 import { useTaskFiltering } from './hooks/useTaskFiltering';
 import { useModalManagement } from './hooks/useModalManagement';
+import { useTaskMetrics } from './hooks/useTaskMetrics';
 import { TaskOverviewHeader } from './components/TaskOverviewHeader';
 import { TaskFilters } from './components/TaskFilters';
+import { TaskMetricsPanel } from './components/TaskMetricsPanel';
 import { TaskContentArea } from './components/TaskContentArea';
 import { TaskModalsContainer } from './components/TaskModalsContainer';
 
@@ -24,11 +26,13 @@ import { TaskModalsContainer } from './components/TaskModalsContainer';
  * - Tab-based navigation (All/Recurring/Ad-hoc)
  * - Task management operations (edit, delete, bulk operations)
  * - Integration with task management dialog for creating new tasks
+ * - NEW: Real-time task metrics that update with filtering
  * 
  * Architecture:
  * - Uses custom hooks for data management, filtering, and modal state
  * - Modular component structure for maintainability
  * - Centralized modal management to reduce complexity
+ * - Metrics integration with existing filtering system
  */
 const ClientAssignedTasksOverview: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -50,6 +54,9 @@ const ClientAssignedTasksOverview: React.FC = () => {
     updateFilter,
     resetFilters
   } = useTaskFiltering(formattedTasks, activeTab);
+
+  // Calculate metrics for filtered tasks
+  const filteredTaskMetrics = useTaskMetrics(filteredTasks);
 
   // Modal management hook
   const {
@@ -85,7 +92,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
       />
       
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-6">
           <TaskFilters
             filters={filters}
             onFilterChange={updateFilter}
@@ -93,6 +100,12 @@ const ClientAssignedTasksOverview: React.FC = () => {
             clients={clients}
             availableSkills={availableSkills}
             availablePriorities={availablePriorities}
+          />
+          
+          {/* NEW: Task Metrics Panel */}
+          <TaskMetricsPanel
+            tasks={filteredTasks}
+            isLoading={isLoading}
           />
           
           <TaskContentArea
