@@ -9,13 +9,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ClientMetricsFilters } from '@/types/clientMetrics';
+import { StaffOption } from '@/types/staffOption';
 
 interface FilterControlsProps {
   filters: ClientMetricsFilters;
   onFiltersChange: (filters: ClientMetricsFilters) => void;
   availableIndustries?: string[];
-  availableStatuses?: string[];
+  availableStatuses?: Array<'Active' | 'Inactive'>;
   onResetFilters: () => void;
+  staffOptions?: StaffOption[];
+  isStaffLoading?: boolean;
+  onFilterChange?: (key: keyof ClientMetricsFilters, value: any) => void;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -23,7 +27,10 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   onFiltersChange,
   availableIndustries = [],
   availableStatuses = [],
-  onResetFilters
+  onResetFilters,
+  staffOptions = [],
+  isStaffLoading = false,
+  onFilterChange
 }) => {
   // Add comprehensive validation to prevent empty strings
   const validIndustries = React.useMemo(() => {
@@ -42,33 +49,86 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
     return availableStatuses.filter(status => 
       status && 
       typeof status === 'string' && 
-      status.trim() !== ''
+      status.trim() !== '' &&
+      (status === 'Active' || status === 'Inactive')
     );
   }, [availableStatuses]);
+
+  const validStaffOptions = React.useMemo(() => {
+    console.log('Available staff options:', staffOptions);
+    if (!Array.isArray(staffOptions)) return [];
+    return staffOptions.filter(staff => 
+      staff && 
+      typeof staff === 'object' && 
+      staff.id && 
+      typeof staff.id === 'string' && 
+      staff.id.trim() !== '' &&
+      staff.full_name &&
+      typeof staff.full_name === 'string' &&
+      staff.full_name.trim() !== ''
+    );
+  }, [staffOptions]);
 
   const handleIndustryChange = (value: string) => {
     console.log('Industry change value:', value);
     if (value && value !== 'all') {
-      onFiltersChange({
-        ...filters,
-        industry: value
-      });
+      if (onFilterChange) {
+        onFilterChange('industry', value);
+      } else {
+        onFiltersChange({
+          ...filters,
+          industry: value
+        });
+      }
     } else {
       const { industry, ...rest } = filters;
-      onFiltersChange(rest);
+      if (onFilterChange) {
+        onFilterChange('industry', null);
+      } else {
+        onFiltersChange(rest);
+      }
     }
   };
 
   const handleStatusChange = (value: string) => {
     console.log('Status change value:', value);
-    if (value && value !== 'all') {
-      onFiltersChange({
-        ...filters,
-        status: value
-      });
+    if (value && value !== 'all' && (value === 'Active' || value === 'Inactive')) {
+      if (onFilterChange) {
+        onFilterChange('status', value as 'Active' | 'Inactive');
+      } else {
+        onFiltersChange({
+          ...filters,
+          status: value as 'Active' | 'Inactive'
+        });
+      }
     } else {
       const { status, ...rest } = filters;
-      onFiltersChange(rest);
+      if (onFilterChange) {
+        onFilterChange('status', null);
+      } else {
+        onFiltersChange(rest);
+      }
+    }
+  };
+
+  const handleStaffLiaisonChange = (value: string) => {
+    console.log('Staff liaison change value:', value);
+    if (value && value !== 'all') {
+      if (onFilterChange) {
+        onFilterChange('staffLiaisonId', value);
+      } else {
+        onFiltersChange({
+          ...filters,
+          staffLiaisonId: value
+        });
+      }
+    } else {
+      const { staffLiaisonId, ...rest } = filters;
+      if (onFilterChange) {
+        onFilterChange('staffLiaisonId', null);
+      } else {
+        onFiltersChange(rest);
+      }
     }
   };
 
@@ -107,6 +167,26 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
           ))}
         </SelectContent>
       </Select>
+
+      {validStaffOptions.length > 0 && (
+        <Select
+          value={filters.staffLiaisonId || 'all'}
+          onValueChange={handleStaffLiaisonChange}
+          disabled={isStaffLoading}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by staff liaison" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Staff</SelectItem>
+            {validStaffOptions.map((staff) => (
+              <SelectItem key={staff.id} value={staff.id}>
+                {staff.full_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Button 
         variant="outline" 
