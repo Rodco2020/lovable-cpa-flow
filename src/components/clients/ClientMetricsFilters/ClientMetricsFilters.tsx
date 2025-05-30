@@ -81,6 +81,8 @@ export const ClientMetricsFiltersComponent: React.FC<ClientMetricsFiltersCompone
         {isExpanded && (
           <FilterControls
             filters={filters}
+            onFiltersChange={onFiltersChange}
+            onResetFilters={clearFilters}
             staffOptions={staffOptions}
             isStaffLoading={isStaffLoading}
             onFilterChange={handleFilterChange}
