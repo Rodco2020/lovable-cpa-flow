@@ -21,3 +21,8 @@ export { AdvancedFilters } from './AdvancedFilters';
 export { ViewToggleSection } from './ViewToggleSection';
 export { FilterDisplaySection } from './FilterDisplaySection';
 export { ContentDisplaySection } from './ContentDisplaySection';
+
+// Export Phase 5 components - Final Integration and Polish
+export { MetricsErrorBoundary, withMetricsErrorBoundary } from './MetricsErrorBoundary';
+export { LoadingSkeletons, MetricCardSkeleton, MetricsPanelSkeleton, ChartSkeleton, DashboardSkeleton, TaskTableSkeleton } from './LoadingSkeletons';
+export { default as MetricsChartsEnhanced } from './MetricsChartsEnhanced';
