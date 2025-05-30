@@ -16,3 +16,8 @@ export { TaskMetricsPanel } from './TaskMetricsPanel';
 export { MetricsCharts } from './MetricsCharts';
 export { MetricsDashboard } from './MetricsDashboard';
 export { AdvancedFilters } from './AdvancedFilters';
+
+// Export new refactored components
+export { ViewToggleSection } from './ViewToggleSection';
+export { FilterDisplaySection } from './FilterDisplaySection';
+export { ContentDisplaySection } from './ContentDisplaySection';
