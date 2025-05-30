@@ -30,10 +30,38 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   availableSkills,
   availablePriorities
 }) => {
-  // Filter out any items with empty or invalid values
-  const validClients = clients?.filter(client => client.id && client.id.trim() !== '') || [];
-  const validSkills = availableSkills?.filter(skill => skill && skill.trim() !== '') || [];
-  const validPriorities = availablePriorities?.filter(priority => priority && priority.trim() !== '') || [];
+  // Comprehensive validation to filter out any invalid values
+  const validClients = React.useMemo(() => {
+    if (!Array.isArray(clients)) return [];
+    return clients.filter(client => 
+      client && 
+      typeof client === 'object' && 
+      client.id && 
+      typeof client.id === 'string' && 
+      client.id.trim() !== '' &&
+      client.legalName &&
+      typeof client.legalName === 'string' &&
+      client.legalName.trim() !== ''
+    );
+  }, [clients]);
+
+  const validSkills = React.useMemo(() => {
+    if (!Array.isArray(availableSkills)) return [];
+    return availableSkills.filter(skill => 
+      skill && 
+      typeof skill === 'string' && 
+      skill.trim() !== ''
+    );
+  }, [availableSkills]);
+
+  const validPriorities = React.useMemo(() => {
+    if (!Array.isArray(availablePriorities)) return [];
+    return availablePriorities.filter(priority => 
+      priority && 
+      typeof priority === 'string' && 
+      priority.trim() !== ''
+    );
+  }, [availablePriorities]);
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
