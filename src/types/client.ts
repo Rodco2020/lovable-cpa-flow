@@ -29,7 +29,8 @@ export interface Client {
   paymentTerms: PaymentTerms;
   billingFrequency: BillingFrequency;
   defaultTaskPriority: string;
-  staffLiaisonId?: string | null; // New field for staff liaison reference
+  staffLiaisonId?: string | null;
+  staffLiaisonName?: string | null; // New field for displaying staff liaison name
   notificationPreferences: {
     emailReminders: boolean;
     taskNotifications: boolean;

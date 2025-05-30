@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -29,7 +30,8 @@ const ClientList: React.FC = () => {
   const filteredClients = clients?.filter(client => 
     client.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.primaryContact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.industry.toLowerCase().includes(searchTerm.toLowerCase())
+    client.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.staffLiaisonName && client.staffLiaisonName.toLowerCase().includes(searchTerm.toLowerCase()))
   ) || [];
 
   // Convert clients to export format
@@ -42,7 +44,7 @@ const ClientList: React.FC = () => {
     industry: client.industry,
     status: client.status,
     expectedMonthlyRevenue: client.expectedMonthlyRevenue,
-    staffLiaisonName: undefined // Will be populated by the service if needed
+    staffLiaisonName: client.staffLiaisonName
   }));
 
   // Get applied filters for export
@@ -165,6 +167,7 @@ const ClientList: React.FC = () => {
                     <TableHead>Primary Contact</TableHead>
                     <TableHead>Industry</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Staff Liaison</TableHead>
                     <TableHead>Monthly Revenue</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -179,6 +182,13 @@ const ClientList: React.FC = () => {
                         <Badge variant={client.status === 'Active' ? 'default' : 'secondary'}>
                           {client.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {client.staffLiaisonName ? (
+                          <span className="text-sm">{client.staffLiaisonName}</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">No liaison assigned</span>
+                        )}
                       </TableCell>
                       <TableCell>${client.expectedMonthlyRevenue.toLocaleString()}</TableCell>
                       <TableCell className="text-right">

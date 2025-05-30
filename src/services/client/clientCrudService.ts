@@ -21,7 +21,13 @@ export const getClientById = async (clientId: string): Promise<Client> => {
   try {
     const { data, error } = await supabase
       .from('clients')
-      .select('*')
+      .select(`
+        *,
+        staff:staff_liaison_id (
+          id,
+          full_name
+        )
+      `)
       .eq('id', clientId)
       .single();
       
@@ -38,7 +44,7 @@ export const getClientById = async (clientId: string): Promise<Client> => {
 };
 
 /**
- * Get all clients
+ * Get all clients with staff liaison information
  * @returns Promise resolving to array of Client objects
  * @throws Error if database error occurs
  */
@@ -46,7 +52,13 @@ export const getAllClients = async (): Promise<Client[]> => {
   try {
     const { data, error } = await supabase
       .from('clients')
-      .select('*')
+      .select(`
+        *,
+        staff:staff_liaison_id (
+          id,
+          full_name
+        )
+      `)
       .order('legal_name', { ascending: true });
       
     if (error) {
@@ -62,7 +74,7 @@ export const getAllClients = async (): Promise<Client[]> => {
 };
 
 /**
- * Get active clients (status = 'Active')
+ * Get active clients (status = 'Active') with staff liaison information
  * @returns Promise resolving to array of active Client objects
  * @throws Error if database error occurs
  */
@@ -70,7 +82,13 @@ export const getActiveClients = async (): Promise<Client[]> => {
   try {
     const { data, error } = await supabase
       .from('clients')
-      .select('*')
+      .select(`
+        *,
+        staff:staff_liaison_id (
+          id,
+          full_name
+        )
+      `)
       .eq('status', 'Active')
       .order('legal_name', { ascending: true });
       
@@ -114,13 +132,6 @@ export const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'up
   }
 };
 
-/**
- * Update an existing client
- * @param clientId The UUID of the client to update
- * @param updates Partial client data to update
- * @returns Promise resolving to the updated Client
- * @throws Error if database update fails
- */
 export const updateClient = async (clientId: string, updates: Partial<Client>): Promise<Client> => {
   try {
     const dbRecord = mapClientToDbRecord(updates);
@@ -144,12 +155,6 @@ export const updateClient = async (clientId: string, updates: Partial<Client>): 
   }
 };
 
-/**
- * Delete a client
- * @param clientId The UUID of the client to delete
- * @returns Promise resolving to void
- * @throws Error if database deletion fails
- */
 export const deleteClient = async (clientId: string): Promise<void> => {
   try {
     const { error } = await supabase
