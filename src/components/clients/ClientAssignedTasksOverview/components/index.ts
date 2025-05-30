@@ -8,6 +8,6 @@ export { TaskSummaryStats } from './TaskSummaryStats';
 export { TaskTable } from './TaskTable';
 export { DeleteTaskDialog } from './DeleteTaskDialog';
 
-// Export new metrics components
+// Export metrics components
 export { MetricCard } from './MetricCard';
 export { TaskMetricsPanel } from './TaskMetricsPanel';

@@ -13,6 +13,9 @@ import { TaskFilters } from './components/TaskFilters';
 import { TaskMetricsPanel } from './components/TaskMetricsPanel';
 import { TaskContentArea } from './components/TaskContentArea';
 import { TaskModalsContainer } from './components/TaskModalsContainer';
+import { PrintView } from '@/components/export/PrintView';
+import { ExportService, ExportOptions, TaskExportData } from '@/services/export/exportService';
+import { toast } from 'sonner';
 
 /**
  * Client Assigned Tasks Overview Component
@@ -26,16 +29,20 @@ import { TaskModalsContainer } from './components/TaskModalsContainer';
  * - Tab-based navigation (All/Recurring/Ad-hoc)
  * - Task management operations (edit, delete, bulk operations)
  * - Integration with task management dialog for creating new tasks
- * - NEW: Real-time task metrics that update with filtering
+ * - Real-time task metrics that update with filtering
+ * - NEW: Export and print functionality with multiple format support
  * 
  * Architecture:
  * - Uses custom hooks for data management, filtering, and modal state
  * - Modular component structure for maintainability
  * - Centralized modal management to reduce complexity
  * - Metrics integration with existing filtering system
+ * - Export functionality integrated with existing data flow
  */
 const ClientAssignedTasksOverview: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [showPrintView, setShowPrintView] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Data and filtering hooks
   const {
@@ -77,11 +84,92 @@ const ClientAssignedTasksOverview: React.FC = () => {
     handleTasksRefresh
   } = useModalManagement(handleEditComplete);
 
+  // Convert tasks to export format
+  const exportData: TaskExportData[] = filteredTasks.map(task => ({
+    id: task.id,
+    clientName: task.clientName,
+    taskName: task.taskName,
+    taskType: task.taskType,
+    status: task.status,
+    priority: task.priority,
+    estimatedHours: task.estimatedHours,
+    requiredSkills: task.requiredSkills,
+    nextDueDate: task.nextDueDate,
+    recurrencePattern: task.recurrencePattern
+  }));
+
+  // Get applied filters for export
+  const getAppliedFilters = () => {
+    const appliedFilters: Record<string, any> = {};
+    
+    if (activeTab !== 'all') {
+      appliedFilters['Task Type'] = activeTab === 'recurring' ? 'Recurring' : 'Ad-hoc';
+    }
+    
+    if (filters.client) {
+      const clientName = clients?.find(c => c.id === filters.client)?.legalName;
+      if (clientName) {
+        appliedFilters['Client'] = clientName;
+      }
+    }
+    
+    if (filters.skill) {
+      appliedFilters['Skill'] = filters.skill;
+    }
+    
+    if (filters.priority) {
+      appliedFilters['Priority'] = filters.priority;
+    }
+    
+    if (filters.status) {
+      appliedFilters['Status'] = filters.status;
+    }
+    
+    return appliedFilters;
+  };
+
+  const handleExport = async (options: ExportOptions) => {
+    try {
+      setIsExporting(true);
+      const appliedFilters = options.includeFilters ? getAppliedFilters() : undefined;
+      
+      await ExportService.exportTasks(exportData, options, appliedFilters);
+      
+      toast.success(`Tasks exported successfully as ${options.format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export tasks. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    setShowPrintView(true);
+  };
+
+  const handlePrintExecute = () => {
+    window.print();
+    setShowPrintView(false);
+  };
+
   // Combined reset that also resets the tab
   const handleResetAllFilters = () => {
     resetFilters();
     setActiveTab('all');
   };
+
+  if (showPrintView) {
+    return (
+      <PrintView
+        title="Client-Assigned Tasks Overview"
+        data={exportData}
+        dataType="tasks"
+        appliedFilters={getAppliedFilters()}
+        onPrint={handlePrintExecute}
+      />
+    );
+  }
   
   return (
     <Card>
@@ -89,6 +177,10 @@ const ClientAssignedTasksOverview: React.FC = () => {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenTaskManagement={() => setTaskManagementDialogOpen(true)}
+        onExport={handleExport}
+        onPrint={handlePrint}
+        isExporting={isExporting}
+        hasData={exportData.length > 0}
       />
       
       <CardContent>
@@ -102,7 +194,6 @@ const ClientAssignedTasksOverview: React.FC = () => {
             availablePriorities={availablePriorities}
           />
           
-          {/* NEW: Task Metrics Panel */}
           <TaskMetricsPanel
             tasks={filteredTasks}
             isLoading={isLoading}
