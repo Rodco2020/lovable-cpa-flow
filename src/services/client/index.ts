@@ -21,11 +21,17 @@ export {
   getStaffForLiaisonDropdown
 } from './staffLiaisonService';
 
-// Re-export client dashboard statistics
+// Re-export client dashboard statistics (existing)
 export {
   getClientDashboardStats,
   type ClientDashboardStats
 } from './clientDashboardService';
+
+// Re-export enhanced dashboard statistics (Phase 1 - new)
+export {
+  getFilteredClientStats,
+  getEnhancedClientDashboardStats
+} from './enhancedClientDashboardService';
 
 // Re-export client-task functionality using new modular structure
 export {

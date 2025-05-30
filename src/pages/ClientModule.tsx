@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import ClientList from '@/components/clients/ClientList';
@@ -10,15 +10,24 @@ import { Button } from '@/components/ui/button';
 import { Building, Users, DollarSign, FileText, PlusCircle, CalendarClock, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientDashboardStats } from '@/hooks/useClientDashboardStats';
-import { ClientDashboardStats } from '@/services/client/clientDashboardService';
+import { useEnhancedClientDashboardStats } from '@/hooks/useEnhancedClientDashboardStats';
+import { ClientMetricsFilters } from '@/types/clientMetrics';
+import { ClientMetricsFilters as ClientMetricsFiltersComponent } from '@/components/clients/ClientMetricsFilters';
+import { MetricsDisplayPanel } from '@/components/clients/MetricsDisplayPanel';
 
 const ClientModule: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   
-  // Fetch real-time dashboard statistics with proper typing
+  // State for filtered metrics
+  const [metricsFilters, setMetricsFilters] = useState<ClientMetricsFilters>({});
+  
+  // Fetch real-time dashboard statistics with proper typing (existing functionality)
   const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useClientDashboardStats();
+  
+  // Fetch enhanced statistics with filtering support (new functionality)
+  const { data: enhancedStats, isLoading: enhancedStatsLoading } = useEnhancedClientDashboardStats(metricsFilters);
 
   // Effect to detect navigation back to the client list
   useEffect(() => {
@@ -30,6 +39,10 @@ const ClientModule: React.FC = () => {
       // Also invalidate dashboard stats to get fresh data
       queryClient.invalidateQueries({
         queryKey: ['clientDashboardStats']
+      });
+      // Invalidate enhanced stats
+      queryClient.invalidateQueries({
+        queryKey: ['enhancedClientDashboardStats']
       });
     }
   }, [location, queryClient]);
@@ -59,6 +72,11 @@ const ClientModule: React.FC = () => {
     return formatCurrency(value || 0);
   };
 
+  // Check if any filters are active
+  const hasActiveFilters = Object.keys(metricsFilters).some(
+    key => metricsFilters[key as keyof ClientMetricsFilters] != null
+  );
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <Routes>
@@ -75,6 +93,7 @@ const ClientModule: React.FC = () => {
               </Button>
             </div>
             
+            {/* Global Dashboard Statistics (existing functionality) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="col-span-1 bg-blue-50 rounded-lg p-4 flex items-center space-x-4">
                 <div className="rounded-full bg-blue-100 p-2">
@@ -142,7 +161,22 @@ const ClientModule: React.FC = () => {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="clients">
+              <TabsContent value="clients" className="space-y-6">
+                {/* Enhanced Metrics Filter Controls - Phase 1 */}
+                <ClientMetricsFiltersComponent
+                  filters={metricsFilters}
+                  onFiltersChange={setMetricsFilters}
+                />
+                
+                {/* Filtered Metrics Display - Phase 1 */}
+                {hasActiveFilters && enhancedStats?.filtered && (
+                  <MetricsDisplayPanel
+                    stats={enhancedStats.filtered}
+                    isLoading={enhancedStatsLoading}
+                    isVisible={hasActiveFilters}
+                  />
+                )}
+                
                 <ClientList />
               </TabsContent>
               
