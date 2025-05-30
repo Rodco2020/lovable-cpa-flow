@@ -11,3 +11,8 @@ export { DeleteTaskDialog } from './DeleteTaskDialog';
 // Export metrics components
 export { MetricCard } from './MetricCard';
 export { TaskMetricsPanel } from './TaskMetricsPanel';
+
+// Export Phase 4 components - Advanced Metrics and Visualizations
+export { MetricsCharts } from './MetricsCharts';
+export { MetricsDashboard } from './MetricsDashboard';
+export { AdvancedFilters } from './AdvancedFilters';

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Card, 
@@ -16,6 +15,10 @@ import { TaskModalsContainer } from './components/TaskModalsContainer';
 import { PrintView } from '@/components/export/PrintView';
 import { ExportService, ExportOptions, TaskExportData } from '@/services/export/exportService';
 import { toast } from 'sonner';
+import { Tabs, TabsList, TabsTrigger, TabsValue } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { MetricsDashboard } from './components/MetricsDashboard';
+import { AdvancedFilters, AdvancedFilterState } from './components/AdvancedFilters';
 
 /**
  * Client Assigned Tasks Overview Component
@@ -30,7 +33,8 @@ import { toast } from 'sonner';
  * - Task management operations (edit, delete, bulk operations)
  * - Integration with task management dialog for creating new tasks
  * - Real-time task metrics that update with filtering
- * - NEW: Export and print functionality with multiple format support
+ * - Export and print functionality with multiple format support
+ * - NEW Phase 4: Advanced metrics dashboard with visualizations and trend analysis
  * 
  * Architecture:
  * - Uses custom hooks for data management, filtering, and modal state
@@ -38,11 +42,22 @@ import { toast } from 'sonner';
  * - Centralized modal management to reduce complexity
  * - Metrics integration with existing filtering system
  * - Export functionality integrated with existing data flow
+ * - Advanced dashboard with charts and analytics
  */
 const ClientAssignedTasksOverview: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [showPrintView, setShowPrintView] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterState>({
+    skillFilters: [],
+    clientFilters: [],
+    priorityFilters: [],
+    statusFilters: [],
+    dateRange: { from: undefined, to: undefined },
+    preset: null
+  });
+  const [activeView, setActiveView] = useState<'tasks' | 'dashboard'>('tasks');
 
   // Data and filtering hooks
   const {
@@ -62,30 +77,80 @@ const ClientAssignedTasksOverview: React.FC = () => {
     resetFilters
   } = useTaskFiltering(formattedTasks, activeTab);
 
-  // Calculate metrics for filtered tasks
-  const filteredTaskMetrics = useTaskMetrics(filteredTasks);
+  // Apply advanced filters to the already filtered tasks
+  const finalFilteredTasks = React.useMemo(() => {
+    if (!showAdvancedFilters) return filteredTasks;
 
-  // Modal management hook
-  const {
-    editRecurringTaskDialogOpen,
-    setEditRecurringTaskDialogOpen,
-    editAdHocTaskDialogOpen,
-    setEditAdHocTaskDialogOpen,
-    selectedTaskId,
-    deleteDialogOpen,
-    setDeleteDialogOpen,
-    taskToDelete,
-    isDeleting,
-    taskManagementDialogOpen,
-    setTaskManagementDialogOpen,
-    handleEditTask,
-    handleDeleteTask,
-    handleDeleteConfirm,
-    handleTasksRefresh
-  } = useModalManagement(handleEditComplete);
+    let filtered = [...filteredTasks];
+
+    // Apply multi-select filters
+    if (advancedFilters.skillFilters.length > 0) {
+      filtered = filtered.filter(task => 
+        advancedFilters.skillFilters.some(skill => task.requiredSkills.includes(skill))
+      );
+    }
+
+    if (advancedFilters.clientFilters.length > 0) {
+      filtered = filtered.filter(task => 
+        advancedFilters.clientFilters.includes(task.clientId)
+      );
+    }
+
+    if (advancedFilters.priorityFilters.length > 0) {
+      filtered = filtered.filter(task => 
+        advancedFilters.priorityFilters.includes(task.priority)
+      );
+    }
+
+    if (advancedFilters.statusFilters.length > 0) {
+      filtered = filtered.filter(task => {
+        return advancedFilters.statusFilters.some(status => {
+          if (status === 'active') {
+            return (task.taskType === 'Recurring' && task.isActive === true) || 
+                   (task.taskType === 'Ad-hoc' && task.status !== 'Canceled');
+          } else if (status === 'paused') {
+            return (task.taskType === 'Recurring' && task.isActive === false) ||
+                   (task.taskType === 'Ad-hoc' && task.status === 'Canceled');
+          } else if (status === 'recurring') {
+            return task.taskType === 'Recurring';
+          } else if (status === 'adhoc') {
+            return task.taskType === 'Ad-hoc';
+          }
+          return false;
+        });
+      });
+    }
+
+    // Apply date range filter
+    if (advancedFilters.dateRange.from || advancedFilters.dateRange.to) {
+      filtered = filtered.filter(task => {
+        if (!task.dueDate) return false;
+        const taskDate = task.dueDate;
+        
+        if (advancedFilters.dateRange.from && taskDate < advancedFilters.dateRange.from) {
+          return false;
+        }
+        if (advancedFilters.dateRange.to && taskDate > advancedFilters.dateRange.to) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Apply preset-specific filters
+    if (advancedFilters.preset === 'multi-skill') {
+      filtered = filtered.filter(task => task.requiredSkills.length > 1);
+    }
+
+    return filtered;
+  }, [filteredTasks, advancedFilters, showAdvancedFilters]);
+
+  // Use final filtered tasks for metrics and export
+  const tasksForMetrics = finalFilteredTasks;
+  const filteredTaskMetrics = useTaskMetrics(tasksForMetrics);
 
   // Convert tasks to export format
-  const exportData: TaskExportData[] = filteredTasks.map(task => ({
+  const exportData: TaskExportData[] = tasksForMetrics.map(task => ({
     id: task.id,
     clientName: task.clientName,
     taskName: task.taskName,
@@ -155,10 +220,18 @@ const ClientAssignedTasksOverview: React.FC = () => {
     setShowPrintView(false);
   };
 
-  // Combined reset that also resets the tab
+  // Combined reset that also resets advanced filters
   const handleResetAllFilters = () => {
     resetFilters();
     setActiveTab('all');
+    setAdvancedFilters({
+      skillFilters: [],
+      clientFilters: [],
+      priorityFilters: [],
+      statusFilters: [],
+      dateRange: { from: undefined, to: undefined },
+      preset: null
+    });
   };
 
   if (showPrintView) {
@@ -187,29 +260,67 @@ const ClientAssignedTasksOverview: React.FC = () => {
       
       <CardContent>
         <div className="space-y-6">
-          <TaskFilters
-            filters={filters}
-            onFilterChange={updateFilter}
-            onResetFilters={handleResetAllFilters}
-            clients={clients}
-            availableSkills={availableSkills}
-            availablePriorities={availablePriorities}
-          />
-          
-          <TaskMetricsPanel
-            tasks={filteredTasks}
-            isLoading={isLoading}
-          />
-          
-          <TaskContentArea
-            isLoading={isLoading}
-            error={error}
-            filteredTasks={filteredTasks}
-            totalTasks={formattedTasks}
-            onResetFilters={handleResetAllFilters}
-            onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
-          />
+          {/* View Toggle */}
+          <div className="flex items-center justify-between">
+            <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'tasks' | 'dashboard')}>
+              <TabsList>
+                <TabsTrigger value="tasks">Tasks View</TabsTrigger>
+                <TabsTrigger value="dashboard">Dashboard View</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            >
+              {showAdvancedFilters ? 'Simple Filters' : 'Advanced Filters'}
+            </Button>
+          </div>
+
+          {/* Conditional Filter Display */}
+          {showAdvancedFilters ? (
+            <AdvancedFilters
+              filters={advancedFilters}
+              onFiltersChange={setAdvancedFilters}
+              clients={clients}
+              availableSkills={availableSkills}
+              availablePriorities={availablePriorities}
+            />
+          ) : (
+            <TaskFilters
+              filters={filters}
+              onFilterChange={updateFilter}
+              onResetFilters={handleResetAllFilters}
+              clients={clients}
+              availableSkills={availableSkills}
+              availablePriorities={availablePriorities}
+            />
+          )}
+
+          {/* Conditional Content Display */}
+          {activeView === 'dashboard' ? (
+            <MetricsDashboard
+              tasks={tasksForMetrics}
+              isLoading={isLoading}
+            />
+          ) : (
+            <>
+              <TaskMetricsPanel
+                tasks={tasksForMetrics}
+                isLoading={isLoading}
+              />
+              
+              <TaskContentArea
+                isLoading={isLoading}
+                error={error}
+                filteredTasks={tasksForMetrics}
+                totalTasks={formattedTasks}
+                onResetFilters={handleResetAllFilters}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+              />
+            </>
+          )}
         </div>
       </CardContent>
 
