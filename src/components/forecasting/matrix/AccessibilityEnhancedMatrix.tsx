@@ -291,11 +291,11 @@ export const AccessibilityEnhancedMatrix: React.FC<AccessibilityEnhancedMatrixPr
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-red-100 border border-red-300 rounded" aria-hidden="true" />
-            <span>Critical (>120%)</span>
+            <span>Critical (&gt;120%)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded" aria-hidden="true" />
-            <span>Under-utilized (<80%)</span>
+            <span>Under-utilized (&lt;80%)</span>
           </div>
         </div>
 
