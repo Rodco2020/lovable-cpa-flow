@@ -1,4 +1,3 @@
-
 import React, { memo, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -165,4 +164,6 @@ const ProductionOptimizedMatrix: React.FC<ProductionOptimizedMatrixProps> = ({
   );
 };
 
+// Export both named and default
+export { ProductionOptimizedMatrix };
 export default memo(ProductionOptimizedMatrix);

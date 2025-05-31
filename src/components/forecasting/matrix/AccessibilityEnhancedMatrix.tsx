@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -186,7 +185,7 @@ export const AccessibilityEnhancedMatrix: React.FC<AccessibilityEnhancedMatrixPr
             </caption>
             
             <thead>
-              <tr role="row" aria-rowindex="1">
+              <tr role="row" aria-rowindex={1}>
                 <th
                   scope="col"
                   className="p-3 bg-slate-100 border font-medium text-left sticky left-0 z-10"

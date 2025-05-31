@@ -1,5 +1,5 @@
 
-import { render, unmount } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { TestWrapper } from '../testUtils/TestWrapper';
 import { MatrixTab } from '@/components/forecasting/matrix/MatrixTab';
 
@@ -10,7 +10,7 @@ import { MatrixTab } from '@/components/forecasting/matrix/MatrixTab';
 describe('Memory Management', () => {
   describe('Component Cleanup', () => {
     it('should properly cleanup components on unmount', () => {
-      const { unmount: unmountComponent } = render(
+      const { unmount } = render(
         <TestWrapper>
           <MatrixTab forecastType="virtual" />
         </TestWrapper>
@@ -20,20 +20,20 @@ describe('Memory Management', () => {
       expect(document.body).toContainHTML('Matrix');
 
       // Cleanup should not throw errors
-      unmountComponent();
+      unmount();
     });
   });
 
   describe('Event Listener Cleanup', () => {
     it('should cleanup event listeners', () => {
-      const { unmount: unmountComponent } = render(
+      const { unmount } = render(
         <TestWrapper>
           <MatrixTab forecastType="virtual" />
         </TestWrapper>
       );
 
       // Should cleanup without errors
-      unmountComponent();
+      unmount();
     });
   });
 

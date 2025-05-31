@@ -1,3 +1,4 @@
+import React from 'react';
 import { debugLog } from './logger';
 
 export interface BundleAnalysis {
@@ -69,7 +70,6 @@ export class ProductionOptimizationService {
 
     this.performanceMetrics.push(completeMetrics);
 
-    // Keep only the last MAX_METRICS_HISTORY entries
     if (this.performanceMetrics.length > this.MAX_METRICS_HISTORY) {
       this.performanceMetrics = this.performanceMetrics.slice(-this.MAX_METRICS_HISTORY);
     }
@@ -107,7 +107,6 @@ export class ProductionOptimizationService {
       };
     }
 
-    // Calculate averages
     const averages: PerformanceMetrics = {
       renderTime: this.calculateAverage('renderTime'),
       memoryUsage: this.calculateAverage('memoryUsage'),
@@ -116,14 +115,12 @@ export class ProductionOptimizationService {
       cacheHitRate: this.calculateAverage('cacheHitRate')
     };
 
-    // Calculate trends
     const trends = {
       renderTime: this.calculateTrend('renderTime'),
       memoryUsage: this.calculateTrend('memoryUsage'),
       cacheHitRate: this.calculateTrend('cacheHitRate')
     };
 
-    // Generate recommendations
     const recommendations = this.generatePerformanceRecommendations(averages, trends);
 
     return { averages, trends, recommendations };
@@ -142,16 +139,14 @@ export class ProductionOptimizationService {
   ): T {
     let OptimizedComponent = Component;
 
-    // Apply React.memo if requested
     if (optimizations.memo) {
-      OptimizedComponent = React.memo(OptimizedComponent) as T;
+      OptimizedComponent = React.memo(OptimizedComponent);
     }
 
-    // Apply lazy loading if requested
     if (optimizations.lazy) {
       OptimizedComponent = React.lazy(() => 
         Promise.resolve({ default: OptimizedComponent })
-      ) as T;
+      );
     }
 
     debugLog('Component optimized', { 
@@ -159,7 +154,7 @@ export class ProductionOptimizationService {
       optimizations 
     });
 
-    return OptimizedComponent;
+    return OptimizedComponent as T;
   }
 
   /**
@@ -170,11 +165,9 @@ export class ProductionOptimizationService {
     peak: number;
     recommendations: string[];
   } {
-    // In browsers, we can't get detailed memory info
-    // This would be more detailed in a Node.js environment
     const mockMemoryInfo = {
-      current: Math.random() * 50 * 1024 * 1024, // Random value up to 50MB
-      peak: Math.random() * 100 * 1024 * 1024,   // Random value up to 100MB
+      current: Math.random() * 50 * 1024 * 1024,
+      peak: Math.random() * 100 * 1024 * 1024,
       recommendations: [
         'Consider implementing virtual scrolling for large matrices',
         'Use React.memo for expensive components',
@@ -267,8 +260,8 @@ export class ProductionOptimizationService {
   private static calculateTrend(metric: keyof PerformanceMetrics): 'improving' | 'stable' | 'degrading' {
     if (this.performanceMetrics.length < 2) return 'stable';
 
-    const recent = this.performanceMetrics.slice(-10); // Last 10 measurements
-    const older = this.performanceMetrics.slice(-20, -10); // Previous 10 measurements
+    const recent = this.performanceMetrics.slice(-10);
+    const older = this.performanceMetrics.slice(-20, -10);
 
     if (recent.length === 0 || older.length === 0) return 'stable';
 
@@ -279,8 +272,6 @@ export class ProductionOptimizationService {
 
     if (Math.abs(changePercent) < 5) return 'stable';
     
-    // For metrics like renderTime and memoryUsage, lower is better
-    // For cacheHitRate, higher is better
     if (metric === 'cacheHitRate') {
       return changePercent > 0 ? 'improving' : 'degrading';
     } else {
@@ -298,7 +289,7 @@ export class ProductionOptimizationService {
       recommendations.push('Consider optimizing render performance with React.memo and useMemo');
     }
 
-    if (averages.memoryUsage > 50 * 1024 * 1024) { // 50MB
+    if (averages.memoryUsage > 50 * 1024 * 1024) {
       recommendations.push('Monitor memory usage and implement cleanup strategies');
     }
 
