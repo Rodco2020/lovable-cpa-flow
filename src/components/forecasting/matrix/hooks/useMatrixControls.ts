@@ -2,6 +2,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SkillType } from '@/types/task';
 import { useMatrixSkills } from './useMatrixSkills';
+import { SkillsIntegrationService } from '@/services/forecasting/skillsIntegrationService';
+import { debugLog } from '@/services/forecasting/logger';
 
 interface MatrixControlsState {
   selectedSkills: SkillType[];
@@ -11,13 +13,15 @@ interface MatrixControlsState {
 
 interface UseMatrixControlsProps {
   initialState?: Partial<MatrixControlsState>;
+  matrixSkills?: SkillType[]; // Skills from matrix data for synchronization
 }
 
 /**
- * Hook for managing matrix control state with dynamic skills integration
+ * Hook for managing matrix control state with enhanced skills synchronization
  */
 export const useMatrixControls = ({ 
-  initialState = {} 
+  initialState = {},
+  matrixSkills = []
 }: UseMatrixControlsProps = {}) => {
   const { availableSkills, isLoading: skillsLoading } = useMatrixSkills();
   
@@ -27,33 +31,41 @@ export const useMatrixControls = ({
     monthRange: initialState.monthRange || { start: 0, end: 11 }
   });
 
-  // Auto-select all available skills when they load
+  // Synchronize selected skills with both available skills and matrix skills
   useEffect(() => {
-    if (!skillsLoading && availableSkills.length > 0 && state.selectedSkills.length === 0) {
-      setState(prev => ({
-        ...prev,
-        selectedSkills: [...availableSkills]
-      }));
-    }
-  }, [availableSkills, skillsLoading, state.selectedSkills.length]);
-
-  // Validate and sync selected skills with available skills
-  useEffect(() => {
-    if (availableSkills.length > 0) {
+    if (!skillsLoading && availableSkills.length > 0) {
       setState(prev => {
+        // Combine available skills and matrix skills for comprehensive skill set
+        const allRelevantSkills = new Set([...availableSkills, ...matrixSkills]);
+        const skillsArray = Array.from(allRelevantSkills);
+        
+        // If no skills selected yet, select all relevant skills
+        if (prev.selectedSkills.length === 0) {
+          debugLog('Auto-selecting all relevant skills', { count: skillsArray.length });
+          return {
+            ...prev,
+            selectedSkills: skillsArray
+          };
+        }
+
+        // Validate and normalize current selection
         const validSelectedSkills = prev.selectedSkills.filter(skill => 
-          availableSkills.includes(skill)
+          allRelevantSkills.has(skill)
         );
         
-        // Only update if there's a difference
+        // Only update if there's a meaningful change
         if (validSelectedSkills.length !== prev.selectedSkills.length) {
+          debugLog('Updated selected skills after validation', { 
+            before: prev.selectedSkills.length, 
+            after: validSelectedSkills.length 
+          });
           return { ...prev, selectedSkills: validSelectedSkills };
         }
         
         return prev;
       });
     }
-  }, [availableSkills]);
+  }, [availableSkills, skillsLoading, matrixSkills]);
 
   const handleSkillToggle = useCallback((skill: SkillType) => {
     setState(prev => ({
@@ -72,19 +84,29 @@ export const useMatrixControls = ({
     setState(prev => ({ ...prev, monthRange }));
   }, []);
 
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback(async () => {
+    // Use all relevant skills (available + matrix) for reset
+    const allRelevantSkills = new Set([...availableSkills, ...matrixSkills]);
+    const skillsArray = Array.from(allRelevantSkills);
+    
     setState({
-      selectedSkills: [...availableSkills],
+      selectedSkills: skillsArray,
       viewMode: 'hours',
       monthRange: { start: 0, end: 11 }
     });
-  }, [availableSkills]);
+  }, [availableSkills, matrixSkills]);
 
   const handleExport = useCallback(() => {
     // Generate CSV data for export
     const csvData = generateCSVData(state, availableSkills);
     downloadCSV(csvData, 'capacity-matrix.csv');
   }, [state, availableSkills]);
+
+  // Get effective skills list (combination of available and matrix skills)
+  const getEffectiveSkills = useCallback(() => {
+    const allSkills = new Set([...availableSkills, ...matrixSkills]);
+    return Array.from(allSkills).sort();
+  }, [availableSkills, matrixSkills]);
 
   return {
     ...state,
@@ -94,7 +116,7 @@ export const useMatrixControls = ({
     handleReset,
     handleExport,
     // Expose skills data for consumers
-    availableSkills,
+    availableSkills: getEffectiveSkills(),
     skillsLoading
   };
 };

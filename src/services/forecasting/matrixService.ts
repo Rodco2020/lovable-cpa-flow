@@ -6,6 +6,7 @@ import {
 } from '@/types/forecasting';
 import { generateForecast } from '@/services/forecastingService';
 import { MatrixData, transformForecastDataToMatrix, generate12MonthPeriods, fillMissingMatrixData } from './matrixUtils';
+import { SkillsIntegrationService } from './skillsIntegrationService';
 import { debugLog } from './logger';
 import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -46,21 +47,25 @@ export const generateMatrixForecast = async (
     debugLog(`Generated forecast with ${forecastResult.data.length} periods`);
 
     // Transform forecast data to matrix format
-    const matrixData = transformForecastDataToMatrix(forecastResult.data);
+    let matrixData = transformForecastDataToMatrix(forecastResult.data);
     
     // Generate expected months for validation
     const expectedMonths = generate12MonthPeriods(normalizedStartDate);
     
-    // Define expected skills (these should match your system's skill types)
-    const expectedSkills = [
-      'Junior',
-      'Senior', 
-      'CPA',
-      'Tax Specialist',
-      'Audit',
-      'Advisory',
-      'Bookkeeping'
-    ] as any[];
+    // Get normalized skills from the skills integration service
+    const availableSkills = await SkillsIntegrationService.getAvailableSkills();
+    const normalizedMatrixSkills = await SkillsIntegrationService.normalizeMatrixSkills(matrixData.skills);
+    
+    // Use the larger set of skills (available skills or normalized matrix skills)
+    const expectedSkills = normalizedMatrixSkills.length > availableSkills.length 
+      ? normalizedMatrixSkills 
+      : availableSkills;
+
+    // Update matrix data with normalized skills
+    matrixData = {
+      ...matrixData,
+      skills: expectedSkills
+    };
 
     // Fill any missing data to ensure complete matrix
     const completeMatrixData = fillMissingMatrixData(matrixData, expectedSkills, expectedMonths);
@@ -69,6 +74,7 @@ export const generateMatrixForecast = async (
       periodsCount: forecastResult.data.length,
       matrixMonths: completeMatrixData.months.length,
       matrixSkills: completeMatrixData.skills.length,
+      normalizedSkills: expectedSkills.length,
       dataPoints: completeMatrixData.dataPoints.length
     });
 
@@ -83,7 +89,7 @@ export const generateMatrixForecast = async (
 };
 
 /**
- * Validate that the matrix data is complete and correct
+ * Enhanced validation that checks for skills consistency
  */
 export const validateMatrixData = (matrixData: MatrixData): string[] => {
   const issues: string[] = [];
@@ -101,7 +107,22 @@ export const validateMatrixData = (matrixData: MatrixData): string[] => {
   // Check for data completeness
   const expectedDataPoints = matrixData.months.length * matrixData.skills.length;
   if (matrixData.dataPoints.length !== expectedDataPoints) {
-    issues.push(`Expected ${expectedDataPoints} data points, got ${matrixData.dataPoints.length}`);
+    issues.push(`Expected ${expectedDataPoints} data points, got ${matrixData.dataPoints.length}. Skills: ${matrixData.skills.length}, Months: ${matrixData.months.length}`);
+  }
+
+  // Check for skills consistency in data points
+  const dataPointSkills = new Set(matrixData.dataPoints.map(point => point.skillType));
+  const matrixSkillsSet = new Set(matrixData.skills);
+  
+  const missingSkillsInData = matrixData.skills.filter(skill => !dataPointSkills.has(skill));
+  const extraSkillsInData = Array.from(dataPointSkills).filter(skill => !matrixSkillsSet.has(skill));
+  
+  if (missingSkillsInData.length > 0) {
+    issues.push(`Skills missing from data points: ${missingSkillsInData.join(', ')}`);
+  }
+  
+  if (extraSkillsInData.length > 0) {
+    issues.push(`Extra skills in data points: ${extraSkillsInData.join(', ')}`);
   }
 
   // Check for negative values

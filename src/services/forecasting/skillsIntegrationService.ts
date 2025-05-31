@@ -38,18 +38,52 @@ export class SkillsIntegrationService {
       return skillTypes;
     } catch (error) {
       debugLog('Error fetching skills, falling back to default skills', error);
-      return this.getDefaultSkills();
+      const fallbackSkills = this.getDefaultSkills();
+      this.updateCache(fallbackSkills);
+      return fallbackSkills;
     }
   }
 
   /**
-   * Convert database Skill objects to SkillType strings
+   * Convert database Skill objects to SkillType strings with normalization
    */
   private static convertSkillsToSkillTypes(skills: Skill[]): SkillType[] {
-    return skills
+    const skillTypes = skills
       .filter(skill => skill.name && skill.name.trim().length > 0)
-      .map(skill => skill.name as SkillType)
+      .map(skill => this.normalizeSkillName(skill.name))
+      .filter((skill, index, array) => array.indexOf(skill) === index) // Remove duplicates
       .sort();
+
+    // Ensure we have some standard skills if database is empty
+    if (skillTypes.length === 0) {
+      return this.getDefaultSkills();
+    }
+
+    return skillTypes;
+  }
+
+  /**
+   * Normalize skill names to ensure consistency
+   */
+  private static normalizeSkillName(skillName: string): SkillType {
+    const normalized = skillName.trim();
+    
+    // Map common variations to standard names
+    const skillMappings: Record<string, SkillType> = {
+      'junior staff': 'Junior Staff',
+      'junior': 'Junior Staff',
+      'senior staff': 'Senior Staff', 
+      'senior': 'Senior Staff',
+      'cpa': 'CPA',
+      'tax prep': 'Tax Preparation',
+      'tax preparation': 'Tax Preparation',
+      'audit': 'Audit',
+      'advisory': 'Advisory',
+      'bookkeeping': 'Bookkeeping'
+    };
+
+    const mappedSkill = skillMappings[normalized.toLowerCase()];
+    return (mappedSkill || normalized) as SkillType;
   }
 
   /**
@@ -74,7 +108,7 @@ export class SkillsIntegrationService {
   }
 
   /**
-   * Get default skills as fallback
+   * Get default skills as fallback with consistent naming
    */
   private static getDefaultSkills(): SkillType[] {
     return [
@@ -83,7 +117,8 @@ export class SkillsIntegrationService {
       'CPA',
       'Tax Preparation',
       'Audit',
-      'Advisory'
+      'Advisory',
+      'Bookkeeping'
     ] as SkillType[];
   }
 
@@ -96,18 +131,51 @@ export class SkillsIntegrationService {
   }
 
   /**
-   * Validate that skills exist in database
+   * Validate that skills exist and provide normalization
    */
   static async validateSkills(skills: SkillType[]): Promise<{
     valid: SkillType[];
     invalid: SkillType[];
+    normalized: SkillType[];
   }> {
     const availableSkills = await this.getAvailableSkills();
     const availableSkillsSet = new Set(availableSkills);
 
-    const valid = skills.filter(skill => availableSkillsSet.has(skill));
-    const invalid = skills.filter(skill => !availableSkillsSet.has(skill));
+    const valid: SkillType[] = [];
+    const invalid: SkillType[] = [];
+    const normalized: SkillType[] = [];
 
-    return { valid, invalid };
+    skills.forEach(skill => {
+      const normalizedSkill = this.normalizeSkillName(skill);
+      
+      if (availableSkillsSet.has(normalizedSkill)) {
+        valid.push(normalizedSkill);
+        normalized.push(normalizedSkill);
+      } else if (availableSkillsSet.has(skill)) {
+        valid.push(skill);
+        normalized.push(skill);
+      } else {
+        invalid.push(skill);
+      }
+    });
+
+    return { valid, invalid, normalized };
+  }
+
+  /**
+   * Ensure matrix data has consistent skills
+   */
+  static async normalizeMatrixSkills(matrixSkills: SkillType[]): Promise<SkillType[]> {
+    const availableSkills = await this.getAvailableSkills();
+    const availableSkillsSet = new Set(availableSkills);
+    
+    // Filter and normalize matrix skills to match available skills
+    const normalizedSkills = matrixSkills
+      .map(skill => this.normalizeSkillName(skill))
+      .filter(skill => availableSkillsSet.has(skill))
+      .filter((skill, index, array) => array.indexOf(skill) === index); // Remove duplicates
+
+    // If no matches found, return available skills instead of empty array
+    return normalizedSkills.length > 0 ? normalizedSkills : availableSkills;
   }
 }
