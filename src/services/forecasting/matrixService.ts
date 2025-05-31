@@ -7,6 +7,7 @@ import {
 import { generateForecast } from '@/services/forecastingService';
 import { MatrixData, transformForecastDataToMatrix, generate12MonthPeriods, fillMissingMatrixData } from './matrixUtils';
 import { SkillsIntegrationService } from './skillsIntegrationService';
+import { SkillType } from '@/types/task';
 import { debugLog } from './logger';
 import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -48,13 +49,27 @@ export const generateMatrixForecast = async (
 
     // Transform forecast data to matrix format
     let matrixData = transformForecastDataToMatrix(forecastResult.data);
+
+    // Normalize skill names in data points to ensure consistency
+    matrixData = {
+      ...matrixData,
+      dataPoints: matrixData.dataPoints.map(point => ({
+        ...point,
+        skillType: SkillsIntegrationService.normalizeSkill(point.skillType)
+      }))
+    };
+
+    // Derive skills from normalized data points
+    const skillsFromData = Array.from(
+      new Set(matrixData.dataPoints.map(p => p.skillType))
+    );
     
     // Generate expected months for validation
     const expectedMonths = generate12MonthPeriods(normalizedStartDate);
     
     // Get normalized skills from the skills integration service
     const availableSkills = await SkillsIntegrationService.getAvailableSkills();
-    const normalizedMatrixSkills = await SkillsIntegrationService.normalizeMatrixSkills(matrixData.skills);
+    const normalizedMatrixSkills = await SkillsIntegrationService.normalizeMatrixSkills(skillsFromData as SkillType[]);
     
     // Use the larger set of skills (available skills or normalized matrix skills)
     const expectedSkills = normalizedMatrixSkills.length > availableSkills.length 
