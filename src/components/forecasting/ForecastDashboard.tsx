@@ -10,6 +10,7 @@ import ChartsTab from './tabs/ChartsTab';
 import GapsTab from './tabs/GapsTab';
 import FinancialTab from './tabs/FinancialTab';
 import DebugTab from './tabs/DebugTab';
+import { MatrixTab } from './matrix';
 
 /**
  * ForecastDashboard Component
@@ -19,6 +20,7 @@ import DebugTab from './tabs/DebugTab';
  * - Visualization of capacity vs demand data
  * - Financial projections based on forecasted work
  * - Gap analysis to identify resource shortages
+ * - 12-month capacity matrix view
  * - Debugging tools for forecast calculation validation
  */
 const ForecastDashboard: React.FC = () => {
@@ -77,6 +79,7 @@ const ForecastDashboard: React.FC = () => {
           <TabsList>
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="charts">Charts</TabsTrigger>
+            <TabsTrigger value="matrix">Matrix</TabsTrigger>
             <TabsTrigger value="gaps">Gap Analysis</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="debug">Debug</TabsTrigger>
@@ -106,6 +109,11 @@ const ForecastDashboard: React.FC = () => {
                 skills={availableSkills}
               />
             )}
+          </TabsContent>
+          
+          {/* Matrix Tab - NEW */}
+          <TabsContent value="matrix">
+            <MatrixTab />
           </TabsContent>
           
           {/* Gap Analysis Tab */}
