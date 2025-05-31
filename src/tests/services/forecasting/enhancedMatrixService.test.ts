@@ -1,7 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EnhancedMatrixService } from '@/services/forecasting/enhancedMatrixService';
-import { MatrixCacheManager } from '@/services/forecasting/cache/matrixCacheManager';
+import { EnhancedMatrixService } from '@/services/forecasting/enhanced/enhancedMatrixService';
+import { EnhancedCacheManager } from '@/services/forecasting/enhanced/cacheManager';
 import { SkillType } from '@/types/task';
 
 // Mock dependencies
@@ -35,10 +35,10 @@ vi.mock('@/services/forecasting/analyticsService', () => ({
   }
 }));
 
-describe('EnhancedMatrixService', () => {
+describe('EnhancedMatrixService (Refactored)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    MatrixCacheManager.clearCache();
+    EnhancedCacheManager.clearCache();
   });
 
   describe('getEnhancedMatrixData', () => {
