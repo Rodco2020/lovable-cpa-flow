@@ -11,8 +11,13 @@ import { ClientListEmptyState } from './components/ClientListEmptyState';
 import { ClientListLoadingState } from './components/ClientListLoadingState';
 import { ClientListErrorState } from './components/ClientListErrorState';
 import { convertClientsToExportData, getAppliedFilters } from './utils/clientListUtils';
+import { ClientMetricsFilters } from '@/types/clientMetrics';
 
-const ClientList: React.FC = () => {
+interface ClientListProps {
+  metricsFilters?: ClientMetricsFilters;
+}
+
+const ClientList: React.FC<ClientListProps> = ({ metricsFilters = {} }) => {
   const {
     clients,
     filteredClients,
@@ -20,7 +25,7 @@ const ClientList: React.FC = () => {
     error,
     searchTerm,
     setSearchTerm
-  } = useClientListData();
+  } = useClientListData(metricsFilters);
 
   const {
     navigate,
@@ -36,7 +41,7 @@ const ClientList: React.FC = () => {
 
   // Handle export with applied filters
   const handleExportWithFilters = async (options: any) => {
-    const appliedFilters = options.includeFilters ? getAppliedFilters(searchTerm) : undefined;
+    const appliedFilters = options.includeFilters ? getAppliedFilters(searchTerm, metricsFilters) : undefined;
     await handleExport(exportData, options, appliedFilters);
   };
 
@@ -51,7 +56,7 @@ const ClientList: React.FC = () => {
         title="Client Directory"
         data={exportData}
         dataType="clients"
-        appliedFilters={getAppliedFilters(searchTerm)}
+        appliedFilters={getAppliedFilters(searchTerm, metricsFilters)}
         onPrint={handlePrintExecute}
       />
     );

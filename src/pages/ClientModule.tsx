@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -176,7 +177,7 @@ const ClientModule: React.FC = () => {
                   />
                 )}
                 
-                <ClientList />
+                <ClientList metricsFilters={metricsFilters} />
               </TabsContent>
               
               <TabsContent value="tasks">
