@@ -1,57 +1,140 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { MatrixCell } from './MatrixCell';
 import { MatrixLegend } from './MatrixLegend';
+import { MatrixData, getMatrixDataPoint } from '@/services/forecasting/matrixUtils';
+import { generateMatrixForecast, validateMatrixData } from '@/services/forecasting/matrixService';
+import { useToast } from '@/components/ui/use-toast';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface CapacityMatrixProps {
   className?: string;
+  forecastType?: 'virtual' | 'actual';
 }
 
 /**
- * Main matrix component with 12-month grid
- * Displays demand vs capacity for each skill across 12 months
+ * Main matrix component with 12-month grid using real forecast data
  */
-export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => {
-  // Generate 12 months starting from June 2025
-  const generateMonths = () => {
-    const months = [];
-    const startDate = new Date(2025, 5, 1); // June 2025 (month is 0-indexed)
-    
-    for (let i = 0; i < 12; i++) {
-      const month = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
-      months.push({
-        key: `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`,
-        label: month.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ 
+  className,
+  forecastType = 'virtual'
+}) => {
+  const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  // Load matrix data
+  const loadMatrixData = async () => {
+    setIsLoading(true);
+    setError(null);
+    setValidationIssues([]);
+
+    try {
+      const { matrixData: newMatrixData } = await generateMatrixForecast(forecastType);
+      
+      // Validate the data
+      const issues = validateMatrixData(newMatrixData);
+      if (issues.length > 0) {
+        setValidationIssues(issues);
+        console.warn('Matrix data validation issues:', issues);
+      }
+
+      setMatrixData(newMatrixData);
+      
+      toast({
+        title: "Matrix data loaded",
+        description: `Loaded ${newMatrixData.months.length} months with ${newMatrixData.dataPoints.length} data points`
       });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load matrix data';
+      setError(errorMessage);
+      console.error('Error loading matrix data:', err);
+      
+      toast({
+        title: "Error loading matrix",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    return months;
   };
 
-  const months = generateMonths();
-  
-  // Skills from the existing forecasting system
-  const skills = [
-    'Junior',
-    'Senior', 
-    'CPA',
-    'Tax Specialist',
-    'Audit',
-    'Advisory',
-    'Bookkeeping'
-  ];
+  // Load data on mount and when forecast type changes
+  useEffect(() => {
+    loadMatrixData();
+  }, [forecastType]);
 
-  // Placeholder data - will be replaced with real data in later phases
-  const getPlaceholderData = (skill: string, monthKey: string) => {
-    // Generate consistent but varied placeholder data
-    const baseValue = skills.indexOf(skill) * 10 + 40;
-    const monthOffset = parseInt(monthKey.split('-')[1]) * 5;
-    const demandHours = baseValue + monthOffset + Math.floor(Math.random() * 20);
-    const capacityHours = baseValue + monthOffset + Math.floor(Math.random() * 30) + 10;
-    
-    return { demandHours, capacityHours };
-  };
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={className}>
+        <MatrixLegend />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">12-Month Capacity Forecast Matrix</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center h-64">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading matrix data...
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className={className}>
+        <MatrixLegend />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">12-Month Capacity Forecast Matrix</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {error}
+              </div>
+              <Button onClick={loadMatrixData} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!matrixData) {
+    return (
+      <div className={className}>
+        <MatrixLegend />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">12-Month Capacity Forecast Matrix</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              No matrix data available
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
@@ -59,10 +142,32 @@ export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => 
       
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">12-Month Capacity Forecast Matrix</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Demand vs Capacity by skill type across 12 months (hours)
-          </p>
+          <CardTitle className="text-lg flex items-center justify-between">
+            12-Month Capacity Forecast Matrix
+            <Button 
+              onClick={loadMatrixData} 
+              variant="outline" 
+              size="sm"
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </CardTitle>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Demand vs Capacity by skill type across 12 months (hours) - {forecastType} forecast
+            </p>
+            {validationIssues.length > 0 && (
+              <div className="text-xs text-amber-600">
+                <AlertCircle className="h-3 w-3 inline mr-1" />
+                {validationIssues.length} validation issue(s) detected
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground">
+              Total: {matrixData.totalDemand.toFixed(0)}h demand, {matrixData.totalCapacity.toFixed(0)}h capacity
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Responsive grid container */}
@@ -70,8 +175,8 @@ export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => 
             <div 
               className="grid gap-1 min-w-[800px]"
               style={{
-                gridTemplateColumns: `120px repeat(${months.length}, 1fr)`,
-                gridTemplateRows: `auto repeat(${skills.length}, auto)`
+                gridTemplateColumns: `120px repeat(${matrixData.months.length}, 1fr)`,
+                gridTemplateRows: `auto repeat(${matrixData.skills.length}, auto)`
               }}
             >
               {/* Top-left corner cell */}
@@ -80,7 +185,7 @@ export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => 
               </div>
               
               {/* Month headers */}
-              {months.map((month) => (
+              {matrixData.months.map((month) => (
                 <div 
                   key={month.key}
                   className="p-2 bg-gray-50 border font-medium text-center text-sm"
@@ -90,7 +195,7 @@ export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => 
               ))}
               
               {/* Skill rows */}
-              {skills.map((skill) => (
+              {matrixData.skills.map((skill) => (
                 <React.Fragment key={skill}>
                   {/* Skill label */}
                   <div className="p-2 bg-gray-50 border font-medium text-sm flex items-center">
@@ -98,8 +203,11 @@ export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => 
                   </div>
                   
                   {/* Cells for each month */}
-                  {months.map((month) => {
-                    const { demandHours, capacityHours } = getPlaceholderData(skill, month.key);
+                  {matrixData.months.map((month) => {
+                    const dataPoint = getMatrixDataPoint(matrixData, skill, month.key);
+                    const demandHours = dataPoint?.demandHours || 0;
+                    const capacityHours = dataPoint?.capacityHours || 0;
+                    
                     return (
                       <MatrixCell
                         key={`${skill}-${month.key}`}
@@ -116,9 +224,18 @@ export const CapacityMatrix: React.FC<CapacityMatrixProps> = ({ className }) => 
           </div>
           
           {/* Summary footer */}
-          <div className="mt-4 p-3 bg-gray-50 rounded text-sm text-gray-600">
-            <strong>Matrix View:</strong> Each cell shows demand/capacity hours and utilization percentage. 
-            Color coding indicates utilization levels from low (green) to over-capacity (red).
+          <div className="mt-4 p-3 bg-gray-50 rounded text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <strong>Matrix View:</strong> Each cell shows demand/capacity hours and utilization percentage.
+              </div>
+              <div>
+                <strong>Data Period:</strong> {matrixData.months[0]?.label} - {matrixData.months[matrixData.months.length - 1]?.label}
+              </div>
+              <div>
+                <strong>Coverage:</strong> {matrixData.skills.length} skills × {matrixData.months.length} months
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
