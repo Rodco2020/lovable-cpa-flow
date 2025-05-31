@@ -31,7 +31,11 @@ describe('MatrixControls - Refactoring Validation', () => {
       availableSkills: ['Junior Staff', 'Senior Staff', 'CPA'],
       isLoading: false,
       error: null,
-      refetchSkills: jest.fn()
+      refetchSkills: jest.fn(),
+      validateSkillSelection: jest.fn().mockResolvedValue({
+        valid: ['Junior Staff', 'Senior Staff', 'CPA'],
+        invalid: []
+      })
     });
   });
 
@@ -118,7 +122,11 @@ describe('MatrixControls - Refactoring Validation', () => {
         availableSkills: [],
         isLoading: true,
         error: null,
-        refetchSkills: jest.fn()
+        refetchSkills: jest.fn(),
+        validateSkillSelection: jest.fn().mockResolvedValue({
+          valid: [],
+          invalid: []
+        })
       });
 
       render(<MatrixControls {...mockProps} />);
@@ -134,7 +142,11 @@ describe('MatrixControls - Refactoring Validation', () => {
         availableSkills: [],
         isLoading: false,
         error: 'Failed to load skills',
-        refetchSkills: mockRefetch
+        refetchSkills: mockRefetch,
+        validateSkillSelection: jest.fn().mockResolvedValue({
+          valid: [],
+          invalid: []
+        })
       });
 
       render(<MatrixControls {...mockProps} />);
