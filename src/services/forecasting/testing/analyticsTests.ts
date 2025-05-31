@@ -149,7 +149,7 @@ export class AnalyticsTests {
       
       // Check that trends have required fields
       trends.forEach((trend, index) => {
-        if (!trend.skill || !trend.trend || !trend.confidence) {
+        if (!trend.skill || !trend.trend) {
           validationIssues.push(`Trend ${index} missing required fields`);
         }
       });

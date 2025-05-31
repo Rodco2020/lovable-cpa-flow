@@ -46,8 +46,8 @@ export const useMatrixControls = ({
         );
         
         // Only update if there's a difference
-        if (validatedSkills.length !== prev.selectedSkills.length) {
-          return { ...prev, selectedSkills: validatedSkills };
+        if (validSelectedSkills.length !== prev.selectedSkills.length) {
+          return { ...prev, selectedSkills: validSelectedSkills };
         }
         
         return prev;
