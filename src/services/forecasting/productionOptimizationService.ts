@@ -136,16 +136,16 @@ export class ProductionOptimizationService {
       lazy?: boolean;
       preload?: boolean;
     } = {}
-  ): T {
-    let OptimizedComponent = Component;
+  ): T | React.MemoExoticComponent<T> | React.LazyExoticComponent<T> {
+    let OptimizedComponent: T | React.MemoExoticComponent<T> | React.LazyExoticComponent<T> = Component;
 
     if (optimizations.memo) {
-      OptimizedComponent = React.memo(OptimizedComponent);
+      OptimizedComponent = React.memo(Component);
     }
 
     if (optimizations.lazy) {
       OptimizedComponent = React.lazy(() => 
-        Promise.resolve({ default: OptimizedComponent })
+        Promise.resolve({ default: Component })
       );
     }
 
@@ -154,7 +154,7 @@ export class ProductionOptimizationService {
       optimizations 
     });
 
-    return OptimizedComponent as T;
+    return OptimizedComponent;
   }
 
   /**
