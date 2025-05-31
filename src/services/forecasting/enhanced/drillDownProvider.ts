@@ -26,7 +26,7 @@ export class DrillDownProvider {
       if (!cached) {
         throw new Error('No matrix data available for drill-down');
       }
-      matrixData = cached.data;
+      matrixData = cached.matrixData;
     }
 
     return AdvancedAnalyticsService.getDrillDownData(matrixData, skill, month);
