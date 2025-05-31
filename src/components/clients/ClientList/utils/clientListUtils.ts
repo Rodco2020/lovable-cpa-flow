@@ -1,34 +1,19 @@
 
 import { Client } from '@/types/client';
 import { ClientMetricsFilters } from '@/types/clientMetrics';
+import { ClientExportData } from '@/services/export/exportService';
 
-export interface ExportableClientData {
-  legalName: string;
-  primaryContact: string;
-  email: string;
-  phone: string;
-  industry: string;
-  status: string;
-  expectedMonthlyRevenue: string;
-  staffLiaisonName?: string;
-  createdAt: string;
-}
-
-export const convertClientsToExportData = (clients: Client[]): ExportableClientData[] => {
+export const convertClientsToExportData = (clients: Client[]): ClientExportData[] => {
   return clients.map(client => ({
+    id: client.id,
     legalName: client.legalName,
     primaryContact: client.primaryContact,
     email: client.email,
     phone: client.phone,
     industry: client.industry,
     status: client.status,
-    expectedMonthlyRevenue: new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(client.expectedMonthlyRevenue),
-    staffLiaisonName: client.staffLiaisonName || 'Unassigned',
-    createdAt: new Date(client.createdAt).toLocaleDateString(),
+    expectedMonthlyRevenue: client.expectedMonthlyRevenue,
+    staffLiaisonName: client.staffLiaisonName || undefined,
   }));
 };
 
