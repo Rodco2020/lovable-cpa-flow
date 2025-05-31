@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import useAppEvent from '@/hooks/useAppEvent';
@@ -17,12 +16,13 @@ import {
   ForecastData, 
   ForecastParameters, 
   SkillType,
-  SkillData
+  SkillData,
+  ForecastMode
 } from '@/types/forecasting';
 
 export const useForecastDashboard = () => {
   const [forecastWindow, setForecastWindow] = useState<string>('next-30-days');
-  const [forecastType, setForecastType] = useState<string>('virtual');
+  const [forecastType, setForecastType] = useState<ForecastMode>('virtual');
   const [showCapacity, setShowCapacity] = useState<boolean>(true);
   const [showDemand, setShowDemand] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -66,7 +66,7 @@ export const useForecastDashboard = () => {
       
       // Create forecast parameters
       const params: ForecastParameters = {
-        mode: forecastType as any,
+        mode: forecastType,
         timeframe: 'custom',
         dateRange: {
           startDate: new Date(),
