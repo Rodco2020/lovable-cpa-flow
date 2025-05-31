@@ -4,12 +4,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import ForecastCalculationBadge from './ForecastCalculationBadge';
 import ForecastInfoTooltip from './ForecastInfoTooltip';
-import { ForecastData } from '@/types/forecasting';
+import { ForecastData, ForecastMode } from '@/types/forecasting';
 
 interface ForecastHeaderProps {
   forecastData: ForecastData | null;
-  forecastType: string;
-  setForecastType: (type: string) => void;
+  forecastType: ForecastMode;
+  setForecastType: (type: ForecastMode) => void;
   forecastWindow: string;
   setForecastWindow: (window: string) => void;
   timeWindowOptions: Array<{value: string, label: string, days: number}>;
@@ -34,7 +34,7 @@ const ForecastHeader: React.FC<ForecastHeaderProps> = ({
           <h1 className="text-2xl font-bold">Capacity Forecasting</h1>
           {forecastData && (
             <div className="flex items-center gap-2">
-              <ForecastCalculationBadge mode={forecastType as any} />
+              <ForecastCalculationBadge mode={forecastType} />
             </div>
           )}
         </div>
