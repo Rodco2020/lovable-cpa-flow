@@ -1,57 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery } from '@tanstack/react-query';
+
+import { useState } from 'react';
 import { format } from 'date-fns';
-import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar as CalendarIcon, AlertCircle, AlertTriangle, XCircle, RefreshCw, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Calendar as CalendarIcon, AlertCircle, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { getAllSkills } from '@/services/skillService';
-
-// Form schema for validation
-const EditTaskSchema = z.object({
-  name: z.string().min(1, 'Task name is required'),
-  description: z.string().optional(),
-  estimatedHours: z.number().positive('Hours must be greater than 0').min(0.25, 'Minimum hours is 0.25'),
-  priority: z.enum(['Low', 'Medium', 'High', 'Urgent'] as const),
-  category: z.enum(['Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping', 'Other'] as const),
-  dueDate: z.date().optional(),
-  isRecurring: z.boolean(),
-  requiredSkills: z.array(z.string()).min(1, 'At least one skill is required'),
-  recurrenceType: z.enum(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'Custom'] as const).optional(),
-  interval: z.number().positive('Interval must be positive').min(1, 'Minimum interval is 1').optional(),
-  weekdays: z.array(z.number().min(0).max(6)).optional(),
-  dayOfMonth: z.number().min(1, 'Day must be between 1-31').max(31, 'Day must be between 1-31').optional(),
-  monthOfYear: z.number().min(1, 'Month must be between 1-12').max(12, 'Month must be between 1-12').optional(),
-  endDate: z.date().optional().nullable(),
-  customOffsetDays: z.number().optional()
-});
-
-type EditTaskFormValues = z.infer<typeof EditTaskSchema>;
-
-interface EditRecurringTaskDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  task: RecurringTask | null;
-  onSave: (updatedTask: Partial<RecurringTask>) => Promise<void>;
-  isLoading?: boolean; 
-  loadError?: string | null;
-  attemptedLoad?: boolean;
-}
+import { EditRecurringTaskDialogProps } from './types';
+import { useEditTaskForm } from './hooks/useEditTaskForm';
+import { useUnsavedChanges } from './hooks/useUnsavedChanges';
+import { FormHeader } from './components/FormHeader';
+import { SkillsSelection } from './components/SkillsSelection';
+import { RecurrenceSettings } from './components/RecurrenceSettings';
 
 export function EditRecurringTaskDialog({ 
   open, 
@@ -62,217 +29,41 @@ export function EditRecurringTaskDialog({
   loadError = null,
   attemptedLoad = false
 }: EditRecurringTaskDialogProps) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [showUnsavedChangesAlert, setShowUnsavedChangesAlert] = useState(false);
-  const formTitleRef = useRef<HTMLHeadingElement>(null);
-  const initialFormRef = useRef<any>(null);
   const [retryLoading, setRetryLoading] = useState(false);
-  const [skillsError, setSkillsError] = useState<string | null>(null);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
-  // Fetch skills from database
   const {
-    data: availableSkills = [],
-    isLoading: isLoadingSkills,
-    error: skillsFetchError,
-    refetch: refetchSkills
-  } = useQuery({
-    queryKey: ['skills'],
-    queryFn: getAllSkills,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 2
-  });
-  
-  // Initialize form with task data when available
-  const form = useForm<EditTaskFormValues>({
-    resolver: zodResolver(EditTaskSchema),
-    defaultValues: task ? {
-      name: task.name,
-      description: task.description || '',
-      estimatedHours: task.estimatedHours,
-      priority: task.priority,
-      category: task.category,
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-      isRecurring: true,
-      requiredSkills: task.requiredSkills || [],
-      recurrenceType: task.recurrencePattern.type,
-      interval: task.recurrencePattern.interval || 1,
-      weekdays: task.recurrencePattern.weekdays || [],
-      dayOfMonth: task.recurrencePattern.dayOfMonth,
-      monthOfYear: task.recurrencePattern.monthOfYear,
-      endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
-      customOffsetDays: task.recurrencePattern.customOffsetDays
-    } : {
-      name: '',
-      description: '',
-      estimatedHours: 1,
-      priority: 'Medium' as TaskPriority,
-      category: 'Other' as TaskCategory,
-      isRecurring: true,
-      requiredSkills: [],
-      interval: 1,
-      weekdays: [],
-      dayOfMonth: 15,
-      monthOfYear: 1,
-      customOffsetDays: 0
+    form,
+    isSaving,
+    formError,
+    selectedSkills,
+    setSelectedSkills,
+    skillsError,
+    toggleSkill,
+    onSubmit
+  } = useEditTaskForm({
+    task,
+    onSave,
+    onSuccess: () => {
+      onOpenChange(false);
+      clearInitialForm();
     }
   });
 
-  // Update selected skills state when form values change
-  useEffect(() => {
-    if (task?.requiredSkills) {
-      setSelectedSkills(task.requiredSkills);
-      form.setValue('requiredSkills', task.requiredSkills);
-    }
-  }, [task, form]);
+  const {
+    showUnsavedChangesAlert,
+    setShowUnsavedChangesAlert,
+    hasUnsavedChanges,
+    clearInitialForm
+  } = useUnsavedChanges(form, task, open);
 
-  // Store initial form values for detecting changes
-  useEffect(() => {
-    if (task && open) {
-      initialFormRef.current = form.getValues();
-    }
-  }, [task, open, form]);
-
-  // Focus on title when dialog opens
-  useEffect(() => {
-    if (open && formTitleRef.current) {
-      setTimeout(() => {
-        formTitleRef.current?.focus();
-      }, 100);
-    }
-  }, [open]);
-
-  // Reset form when task changes
-  useEffect(() => {
-    if (task) {
-      form.reset({
-        name: task.name,
-        description: task.description || '',
-        estimatedHours: task.estimatedHours,
-        priority: task.priority,
-        category: task.category,
-        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-        isRecurring: true,
-        requiredSkills: task.requiredSkills || [],
-        recurrenceType: task.recurrencePattern.type,
-        interval: task.recurrencePattern.interval || 1,
-        weekdays: task.recurrencePattern.weekdays || [],
-        dayOfMonth: task.recurrencePattern.dayOfMonth,
-        monthOfYear: task.recurrencePattern.monthOfYear,
-        endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
-        customOffsetDays: task.recurrencePattern.customOffsetDays
-      });
-      setSelectedSkills(task.requiredSkills || []);
-      // Clear any previous form errors when task changes
-      setFormError(null);
-      setSkillsError(null);
-    }
-  }, [task, form]);
-
-  const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const recurrenceType = form.watch('recurrenceType');
   
-  // Check if form has unsaved changes
-  const hasUnsavedChanges = () => {
-    if (!initialFormRef.current) return false;
-    
-    const currentValues = form.getValues();
-    const initialValues = initialFormRef.current;
-    
-    // Compare form values, excluding complex objects like dates that need special comparison
-    for (const key in currentValues) {
-      if (key === 'dueDate' || key === 'endDate') continue;
-      if (JSON.stringify(currentValues[key as keyof EditTaskFormValues]) !== 
-          JSON.stringify(initialValues[key])) {
-        return true;
-      }
-    }
-    return false;
-  };
-
   // Handle dialog close with confirmation if there are unsaved changes
   const handleDialogClose = (open: boolean) => {
     if (!open && hasUnsavedChanges() && !isSaving) {
       setShowUnsavedChangesAlert(true);
     } else {
       onOpenChange(open);
-    }
-  };
-  
-  // Handle skill selection
-  const toggleSkill = (skillId: string) => {
-    let updatedSkills: string[];
-    
-    if (selectedSkills.includes(skillId)) {
-      updatedSkills = selectedSkills.filter(s => s !== skillId);
-    } else {
-      updatedSkills = [...selectedSkills, skillId];
-    }
-    
-    setSelectedSkills(updatedSkills);
-    form.setValue('requiredSkills', updatedSkills);
-    
-    if (updatedSkills.length === 0) {
-      setSkillsError('At least one skill is required');
-    } else {
-      setSkillsError(null);
-    }
-  };
-  
-  // Handle form submission
-  const onSubmit = async (data: EditTaskFormValues) => {
-    if (!task) {
-      setFormError("No task data available to update");
-      return;
-    }
-    
-    if (selectedSkills.length === 0) {
-      setSkillsError('At least one skill is required');
-      return;
-    }
-    
-    setIsSaving(true);
-    setFormError(null);
-    
-    try {
-      // Build recurrence pattern from form data
-      const recurrencePattern = {
-        type: data.recurrenceType!,
-        interval: data.interval,
-        weekdays: data.recurrenceType === 'Weekly' ? data.weekdays : undefined,
-        dayOfMonth: ['Monthly', 'Quarterly', 'Annually'].includes(data.recurrenceType!) ? data.dayOfMonth : undefined,
-        monthOfYear: data.recurrenceType === 'Annually' ? data.monthOfYear : undefined,
-        endDate: data.endDate || undefined,
-        customOffsetDays: data.recurrenceType === 'Custom' ? data.customOffsetDays : undefined
-      };
-
-      // Build updated task object
-      const updatedTask: Partial<RecurringTask> = {
-        id: task.id,
-        name: data.name,
-        description: data.description,
-        estimatedHours: data.estimatedHours,
-        priority: data.priority,
-        category: data.category,
-        dueDate: data.dueDate,
-        requiredSkills: selectedSkills as SkillType[],
-        recurrencePattern: recurrencePattern,
-        // Preserve isActive status from original task
-        isActive: task.isActive
-      };
-
-      // Call save function passed from parent
-      await onSave(updatedTask);
-      onOpenChange(false);
-      initialFormRef.current = null;
-      toast.success("Task updated successfully");
-    } catch (error) {
-      console.error("Error saving task:", error);
-      setFormError(error instanceof Error ? error.message : "Failed to update task");
-      toast.error("Failed to update task");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -290,11 +81,6 @@ export function EditRecurringTaskDialog({
     }, 100);
   };
 
-  // Handle skills retry
-  const handleSkillsRetry = () => {
-    refetchSkills();
-  };
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -309,11 +95,7 @@ export function EditRecurringTaskDialog({
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle id="edit-task-title" ref={formTitleRef} tabIndex={-1}>
-              Edit Recurring Task {task?.isActive === false && <span className="ml-2 text-sm text-muted-foreground">(Inactive)</span>}
-            </DialogTitle>
-          </DialogHeader>
+          <FormHeader task={task} open={open} />
           
           {/* Loading State */}
           {isLoading && (
@@ -369,25 +151,6 @@ export function EditRecurringTaskDialog({
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
                 You are editing an inactive task. The task will remain inactive after updates.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {/* Skills Loading/Error State */}
-          {skillsFetchError && !isLoadingSkills && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex flex-col gap-2">
-                <div>Failed to load skills: {skillsFetchError instanceof Error ? skillsFetchError.message : 'Unknown error'}</div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleSkillsRetry}
-                  className="w-fit"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Retry Loading Skills
-                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -466,7 +229,6 @@ export function EditRecurringTaskDialog({
                     )}
                   />
 
-                  {/* Category FormField */}
                   <FormField
                     control={form.control}
                     name="category"
@@ -494,76 +256,12 @@ export function EditRecurringTaskDialog({
                   />
                 </div>
 
-                {/* Required Skills */}
-                <FormItem>
-                  <FormLabel>Required Skills</FormLabel>
-                  <div className="border rounded-md p-3 space-y-2">
-                    {isLoadingSkills ? (
-                      <div className="flex items-center py-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
-                        <span className="text-sm">Loading skills...</span>
-                      </div>
-                    ) : skillsFetchError ? (
-                      <div className="text-sm text-destructive">
-                        Failed to load skills. Please try again.
-                      </div>
-                    ) : availableSkills.length > 0 ? (
-                      <>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {availableSkills.map((skill) => {
-                            const skillId = String(skill.id);
-                            const isSelected = selectedSkills.includes(skillId);
-                            
-                            return (
-                              <Badge
-                                key={skillId}
-                                variant={isSelected ? "default" : "outline"}
-                                className={cn(
-                                  "cursor-pointer hover:bg-secondary transition-colors",
-                                  isSelected 
-                                    ? "bg-primary text-primary-foreground" 
-                                    : "bg-background text-foreground"
-                                )}
-                                onClick={() => toggleSkill(skillId)}
-                              >
-                                {skill.name}
-                                {skill.proficiencyLevel && (
-                                  <span className="ml-1 text-xs">
-                                    ({skill.proficiencyLevel})
-                                  </span>
-                                )}
-                                {isSelected && (
-                                  <span className="ml-1 text-xs">✓</span>
-                                )}
-                              </Badge>
-                            );
-                          })}
-                        </div>
-                        {selectedSkills.length > 0 ? (
-                          <div className="text-xs text-muted-foreground">
-                            Selected: {selectedSkills.map(skillId => {
-                              const skill = availableSkills.find(s => String(s.id) === skillId);
-                              return skill?.name || skillId;
-                            }).join(', ')}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-muted-foreground">
-                            Click to select required skills
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        No skills available. Please add skills in the Skills Module first.
-                      </div>
-                    )}
-                    {skillsError && (
-                      <div className="text-sm font-medium text-destructive" role="alert">
-                        {skillsError}
-                      </div>
-                    )}
-                  </div>
-                </FormItem>
+                {/* Skills Selection Component */}
+                <SkillsSelection 
+                  selectedSkills={selectedSkills}
+                  toggleSkill={toggleSkill}
+                  skillsError={skillsError}
+                />
 
                 {/* Estimated Hours and Due Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -632,251 +330,8 @@ export function EditRecurringTaskDialog({
                   />
                 </div>
 
-                {/* Recurrence Type */}
-                <FormField
-                  control={form.control}
-                  name="recurrenceType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel htmlFor="recurrence-type">Recurrence Pattern</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger id="recurrence-type" aria-label="Select recurrence pattern">
-                            <SelectValue placeholder="Select recurrence pattern" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Daily">Daily</SelectItem>
-                          <SelectItem value="Weekly">Weekly</SelectItem>
-                          <SelectItem value="Monthly">Monthly</SelectItem>
-                          <SelectItem value="Quarterly">Quarterly</SelectItem>
-                          <SelectItem value="Annually">Annually</SelectItem>
-                          <SelectItem value="Custom">Custom</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage role="alert" />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Interval setting for standard recurrence types */}
-                {['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually'].includes(recurrenceType || '') && (
-                  <FormField
-                    control={form.control}
-                    name="interval"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="interval">Interval</FormLabel>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm">Every</span>
-                          <FormControl>
-                            <Input
-                              id="interval"
-                              type="number"
-                              className="w-20"
-                              min="1"
-                              {...field}
-                              onChange={e => field.onChange(parseInt(e.target.value))}
-                              aria-label={`Enter ${recurrenceType?.toLowerCase() || 'recurrence'} interval`}
-                            />
-                          </FormControl>
-                          <span className="text-sm">
-                            {recurrenceType === 'Daily' ? 'day(s)' :
-                             recurrenceType === 'Weekly' ? 'week(s)' :
-                             recurrenceType === 'Monthly' ? 'month(s)' :
-                             recurrenceType === 'Quarterly' ? 'quarter(s)' :
-                             recurrenceType === 'Annually' ? 'year(s)' : 'interval'}
-                          </span>
-                        </div>
-                        <FormMessage role="alert" />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Weekly recurrence specific settings */}
-                {recurrenceType === 'Weekly' && (
-                  <FormField
-                    control={form.control}
-                    name="weekdays"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel id="weekdays-group-label">On which days</FormLabel>
-                        <div 
-                          className="grid grid-cols-7 gap-2" 
-                          role="group" 
-                          aria-labelledby="weekdays-group-label"
-                        >
-                          {weekdayNames.map((day, index) => (
-                            <div key={day} className="flex flex-col items-center">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(index)}
-                                  onCheckedChange={(checked) => {
-                                    const updatedWeekdays = checked
-                                      ? [...(field.value || []), index]
-                                      : (field.value || []).filter(d => d !== index);
-                                    field.onChange(updatedWeekdays);
-                                  }}
-                                  aria-label={day}
-                                  id={`weekday-${index}`}
-                                />
-                              </FormControl>
-                              <label 
-                                htmlFor={`weekday-${index}`}
-                                className="text-xs mt-1 cursor-pointer"
-                              >
-                                {day}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                        <FormMessage role="alert" />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Monthly and related recurrence settings */}
-                {['Monthly', 'Quarterly', 'Annually'].includes(recurrenceType || '') && (
-                  <FormField
-                    control={form.control}
-                    name="dayOfMonth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="day-of-month">Day of Month</FormLabel>
-                        <FormControl>
-                          <Input
-                            id="day-of-month"
-                            type="number"
-                            min="1"
-                            max="31"
-                            {...field}
-                            onChange={e => field.onChange(parseInt(e.target.value))}
-                            aria-label="Enter day of month (1-31)"
-                          />
-                        </FormControl>
-                        <FormMessage role="alert" />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Annually specific settings */}
-                {recurrenceType === 'Annually' && (
-                  <FormField
-                    control={form.control}
-                    name="monthOfYear"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="month-of-year">Month</FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(parseInt(value))} 
-                          value={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger id="month-of-year" aria-label="Select month">
-                              <SelectValue placeholder="Select month" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {[...Array(12)].map((_, i) => (
-                              <SelectItem key={i+1} value={(i+1).toString()}>
-                                {new Date(0, i).toLocaleString('default', { month: 'long' })}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage role="alert" />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Custom recurrence settings */}
-                {recurrenceType === 'Custom' && (
-                  <FormField
-                    control={form.control}
-                    name="customOffsetDays"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="custom-offset">Days Offset</FormLabel>
-                        <div className="flex items-center space-x-2">
-                          <FormControl>
-                            <Input
-                              id="custom-offset"
-                              type="number"
-                              className="w-20"
-                              {...field}
-                              onChange={e => field.onChange(parseInt(e.target.value))}
-                              aria-label="Enter days offset from month-end"
-                            />
-                          </FormControl>
-                          <span className="text-sm">days after month-end</span>
-                        </div>
-                        <FormMessage role="alert" />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* End date setting for all recurrence types */}
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date (Optional)</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                              aria-label="Select end date (optional)"
-                              aria-haspopup="dialog"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>No end date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => field.onChange(null)}
-                              className="mb-2"
-                              aria-label="Clear end date"
-                            >
-                              Clear date
-                            </Button>
-                          </div>
-                          <Calendar
-                            mode="single"
-                            selected={field.value || undefined}
-                            onSelect={field.onChange}
-                            initialFocus
-                            disabled={(date) => date < new Date()}
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <p className="text-xs text-gray-500">
-                        Leave empty for no end date
-                      </p>
-                      <FormMessage role="alert" />
-                    </FormItem>
-                  )}
-                />
+                {/* Recurrence Settings Component */}
+                <RecurrenceSettings form={form} recurrenceType={recurrenceType} />
 
                 {/* Form Actions */}
                 <DialogFooter>
@@ -890,7 +345,7 @@ export function EditRecurringTaskDialog({
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={isSaving || isLoadingSkills}
+                    disabled={isSaving}
                     aria-busy={isSaving}
                   >
                     {isSaving ? 'Saving...' : 'Save Changes'}
