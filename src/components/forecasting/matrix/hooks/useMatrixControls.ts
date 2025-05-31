@@ -19,7 +19,7 @@
 export { 
   useMatrixControls,
   useMatrixControls as default
-} from './useMatrixControls';
+} from './useMatrixControls/useMatrixControls';
 
 export type {
   MatrixControlsState,
