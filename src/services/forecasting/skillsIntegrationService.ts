@@ -67,7 +67,7 @@ export class SkillsIntegrationService {
    */
   private static normalizeSkillName(skillName: string): SkillType {
     const normalized = skillName.trim();
-    
+
     // Map common variations to standard names
     const skillMappings: Record<string, SkillType> = {
       'junior staff': 'Junior Staff',
@@ -83,7 +83,23 @@ export class SkillsIntegrationService {
     };
 
     const mappedSkill = skillMappings[normalized.toLowerCase()];
+
+    if (mappedSkill) {
+      debugLog(`Mapped skill "${skillName}" -> "${mappedSkill}"`);
+    } else if (normalized !== skillName) {
+      debugLog(`Normalized skill "${skillName}" -> "${normalized}"`);
+    } else {
+      debugLog(`No mapping for skill "${skillName}", using as-is`);
+    }
+
     return (mappedSkill || normalized) as SkillType;
+  }
+
+  /**
+   * Public wrapper for skill normalization
+   */
+  static normalizeSkill(skillName: string): SkillType {
+    return this.normalizeSkillName(skillName);
   }
 
   /**
