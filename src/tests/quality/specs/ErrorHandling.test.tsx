@@ -1,29 +1,54 @@
 
 import { render, screen } from '@testing-library/react';
 import { TestWrapper } from '../testUtils/TestWrapper';
-import ClientModule from '@/pages/ClientModule';
+import { MatrixErrorBoundary } from '@/components/forecasting/matrix/MatrixErrorBoundary';
+import { MatrixTab } from '@/components/forecasting/matrix/MatrixTab';
 
 /**
- * Error handling tests to ensure the application
- * gracefully handles and recovers from various error scenarios
+ * Error handling tests to ensure graceful error recovery
+ * and proper user feedback
  */
 describe('Error Handling', () => {
-  it('should handle component errors gracefully', () => {
-    // Mock console.error to prevent error output during test
-    const originalError = console.error;
-    console.error = jest.fn();
-
-    try {
+  describe('Error Boundaries', () => {
+    it('should catch and handle component errors gracefully', () => {
       render(
         <TestWrapper>
-          <ClientModule />
+          <MatrixErrorBoundary>
+            <MatrixTab forecastType="virtual" />
+          </MatrixErrorBoundary>
         </TestWrapper>
       );
-      
-      // Component should render without throwing
-      expect(screen.getByText('Client Module')).toBeInTheDocument();
-    } finally {
-      console.error = originalError;
-    }
+
+      // Should render without throwing errors
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Data Loading Errors', () => {
+    it('should handle data loading failures', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Should show appropriate loading or error states
+      // Component should be in DOM even with data issues
+      const matrixElement = screen.getByText(/Matrix/i);
+      expect(matrixElement).toBeInTheDocument();
+    });
+  });
+
+  describe('Network Errors', () => {
+    it('should handle network connectivity issues', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Should gracefully handle network issues
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
   });
 });

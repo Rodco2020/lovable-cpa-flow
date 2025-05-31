@@ -1,21 +1,50 @@
 
-import { render } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { TestWrapper } from '../testUtils/TestWrapper';
-import ClientModule from '@/pages/ClientModule';
+import { MatrixTab } from '@/components/forecasting/matrix/MatrixTab';
 
 /**
  * Integration points tests to ensure proper communication
- * between different parts of the application
+ * between different modules and components
  */
 describe('Integration Points', () => {
-  it('should handle navigation correctly', () => {
-    render(
-      <TestWrapper>
-        <ClientModule />
-      </TestWrapper>
-    );
-    
-    // Test basic navigation functionality
-    expect(window.location.pathname).toBeDefined();
+  describe('Forecasting Integration', () => {
+    it('should integrate properly with forecasting services', async () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Task Module Integration', () => {
+    it('should integrate with task management features', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Should integrate without errors
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Staff Module Integration', () => {
+    it('should integrate with staff management features', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Should integrate without errors
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
   });
 });

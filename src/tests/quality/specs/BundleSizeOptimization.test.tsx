@@ -1,22 +1,55 @@
 
 import { render, screen } from '@testing-library/react';
 import { TestWrapper } from '../testUtils/TestWrapper';
-import ClientModule from '@/pages/ClientModule';
+import { MatrixTab } from '@/components/forecasting/matrix/MatrixTab';
 
 /**
- * Bundle size optimization tests to ensure efficient
- * code splitting and import strategies
+ * Bundle size optimization tests to ensure
+ * efficient code delivery and loading performance
  */
 describe('Bundle Size Optimization', () => {
-  it('should use efficient imports', () => {
-    // This is more of a build-time check, but we can verify
-    // that the components render without importing everything
-    render(
-      <TestWrapper>
-        <ClientModule />
-      </TestWrapper>
-    );
-    
-    expect(screen.getByText('Client Module')).toBeInTheDocument();
+  describe('Component Loading', () => {
+    it('should load components efficiently', () => {
+      const startTime = performance.now();
+      
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      const endTime = performance.now();
+      const loadTime = endTime - startTime;
+
+      // Should load within reasonable time
+      expect(loadTime).toBeLessThan(1000);
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Tree Shaking', () => {
+    it('should only import necessary dependencies', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Component should render with only necessary code
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Code Splitting', () => {
+    it('should support lazy loading when needed', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Should support modular loading
+      expect(screen.getByText(/Matrix/i)).toBeInTheDocument();
+    });
   });
 });

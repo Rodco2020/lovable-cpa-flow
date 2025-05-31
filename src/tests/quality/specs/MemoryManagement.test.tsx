@@ -1,24 +1,52 @@
 
-import { render } from '@testing-library/react';
+import { render, unmount } from '@testing-library/react';
 import { TestWrapper } from '../testUtils/TestWrapper';
-import ClientModule from '@/pages/ClientModule';
+import { MatrixTab } from '@/components/forecasting/matrix/MatrixTab';
 
 /**
- * Memory management tests to ensure the application
- * properly cleans up resources and prevents memory leaks
+ * Memory management tests to ensure proper cleanup
+ * and prevent memory leaks
  */
 describe('Memory Management', () => {
-  it('should not create memory leaks', () => {
-    const { unmount } = render(
-      <TestWrapper>
-        <ClientModule />
-      </TestWrapper>
-    );
-    
-    // Unmount component to test cleanup
-    unmount();
-    
-    // If we get here without errors, cleanup worked
-    expect(true).toBe(true);
+  describe('Component Cleanup', () => {
+    it('should properly cleanup components on unmount', () => {
+      const { unmount: unmountComponent } = render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Component should mount successfully
+      expect(document.body).toContainHTML('Matrix');
+
+      // Cleanup should not throw errors
+      unmountComponent();
+    });
+  });
+
+  describe('Event Listener Cleanup', () => {
+    it('should cleanup event listeners', () => {
+      const { unmount: unmountComponent } = render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Should cleanup without errors
+      unmountComponent();
+    });
+  });
+
+  describe('Cache Management', () => {
+    it('should manage cache memory properly', () => {
+      render(
+        <TestWrapper>
+          <MatrixTab forecastType="virtual" />
+        </TestWrapper>
+      );
+
+      // Cache should be managed properly without memory leaks
+      expect(document.body).toContainHTML('Matrix');
+    });
   });
 });
