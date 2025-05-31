@@ -532,7 +532,24 @@ export class MatrixTestingService {
     name: string;
   }): Promise<PerformanceTestResult> {
     const startTime = Date.now();
-    const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+    
+    // Use a fallback for memory measurement since performance.memory is not available in browsers
+    const getMemoryUsage = (): number => {
+      // In browsers, we can't get actual memory usage, so we return 0
+      // In a real implementation, you might use a server-side measurement
+      if (typeof window !== 'undefined') {
+        return 0; // Browser environment
+      }
+      
+      // Node.js environment would have process.memoryUsage()
+      if (typeof process !== 'undefined' && process.memoryUsage) {
+        return process.memoryUsage().heapUsed;
+      }
+      
+      return 0;
+    };
+    
+    const startMemory = getMemoryUsage();
     
     try {
       // Generate test data
@@ -545,7 +562,7 @@ export class MatrixTestingService {
       }
       
       const duration = Date.now() - startTime;
-      const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+      const endMemory = getMemoryUsage();
       const memoryUsage = endMemory - startMemory;
       const operationsPerSecond = operations / (duration / 1000);
       

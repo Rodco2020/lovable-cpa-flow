@@ -67,7 +67,10 @@ export class EnhancedMatrixService {
         progressCallback?.(100);
         
         return {
-          ...cached,
+          matrixData: cached.data,
+          trends: cached.trends,
+          recommendations: cached.recommendations,
+          alerts: cached.alerts,
           performance: {
             dataLoadTime: 0,
             analysisTime: 0,
