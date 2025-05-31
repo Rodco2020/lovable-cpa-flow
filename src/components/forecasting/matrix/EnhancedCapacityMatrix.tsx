@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,9 +8,9 @@ import { MatrixControls } from './MatrixControls';
 import { MatrixData, getMatrixDataPoint } from '@/services/forecasting/matrixUtils';
 import { generateMatrixForecast, validateMatrixData } from '@/services/forecasting/matrixService';
 import { useMatrixControls } from './hooks/useMatrixControls';
+import { useMatrixSkills } from './hooks/useMatrixSkills';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertCircle, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
-import { SkillType } from '@/types/task';
 
 interface EnhancedCapacityMatrixProps {
   className?: string;
@@ -19,7 +18,7 @@ interface EnhancedCapacityMatrixProps {
 }
 
 /**
- * Enhanced capacity matrix with visual enhancements and user controls
+ * Enhanced capacity matrix with dynamic skills integration
  */
 export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({ 
   className,
@@ -32,10 +31,15 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   const [isControlsExpanded, setIsControlsExpanded] = useState(false);
   const { toast } = useToast();
 
-  // Get available skills from matrix data
-  const availableSkills = matrixData?.skills || [];
+  // Skills integration
+  const { 
+    availableSkills, 
+    isLoading: skillsLoading, 
+    error: skillsError,
+    refetchSkills 
+  } = useMatrixSkills();
   
-  // Matrix controls
+  // Matrix controls with dynamic skills
   const {
     selectedSkills,
     viewMode,
@@ -45,7 +49,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     handleMonthRangeChange,
     handleReset,
     handleExport
-  } = useMatrixControls({ availableSkills });
+  } = useMatrixControls();
 
   // Load matrix data
   const loadMatrixData = async () => {
@@ -89,6 +93,17 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     loadMatrixData();
   }, [forecastType]);
 
+  // Handle skills error
+  useEffect(() => {
+    if (skillsError) {
+      toast({
+        title: "Skills loading error",
+        description: skillsError,
+        variant: "destructive"
+      });
+    }
+  }, [skillsError, toast]);
+
   // Filter data based on controls
   const getFilteredData = () => {
     if (!matrixData) return null;
@@ -112,7 +127,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   const filteredData = getFilteredData();
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || skillsLoading) {
     return (
       <div className={className}>
         <EnhancedMatrixLegend viewMode={viewMode} />
@@ -124,7 +139,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
             <div className="flex items-center justify-center h-64">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                Loading enhanced matrix data...
+                {skillsLoading ? 'Loading skills data...' : 'Loading enhanced matrix data...'}
               </div>
             </div>
           </CardContent>
@@ -134,7 +149,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   }
 
   // Error state
-  if (error) {
+  if (error || skillsError) {
     return (
       <div className={className}>
         <EnhancedMatrixLegend viewMode={viewMode} />
@@ -146,12 +161,20 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
             <div className="flex flex-col items-center justify-center h-64 gap-4">
               <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="h-4 w-4" />
-                {error}
+                {error || skillsError}
               </div>
-              <Button onClick={loadMatrixData} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={loadMatrixData} variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry Matrix
+                </Button>
+                {skillsError && (
+                  <Button onClick={refetchSkills} variant="outline" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Skills
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -200,7 +223,6 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
           
           <div className={`${isControlsExpanded ? 'block' : 'hidden xl:block'}`}>
             <MatrixControls
-              availableSkills={availableSkills}
               selectedSkills={selectedSkills}
               onSkillToggle={handleSkillToggle}
               viewMode={viewMode}
@@ -236,7 +258,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
               </CardTitle>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">
-                  Interactive capacity vs demand matrix - {forecastType} forecast
+                  Interactive capacity vs demand matrix - {forecastType} forecast with dynamic skills
                 </p>
                 {validationIssues.length > 0 && (
                   <div className="text-xs text-amber-600">
@@ -252,6 +274,12 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
                   <span>
                     Total: {filteredData.totalDemand.toFixed(0)}h demand, {filteredData.totalCapacity.toFixed(0)}h capacity
                   </span>
+                  {availableSkills.length > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>Skills from database: {availableSkills.length}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </CardHeader>

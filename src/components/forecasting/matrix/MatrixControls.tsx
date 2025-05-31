@@ -7,11 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Download, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { Download, Eye, EyeOff, RotateCcw, AlertCircle, RefreshCw } from 'lucide-react';
 import { SkillType } from '@/types/task';
+import { useMatrixSkills } from './hooks/useMatrixSkills';
 
 interface MatrixControlsProps {
-  availableSkills: SkillType[];
   selectedSkills: SkillType[];
   onSkillToggle: (skill: SkillType) => void;
   viewMode: 'hours' | 'percentage';
@@ -34,10 +34,9 @@ const MONTH_RANGES = [
 ];
 
 /**
- * Matrix controls component for filtering, view options, and actions
+ * Matrix controls component with dynamic skills integration
  */
 export const MatrixControls: React.FC<MatrixControlsProps> = ({
-  availableSkills,
   selectedSkills,
   onSkillToggle,
   viewMode,
@@ -48,6 +47,14 @@ export const MatrixControls: React.FC<MatrixControlsProps> = ({
   onReset,
   className
 }) => {
+  // Use dynamic skills hook
+  const { 
+    availableSkills, 
+    isLoading: skillsLoading, 
+    error: skillsError,
+    refetchSkills 
+  } = useMatrixSkills();
+
   const handleSelectAllSkills = () => {
     if (selectedSkills.length === availableSkills.length) {
       // Deselect all
@@ -123,53 +130,106 @@ export const MatrixControls: React.FC<MatrixControlsProps> = ({
 
         <Separator />
 
-        {/* Skill Filtering */}
+        {/* Skills Filter - Dynamic Integration */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-muted-foreground">Skills Filter</Label>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleSelectAllSkills}
-              className="text-xs h-auto p-1"
-            >
-              {selectedSkills.length === availableSkills.length ? (
-                <>
-                  <EyeOff className="h-3 w-3 mr-1" />
-                  Hide All
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3 w-3 mr-1" />
-                  Show All
-                </>
+            <Label className="text-xs font-medium text-muted-foreground">
+              Skills Filter
+              {skillsLoading && (
+                <RefreshCw className="h-3 w-3 ml-1 inline animate-spin" />
               )}
-            </Button>
+            </Label>
+            <div className="flex items-center gap-1">
+              {skillsError && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={refetchSkills}
+                  className="text-xs h-auto p-1"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSelectAllSkills}
+                className="text-xs h-auto p-1"
+                disabled={skillsLoading || availableSkills.length === 0}
+              >
+                {selectedSkills.length === availableSkills.length ? (
+                  <>
+                    <EyeOff className="h-3 w-3 mr-1" />
+                    Hide All
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3 w-3 mr-1" />
+                    Show All
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
           
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {availableSkills.map((skill) => (
-              <div key={skill} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`skill-${skill}`}
-                  checked={selectedSkills.includes(skill)}
-                  onCheckedChange={() => onSkillToggle(skill)}
-                />
-                <Label
-                  htmlFor={`skill-${skill}`}
-                  className="text-xs flex-1 cursor-pointer"
-                >
-                  {skill}
-                </Label>
-              </div>
-            ))}
-          </div>
+          {/* Skills Error State */}
+          {skillsError && (
+            <div className="text-xs text-destructive bg-destructive/10 p-2 rounded flex items-center gap-2">
+              <AlertCircle className="h-3 w-3" />
+              {skillsError}
+            </div>
+          )}
+          
+          {/* Skills Loading State */}
+          {skillsLoading && (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-muted animate-pulse rounded" />
+                  <div className="h-3 bg-muted animate-pulse rounded flex-1" />
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Skills List */}
+          {!skillsLoading && !skillsError && (
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {availableSkills.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic">
+                  No skills available. Add skills in the Skills module.
+                </div>
+              ) : (
+                availableSkills.map((skill) => (
+                  <div key={skill} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`skill-${skill}`}
+                      checked={selectedSkills.includes(skill)}
+                      onCheckedChange={() => onSkillToggle(skill)}
+                    />
+                    <Label
+                      htmlFor={`skill-${skill}`}
+                      className="text-xs flex-1 cursor-pointer"
+                    >
+                      {skill}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           
           {/* Selected skills summary */}
           <div className="flex flex-wrap gap-1">
             <Badge variant="outline" className="text-xs">
               {selectedSkills.length} of {availableSkills.length} selected
             </Badge>
+            {availableSkills.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                From Database
+              </Badge>
+            )}
           </div>
         </div>
 
