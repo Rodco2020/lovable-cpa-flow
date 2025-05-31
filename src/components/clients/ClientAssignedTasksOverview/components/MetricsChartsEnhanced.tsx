@@ -17,7 +17,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormattedTask } from '../types';
-import { TaskMetricsService } from '../services/taskMetricsService';
+import { EnhancedTaskMetricsService } from '../services/enhancedTaskMetricsService';
 import { usePerformanceMonitoring } from '../hooks/usePerformanceMonitoring';
 import { MetricsErrorBoundary } from './MetricsErrorBoundary';
 import { ChartSkeleton } from './LoadingSkeletons';
@@ -31,13 +31,7 @@ interface MetricsChartsEnhancedProps {
 
 /**
  * Enhanced MetricsCharts Component with Performance Optimization and Accessibility
- * 
- * Features:
- * - Memoized calculations for better performance
- * - Accessibility support with ARIA labels and screen reader announcements
- * - Error boundary protection
- * - Performance monitoring
- * - Responsive design
+ * Now uses EnhancedTaskMetricsService for proper skill aggregation
  */
 const MetricsChartsEnhanced: React.FC<MetricsChartsEnhancedProps> = memo(({
   tasks,
@@ -47,7 +41,7 @@ const MetricsChartsEnhanced: React.FC<MetricsChartsEnhancedProps> = memo(({
   // Performance monitoring
   const { startCalculationMonitoring, endCalculationMonitoring } = usePerformanceMonitoring(tasks);
 
-  // Memoized metrics calculation with performance monitoring
+  // Memoized metrics calculation with performance monitoring using enhanced service
   const metrics = useMemo(() => {
     startCalculationMonitoring();
     
@@ -55,7 +49,7 @@ const MetricsChartsEnhanced: React.FC<MetricsChartsEnhancedProps> = memo(({
       if (isLoading || tasks.length === 0) {
         return null;
       }
-      const result = TaskMetricsService.calculateTaskMetrics(tasks);
+      const result = EnhancedTaskMetricsService.calculateTaskMetrics(tasks);
       return result;
     } finally {
       endCalculationMonitoring();
@@ -124,10 +118,15 @@ const MetricsChartsEnhanced: React.FC<MetricsChartsEnhancedProps> = memo(({
     <MetricsErrorBoundary>
       <div className={`space-y-6 ${className}`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Skills Distribution Chart */}
+          {/* Skills Distribution Chart - Now with properly aggregated data */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Required Hours by Skill</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                Required Hours by Skill
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                  Fixed Aggregation
+                </span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div {...getChartAccessibility('bar chart', `required hours by skill for ${chartData.skillsData.length} skills`)}>

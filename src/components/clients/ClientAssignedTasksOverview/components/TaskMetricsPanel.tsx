@@ -2,7 +2,7 @@
 import React from 'react';
 import { Clock, Users, BarChart3, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { FormattedTask } from '../types';
-import { TaskMetricsService } from '../services/taskMetricsService';
+import { EnhancedTaskMetricsService } from '../services/enhancedTaskMetricsService';
 import { MetricCard } from './MetricCard';
 
 interface TaskMetricsPanelProps {
@@ -15,19 +15,19 @@ interface TaskMetricsPanelProps {
  * Task Metrics Panel Component
  * 
  * Displays comprehensive task-based statistics and metrics
- * Integrates with existing task filtering to show real-time metrics
+ * Now uses EnhancedTaskMetricsService for proper skill aggregation
  */
 export const TaskMetricsPanel: React.FC<TaskMetricsPanelProps> = ({
   tasks,
   isLoading = false,
   className = ''
 }) => {
-  // Calculate metrics using the service
+  // Calculate metrics using the enhanced service with proper skill aggregation
   const metrics = React.useMemo(() => {
     if (isLoading || tasks.length === 0) {
       return null;
     }
-    return TaskMetricsService.calculateTaskMetrics(tasks);
+    return EnhancedTaskMetricsService.calculateTaskMetrics(tasks);
   }, [tasks, isLoading]);
 
   // Helper function to format hours
@@ -95,16 +95,27 @@ export const TaskMetricsPanel: React.FC<TaskMetricsPanelProps> = ({
 
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Top Skills by Hours */}
+        {/* Top Skills by Hours - Now properly aggregated */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Top Skills by Hours</h4>
+          <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            Top Skills by Hours
+            {/* Show count of unique skills for verification */}
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              {metrics.requiredHoursBySkill.length} skills
+            </span>
+          </h4>
           <div className="space-y-2">
             {metrics.requiredHoursBySkill.slice(0, 5).map((skill, index) => (
               <div key={skill.skill} className="flex justify-between items-center text-sm">
-                <span className="truncate">{skill.skill}</span>
+                <span className="truncate" title={skill.skill}>{skill.skill}</span>
                 <span className="font-medium">{formatHours(skill.hours)}</span>
               </div>
             ))}
+            {metrics.requiredHoursBySkill.length === 0 && (
+              <div className="text-xs text-muted-foreground italic">
+                No skills data available
+              </div>
+            )}
           </div>
         </div>
 
@@ -114,7 +125,7 @@ export const TaskMetricsPanel: React.FC<TaskMetricsPanelProps> = ({
           <div className="space-y-2">
             {metrics.taskDistributionByClient.slice(0, 5).map((client, index) => (
               <div key={client.clientName} className="flex justify-between items-center text-sm">
-                <span className="truncate">{client.clientName}</span>
+                <span className="truncate" title={client.clientName}>{client.clientName}</span>
                 <span className="font-medium">{client.taskCount} tasks</span>
               </div>
             ))}

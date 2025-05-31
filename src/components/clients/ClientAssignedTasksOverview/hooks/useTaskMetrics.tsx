@@ -1,13 +1,13 @@
 
 import { useMemo } from 'react';
 import { FormattedTask } from '../types';
-import { TaskMetricsService } from '../services/taskMetricsService';
+import { EnhancedTaskMetricsService } from '../services/enhancedTaskMetricsService';
 
 /**
  * Custom hook for task metrics calculation
  * 
+ * Now uses EnhancedTaskMetricsService for proper skill aggregation
  * Provides memoized metrics calculations that update when task data changes
- * Integrates with existing task filtering to provide real-time metrics
  */
 export const useTaskMetrics = (tasks: FormattedTask[]) => {
   const metrics = useMemo(() => {
@@ -15,7 +15,7 @@ export const useTaskMetrics = (tasks: FormattedTask[]) => {
       return null;
     }
     
-    return TaskMetricsService.calculateTaskMetrics(tasks);
+    return EnhancedTaskMetricsService.calculateTaskMetrics(tasks);
   }, [tasks]);
 
   const isEmpty = !tasks || tasks.length === 0;
@@ -29,6 +29,10 @@ export const useTaskMetrics = (tasks: FormattedTask[]) => {
     averageHours: metrics?.averageHoursPerTask || 0,
     skillMetrics: metrics?.requiredHoursBySkill || [],
     clientMetrics: metrics?.taskDistributionByClient || [],
-    priorityMetrics: metrics?.tasksByPriority || []
+    priorityMetrics: metrics?.tasksByPriority || [],
+    
+    // Debug helper function
+    debugSkillProcessing: (tasks: FormattedTask[]) => 
+      EnhancedTaskMetricsService.debugSkillProcessing(tasks)
   };
 };
