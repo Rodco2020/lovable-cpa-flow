@@ -2,11 +2,11 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MatrixControls } from '../../MatrixControls';
-import { useMatrixSkills } from '../../hooks/useMatrixSkills';
+import { MatrixControls } from '../../../MatrixControls';
+import { useMatrixSkills } from '../../../hooks/useMatrixSkills';
 
 // Mock the useMatrixSkills hook
-jest.mock('../../hooks/useMatrixSkills');
+jest.mock('../../../hooks/useMatrixSkills');
 const mockUseMatrixSkills = useMatrixSkills as jest.MockedFunction<typeof useMatrixSkills>;
 
 /**
