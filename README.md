@@ -62,7 +62,7 @@ This project is built with:
 
 ## Running tests
 
-Jest with ts-jest is configured for TypeScript support. Execute all tests with:
+Vitest is configured for TypeScript support. Execute all tests with:
 
 ```sh
 npm test
