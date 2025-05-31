@@ -2,8 +2,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EnhancedMatrixService } from '@/services/forecasting/enhancedMatrixService';
 import { MatrixCacheManager } from '@/services/forecasting/cache/matrixCacheManager';
-import { MatrixExportUtils } from '@/services/forecasting/export/matrixExportUtils';
-import { CapacityReportGenerator } from '@/services/forecasting/reports/capacityReportGenerator';
 import { SkillType } from '@/types/task';
 
 // Mock dependencies
