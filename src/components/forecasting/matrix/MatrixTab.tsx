@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { CapacityMatrix } from './CapacityMatrix';
+import { EnhancedCapacityMatrix } from './EnhancedCapacityMatrix';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -10,8 +10,7 @@ interface MatrixTabProps {
 }
 
 /**
- * Matrix tab component for the forecast dashboard
- * Provides the 12-month matrix view of capacity vs demand with real data
+ * Matrix tab component for the forecast dashboard with enhanced features
  */
 export const MatrixTab: React.FC<MatrixTabProps> = ({ 
   className,
@@ -25,9 +24,9 @@ export const MatrixTab: React.FC<MatrixTabProps> = ({
         {/* Header with controls */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold">Capacity Forecast Matrix</h3>
+            <h3 className="text-lg font-semibold">Enhanced Capacity Forecast Matrix</h3>
             <p className="text-sm text-muted-foreground">
-              12-month view of demand vs capacity by skill type
+              Interactive 12-month view with visual indicators and detailed breakdowns
             </p>
           </div>
           
@@ -63,15 +62,15 @@ export const MatrixTab: React.FC<MatrixTabProps> = ({
                 {selectedForecastType === 'virtual' ? 'Virtual Forecast:' : 'Actual Forecast:'}
               </strong>{' '}
               {selectedForecastType === 'virtual' 
-                ? 'Projects workload based on recurring task templates and staff availability patterns over 12 months.'
-                : 'Reflects scheduled tasks and accounts for staff availability exceptions over 12 months.'
+                ? 'Projects workload based on recurring task templates and staff availability patterns. Use matrix controls to filter skills, adjust view modes, and explore different time ranges.'
+                : 'Reflects scheduled tasks and accounts for staff availability exceptions. Interactive tooltips show contributing tasks and staff allocation details.'
               }
             </div>
           </CardContent>
         </Card>
         
-        {/* Matrix component with real data */}
-        <CapacityMatrix forecastType={selectedForecastType} />
+        {/* Enhanced matrix component */}
+        <EnhancedCapacityMatrix forecastType={selectedForecastType} />
       </div>
     </div>
   );
