@@ -1,4 +1,3 @@
-
 import { FormattedTask } from '../types';
 import { normalizeSkills } from '@/services/skillNormalizationService';
 
@@ -59,7 +58,7 @@ export class EnhancedTaskMetricsService {
     const originalSkillsDebug: string[] = [];
     
     tasks.forEach((task, taskIndex) => {
-      this.debugLog(`Processing task ${taskIndex + 1}: "${task.name}"`, {
+      this.debugLog(`Processing task ${taskIndex + 1}: "${task.taskName}"`, {
         originalSkills: task.requiredSkills,
         estimatedHours: task.estimatedHours
       });
@@ -70,7 +69,7 @@ export class EnhancedTaskMetricsService {
       // Normalize the skills for this task
       const normalizedSkills = normalizeSkills(task.requiredSkills);
       
-      this.debugLog(`Normalized skills for task "${task.name}":`, {
+      this.debugLog(`Normalized skills for task "${task.taskName}":`, {
         original: task.requiredSkills,
         normalized: normalizedSkills
       });
@@ -229,7 +228,7 @@ export class EnhancedTaskMetricsService {
       
       debugInfo.skillProcessingDetails.push({
         taskIndex: index,
-        taskName: task.name,
+        taskName: task.taskName,
         originalSkills,
         normalizedSkills,
         estimatedHours: task.estimatedHours

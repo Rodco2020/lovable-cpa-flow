@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +18,7 @@ import {
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Client } from '@/types/client';
+import { SkillDeduplicationService } from '../services/skillDeduplicationService';
 
 export interface AdvancedFilterState {
   skillFilters: string[];
@@ -45,7 +45,7 @@ interface AdvancedFiltersProps {
  * Advanced Filters Component
  * 
  * Provides multi-select filters, date range filtering, and quick presets
- * for complex filtering scenarios
+ * for complex filtering scenarios. Now uses proper skill deduplication.
  */
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   filters,
@@ -56,6 +56,15 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   className = ''
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Debug logging for skills
+  useEffect(() => {
+    console.log('[AdvancedFilters] Received skills:', {
+      count: availableSkills?.length || 0,
+      skills: availableSkills,
+      hasDuplicates: availableSkills ? new Set(availableSkills).size !== availableSkills.length : false
+    });
+  }, [availableSkills]);
 
   // Comprehensive validation to filter out any invalid values
   const validClients = React.useMemo(() => {
@@ -72,13 +81,27 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     );
   }, [clients]);
 
+  // Enhanced validation for skills using deduplication service
   const validSkills = React.useMemo(() => {
     if (!Array.isArray(availableSkills)) return [];
-    return availableSkills.filter(skill => 
+    
+    const filtered = availableSkills.filter(skill => 
       skill && 
       typeof skill === 'string' && 
       skill.trim() !== ''
     );
+    
+    // Use Set for additional deduplication safety
+    const deduplicated = [...new Set(filtered)];
+    
+    console.log('[AdvancedFilters] Skill validation:', {
+      original: availableSkills.length,
+      afterFiltering: filtered.length,
+      afterDeduplication: deduplicated.length,
+      duplicatesRemoved: filtered.length - deduplicated.length
+    });
+    
+    return deduplicated.sort();
   }, [availableSkills]);
 
   const validPriorities = React.useMemo(() => {
@@ -113,6 +136,13 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     const newValues = checked 
       ? [...currentValues, value]
       : currentValues.filter(v => v !== value);
+    
+    console.log(`[AdvancedFilters] Updating ${filterKey}:`, {
+      action: checked ? 'add' : 'remove',
+      value,
+      before: currentValues,
+      after: newValues
+    });
     
     onFiltersChange({
       ...filters,
@@ -150,7 +180,6 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
         };
         break;
       case 'multi-skill':
-        // This would be handled by the filtering logic to show tasks with multiple skills
         newFilters = {
           ...filters,
           preset: presetId
@@ -194,6 +223,10 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             {activeFilterCount > 0 && (
               <Badge variant="secondary">{activeFilterCount}</Badge>
             )}
+            {/* Debug badge showing skills count */}
+            <Badge variant="outline" className="text-xs">
+              {validSkills.length} skills
+            </Badge>
           </CardTitle>
           <div className="flex items-center gap-2">
             {activeFilterCount > 0 && (
@@ -295,9 +328,14 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
 
           {/* Multi-select Filters Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Skills Filter */}
+            {/* Skills Filter - Now with proper deduplication */}
             <div>
-              <h4 className="text-sm font-medium mb-2">Skills</h4>
+              <h4 className="text-sm font-medium mb-2">
+                Skills 
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {validSkills.length} available
+                </Badge>
+              </h4>
               <Select onValueChange={(value) => updateMultiSelectFilter('skillFilters', value, true)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Add skill..." />

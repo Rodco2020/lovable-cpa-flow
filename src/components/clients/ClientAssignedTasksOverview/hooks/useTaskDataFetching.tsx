@@ -5,10 +5,12 @@ import { Client } from '@/types/client';
 import { FormattedTask } from '../types';
 import { TaskDataService } from '../services/taskDataService';
 import { TaskDataUtils } from '../utils/taskDataUtils';
+import { SkillDeduplicationService } from '../services/skillDeduplicationService';
 
 /**
  * Hook to manage the data fetching process for clients and tasks
  * Handles loading states, error handling, and data transformation
+ * Now uses SkillDeduplicationService for proper skill deduplication
  */
 export const useTaskDataFetching = () => {
   const { toast } = useToast();
@@ -29,7 +31,7 @@ export const useTaskDataFetching = () => {
       setClients(fetchedClients);
       
       // Fetch all tasks for all clients
-      const { formattedTasks: allTasks, skills, priorities } = 
+      const { formattedTasks: allTasks } = 
         await TaskDataService.fetchAllClientTasks(fetchedClients);
       
       // Sort tasks by due date
@@ -40,17 +42,23 @@ export const useTaskDataFetching = () => {
         console.warn('Some task data validation issues detected');
       }
       
-      // Generate filter options
-      const { availableSkills: skillsArray, availablePriorities: prioritiesArray } = 
-        TaskDataUtils.generateFilterOptions(skills, priorities);
+      // Generate filter options using the new deduplication service
+      console.log('Using SkillDeduplicationService for filter options');
+      const filterOptions = SkillDeduplicationService.generateFilterOptions(sortedTasks);
       
-      // Update state
+      // Update state with properly deduplicated filter options
       setFormattedTasks(sortedTasks);
-      setAvailableSkills(skillsArray);
-      setAvailablePriorities(prioritiesArray);
+      setAvailableSkills(filterOptions.skills);
+      setAvailablePriorities(filterOptions.priorities);
       
       // Log statistics for debugging
       TaskDataUtils.logTaskStatistics(sortedTasks);
+      console.log('Filter options generated:', {
+        skillsCount: filterOptions.skills.length,
+        prioritiesCount: filterOptions.priorities.length,
+        clientsCount: filterOptions.clients.length,
+        validation: filterOptions.validation
+      });
       
     } catch (error) {
       console.error('Error fetching clients and tasks:', error);
