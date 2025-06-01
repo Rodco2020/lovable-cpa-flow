@@ -1,3 +1,4 @@
+
 /**
  * Client Task Service Tests
  * 
@@ -121,7 +122,9 @@ describe('Client Task Service', () => {
           created_at: '2023-01-01',
           updated_at: '2023-01-01',
           notes: 'Ad-hoc notes',
-          recurring_task_id: null
+          recurring_task_id: null,
+          clients: { legal_name: 'Test Client' },
+          task_templates: { name: 'Test Template' }
         }
       ];
 
@@ -141,8 +144,8 @@ describe('Client Task Service', () => {
 
       expect(mockSupabase.from).toHaveBeenCalledWith('task_instances');
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('task1');
-      expect(result[0].clientId).toBe('client1');
+      expect(result[0].taskInstance.id).toBe('task1');
+      expect(result[0].taskInstance.clientId).toBe('client1');
     });
   });
 

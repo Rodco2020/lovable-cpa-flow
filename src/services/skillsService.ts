@@ -8,8 +8,7 @@ export interface Skill {
   id: string;
   name: string;
   description?: string;
-  category?: string;
-  proficiencyLevel?: string;
+  // Remove category and proficiencyLevel since they don't exist in DB
   costPerHour: number;
   createdAt: Date;
   updatedAt: Date;
@@ -141,8 +140,6 @@ export const createSkill = async (skillData: Omit<Skill, 'id' | 'createdAt' | 'u
       .insert({
         name: skillData.name,
         description: skillData.description,
-        category: skillData.category,
-        proficiency_level: skillData.proficiencyLevel,
         cost_per_hour: skillData.costPerHour
       })
       .select()
@@ -179,8 +176,6 @@ export const updateSkill = async (id: string, updates: Partial<Skill>): Promise<
       .update({
         ...(updates.name && { name: updates.name }),
         ...(updates.description !== undefined && { description: updates.description }),
-        ...(updates.category !== undefined && { category: updates.category }),
-        ...(updates.proficiencyLevel !== undefined && { proficiency_level: updates.proficiencyLevel }),
         ...(updates.costPerHour !== undefined && { cost_per_hour: updates.costPerHour })
       })
       .eq('id', id)
@@ -242,8 +237,6 @@ const mapSkillFromDB = (row: SkillRow): Skill => ({
   id: row.id,
   name: row.name,
   description: row.description || undefined,
-  category: row.category || undefined,
-  proficiencyLevel: row.proficiency_level || undefined,
   costPerHour: Number(row.cost_per_hour),
   createdAt: new Date(row.created_at),
   updatedAt: new Date(row.updated_at)
@@ -256,8 +249,6 @@ const createFallbackSkill = (skillName: string): Skill => ({
   id: `fallback-${skillName.toLowerCase().replace(/\s+/g, '-')}`,
   name: skillName,
   description: `Auto-generated skill for ${skillName}`,
-  category: 'General',
-  proficiencyLevel: 'Intermediate',
   costPerHour: 50, // Default cost per hour
   createdAt: new Date(),
   updatedAt: new Date()
@@ -271,8 +262,6 @@ const getDefaultSkills = (): Skill[] => [
     id: 'junior-staff',
     name: 'Junior Staff',
     description: 'Entry-level accounting and administrative tasks',
-    category: 'General',
-    proficiencyLevel: 'Beginner',
     costPerHour: 25,
     createdAt: new Date(),
     updatedAt: new Date()
@@ -281,8 +270,6 @@ const getDefaultSkills = (): Skill[] => [
     id: 'senior-staff',
     name: 'Senior Staff',
     description: 'Advanced accounting and supervisory tasks',
-    category: 'General',
-    proficiencyLevel: 'Advanced',
     costPerHour: 50,
     createdAt: new Date(),
     updatedAt: new Date()
@@ -291,8 +278,6 @@ const getDefaultSkills = (): Skill[] => [
     id: 'cpa',
     name: 'CPA',
     description: 'Certified Public Accountant level expertise',
-    category: 'Professional',
-    proficiencyLevel: 'Expert',
     costPerHour: 100,
     createdAt: new Date(),
     updatedAt: new Date()
@@ -301,8 +286,6 @@ const getDefaultSkills = (): Skill[] => [
     id: 'tax-specialist',
     name: 'Tax Specialist',
     description: 'Specialized tax preparation and planning',
-    category: 'Tax',
-    proficiencyLevel: 'Advanced',
     costPerHour: 75,
     createdAt: new Date(),
     updatedAt: new Date()
@@ -311,8 +294,6 @@ const getDefaultSkills = (): Skill[] => [
     id: 'audit-specialist',
     name: 'Audit Specialist',
     description: 'Financial auditing and compliance',
-    category: 'Audit',
-    proficiencyLevel: 'Advanced',
     costPerHour: 80,
     createdAt: new Date(),
     updatedAt: new Date()
@@ -321,8 +302,6 @@ const getDefaultSkills = (): Skill[] => [
     id: 'bookkeeping',
     name: 'Bookkeeping',
     description: 'Basic bookkeeping and data entry',
-    category: 'Bookkeeping',
-    proficiencyLevel: 'Intermediate',
     costPerHour: 30,
     createdAt: new Date(),
     updatedAt: new Date()
