@@ -1,4 +1,5 @@
 
+
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/types/supabase';
 import { Skill, ProficiencyLevel, SkillCategory } from '@/types/skill';
@@ -132,7 +133,8 @@ export const createSkill = async (skillData: Omit<Skill, 'id' | 'createdAt' | 'u
         name: skillData.name,
         description: skillData.description,
         category: skillData.category,
-        proficiency_level: skillData.proficiencyLevel
+        proficiency_level: skillData.proficiencyLevel,
+        cost_per_hour: 50.00 // Default value if not provided
       })
       .select()
       .single();
@@ -230,8 +232,8 @@ const mapSkillFromDB = (row: SkillRow): Skill => ({
   id: row.id,
   name: row.name,
   description: row.description || undefined,
-  category: row.category as SkillCategory || undefined,
-  proficiencyLevel: row.proficiency_level as ProficiencyLevel || undefined,
+  category: (row.category as SkillCategory) || undefined,
+  proficiencyLevel: (row.proficiency_level as ProficiencyLevel) || undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });
@@ -308,3 +310,4 @@ const getDefaultSkills = (): Skill[] => [
     updatedAt: new Date().toISOString()
   }
 ];
+
