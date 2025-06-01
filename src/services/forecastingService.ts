@@ -1248,3 +1248,96 @@ const estimateMonthlyHoursForTask = (task: RecurringTask): number => {
   
   return monthlyHours;
 };
+
+/**
+ * Generate a capacity forecast based on the provided parameters
+ */
+export const generateCapacityForecast = async (
+  forecastType: 'virtual' | 'actual' = 'virtual'
+): Promise<ForecastData[]> => {
+  try {
+    const staff = await getAllStaff();
+    const forecastPeriods: ForecastData[] = [];
+    
+    // Generate 12 months of forecast data
+    for (let i = 0; i < 12; i++) {
+      const periodStart = addMonths(startOfMonth(new Date()), i);
+      const periodKey = format(periodStart, 'yyyy-MM');
+      
+      const capacitySkillHours: SkillHours[] = [];
+      const capacityBySkill = new Map<SkillType, number>();
+      
+      // Process each staff member
+      for (const staffMember of staff.filter(s => s.status === 'active')) {
+        try {
+          // Fix: Ensure we pass an array to normalizeSkills
+          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills, staffMember.id);
+          
+          // Assume 160 hours per month capacity per staff member
+          const monthlyCapacity = 160;
+          
+          // Distribute capacity across their skills
+          const hoursPerSkill = normalizedSkills.length > 0 ? monthlyCapacity / normalizedSkills.length : 0;
+          
+          normalizedSkills.forEach(skill => {
+            const currentCapacity = capacityBySkill.get(skill) || 0;
+            capacityBySkill.set(skill, currentCapacity + hoursPerSkill);
+          });
+          
+        } catch (error) {
+          console.error(`Error processing staff ${staffMember.id}:`, error);
+          // Fallback: assign to Junior Staff if normalization fails
+          const fallbackSkill: SkillType = 'Junior Staff';
+          const currentCapacity = capacityBySkill.get(fallbackSkill) || 0;
+          capacityBySkill.set(fallbackSkill, currentCapacity + 160);
+        }
+      }
+      
+      // Convert map to SkillHours array
+      capacityBySkill.forEach((hours, skill) => {
+        capacitySkillHours.push({ skill, hours });
+      });
+      
+      forecastPeriods.push({
+        period: periodKey,
+        demand: [], // Will be filled by demand service
+        capacity: capacitySkillHours,
+        capacityHours: Array.from(capacityBySkill.values()).reduce((sum, hours) => sum + hours, 0)
+      });
+    }
+    
+    return forecastPeriods;
+    
+  } catch (error) {
+    console.error('Error generating capacity forecast:', error);
+    throw error;
+  }
+};
+
+/**
+ * Normalize staff skills to standard forecast skills
+ */
+export const normalizeSkills = async (skills: string[], staffId: string): Promise<SkillType[]> => {
+  const normalizedSkills: SkillType[] = [];
+  
+  // Map staff skills to forecast skill types
+  for (const skill of skills) {
+    switch (skill) {
+      case 'Junior':
+        normalizedSkills.push('Junior Staff');
+        break;
+      case 'Senior':
+        normalizedSkills.push('Senior Staff');
+        break;
+      case 'CPA':
+        normalizedSkills.push('CPA');
+        break;
+      default:
+        // Handle unknown skills or add default fallback
+        normalizedSkills.push('Junior Staff');
+        break;
+    }
+  }
+  
+  return normalizedSkills;
+};

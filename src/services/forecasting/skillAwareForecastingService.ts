@@ -1,5 +1,5 @@
 
-import { getAllRecurringTasks } from '@/services/clientTaskService';
+import { getClientRecurringTasks } from '@/services/clientTaskService';
 import { getAllStaff } from '@/services/staffService';
 import { SkillsIntegrationService } from './skillsIntegrationService';
 import { normalizeSkills } from '../skillNormalizationService';
@@ -20,7 +20,19 @@ export class SkillAwareForecastingService {
     debugLog('Generating demand forecast with skill resolution', { startDate, endDate });
     
     try {
-      const recurringTasks = await getAllRecurringTasks();
+      // Get all recurring tasks from all clients
+      const clients = await import('@/services/clientService').then(m => m.getAllClients());
+      const allRecurringTasks = [];
+      
+      for (const client of clients) {
+        try {
+          const clientTasks = await getClientRecurringTasks(client.id);
+          allRecurringTasks.push(...clientTasks);
+        } catch (error) {
+          debugLog(`Error fetching tasks for client ${client.id}:`, error);
+        }
+      }
+      
       const forecastPeriods: ForecastData[] = [];
       
       // Generate 12 months of forecast data
@@ -32,7 +44,7 @@ export class SkillAwareForecastingService {
         const demandBySkill = new Map<SkillType, number>();
         
         // Process each recurring task
-        for (const task of recurringTasks.filter(t => t.isActive)) {
+        for (const task of allRecurringTasks.filter(t => t.isActive)) {
           try {
             // Resolve skill IDs to names and normalize them
             const resolvedSkillNames = await SkillsIntegrationService.resolveSkillIds(task.requiredSkills);

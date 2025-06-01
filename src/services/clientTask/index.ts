@@ -10,6 +10,7 @@
 // Export all operations with the same interface as before
 export { getRecurringTaskById, getClientRecurringTasks } from './recurringTaskOperations';
 export { getTaskInstanceById, getClientAdHocTasks } from './taskInstanceOperations';
+export { getAllRecurringTasks } from './getAllRecurringTasks';
 
 // Re-export from taskService for backward compatibility
 export { 

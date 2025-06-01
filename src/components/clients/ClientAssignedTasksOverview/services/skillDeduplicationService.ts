@@ -1,4 +1,6 @@
+
 import { RecurringTask } from '@/types/task';
+import { FormattedTask } from '../types';
 import { resolveSkillNames } from '@/services/bulkOperations/skillResolver';
 
 /**
@@ -59,5 +61,56 @@ export class SkillDeduplicationService {
       // Fallback to original skill IDs
       return Array.from(allSkillIds).sort();
     }
+  }
+
+  /**
+   * Generate filter options from formatted tasks
+   */
+  static generateFilterOptions(tasks: FormattedTask[]): {
+    skills: string[];
+    priorities: string[];
+    clients: string[];
+    validation: { isValid: boolean; errors: string[] };
+  } {
+    const skills = new Set<string>();
+    const priorities = new Set<string>();
+    const clients = new Set<string>();
+    const errors: string[] = [];
+
+    // Extract unique values from tasks
+    tasks.forEach((task, index) => {
+      try {
+        // Add skills
+        if (task.requiredSkills && Array.isArray(task.requiredSkills)) {
+          task.requiredSkills.forEach(skill => {
+            if (skill && typeof skill === 'string') {
+              skills.add(skill.trim());
+            }
+          });
+        }
+
+        // Add priority
+        if (task.priority && typeof task.priority === 'string') {
+          priorities.add(task.priority.trim());
+        }
+
+        // Add client
+        if (task.clientName && typeof task.clientName === 'string') {
+          clients.add(task.clientName.trim());
+        }
+      } catch (error) {
+        errors.push(`Error processing task at index ${index}: ${error}`);
+      }
+    });
+
+    // Validate data integrity
+    const isValid = errors.length === 0 && skills.size > 0;
+
+    return {
+      skills: Array.from(skills).sort(),
+      priorities: Array.from(priorities).sort(),
+      clients: Array.from(clients).sort(),
+      validation: { isValid, errors }
+    };
   }
 }

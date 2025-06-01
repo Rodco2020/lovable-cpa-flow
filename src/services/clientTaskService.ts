@@ -14,7 +14,8 @@ export {
   getClientRecurringTasks,
   getTaskInstanceById,
   getClientAdHocTasks,
-  deleteRecurringTaskAssignment
+  deleteRecurringTaskAssignment,
+  getAllRecurringTasks
 } from './clientTask';
 
 // Legacy re-exports for backward compatibility

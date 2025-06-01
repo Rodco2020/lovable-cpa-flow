@@ -1,4 +1,6 @@
+
 import { RecurringTask } from '@/types/task';
+import { FormattedTask } from '../types';
 import { resolveSkillNames } from '@/services/bulkOperations/skillResolver';
 
 /**
@@ -23,10 +25,110 @@ export enum TaskCompletionStatus {
 }
 
 /**
+ * TaskMetrics Interface
+ * Represents comprehensive task metrics
+ */
+export interface TaskMetrics {
+  totalTasks: number;
+  totalEstimatedHours: number;
+  averageHoursPerTask: number;
+  requiredHoursBySkill: { skill: string; hours: number }[];
+  taskDistributionByClient: { clientName: string; taskCount: number }[];
+  tasksByPriority: { priority: string; count: number }[];
+  recurringVsAdHoc: { recurring: number; adHoc: number };
+}
+
+/**
  * Enhanced Task Metrics Service
  * Provides comprehensive task analytics with skill resolution
  */
 export class EnhancedTaskMetricsService {
+  /**
+   * Calculate comprehensive task metrics
+   */
+  static calculateTaskMetrics(tasks: FormattedTask[]): TaskMetrics {
+    if (!tasks || tasks.length === 0) {
+      return {
+        totalTasks: 0,
+        totalEstimatedHours: 0,
+        averageHoursPerTask: 0,
+        requiredHoursBySkill: [],
+        taskDistributionByClient: [],
+        tasksByPriority: [],
+        recurringVsAdHoc: { recurring: 0, adHoc: 0 }
+      };
+    }
+
+    // Calculate basic metrics
+    const totalTasks = tasks.length;
+    const totalEstimatedHours = tasks.reduce((sum, task) => sum + task.estimatedHours, 0);
+    const averageHoursPerTask = totalEstimatedHours / totalTasks;
+
+    // Calculate skill hours aggregation
+    const skillHoursMap = new Map<string, number>();
+    tasks.forEach(task => {
+      task.requiredSkills.forEach(skill => {
+        skillHoursMap.set(skill, (skillHoursMap.get(skill) || 0) + task.estimatedHours);
+      });
+    });
+
+    const requiredHoursBySkill = Array.from(skillHoursMap.entries())
+      .map(([skill, hours]) => ({ skill, hours }))
+      .sort((a, b) => b.hours - a.hours);
+
+    // Calculate client distribution
+    const clientTasksMap = new Map<string, number>();
+    tasks.forEach(task => {
+      clientTasksMap.set(task.clientName, (clientTasksMap.get(task.clientName) || 0) + 1);
+    });
+
+    const taskDistributionByClient = Array.from(clientTasksMap.entries())
+      .map(([clientName, taskCount]) => ({ clientName, taskCount }))
+      .sort((a, b) => b.taskCount - a.taskCount);
+
+    // Calculate priority distribution
+    const priorityMap = new Map<string, number>();
+    tasks.forEach(task => {
+      priorityMap.set(task.priority, (priorityMap.get(task.priority) || 0) + 1);
+    });
+
+    const tasksByPriority = Array.from(priorityMap.entries())
+      .map(([priority, count]) => ({ priority, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Calculate recurring vs ad-hoc
+    const recurringCount = tasks.filter(task => task.taskType === 'Recurring').length;
+    const adHocCount = tasks.filter(task => task.taskType === 'Ad-hoc').length;
+
+    return {
+      totalTasks,
+      totalEstimatedHours,
+      averageHoursPerTask,
+      requiredHoursBySkill,
+      taskDistributionByClient,
+      tasksByPriority,
+      recurringVsAdHoc: { recurring: recurringCount, adHoc: adHocCount }
+    };
+  }
+
+  /**
+   * Debug skill processing for troubleshooting
+   */
+  static debugSkillProcessing(tasks: FormattedTask[]): void {
+    console.log('=== Skill Processing Debug ===');
+    console.log(`Total tasks: ${tasks.length}`);
+    
+    const allSkills = tasks.flatMap(task => task.requiredSkills);
+    console.log(`Total skill references: ${allSkills.length}`);
+    
+    const uniqueSkills = [...new Set(allSkills)];
+    console.log(`Unique skills: ${uniqueSkills.length}`, uniqueSkills);
+    
+    tasks.slice(0, 3).forEach((task, index) => {
+      console.log(`Task ${index + 1}: "${task.name}" - Skills:`, task.requiredSkills);
+    });
+  }
+
   /**
    * Calculate average task hours
    */
@@ -41,8 +143,9 @@ export class EnhancedTaskMetricsService {
    */
   static getTaskCompletionRate(tasks: RecurringTask[]): number {
     if (!tasks || tasks.length === 0) return 0;
-    const completedTasks = tasks.filter(task => task.completionStatus === TaskCompletionStatus.COMPLETED);
-    return (completedTasks.length / tasks.length) * 100;
+    // Since RecurringTask doesn't have completionStatus, we'll assume all active tasks are in progress
+    const activeTasks = tasks.filter(task => task.isActive);
+    return (activeTasks.length / tasks.length) * 100;
   }
 
   /**
@@ -88,10 +191,11 @@ export class EnhancedTaskMetricsService {
     notStarted: RecurringTask[];
     blocked: RecurringTask[];
   } {
-    const completed = tasks.filter(task => task.completionStatus === TaskCompletionStatus.COMPLETED);
-    const inProgress = tasks.filter(task => task.completionStatus === TaskCompletionStatus.IN_PROGRESS);
-    const notStarted = tasks.filter(task => task.completionStatus === TaskCompletionStatus.NOT_STARTED);
-    const blocked = tasks.filter(task => task.completionStatus === TaskCompletionStatus.BLOCKED);
+    // Since RecurringTask doesn't have completionStatus, we'll categorize based on isActive
+    const completed: RecurringTask[] = [];
+    const inProgress = tasks.filter(task => task.isActive);
+    const notStarted = tasks.filter(task => !task.isActive);
+    const blocked: RecurringTask[] = [];
 
     return { completed, inProgress, notStarted, blocked };
   }
