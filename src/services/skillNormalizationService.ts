@@ -1,89 +1,79 @@
-
 import { SkillType } from '@/types/task';
+import { SkillsIntegrationService } from './forecasting/skillsIntegrationService';
 
 /**
- * Standard skill mapping for forecasting
+ * Enhanced Skill Normalization Service
+ * Fixed to properly handle skill UUID resolution and matrix display normalization
+ */
+
+/**
+ * Standard skill mapping for forecasting - Updated for matrix compatibility
  * Maps various skill naming variations to standardized skill types
  */
 export const STANDARD_SKILL_MAPPING: Record<string, SkillType[]> = {
+  // Database skill names to matrix display names
+  'junior': ['Junior Staff'],
+  'senior': ['Senior Staff'], 
+  'cpa': ['CPA'],
+  
+  // Legacy mappings for backward compatibility
+  'junior staff': ['Junior Staff'],
+  'senior staff': ['Senior Staff'],
+  'certified public accountant': ['CPA'],
+  
   // Tax related skills
-  'tax': ['Junior', 'Senior'],
-  'tax preparation': ['Junior', 'Senior'],
-  'tax planning': ['Senior', 'CPA'],
-  'tax compliance': ['Junior', 'Senior'],
-  'individual tax': ['Junior', 'Senior'],
-  'corporate tax': ['Senior', 'CPA'],
+  'tax': ['Junior Staff', 'Senior Staff'],
+  'tax preparation': ['Junior Staff', 'Senior Staff'],
+  'tax planning': ['Senior Staff', 'CPA'],
+  'tax compliance': ['Junior Staff', 'Senior Staff'],
+  'individual tax': ['Junior Staff', 'Senior Staff'],
+  'corporate tax': ['Senior Staff', 'CPA'],
   
   // Audit related skills
-  'audit': ['Junior', 'Senior'],
-  'auditing': ['Junior', 'Senior'],
-  'audit review': ['Senior', 'CPA'],
-  'financial audit': ['Junior', 'Senior'],
+  'audit': ['Junior Staff', 'Senior Staff'],
+  'auditing': ['Junior Staff', 'Senior Staff'],
+  'audit review': ['Senior Staff', 'CPA'],
+  'financial audit': ['Junior Staff', 'Senior Staff'],
   
   // Advisory related skills
-  'advisory': ['Senior', 'CPA'],
-  'consulting': ['Senior', 'CPA'],
-  'business advisory': ['Senior', 'CPA'],
+  'advisory': ['Senior Staff', 'CPA'],
+  'consulting': ['Senior Staff', 'CPA'],
+  'business advisory': ['Senior Staff', 'CPA'],
   
   // Bookkeeping related skills
-  'bookkeeping': ['Junior'],
-  'accounting': ['Junior', 'Senior'],
-  'accounts': ['Junior'],
-  'financial statements': ['Junior', 'Senior'],
+  'bookkeeping': ['Junior Staff'],
+  'accounting': ['Junior Staff', 'Senior Staff'],
+  'accounts': ['Junior Staff'],
+  'financial statements': ['Junior Staff', 'Senior Staff'],
   
   // Compliance related skills
-  'compliance': ['Junior', 'Senior'],
-  'regulatory': ['Senior', 'CPA'],
+  'compliance': ['Junior Staff', 'Senior Staff'],
+  'regulatory': ['Senior Staff', 'CPA'],
   
-  // Professional designations - ENHANCED CPA DETECTION
-  'cpa': ['CPA'],
-  'certified public accountant': ['CPA'],
-  'ea': ['Senior'],
-  'enrolled agent': ['Senior'],
-  
-  // Generic skill levels - CRITICAL for mapping staff with generic roles
-  'junior': ['Junior'],
-  'senior': ['Senior'],
-  'manager': ['Senior'],
+  // Generic skill levels
+  'manager': ['Senior Staff'],
   'director': ['CPA'],
   'partner': ['CPA'],
   
-  // Generic role mappings - IMPORTANT: ensure all staff roles map to something
-  'staff': ['Junior', 'Senior'],  // Updated: Map "Staff" title to both Junior and Senior by default
-  'staff accountant': ['Junior'],
-  'intern': ['Junior'],
-  'senior manager': ['Senior'],
-  'senior staff': ['Senior'],
-  'associate': ['Junior'],
-  'senior associate': ['Senior'],
-  'supervisor': ['Senior'],
-  'experienced associate': ['Senior'],
+  // Generic role mappings
+  'staff': ['Junior Staff', 'Senior Staff'],
+  'staff accountant': ['Junior Staff'],
+  'intern': ['Junior Staff'],
+  'senior manager': ['Senior Staff'],
+  'associate': ['Junior Staff'],
+  'senior associate': ['Senior Staff'],
+  'supervisor': ['Senior Staff'],
+  'experienced associate': ['Senior Staff'],
   
-  // Catch-all for administrative or support roles
-  'administrative': ['Junior'],
-  'assistant': ['Junior'],
-  'admin': ['Junior'],
-  'support': ['Junior'],
-};
-
-/**
- * Mapping of database skill IDs to forecast skill types
- * Useful for converting stored skill IDs into normalized skills
- */
-export const SKILL_ID_MAPPING: Record<string, SkillType[]> = {
-  // Example skill IDs - UPDATED TO ENSURE CPA IS RECOGNIZED
-  '1b935e08-d167-472b-8579-f43c95ca03a7': ['Junior'],
-  '865da209-825e-4b4e-892b-6984fbc1d965': ['Senior'],
-  '459fb51a-e692-4984-b125-f77af034f5d8': ['CPA'],
-  // Add additional commonly used skills in the system
-  'd8f2bd9a-6217-4bd2-a1c5-7fd5d0aa9f3b': ['Junior'],
-  'e9c4f3d2-7b8a-45c6-9f0d-1e2b3c4d5e6f': ['Senior'],
-  '7b8c9d0e-1f2a-3b4c-5d6e-7f8a9b0c1d2e': ['CPA'],
+  // Administrative roles
+  'administrative': ['Junior Staff'],
+  'assistant': ['Junior Staff'],
+  'admin': ['Junior Staff'],
+  'support': ['Junior Staff'],
 };
 
 /**
  * Debug mode for skill normalization
- * When enabled, logs detailed information about skill mapping
  */
 const DEBUG_SKILL_NORMALIZATION = true;
 
@@ -97,119 +87,64 @@ const debugLog = (message: string, data?: any) => {
 };
 
 /**
- * Staff ID overrides for skill normalization
- * -----------------------------------------
- * Some staff members have ambiguous or missing skill information. To ensure
- * they are represented correctly in forecasting, we manually assign their
- * normalized skill set based on their unique ID.
- *
- * Current mappings:
- *   - 654242eb-7298-4218-9c3f-a9b9152f712d (Marciano) => ['Senior']
- *   - Added Luis Rodriguez (assumed ID) => ['CPA']
- */
-const STAFF_ID_SKILL_OVERRIDES: Record<string, SkillType[]> = {
-  '654242eb-7298-4218-9c3f-a9b9152f712d': ['Senior'],
-  // Added specific mapping for Luis Rodriguez (if his ID is known, replace with the actual ID)
-  // This is a fallback in case the skill ID mapping doesn't catch his CPA designation
-  'LUIS_RODRIGUEZ_ID': ['CPA']
-};
-
-/**
  * Normalize a set of skills to the standard forecast skill types
- * This is useful for ensuring consistent skill categorization across the system
- * ENHANCED to better recognize CPA and other skill types
+ * Enhanced to handle skill ID resolution first, then normalization
  */
-export const normalizeSkills = (skills: string[], staffId?: string): SkillType[] => {
-  // Create a set to avoid duplicates
-  const standardizedSkills = new Set<SkillType>();
-  
+export const normalizeSkills = async (skills: string[], staffId?: string): Promise<SkillType[]> => {
   debugLog(`Normalizing skills: ${skills.join(', ')} for staff ID: ${staffId || 'unknown'}`);
   
-  // Check for manual staff ID overrides
-  if (staffId && STAFF_ID_SKILL_OVERRIDES[staffId]) {
-    debugLog(`Staff ID ${staffId} matched override mapping`, STAFF_ID_SKILL_OVERRIDES[staffId]);
-    return STAFF_ID_SKILL_OVERRIDES[staffId];
-  }
-  
-  // If no skills provided, default to Junior to prevent zero capacity
+  // If no skills provided, default to Junior Staff to prevent zero capacity
   if (!skills || skills.length === 0) {
-    debugLog('No skills provided, defaulting to Junior');
-    return ['Junior'];
+    debugLog('No skills provided, defaulting to Junior Staff');
+    return ['Junior Staff'];
   }
-  
-  // First, check if any skill IDs match direct mappings in SKILL_ID_MAPPING
-  let directIdMappingFound = false;
-  
-  for (const skill of skills) {
-    if (SKILL_ID_MAPPING[skill]) {
-      debugLog(`Found direct ID mapping for "${skill}": ${SKILL_ID_MAPPING[skill].join(', ')}`);
-      SKILL_ID_MAPPING[skill].forEach(s => standardizedSkills.add(s));
-      directIdMappingFound = true;
-    }
+
+  // Step 1: Try to resolve skill IDs to skill names
+  let resolvedSkills: string[];
+  try {
+    resolvedSkills = await SkillsIntegrationService.resolveSkillIds(skills);
+    debugLog(`Resolved skill IDs to names: ${resolvedSkills.join(', ')}`);
+  } catch (error) {
+    debugLog('Error resolving skill IDs, using original values', error);
+    resolvedSkills = skills;
   }
+
+  // Step 2: Normalize skill names to matrix display format
+  const standardizedSkills = new Set<SkillType>();
   
-  // If we found direct ID mappings, return those and don't proceed with text-based mapping
-  if (directIdMappingFound) {
-    const result = Array.from(standardizedSkills);
-    debugLog(`Final normalized skills from direct ID mapping: ${result.join(', ')}`);
-    return result;
-  }
-  
-  // Fallback to text-based mapping if no direct ID matches were found
-  // Map each skill to standard forecast skills
-  for (const skill of skills) {
+  for (const skill of resolvedSkills) {
     if (!skill) continue;
     
     const skillLower = skill.toLowerCase().trim();
     debugLog(`Processing skill "${skill}" (normalized to "${skillLower}")`);
     
-    // Enhanced CPA detection - check for "CPA" in the skill string first
+    // Enhanced detection for key skills
     if (skillLower.includes('cpa') || skillLower === 'cpa' || 
         skillLower.includes('certified public accountant')) {
       debugLog(`CPA keyword detected in "${skill}", adding CPA skill type`);
       standardizedSkills.add('CPA');
       continue;
     }
-    
-    // If there's a direct mapping, use it
+
+    // Check for direct mapping
     if (STANDARD_SKILL_MAPPING[skillLower]) {
       debugLog(`Found direct mapping for "${skillLower}": ${STANDARD_SKILL_MAPPING[skillLower].join(', ')}`);
       STANDARD_SKILL_MAPPING[skillLower].forEach(s => standardizedSkills.add(s));
     } else {
-      // Check if the skill itself is a standard skill type
-      const normalizedSkill = capitalizeFirstLetter(skill);
-      if (isStandardSkillType(normalizedSkill)) {
-        debugLog(`Skill "${skill}" is a standard skill type: ${normalizedSkill}`);
-        standardizedSkills.add(normalizedSkill as SkillType);
-      } else {
-        // For unrecognized skills, check for partial matches
-        let matched = false;
-        
-        // Try to find partial matches in mapping keys
-        for (const mappingKey of Object.keys(STANDARD_SKILL_MAPPING)) {
-          if (skillLower.includes(mappingKey) || mappingKey.includes(skillLower)) {
-            debugLog(`Found partial match: "${skillLower}" matches "${mappingKey}"`);
-            STANDARD_SKILL_MAPPING[mappingKey].forEach(s => standardizedSkills.add(s));
-            matched = true;
-          }
-        }
-        
-        // If still no match, default to Junior
-        if (!matched) {
-          debugLog(`No match found for "${skill}", defaulting to Junior`);
-          standardizedSkills.add('Junior');
-        }
-      }
+      // Use Skills Integration Service for normalization
+      const normalizedSkill = SkillsIntegrationService.normalizeSkill(skill);
+      debugLog(`Skills Integration Service normalized "${skill}" to "${normalizedSkill}"`);
+      standardizedSkills.add(normalizedSkill);
     }
   }
   
   const result = Array.from(standardizedSkills);
   debugLog(`Final normalized skills: ${result.join(', ')}`);
   
-  // If still empty after all processing, default to Junior
+  // If still empty after all processing, default to Junior Staff
   if (result.length === 0) {
-    debugLog('No skills mapped after processing, defaulting to Junior');
-    return ['Junior'];
+    debugLog('No skills mapped after processing, defaulting to Junior Staff');
+    return ['Junior Staff'];
   }
   
   return result;
@@ -219,7 +154,7 @@ export const normalizeSkills = (skills: string[], staffId?: string): SkillType[]
  * Check if a skill string is a standard skill type
  */
 export const isStandardSkillType = (skill: string): boolean => {
-  const standardTypes: SkillType[] = ['Junior', 'Senior', 'CPA'];
+  const standardTypes: SkillType[] = ['Junior Staff', 'Senior Staff', 'CPA'];
   return standardTypes.includes(skill as SkillType);
 };
 
@@ -232,15 +167,14 @@ export const capitalizeFirstLetter = (text: string): string => {
 };
 
 /**
- * Get all standard skill types
+ * Get all standard skill types - Updated for matrix compatibility
  */
 export const getStandardSkillTypes = (): SkillType[] => {
-  return ['Junior', 'Senior', 'CPA'];
+  return ['Junior Staff', 'Senior Staff', 'CPA'];
 };
 
 /**
  * Get all registered skills in the system
- * This is helpful for debugging and ensuring that all skills are properly mapped
  */
 export const getAllSkillsWithMappings = (): Record<string, SkillType[]> => {
   return { ...STANDARD_SKILL_MAPPING };
@@ -248,18 +182,16 @@ export const getAllSkillsWithMappings = (): Record<string, SkillType[]> => {
 
 /**
  * Analyze staff skills and determine their representation in standard skill types
- * Useful for debugging skill distribution
  */
-export const analyzeStaffSkills = (staffSkills: string[], staffId?: string) => {
-  const normalizedSkills = normalizeSkills(staffSkills, staffId);
+export const analyzeStaffSkills = async (staffSkills: string[], staffId?: string) => {
+  const normalizedSkills = await normalizeSkills(staffSkills, staffId);
   
   return {
     originalSkills: staffSkills,
     mappedSkills: normalizedSkills,
     hasCPA: normalizedSkills.includes('CPA'),
-    hasSenior: normalizedSkills.includes('Senior'),
-    hasJunior: normalizedSkills.includes('Junior'),
-    defaultedToJunior: staffSkills.length > 0 && normalizedSkills.length === 1 && normalizedSkills[0] === 'Junior',
-    manualOverride: staffId && STAFF_ID_SKILL_OVERRIDES[staffId] !== undefined
+    hasSenior: normalizedSkills.includes('Senior Staff'),
+    hasJunior: normalizedSkills.includes('Junior Staff'),
+    defaultedToJunior: staffSkills.length > 0 && normalizedSkills.length === 1 && normalizedSkills[0] === 'Junior Staff'
   };
 };
