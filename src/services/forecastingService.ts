@@ -398,7 +398,7 @@ const calculateCapacity = async (
 
     // Normalize staff skills to standard forecast skills (Junior, Senior, CPA)
     // This is the critical step where staff skills are mapped to forecast skill types
-    const normalizedSkills = await mapStaffSkillsToForecastSkills(staff.id);
+    const normalizedSkills = await mapStaffSkillsToForecastSkills(staff.assignedSkills || [], staff.id);
     
     // Debug log the staff's normalized skills
     debugLog(`Staff ${staff.fullName} normalized skills: ${normalizedSkills.join(', ')}`);
@@ -1270,7 +1270,7 @@ export const generateCapacityForecast = async (
       for (const staffMember of staff.filter(s => s.status === 'active')) {
         try {
           // Fix: Ensure we pass an array to normalizeSkills
-          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills || [], staffMember.id);
+          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills || [], staff.id);
           
           // Assume 160 hours per month capacity per staff member
           const monthlyCapacity = 160;
