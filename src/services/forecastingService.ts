@@ -1,3 +1,4 @@
+
 import {
   format,
   addDays,
@@ -45,7 +46,7 @@ import {
   getWeeklyAvailabilityByStaff, 
   ensureStaffHasAvailability, 
   mapStaffSkillsToForecastSkills 
-} from '@/services/staffService';
+} from '@/services/staff';
 import { getClientById, getActiveClients } from '@/services/clientService';
 import { debugLog, getDebugMode } from '@/services/forecasting/logger';
 import {
@@ -1269,8 +1270,8 @@ export const generateCapacityForecast = async (
       // Process each staff member
       for (const staffMember of staff.filter(s => s.status === 'active')) {
         try {
-          // Fix: Ensure we pass an array to normalizeSkills
-          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills || [], staff.id);
+          // Fix: Ensure we pass an array to normalizeSkills and use staffMember.id instead of staff.id
+          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills || [], staffMember.id);
           
           // Assume 160 hours per month capacity per staff member
           const monthlyCapacity = 160;
