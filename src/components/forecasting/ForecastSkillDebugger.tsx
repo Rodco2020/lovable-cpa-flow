@@ -22,22 +22,23 @@ const ForecastSkillDebugger: React.FC = () => {
       console.log("Loaded staff:", allStaff.length);
       
       // Analyze skills for each staff member
-      const skillAnalysis = allStaff.map(staff => {
-        const analysis = analyzeStaffSkills(staff.skills, staff.id);
+      const skillAnalysisPromises = allStaff.map(async (staff) => {
+        const analysis = await analyzeStaffSkills(staff.assignedSkills, staff.id);
         return {
           id: staff.id,
           name: staff.fullName,
           roleTitle: staff.roleTitle,
-          originalSkills: staff.skills,
+          originalSkills: staff.assignedSkills,
           mappedSkills: analysis.mappedSkills,
           hasCPA: analysis.hasCPA,
           hasSenior: analysis.hasSenior,
           hasJunior: analysis.hasJunior,
           defaultedToJunior: analysis.defaultedToJunior,
-          manualOverride: analysis.manualOverride
+          manualOverride: false // This property doesn't exist in the analysis result
         };
       });
       
+      const skillAnalysis = await Promise.all(skillAnalysisPromises);
       setStaffSkills(skillAnalysis);
     } catch (err) {
       console.error("Failed to load staff skills:", err);
@@ -55,9 +56,9 @@ const ForecastSkillDebugger: React.FC = () => {
   // Calculate skill type counts
   const calculateSkillCounts = () => {
     const counts = {
-      Junior: 0,
-      Senior: 0,
-      CPA: 0
+      'Junior Staff': 0,
+      'Senior Staff': 0,
+      'CPA': 0
     };
     
     staffSkills.forEach(staff => {
@@ -97,9 +98,9 @@ const ForecastSkillDebugger: React.FC = () => {
         <div className="border rounded-md p-3 flex-1 bg-background">
           <p className="text-sm font-medium mb-1">Skill Type Distribution</p>
           <div className="flex gap-2">
-            <Badge variant="outline" className="bg-blue-100">Junior: {skillCounts.Junior}</Badge>
-            <Badge variant="outline" className="bg-purple-100">Senior: {skillCounts.Senior}</Badge>
-            <Badge variant="outline" className="bg-green-100">CPA: {skillCounts.CPA}</Badge>
+            <Badge variant="outline" className="bg-blue-100">Junior Staff: {skillCounts['Junior Staff']}</Badge>
+            <Badge variant="outline" className="bg-purple-100">Senior Staff: {skillCounts['Senior Staff']}</Badge>
+            <Badge variant="outline" className="bg-green-100">CPA: {skillCounts['CPA']}</Badge>
           </div>
         </div>
       </div>
@@ -136,8 +137,8 @@ const ForecastSkillDebugger: React.FC = () => {
                         key={index} 
                         variant="secondary"
                         className={`${
-                          skill === 'Junior' ? 'bg-blue-100' :
-                          skill === 'Senior' ? 'bg-purple-100' :
+                          skill === 'Junior Staff' ? 'bg-blue-100' :
+                          skill === 'Senior Staff' ? 'bg-purple-100' :
                           skill === 'CPA' ? 'bg-green-100' : ''
                         }`}
                       >

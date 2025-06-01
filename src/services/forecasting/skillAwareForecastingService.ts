@@ -1,5 +1,5 @@
 
-import { getAllRecurringTasks } from '@/services/recurringTaskService';
+import { getAllRecurringTasks } from '@/services/clientTaskService';
 import { getAllStaff } from '@/services/staffService';
 import { SkillsIntegrationService } from './skillsIntegrationService';
 import { normalizeSkills } from '../skillNormalizationService';
@@ -109,7 +109,7 @@ export class SkillAwareForecastingService {
         const capacityBySkill = new Map<SkillType, number>();
         
         // Process each staff member
-        for (const staffMember of staff.filter(s => s.status === 'Active')) {
+        for (const staffMember of staff.filter(s => s.status === 'active')) {
           try {
             // Resolve skill IDs to names and normalize them
             const resolvedSkillNames = await SkillsIntegrationService.resolveSkillIds(staffMember.assignedSkills);
