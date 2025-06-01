@@ -31,7 +31,7 @@ export const useEnhancedTaskSelection = (clientId: string) => {
   });
 
   // Fetch ad-hoc tasks
-  const { data: adHocTasks = [], isLoading: adHocLoading, error: adHocError } = useQuery({
+  const { data: adHocTasksData = [], isLoading: adHocLoading, error: adHocError } = useQuery({
     queryKey: ['client', clientId, 'adhoc-tasks'],
     queryFn: () => getClientAdHocTasks(clientId),
     enabled: !!clientId,
@@ -39,6 +39,9 @@ export const useEnhancedTaskSelection = (clientId: string) => {
 
   const isLoading = recurringLoading || adHocLoading;
   const hasError = recurringError || adHocError;
+
+  // Extract TaskInstance from TaskInstanceData
+  const adHocTasks = adHocTasksData.map(taskData => taskData.taskInstance);
 
   // Combine and unify tasks with type information
   const unifiedTasks: UnifiedTask[] = useMemo(() => {

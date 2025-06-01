@@ -17,7 +17,7 @@ export const useTaskSelection = (clientId: string) => {
   });
 
   // Fetch ad-hoc tasks
-  const { data: adHocTasks = [], isLoading: adHocLoading, error: adHocError } = useQuery({
+  const { data: adHocTasksData = [], isLoading: adHocLoading, error: adHocError } = useQuery({
     queryKey: ['client', clientId, 'adhoc-tasks'],
     queryFn: () => getClientAdHocTasks(clientId),
     enabled: !!clientId,
@@ -25,6 +25,9 @@ export const useTaskSelection = (clientId: string) => {
 
   const isLoading = recurringLoading || adHocLoading;
   const hasError = recurringError || adHocError;
+
+  // Extract TaskInstance from TaskInstanceData
+  const adHocTasks = adHocTasksData.map(taskData => taskData.taskInstance);
 
   // Filter tasks based on search term and active filter
   const filteredTasks = [...(recurringTasks as RecurringTask[]), ...(adHocTasks as TaskInstance[])].filter(task => {

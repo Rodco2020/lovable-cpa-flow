@@ -1,7 +1,6 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { TaskInstance, RecurringTask, TaskStatus } from '@/types/task';
-import { getRecurringTaskById, getTaskInstanceById } from './clientTaskService';
+import { getRecurringTaskById, getTaskInstanceById } from './clientTask';
 
 /**
  * Task Copy Service
@@ -284,13 +283,16 @@ export const copyAdHocTask = async (taskId: string, targetClientId: string): Pro
   await validateTargetClient(targetClientId);
   
   // Step 2: Get the source task
-  const sourceTask = await getTaskInstanceById(taskId);
+  const sourceTaskData = await getTaskInstanceById(taskId);
   
-  if (!sourceTask) {
+  if (!sourceTaskData) {
     const error = `Ad-hoc task with ID ${taskId} not found`;
     console.error('taskCopyService:', error);
     throw new Error(error);
   }
+  
+  // Extract the actual TaskInstance from TaskInstanceData
+  const sourceTask = sourceTaskData.taskInstance;
   
   console.log('taskCopyService: Source ad-hoc task found:', sourceTask.name);
   

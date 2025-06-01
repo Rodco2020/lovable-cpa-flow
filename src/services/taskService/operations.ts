@@ -1,60 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import { TaskTemplate, RecurringTask, TaskInstance } from '@/types/task';
 import { Database } from '@/types/supabase';
+import { TaskServiceError } from './index';
 
 type RecurringTaskRow = Database['public']['Tables']['recurring_tasks']['Row'];
 type TaskInstanceRow = Database['public']['Tables']['task_instances']['Row'];
 type TaskTemplateRow = Database['public']['Tables']['task_templates']['Row'];
-
-/**
- * Enhanced error handling for task operations
- */
-export class TaskServiceError extends Error {
-  constructor(message: string, public code?: string, public details?: any) {
-    super(message);
-    this.name = 'TaskServiceError';
-  }
-}
-
-/**
- * Create a task template with proper error handling
- */
-export const createTaskTemplate = async (templateData: Omit<TaskTemplate, 'id' | 'createdAt' | 'updatedAt' | 'version'>): Promise<TaskTemplate> => {
-  try {
-    console.log('Creating task template:', templateData);
-    
-    const { data, error } = await supabase
-      .from('task_templates')
-      .insert({
-        name: templateData.name,
-        description: templateData.description,
-        default_estimated_hours: templateData.defaultEstimatedHours,
-        required_skills: templateData.requiredSkills,
-        default_priority: templateData.defaultPriority,
-        category: templateData.category,
-        is_archived: templateData.isArchived || false
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating task template:', error);
-      throw new TaskServiceError(
-        `Failed to create task template: ${error.message}`,
-        error.code,
-        error.details
-      );
-    }
-
-    return mapTaskTemplateFromDB(data);
-  } catch (error) {
-    console.error('Task template creation failed:', error);
-    if (error instanceof TaskServiceError) {
-      throw error;
-    }
-    throw new TaskServiceError('Unexpected error creating task template', 'UNKNOWN_ERROR', error);
-  }
-};
 
 /**
  * Create a recurring task with enhanced validation and error handling
@@ -446,23 +397,7 @@ export const deleteTaskInstance = async (id: string): Promise<void> => {
   }
 };
 
-/**
- * Mapping functions to convert database rows to TypeScript types
- */
-const mapTaskTemplateFromDB = (row: TaskTemplateRow): TaskTemplate => ({
-  id: row.id,
-  name: row.name,
-  description: row.description || '',
-  defaultEstimatedHours: Number(row.default_estimated_hours),
-  requiredSkills: row.required_skills || [],
-  defaultPriority: row.default_priority as TaskTemplate['defaultPriority'],
-  category: row.category as TaskTemplate['category'],
-  isArchived: row.is_archived,
-  createdAt: new Date(row.created_at),
-  updatedAt: new Date(row.updated_at),
-  version: row.version
-});
-
+// Mapping functions
 const mapRecurringTaskFromDB = (row: RecurringTaskRow): RecurringTask => ({
   id: row.id,
   templateId: row.template_id,
@@ -512,19 +447,3 @@ const mapTaskInstanceFromDB = (row: TaskInstanceRow): TaskInstance => ({
   scheduledStartTime: row.scheduled_start_time ? new Date(row.scheduled_start_time) : undefined,
   scheduledEndTime: row.scheduled_end_time ? new Date(row.scheduled_end_time) : undefined
 });
-
-// Export all the functions
-export {
-  createRecurringTask,
-  createTaskInstance,
-  getTaskTemplates,
-  getRecurringTasks,
-  getTaskInstances,
-  getUnscheduledTaskInstances,
-  updateTaskInstance,
-  deleteRecurringTaskAssignment,
-  deleteTaskInstance
-} from './operations';
-
-// Export the error class for use in other modules
-export { TaskServiceError };

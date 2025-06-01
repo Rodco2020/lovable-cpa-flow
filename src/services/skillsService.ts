@@ -328,5 +328,3 @@ const getDefaultSkills = (): Skill[] => [
     updatedAt: new Date()
   }
 ];
-
-export { SkillsServiceError };
