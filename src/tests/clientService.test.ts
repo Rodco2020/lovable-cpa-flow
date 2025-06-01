@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getAllClients, getClientById, createClient, updateClient, deleteClient, getClientRecurringTasks, getClientAdHocTasks } from '../src/services/clientService';
-import { supabase } from '../src/integrations/supabase/client';
 
-vi.mock('../src/integrations/supabase/client', () => {
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { getAllClients, getClientById, createClient, updateClient, deleteClient, getClientRecurringTasks, getClientAdHocTasks } from '@/services/clientService';
+import { supabase } from '@/integrations/supabase/client';
+
+vi.mock('@/integrations/supabase/client', () => {
   const supabaseMock = {
     from: vi.fn(() => ({
       select: vi.fn(() => ({

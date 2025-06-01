@@ -5,21 +5,21 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getRecurringTaskById, getClientRecurringTasks, getTaskInstanceById, getClientAdHocTasks } from '../../src/services/clientTask';
-import { supabase } from '../../src/integrations/supabase/client';
+import { getRecurringTaskById, getClientRecurringTasks, getTaskInstanceById, getClientAdHocTasks } from '@/services/clientTask';
+import { supabase } from '@/integrations/supabase/client';
 
 // Mock Supabase
-jest.mock('@/lib/supabaseClient', () => ({
+vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          single: jest.fn(),
-          order: jest.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(),
+          order: vi.fn(() => ({
             // This handles the recurring tasks query
           })),
-          is: jest.fn(() => ({
-            order: jest.fn(() => ({
+          is: vi.fn(() => ({
+            order: vi.fn(() => ({
               // This handles the ad-hoc tasks query
             }))
           }))
@@ -29,11 +29,11 @@ jest.mock('@/lib/supabaseClient', () => ({
   }
 }));
 
-const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+const mockSupabase = supabase as any;
 
 describe('Client Task Service', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getClientRecurringTasks', () => {
@@ -67,9 +67,9 @@ describe('Client Task Service', () => {
       ];
 
       const mockChain = {
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() => Promise.resolve({ data: mockData, error: null }))
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => Promise.resolve({ data: mockData, error: null }))
           }))
         }))
       };
@@ -86,9 +86,9 @@ describe('Client Task Service', () => {
 
     it('should handle errors gracefully', async () => {
       const mockChain = {
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() => Promise.resolve({ data: null, error: { message: 'Database error' } }))
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => Promise.resolve({ data: null, error: { message: 'Database error' } }))
           }))
         }))
       };
@@ -126,10 +126,10 @@ describe('Client Task Service', () => {
       ];
 
       const mockChain = {
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            is: jest.fn(() => ({
-              order: jest.fn(() => Promise.resolve({ data: mockData, error: null }))
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            is: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: mockData, error: null }))
             }))
           }))
         }))
@@ -175,9 +175,9 @@ describe('Client Task Service', () => {
       };
 
       const mockChain = {
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            single: jest.fn(() => Promise.resolve({ data: mockData, error: null }))
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({ data: mockData, error: null }))
           }))
         }))
       };
@@ -192,9 +192,9 @@ describe('Client Task Service', () => {
 
     it('should return null when task not found', async () => {
       const mockChain = {
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            single: jest.fn(() => Promise.resolve({ data: null, error: { code: 'PGRST116' } }))
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({ data: null, error: { code: 'PGRST116' } }))
           }))
         }))
       };
@@ -279,10 +279,10 @@ describe('Client Task Service', () => {
       };
 
       const mockChain = {
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            is: jest.fn(() => ({
-              order: jest.fn(() => Promise.resolve({ data: [mockTaskInstance], error: null }))
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            is: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: [mockTaskInstance], error: null }))
             }))
           }))
         }))
