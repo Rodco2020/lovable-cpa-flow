@@ -125,7 +125,8 @@ export class EnhancedTaskMetricsService {
     console.log(`Unique skills: ${uniqueSkills.length}`, uniqueSkills);
     
     tasks.slice(0, 3).forEach((task, index) => {
-      console.log(`Task ${index + 1}: "${task.name}" - Skills:`, task.requiredSkills);
+      // Fix: Use taskName instead of name property
+      console.log(`Task ${index + 1}: "${task.taskName}" - Skills:`, task.requiredSkills);
     });
   }
 

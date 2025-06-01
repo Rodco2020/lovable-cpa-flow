@@ -847,7 +847,6 @@ const getDateRangeFromTimeframe = (timeframe: ForecastTimeframe): DateRange => {
   }
 };
 
-
 /**
  * Get a forecast from the cache or generate a new one if not cached
  */
@@ -1271,7 +1270,7 @@ export const generateCapacityForecast = async (
       for (const staffMember of staff.filter(s => s.status === 'active')) {
         try {
           // Fix: Ensure we pass an array to normalizeSkills
-          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills, staffMember.id);
+          const normalizedSkills = await normalizeSkills(staffMember.assignedSkills || [], staffMember.id);
           
           // Assume 160 hours per month capacity per staff member
           const monthlyCapacity = 160;
