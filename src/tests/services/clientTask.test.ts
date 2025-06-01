@@ -1,12 +1,12 @@
-
 /**
  * Client Task Service Tests
  * 
  * Comprehensive tests for the refactored client task service
  */
 
-import { getClientRecurringTasks, getClientAdHocTasks, getRecurringTaskById, getTaskInstanceById } from '@/services/clientTask';
-import { supabase } from '@/lib/supabaseClient';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { getRecurringTaskById, getClientRecurringTasks, getTaskInstanceById, getClientAdHocTasks } from '../../src/services/clientTask';
+import { supabase } from '../../src/integrations/supabase/client';
 
 // Mock Supabase
 jest.mock('@/lib/supabaseClient', () => ({
@@ -31,7 +31,7 @@ jest.mock('@/lib/supabaseClient', () => ({
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 
-describe('Client Task Service - Refactored', () => {
+describe('Client Task Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -208,43 +208,92 @@ describe('Client Task Service - Refactored', () => {
   });
 
   describe('getTaskInstanceById', () => {
-    it('should return a specific task instance', async () => {
-      const mockData = {
-        id: 'instance1',
-        client_id: 'client1',
-        name: 'Instance 1',
-        template_id: 'template1',
-        description: 'Test instance',
+    it('should return task instance data by ID', async () => {
+      const taskId = 'task-instance-1';
+      const mockTaskInstance = {
+        id: taskId,
+        template_id: 'template-1',
+        client_id: 'client-1',
+        name: 'Test Task Instance',
+        description: 'Test Description',
         estimated_hours: 3,
-        required_skills: ['skill1'],
+        required_skills: ['Skill1'],
         priority: 'High',
-        category: 'Advisory',
+        category: 'Audit',
         status: 'Unscheduled',
-        due_date: '2023-12-01',
+        due_date: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        notes: null,
+        recurring_task_id: null,
         completed_at: null,
         assigned_staff_id: null,
         scheduled_start_time: null,
         scheduled_end_time: null,
-        created_at: '2023-01-01',
-        updated_at: '2023-01-01',
-        notes: 'Instance notes',
-        recurring_task_id: null
+        clients: { legal_name: 'Test Client' },
+        task_templates: { name: 'Test Template' }
+      };
+
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockTaskInstance,
+              error: null
+            })
+          })
+        })
+      });
+
+      const taskInstanceData = await getTaskInstanceById(taskId);
+      
+      expect(taskInstanceData).toBeDefined();
+      expect(taskInstanceData!.taskInstance.id).toBeDefined();
+      expect(taskInstanceData!.taskInstance.clientId).toBe(mockTaskInstance.client_id);
+    });
+
+    it('should return ad-hoc tasks for a client', async () => {
+      const clientId = 'client-1';
+      const mockTaskInstance = {
+        id: 'task-instance-1',
+        template_id: 'template-1',
+        client_id: clientId,
+        name: 'Ad-hoc Task',
+        description: 'Ad-hoc Description',
+        estimated_hours: 2,
+        required_skills: ['Skill1'],
+        priority: 'Medium',
+        category: 'Tax',
+        status: 'Unscheduled',
+        due_date: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        notes: null,
+        recurring_task_id: null,
+        completed_at: null,
+        assigned_staff_id: null,
+        scheduled_start_time: null,
+        scheduled_end_time: null,
+        clients: { legal_name: 'Test Client' },
+        task_templates: { name: 'Test Template' }
       };
 
       const mockChain = {
         select: jest.fn(() => ({
           eq: jest.fn(() => ({
-            single: jest.fn(() => Promise.resolve({ data: mockData, error: null }))
+            is: jest.fn(() => ({
+              order: jest.fn(() => Promise.resolve({ data: [mockTaskInstance], error: null }))
+            }))
           }))
         }))
       };
 
       mockSupabase.from.mockReturnValue(mockChain as any);
 
-      const result = await getTaskInstanceById('instance1');
-
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe('instance1');
+      const tasks = await getClientAdHocTasks(clientId);
+      
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].taskInstance.id).toBe(mockTaskInstance.id);
     });
   });
 });

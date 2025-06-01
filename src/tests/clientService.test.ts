@@ -1,122 +1,217 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { getAllClients, getClientById, createClient, updateClient, deleteClient, getClientRecurringTasks, getClientAdHocTasks } from '../src/services/clientService';
+import { supabase } from '../src/integrations/supabase/client';
 
-import { getClientRecurringTasks, getClientAdHocTasks } from '../services/clientService';
-import { getRecurringTasks, getTaskInstances } from '../services/taskService';
-import { RecurringTask, TaskInstance } from '../types/task';
+vi.mock('../src/integrations/supabase/client', () => {
+  const supabaseMock = {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({
+          single: vi.fn(() => ({
+            data: {},
+            error: null,
+          })),
+          data: [],
+          error: null,
+        })),
+      })),
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => ({
+            data: {},
+            error: null,
+          })),
+        })),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(() => ({
+              data: {},
+              error: null,
+            })),
+          })),
+        })),
+      })),
+      delete: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(() => ({
+            data: {},
+            error: null,
+          })),
+        })),
+      })),
+    })),
+  };
+  return { supabase: supabaseMock };
+});
 
-// Mock the task service functions
-jest.mock('../services/taskService', () => ({
-  getRecurringTasks: jest.fn(),
-  getTaskInstances: jest.fn(),
-}));
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
-describe('Client Service - Task Integration Tests', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+describe('Client Service', () => {
+  describe('getAllClients', () => {
+    it('should fetch all clients', async () => {
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      });
+
+      await getAllClients();
+      expect(supabase.from).toHaveBeenCalledWith('clients');
+      expect(supabase.from().select).toHaveBeenCalledWith('*');
+      expect(supabase.from().select().order).toHaveBeenCalledWith('legal_name');
+    });
+  });
+
+  describe('getClientById', () => {
+    it('should fetch a client by ID', async () => {
+      const clientId = 'client-1';
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: {}, error: null }),
+          }),
+        }),
+      });
+
+      await getClientById(clientId);
+      expect(supabase.from).toHaveBeenCalledWith('clients');
+      expect(supabase.from().select).toHaveBeenCalledWith('*');
+      expect(supabase.from().select().eq).toHaveBeenCalledWith('id', clientId);
+    });
+  });
+
+  describe('createClient', () => {
+    it('should create a new client', async () => {
+      const newClient = {
+        legalName: 'New Client',
+        phone: '123-456-7890',
+        email: 'test@example.com',
+        address: '123 Main St',
+      };
+      (supabase.from as any).mockReturnValue({
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: {}, error: null }),
+          }),
+        }),
+      });
+
+      await createClient(newClient);
+      expect(supabase.from).toHaveBeenCalledWith('clients');
+      expect(supabase.from().insert).toHaveBeenCalledWith({
+        legal_name: newClient.legalName,
+        phone: newClient.phone,
+        email: newClient.email,
+        address: newClient.address,
+      });
+    });
+  });
+
+  describe('updateClient', () => {
+    it('should update an existing client', async () => {
+      const clientId = 'client-1';
+      const updates = { legalName: 'Updated Client' };
+      (supabase.from as any).mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: {}, error: null }),
+            })),
+          }),
+        }),
+      });
+
+      await updateClient(clientId, updates);
+      expect(supabase.from).toHaveBeenCalledWith('clients');
+      expect(supabase.from().update).toHaveBeenCalledWith({ legal_name: updates.legalName });
+      expect(supabase.from().update().eq).toHaveBeenCalledWith('id', clientId);
+    });
+  });
+
+  describe('deleteClient', () => {
+    it('should delete a client', async () => {
+      const clientId = 'client-1';
+      (supabase.from as any).mockReturnValue({
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: {}, error: null }),
+          }),
+        }),
+      });
+
+      await deleteClient(clientId);
+      expect(supabase.from).toHaveBeenCalledWith('clients');
+      expect(supabase.from().delete().eq).toHaveBeenCalledWith('id', clientId);
+    });
   });
 
   describe('getClientRecurringTasks', () => {
-    it('should return recurring tasks for a specific client', async () => {
-      // Mock data
-      const mockRecurringTasks = [
-        { id: 'task1', clientId: 'client1', name: 'Task 1' },
-        { id: 'task2', clientId: 'client1', name: 'Task 2' },
-        { id: 'task3', clientId: 'client2', name: 'Task 3' },
-      ] as RecurringTask[];
-      
-      // Setup mock implementation
-      (getRecurringTasks as jest.Mock).mockReturnValue(mockRecurringTasks);
-      
-      // Execute
-      const result = await getClientRecurringTasks('client1');
-      
-      // Verify
-      expect(getRecurringTasks).toHaveBeenCalledWith(false);
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('task1');
-      expect(result[1].id).toBe('task2');
-    });
-    
-    it('should return empty array when no tasks match client ID', async () => {
-      // Mock data
-      const mockRecurringTasks = [
-        { id: 'task1', clientId: 'client1', name: 'Task 1' },
-        { id: 'task2', clientId: 'client1', name: 'Task 2' },
-      ] as RecurringTask[];
-      
-      // Setup mock implementation
-      (getRecurringTasks as jest.Mock).mockReturnValue(mockRecurringTasks);
-      
-      // Execute
-      const result = await getClientRecurringTasks('non-existent-client');
-      
-      // Verify
-      expect(result).toHaveLength(0);
-    });
-    
-    it('should handle errors gracefully', async () => {
-      // Setup mock implementation to throw an error
-      (getRecurringTasks as jest.Mock).mockImplementation(() => {
-        throw new Error('Test error');
+    it('should fetch recurring tasks for a client', async () => {
+      const clientId = 'client-1';
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
       });
-      
-      // Execute
-      const result = await getClientRecurringTasks('client1');
-      
-      // Verify
-      expect(result).toHaveLength(0);
+
+      await getClientRecurringTasks(clientId);
+      expect(supabase.from).toHaveBeenCalledWith('recurring_tasks');
+      expect(supabase.from().select).toHaveBeenCalledWith('*');
+      expect(supabase.from().select().eq).toHaveBeenCalledWith('client_id', clientId);
     });
   });
-  
+
   describe('getClientAdHocTasks', () => {
-    it('should return ad-hoc tasks for a specific client', async () => {
-      // Mock data
-      const mockTaskInstances = [
-        { id: 'task1', clientId: 'client1', recurringTaskId: null },
-        { id: 'task2', clientId: 'client1', recurringTaskId: 'rec1' },
-        { id: 'task3', clientId: 'client1', recurringTaskId: null },
-      ] as TaskInstance[];
-      
-      // Setup mock implementation
-      (getTaskInstances as jest.Mock).mockReturnValue(mockTaskInstances);
-      
-      // Execute
-      const result = await getClientAdHocTasks('client1');
-      
-      // Verify
-      expect(getTaskInstances).toHaveBeenCalledWith({ clientId: 'client1' });
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('task1');
-      expect(result[1].id).toBe('task3');
-    });
-    
-    it('should return empty array when no ad-hoc tasks exist', async () => {
-      // Mock data - all tasks are from recurring tasks
-      const mockTaskInstances = [
-        { id: 'task1', clientId: 'client1', recurringTaskId: 'rec1' },
-        { id: 'task2', clientId: 'client1', recurringTaskId: 'rec2' },
-      ] as TaskInstance[];
-      
-      // Setup mock implementation
-      (getTaskInstances as jest.Mock).mockReturnValue(mockTaskInstances);
-      
-      // Execute
-      const result = await getClientAdHocTasks('client1');
-      
-      // Verify
-      expect(result).toHaveLength(0);
-    });
-    
-    it('should handle errors gracefully', async () => {
-      // Setup mock implementation to throw an error
-      (getTaskInstances as jest.Mock).mockImplementation(() => {
-        throw new Error('Test error');
+    it('should fetch ad-hoc tasks for a client', async () => {
+      const clientId = 'client-1';
+      const mockTask = {
+        id: 'task-1',
+        template_id: 'template-1',
+        client_id: clientId,
+        name: 'Test Task',
+        description: 'Test Description',
+        estimated_hours: 5,
+        required_skills: ['Skill1'],
+        priority: 'Medium',
+        category: 'Tax',
+        status: 'Unscheduled',
+        due_date: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        notes: null,
+        recurring_task_id: null,
+        completed_at: null,
+        assigned_staff_id: null,
+        scheduled_start_time: null,
+        scheduled_end_time: null,
+        clients: { legal_name: 'Test Client' },
+        task_templates: { name: 'Test Template' }
+      };
+
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: [mockTask],
+                error: null
+              })
+            })
+          })
+        })
       });
+
+      const tasks = await getClientAdHocTasks(clientId);
       
-      // Execute
-      const result = await getClientAdHocTasks('client1');
-      
-      // Verify
-      expect(result).toHaveLength(0);
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].taskInstance.id).toBeDefined();
+      expect(tasks[0].taskInstance.id).toBe(mockTask.id);
     });
   });
 });

@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { TaskInstance } from '@/types/task';
 import { Database } from '@/types/supabase';
-import { TaskServiceError } from '../taskService';
+import { TaskServiceError } from '../taskService/operations';
 
 type TaskInstanceRow = Database['public']['Tables']['task_instances']['Row'];
 
