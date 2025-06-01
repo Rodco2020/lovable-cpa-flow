@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import TaskTemplateList from '@/components/tasks/TaskTemplateList';
+import TaskTemplateManagement from '@/components/tasks/TaskTemplateManagement';
 import UnscheduledTaskList from '@/components/tasks/UnscheduledTaskList';
 import TaskGenerator from '@/components/tasks/TaskGenerator';
 import CreateClientTask from '@/components/tasks/CreateClientTask';
@@ -83,7 +83,7 @@ const TaskModule: React.FC = () => {
         </TabsList>
         
         <TabsContent value="templates" className="space-y-4">
-          <TaskTemplateList key={`templates-${refreshTrigger}`} />
+          <TaskTemplateManagement key={`templates-${refreshTrigger}`} />
         </TabsContent>
         
         <TabsContent value="create" className="space-y-4">

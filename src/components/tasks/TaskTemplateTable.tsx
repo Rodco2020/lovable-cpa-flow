@@ -10,8 +10,8 @@ import {
   TableHead, 
   TableCell 
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Loader2, Edit, Archive } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import TaskTemplateActions from './TaskTemplateActions';
 
 interface TaskTemplateTableProps {
   templates: TaskTemplate[];
@@ -19,18 +19,20 @@ interface TaskTemplateTableProps {
   isLoading: boolean;
   onEditTemplate: (template: TaskTemplate) => void;
   onArchiveTemplate: (id: string) => void;
+  onDeleteTemplate: (id: string, name: string) => void;
 }
 
 /**
- * Component for displaying task templates in a table
- * Handles rendering templates and provides edit/archive functionality
+ * Component for displaying task templates in a table with action buttons
+ * Handles rendering templates and provides edit/archive/delete functionality
  */
 const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
   templates,
   skills,
   isLoading,
   onEditTemplate,
-  onArchiveTemplate
+  onArchiveTemplate,
+  onDeleteTemplate
 }) => {
   // Helper function to find skill name by ID
   const findSkillById = (skillId: string): string => {
@@ -44,6 +46,19 @@ const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
       console.warn(`Skill with ID ${normalizedSkillId} not found`);
       return normalizedSkillId;
     }
+  };
+
+  const handleEdit = (templateId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      onEditTemplate(template);
+    }
+  };
+
+  const handleDelete = (templateId: string, templateName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeleteTemplate(templateId, templateName);
   };
 
   if (isLoading) {
@@ -112,26 +127,14 @@ const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
               </TableCell>
               <TableCell>v{template.version}</TableCell>
               <TableCell className="text-right">
-                {!template.isArchived && (
-                  <>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => onEditTemplate(template)}
-                      title="Edit Template"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => onArchiveTemplate(template.id)}
-                      title="Archive Template"
-                    >
-                      <Archive className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
+                <TaskTemplateActions
+                  templateId={template.id}
+                  templateName={template.name}
+                  isArchived={template.isArchived}
+                  onEdit={handleEdit}
+                  onArchive={onArchiveTemplate}
+                  onDelete={handleDelete}
+                />
               </TableCell>
             </TableRow>
           ))
