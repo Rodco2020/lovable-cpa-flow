@@ -68,8 +68,10 @@ const ClientAdHocTaskList: React.FC<ClientAdHocTaskListProps> = ({
     const fetchTasks = async () => {
       setIsLoading(true);
       try {
-        const adHocTasks = await getClientAdHocTasks(clientId);
-        setTasks(adHocTasks);
+        const adHocTasksData = await getClientAdHocTasks(clientId);
+        // Extract the task instances from the data
+        const taskInstances = adHocTasksData.map(taskData => taskData.taskInstance);
+        setTasks(taskInstances);
       } catch (error) {
         console.error('Error fetching ad-hoc tasks:', error);
       } finally {

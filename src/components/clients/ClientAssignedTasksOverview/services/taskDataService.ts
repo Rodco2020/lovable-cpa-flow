@@ -88,10 +88,12 @@ export class TaskDataService {
         });
         
         // Get ad-hoc tasks
-        const adHocTasks = await this.fetchClientAdHocTasks(client.id);
+        const adHocTasksData = await this.fetchClientAdHocTasks(client.id);
         
-        // Format ad-hoc tasks
-        const formattedAdHocTasks: FormattedTask[] = adHocTasks.map(task => {
+        // Format ad-hoc tasks - extract task instance from TaskInstanceData
+        const formattedAdHocTasks: FormattedTask[] = adHocTasksData.map(taskData => {
+          const task = taskData.taskInstance; // Extract the TaskInstance from TaskInstanceData
+          
           // Collect skills and priorities for filter options
           task.requiredSkills.forEach(skill => skills.add(skill));
           priorities.add(task.priority);

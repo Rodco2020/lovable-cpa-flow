@@ -10,7 +10,7 @@ type TaskTemplateRow = Database['public']['Tables']['task_templates']['Row'];
 /**
  * Enhanced error handling for task operations
  */
-class TaskServiceError extends Error {
+export class TaskServiceError extends Error {
   constructor(message: string, public code?: string, public details?: any) {
     super(message);
     this.name = 'TaskServiceError';

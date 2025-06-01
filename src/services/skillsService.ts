@@ -18,7 +18,7 @@ export interface Skill {
 /**
  * Enhanced error handling for skills operations
  */
-class SkillsServiceError extends Error {
+export class SkillsServiceError extends Error {
   constructor(message: string, public code?: string, public details?: any) {
     super(message);
     this.name = 'SkillsServiceError';
