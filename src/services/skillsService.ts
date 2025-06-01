@@ -1,18 +1,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/types/supabase';
+import { Skill, ProficiencyLevel, SkillCategory } from '@/types/skill';
 
 type SkillRow = Database['public']['Tables']['skills']['Row'];
-
-export interface Skill {
-  id: string;
-  name: string;
-  description?: string;
-  // Remove category and proficiencyLevel since they don't exist in DB
-  costPerHour: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 /**
  * Enhanced error handling for skills operations
@@ -140,7 +131,8 @@ export const createSkill = async (skillData: Omit<Skill, 'id' | 'createdAt' | 'u
       .insert({
         name: skillData.name,
         description: skillData.description,
-        cost_per_hour: skillData.costPerHour
+        category: skillData.category,
+        proficiency_level: skillData.proficiencyLevel
       })
       .select()
       .single();
@@ -176,7 +168,8 @@ export const updateSkill = async (id: string, updates: Partial<Skill>): Promise<
       .update({
         ...(updates.name && { name: updates.name }),
         ...(updates.description !== undefined && { description: updates.description }),
-        ...(updates.costPerHour !== undefined && { cost_per_hour: updates.costPerHour })
+        ...(updates.category && { category: updates.category }),
+        ...(updates.proficiencyLevel && { proficiency_level: updates.proficiencyLevel })
       })
       .eq('id', id)
       .select()
@@ -237,9 +230,10 @@ const mapSkillFromDB = (row: SkillRow): Skill => ({
   id: row.id,
   name: row.name,
   description: row.description || undefined,
-  costPerHour: Number(row.cost_per_hour),
-  createdAt: new Date(row.created_at),
-  updatedAt: new Date(row.updated_at)
+  category: row.category as SkillCategory || undefined,
+  proficiencyLevel: row.proficiency_level as ProficiencyLevel || undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at
 });
 
 /**
@@ -249,9 +243,10 @@ const createFallbackSkill = (skillName: string): Skill => ({
   id: `fallback-${skillName.toLowerCase().replace(/\s+/g, '-')}`,
   name: skillName,
   description: `Auto-generated skill for ${skillName}`,
-  costPerHour: 50, // Default cost per hour
-  createdAt: new Date(),
-  updatedAt: new Date()
+  category: 'Other',
+  proficiencyLevel: 'Intermediate',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 });
 
 /**
@@ -262,48 +257,54 @@ const getDefaultSkills = (): Skill[] => [
     id: 'junior-staff',
     name: 'Junior Staff',
     description: 'Entry-level accounting and administrative tasks',
-    costPerHour: 25,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    category: 'Administrative',
+    proficiencyLevel: 'Beginner',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'senior-staff',
     name: 'Senior Staff',
     description: 'Advanced accounting and supervisory tasks',
-    costPerHour: 50,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    category: 'Administrative',
+    proficiencyLevel: 'Expert',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'cpa',
     name: 'CPA',
     description: 'Certified Public Accountant level expertise',
-    costPerHour: 100,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    category: 'Audit',
+    proficiencyLevel: 'Expert',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'tax-specialist',
     name: 'Tax Specialist',
     description: 'Specialized tax preparation and planning',
-    costPerHour: 75,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    category: 'Tax',
+    proficiencyLevel: 'Expert',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'audit-specialist',
     name: 'Audit Specialist',
     description: 'Financial auditing and compliance',
-    costPerHour: 80,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    category: 'Audit',
+    proficiencyLevel: 'Expert',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'bookkeeping',
     name: 'Bookkeeping',
     description: 'Basic bookkeeping and data entry',
-    costPerHour: 30,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    category: 'Bookkeeping',
+    proficiencyLevel: 'Intermediate',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];
