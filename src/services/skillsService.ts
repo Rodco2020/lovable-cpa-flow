@@ -228,7 +228,7 @@ export const deleteSkill = async (id: string): Promise<void> => {
 /**
  * Helper function to map database rows to Skill objects
  */
-const mapSkillFromDB = (row: SkillRow): Skill => ({
+const mapSkillFromDB = (row: any): Skill => ({
   id: row.id,
   name: row.name,
   description: row.description || undefined,
