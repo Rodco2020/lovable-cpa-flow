@@ -1,8 +1,9 @@
 
 import { SkillsIntegrationService } from '../forecasting/skillsIntegrationService';
+import { SkillNormalizationService } from '../skillNormalizationService';
 
 /**
- * Enhanced Skill Resolver Service
+ * Enhanced Skill Resolver Service - Updated to use centralized normalization
  * 
  * Handles the resolution of skill IDs to skill names for task creation
  * with proper normalization for forecasting compatibility.
@@ -21,9 +22,9 @@ export const resolveSkillNames = async (skillIds: string[]): Promise<string[]> =
     // Step 1: Resolve skill IDs to names using the integration service
     const resolvedNames = await SkillsIntegrationService.resolveSkillIds(skillIds);
     
-    // Step 2: Normalize the resolved names for consistency
-    const normalizedNames = resolvedNames.map(name => 
-      SkillsIntegrationService.normalizeSkill(name)
+    // Step 2: Normalize the resolved names for consistency using centralized service
+    const normalizedNames = await Promise.all(
+      resolvedNames.map(name => SkillNormalizationService.normalizeSkill(name))
     );
     
     console.log(`[Skill Resolver] Resolved ${skillIds.length} skill IDs to normalized names:`, {

@@ -18,11 +18,11 @@ const GapsTab: React.FC<GapsTabProps> = ({ forecastData, skills }) => {
           Gap Analysis
           <ForecastInfoTooltip
             title="Gap Analysis"
-            content="This table shows the difference between capacity and demand for each skill. Negative values (highlighted) indicate potential resource shortages."
+            content="This table shows the difference between capacity and demand for each skill. Negative values (highlighted) indicate potential resource shortages. Data is calculated using normalized skill mappings to ensure consistency."
           />
         </CardTitle>
         <CardDescription>
-          Identifying potential resource shortages or surpluses
+          Identifying potential resource shortages or surpluses using consistent skill mappings
         </CardDescription>
       </CardHeader>
       <CardContent>

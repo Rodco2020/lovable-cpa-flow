@@ -1,12 +1,14 @@
+
 import { getAllSkills } from '@/services/skillService';
 import { Skill } from '@/types/skill';
 import { SkillType } from '@/types/task';
+import { SkillNormalizationService } from '@/services/skillNormalizationService';
 import { debugLog } from './logger';
 
 /**
- * Skills Integration Service
+ * Skills Integration Service - Updated for Consistent Skill Resolution
  * Handles integration between database skills and forecasting skill types
- * Fixed to properly resolve skill UUIDs to names and normalize them
+ * Now uses the centralized SkillNormalizationService for all mappings
  */
 export class SkillsIntegrationService {
   private static skillsCache: Map<string, SkillType> = new Map();
@@ -36,34 +38,42 @@ export class SkillsIntegrationService {
       this.updateCache(skillTypes);
       this.updateSkillIdCache(skills);
       
+      // Also update the normalization service cache
+      await SkillNormalizationService.updateSkillMappingCache();
+      
       debugLog(`Fetched ${skillTypes.length} skills from database`);
       return skillTypes;
     } catch (error) {
       debugLog('Error fetching skills, falling back to default skills', error);
-      const fallbackSkills = this.getDefaultSkills();
+      const fallbackSkills = SkillNormalizationService.getStandardForecastSkills();
       this.updateCache(fallbackSkills);
       return fallbackSkills;
     }
   }
 
   /**
-   * Resolve skill IDs to skill names
+   * Resolve skill IDs to skill names using centralized normalization
    */
   static async resolveSkillIds(skillIds: string[]): Promise<string[]> {
     try {
       // Ensure we have the latest skill data
       await this.getAvailableSkills();
       
-      const resolvedNames = skillIds.map(skillId => {
-        const skillName = this.skillIdToNameCache.get(skillId);
-        if (skillName) {
-          debugLog(`Resolved skill ID ${skillId} -> ${skillName}`);
-          return skillName;
-        } else {
-          debugLog(`Could not resolve skill ID ${skillId}, using ID as fallback`);
-          return skillId;
-        }
-      });
+      const resolvedNames = await Promise.all(
+        skillIds.map(async (skillId) => {
+          // First try to get the actual skill name from cache
+          const skillName = this.skillIdToNameCache.get(skillId);
+          if (skillName) {
+            debugLog(`Resolved skill ID ${skillId} -> ${skillName}`);
+            return skillName;
+          } else {
+            // If not found, try to resolve using normalization service
+            const normalizedSkill = await SkillNormalizationService.resolveSkillId(skillId);
+            debugLog(`Could not resolve skill ID ${skillId}, using normalized: ${normalizedSkill}`);
+            return normalizedSkill;
+          }
+        })
+      );
 
       return resolvedNames;
     } catch (error) {
@@ -73,12 +83,12 @@ export class SkillsIntegrationService {
   }
 
   /**
-   * Convert database Skill objects to SkillType strings with normalization
+   * Convert database Skill objects to SkillType strings using centralized normalization
    */
   private static convertSkillsToSkillTypes(skills: Skill[]): SkillType[] {
     const skillTypes = skills
       .filter(skill => skill.name && skill.name.trim().length > 0)
-      .map(skill => this.normalizeSkillName(skill.name))
+      .map(skill => SkillNormalizationService.normalizeSkill(skill.name))
       .filter((skill, index, array) => array.indexOf(skill) === index) // Remove duplicates
       .sort();
 
@@ -86,59 +96,17 @@ export class SkillsIntegrationService {
 
     // Ensure we have some standard skills if database is empty
     if (skillTypes.length === 0) {
-      return this.getDefaultSkills();
+      return SkillNormalizationService.getStandardForecastSkills();
     }
 
     return skillTypes;
   }
 
   /**
-   * Normalize skill names to ensure consistency with matrix expectations
-   */
-  private static normalizeSkillName(skillName: string): SkillType {
-    const normalized = skillName.trim();
-
-    // Enhanced mapping to handle database names -> matrix display names
-    const skillMappings: Record<string, SkillType> = {
-      // Handle both variations for Junior
-      'junior': 'Junior Staff',
-      'junior staff': 'Junior Staff',
-      
-      // Handle both variations for Senior  
-      'senior': 'Senior Staff',
-      'senior staff': 'Senior Staff',
-      
-      // CPA mappings
-      'cpa': 'CPA',
-      'certified public accountant': 'CPA',
-      
-      // Other skill mappings
-      'tax prep': 'Tax Preparation',
-      'tax preparation': 'Tax Preparation',
-      'audit': 'Audit',
-      'auditing': 'Audit',
-      'advisory': 'Advisory',
-      'bookkeeping': 'Bookkeeping',
-      'accounting': 'Accounting'
-    };
-
-    const lowerNormalized = normalized.toLowerCase();
-    const mappedSkill = skillMappings[lowerNormalized];
-
-    if (mappedSkill) {
-      debugLog(`Mapped skill "${skillName}" -> "${mappedSkill}"`);
-      return mappedSkill;
-    } else {
-      debugLog(`No mapping for skill "${skillName}", using normalized version`);
-      return normalized as SkillType;
-    }
-  }
-
-  /**
-   * Public wrapper for skill normalization
+   * Public wrapper for skill normalization - now uses centralized service
    */
   static normalizeSkill(skillName: string): SkillType {
-    return this.normalizeSkillName(skillName);
+    return SkillNormalizationService.normalizeSkill(skillName);
   }
 
   /**
@@ -174,27 +142,13 @@ export class SkillsIntegrationService {
   }
 
   /**
-   * Get default skills as fallback with consistent naming
-   */
-  private static getDefaultSkills(): SkillType[] {
-    return [
-      'Junior Staff',
-      'Senior Staff', 
-      'CPA',
-      'Tax Preparation',
-      'Audit',
-      'Advisory',
-      'Bookkeeping'
-    ] as SkillType[];
-  }
-
-  /**
    * Clear skills cache
    */
   static clearCache(): void {
     this.skillsCache.clear();
     this.skillIdToNameCache.clear();
     this.lastCacheUpdate = 0;
+    SkillNormalizationService.clearCache();
   }
 
   /**
@@ -213,7 +167,7 @@ export class SkillsIntegrationService {
     const normalized: SkillType[] = [];
 
     skills.forEach(skill => {
-      const normalizedSkill = this.normalizeSkillName(skill);
+      const normalizedSkill = SkillNormalizationService.normalizeSkill(skill);
       
       if (availableSkillsSet.has(normalizedSkill)) {
         valid.push(normalizedSkill);
@@ -238,7 +192,7 @@ export class SkillsIntegrationService {
     
     // Filter and normalize matrix skills to match available skills
     const normalizedSkills = matrixSkills
-      .map(skill => this.normalizeSkillName(skill))
+      .map(skill => SkillNormalizationService.normalizeSkill(skill))
       .filter(skill => availableSkillsSet.has(skill))
       .filter((skill, index, array) => array.indexOf(skill) === index); // Remove duplicates
 

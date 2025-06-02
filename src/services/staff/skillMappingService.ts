@@ -1,14 +1,14 @@
 
-import { normalizeSkills } from '@/services/skillNormalizationService';
+import { SkillNormalizationService } from '@/services/skillNormalizationService';
 import { SkillType } from '@/types/task';
 
 /**
- * Skill Mapping Service
+ * Skill Mapping Service - Updated to use centralized normalization
  * Handles mapping and normalization of staff skills for consistent forecasting
  */
 
 /**
- * Map staff skills to forecast skill types
+ * Map staff skills to forecast skill types using centralized normalization
  */
 export const mapStaffSkillsToForecastSkills = async (staffSkills: string[], staffId?: string): Promise<SkillType[]> => {
   if (!staffSkills || staffSkills.length === 0) {
@@ -16,8 +16,8 @@ export const mapStaffSkillsToForecastSkills = async (staffSkills: string[], staf
   }
 
   try {
-    // Use the skill normalization service to handle the mapping
-    const normalizedSkills = await normalizeSkills(staffSkills, staffId);
+    // Use the centralized skill normalization service
+    const normalizedSkills = await SkillNormalizationService.normalizeSkills(staffSkills, staffId);
     return normalizedSkills;
   } catch (error) {
     console.error('Error mapping staff skills:', error);
