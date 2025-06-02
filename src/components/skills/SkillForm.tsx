@@ -1,13 +1,13 @@
 
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Skill, ProficiencyLevel, SkillCategory } from "@/types/skill";
-import { getSkillById, createSkill, updateSkill } from "@/services/skillService";
-import { toast } from "@/hooks/use-toast";
+import { getSkillById, createSkill, updateSkill } from "@/services/skills/skillsService";
+import { toast } from "sonner";
 import {
   Form,
   FormControl,
@@ -40,6 +40,7 @@ type FormValues = z.infer<typeof skillSchema>;
 const SkillForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEditMode = Boolean(id);
 
   const { data: existingSkill, isLoading: isLoadingSkill } = useQuery({
@@ -67,44 +68,66 @@ const SkillForm: React.FC = () => {
     } : undefined,
   });
 
-  const onSubmit = async (data: FormValues) => {
-    try {
-      // Ensure we have a name (the schema validation should guarantee this)
-      const skillData = {
-        name: data.name, // This is required by the schema
-        description: data.description,
-        proficiencyLevel: data.proficiencyLevel,
-        category: data.category,
-      };
-      
-      if (isEditMode && id) {
-        await updateSkill(id, skillData);
-        toast({
-          title: "Skill updated",
-          description: "The skill has been updated successfully.",
-        });
-      } else {
-        await createSkill(skillData);
-        toast({
-          title: "Skill created",
-          description: "The new skill has been created successfully.",
-        });
-      }
+  const createMutation = useMutation({
+    mutationFn: createSkill,
+    onSuccess: () => {
+      toast.success("Skill created successfully");
+      queryClient.invalidateQueries({ queryKey: ["skills"] });
       navigate("/skills");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to ${isEditMode ? "update" : "create"} skill. Please try again.`,
-        variant: "destructive",
-      });
+    },
+    onError: (error) => {
+      console.error("Failed to create skill:", error);
+      toast.error("Failed to create skill. Please try again.");
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: FormValues }) => updateSkill(id, data),
+    onSuccess: () => {
+      toast.success("Skill updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["skills"] });
+      queryClient.invalidateQueries({ queryKey: ["skill", id] });
+      navigate("/skills");
+    },
+    onError: (error) => {
+      console.error("Failed to update skill:", error);
+      toast.error("Failed to update skill. Please try again.");
+    }
+  });
+
+  const onSubmit = async (data: FormValues) => {
+    const skillData = {
+      name: data.name,
+      description: data.description,
+      proficiencyLevel: data.proficiencyLevel,
+      category: data.category,
+    };
+    
+    if (isEditMode && id) {
+      updateMutation.mutate({ id, data: skillData });
+    } else {
+      createMutation.mutate(skillData);
     }
   };
+
+  const isLoading = createMutation.isPending || updateMutation.isPending;
 
   const categories: SkillCategory[] = ["Tax", "Audit", "Advisory", "Bookkeeping", "Compliance", "Administrative", "Other"];
   const proficiencyLevels: ProficiencyLevel[] = ["Beginner", "Intermediate", "Expert"];
 
   if (isEditMode && isLoadingSkill) {
     return <div className="text-center py-8">Loading skill data...</div>;
+  }
+
+  if (isEditMode && !existingSkill) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-500 mb-4">Skill not found</div>
+        <Button variant="secondary" onClick={() => navigate("/skills")}>
+          Back to Skills List
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -211,11 +234,19 @@ const SkillForm: React.FC = () => {
             />
 
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => navigate("/skills")}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => navigate("/skills")}
+                disabled={isLoading}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
-                {isEditMode ? "Update Skill" : "Create Skill"}
+              <Button type="submit" disabled={isLoading}>
+                {isLoading 
+                  ? (isEditMode ? "Updating..." : "Creating...") 
+                  : (isEditMode ? "Update Skill" : "Create Skill")
+                }
               </Button>
             </div>
           </form>

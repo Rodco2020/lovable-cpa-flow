@@ -1,9 +1,9 @@
 
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { getSkillById, deleteSkill } from "@/services/skillService";
-import { toast } from "@/hooks/use-toast";
+import { getSkillById, deleteSkill } from "@/services/skills/skillsService";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -12,6 +12,7 @@ import { Pencil, Trash } from "lucide-react";
 const SkillDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: skill, isLoading, error } = useQuery({
     queryKey: ["skill", id],
@@ -25,23 +26,22 @@ const SkillDetail: React.FC = () => {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteSkill,
+    onSuccess: () => {
+      toast.success("Skill deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["skills"] });
+      navigate("/skills");
+    },
+    onError: (error) => {
+      console.error("Failed to delete skill:", error);
+      toast.error("Failed to delete the skill. Please try again.");
+    }
+  });
+
   const handleDelete = async () => {
     if (!id) return;
-    
-    try {
-      await deleteSkill(id);
-      toast({
-        title: "Skill deleted",
-        description: "The skill has been successfully removed."
-      });
-      navigate("/skills");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete the skill. Please try again.",
-        variant: "destructive"
-      });
-    }
+    deleteMutation.mutate(id);
   };
 
   if (isLoading) {
@@ -74,8 +74,9 @@ const SkillDetail: React.FC = () => {
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash className="mr-2 h-4 w-4" /> Delete
+              <Button variant="destructive" disabled={deleteMutation.isPending}>
+                <Trash className="mr-2 h-4 w-4" /> 
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -87,8 +88,12 @@ const SkillDetail: React.FC = () => {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                  Delete
+                <AlertDialogAction 
+                  onClick={handleDelete} 
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

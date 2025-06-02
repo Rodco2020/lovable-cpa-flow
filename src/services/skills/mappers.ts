@@ -1,32 +1,31 @@
 
-import { Skill, ProficiencyLevel, SkillCategory } from '@/types/skill';
+import { Skill } from '@/types/skill';
+import { SkillRow } from './types';
 
 /**
- * Maps database row to Skill object with proper type conversions
- * @param row - Raw database row data
- * @returns Mapped Skill object
+ * Skills Data Mappers
+ * 
+ * Handles transformation between database rows and application models.
+ * This provides a clean abstraction layer and makes it easy to adapt
+ * to schema changes without affecting the rest of the application.
  */
-export const mapSkillFromDB = (row: any): Skill => ({
+
+export const mapSkillFromDB = (row: SkillRow): Skill => ({
   id: row.id,
   name: row.name,
   description: row.description || undefined,
-  category: (row.category as SkillCategory) || undefined,
-  proficiencyLevel: (row.proficiency_level as ProficiencyLevel) || undefined,
+  proficiencyLevel: row.proficiency_level || undefined,
+  category: row.category || undefined,
   createdAt: row.created_at,
-  updatedAt: row.updated_at
+  updatedAt: row.updated_at,
 });
 
-/**
- * Creates fallback skill object when skill resolution fails
- * @param skillName - Name of the skill to create fallback for
- * @returns Fallback Skill object
- */
 export const createFallbackSkill = (skillName: string): Skill => ({
   id: `fallback-${skillName.toLowerCase().replace(/\s+/g, '-')}`,
   name: skillName,
-  description: `Auto-generated skill for ${skillName}`,
+  description: `Fallback skill created for: ${skillName}`,
+  proficiencyLevel: 'Beginner',
   category: 'Other',
-  proficiencyLevel: 'Intermediate',
   createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+  updatedAt: new Date().toISOString(),
 });

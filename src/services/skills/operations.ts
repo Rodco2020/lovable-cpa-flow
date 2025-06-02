@@ -1,155 +1,204 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { Skill } from '@/types/skill';
-import { SkillsServiceError, SkillCreateData, SkillUpdateData } from './types';
-import { mapSkillFromDB } from './mappers';
+import { supabase } from "@/lib/supabaseClient";
+import { Skill } from "@/types/skill";
+import { SkillsServiceError, SkillCreateData, SkillUpdateData, SkillRow } from "./types";
+import { mapSkillFromDB } from "./mappers";
 
 /**
- * Database operations for skills
- * Handles direct CRUD operations with Supabase
+ * Database Operations for Skills Service
+ * 
+ * This module handles all direct database interactions for the skills system,
+ * providing a clean abstraction layer over Supabase operations.
  */
 
-/**
- * Fetches all skills from database with error handling
- * @returns Promise<Skill[]> - Array of skills or empty array on error
- */
 export const fetchAllSkillsFromDB = async (): Promise<Skill[]> => {
-  console.log('Fetching all skills from database...');
-  
-  const { data, error } = await supabase
-    .from('skills')
-    .select('*')
-    .order('name');
-
-  if (error) {
-    console.error('Database error fetching skills:', error);
+  try {
+    const { data, error } = await supabase
+      .from("skills")
+      .select("*")
+      .order("name");
+    
+    if (error) {
+      throw new SkillsServiceError(
+        `Database error fetching skills: ${error.message}`,
+        'DATABASE_ERROR',
+        error
+      );
+    }
+    
+    return data?.map(mapSkillFromDB) || [];
+  } catch (error) {
+    if (error instanceof SkillsServiceError) {
+      throw error;
+    }
     throw new SkillsServiceError(
-      `Failed to fetch skills: ${error.message}`,
-      error.code,
-      error.details
+      'Unexpected error fetching skills from database',
+      'UNKNOWN_ERROR',
+      error
     );
   }
-
-  if (!data) {
-    return [];
-  }
-
-  const skills = data.map(mapSkillFromDB);
-  console.log(`Successfully fetched ${skills.length} skills from database`);
-  return skills;
 };
 
-/**
- * Fetches single skill by ID from database
- * @param id - Skill ID to fetch
- * @returns Promise<Skill | null> - Skill object or null if not found
- */
 export const fetchSkillByIdFromDB = async (id: string): Promise<Skill | null> => {
-  console.log('Fetching skill by ID from database:', id);
-  
-  const { data, error } = await supabase
-    .from('skills')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) {
-    console.error('Database error fetching skill by ID:', error);
+  try {
+    const { data, error } = await supabase
+      .from("skills")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    
+    if (error) {
+      throw new SkillsServiceError(
+        `Database error fetching skill ${id}: ${error.message}`,
+        'DATABASE_ERROR',
+        error
+      );
+    }
+    
+    return data ? mapSkillFromDB(data) : null;
+  } catch (error) {
+    if (error instanceof SkillsServiceError) {
+      throw error;
+    }
     throw new SkillsServiceError(
-      `Failed to fetch skill: ${error.message}`,
-      error.code,
-      error.details
+      `Unexpected error fetching skill ${id} from database`,
+      'UNKNOWN_ERROR',
+      error
     );
   }
-
-  return data ? mapSkillFromDB(data) : null;
 };
 
-/**
- * Creates new skill in database
- * @param skillData - Skill data to create
- * @returns Promise<Skill> - Created skill object
- */
 export const createSkillInDB = async (skillData: SkillCreateData): Promise<Skill> => {
-  console.log('Creating skill in database:', skillData);
-  
-  const { data, error } = await supabase
-    .from('skills')
-    .insert({
+  try {
+    const insertData = {
       name: skillData.name,
-      description: skillData.description,
-      category: skillData.category,
-      proficiency_level: skillData.proficiencyLevel,
+      description: skillData.description || null,
+      category: skillData.category || null,
+      proficiency_level: skillData.proficiencyLevel || null,
       cost_per_hour: 50.00 // Default value
-    })
-    .select()
-    .single();
+    };
 
-  if (error) {
-    console.error('Database error creating skill:', error);
+    const { data, error } = await supabase
+      .from("skills")
+      .insert(insertData)
+      .select()
+      .single();
+    
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        throw new SkillsServiceError(
+          `A skill with the name "${skillData.name}" already exists`,
+          'DUPLICATE_SKILL',
+          error
+        );
+      }
+      throw new SkillsServiceError(
+        `Database error creating skill: ${error.message}`,
+        'DATABASE_ERROR',
+        error
+      );
+    }
+    
+    if (!data) {
+      throw new SkillsServiceError(
+        'No data returned after creating skill',
+        'DATABASE_ERROR'
+      );
+    }
+    
+    return mapSkillFromDB(data);
+  } catch (error) {
+    if (error instanceof SkillsServiceError) {
+      throw error;
+    }
     throw new SkillsServiceError(
-      `Failed to create skill: ${error.message}`,
-      error.code,
-      error.details
+      'Unexpected error creating skill in database',
+      'UNKNOWN_ERROR',
+      error
     );
   }
-
-  return mapSkillFromDB(data);
 };
 
-/**
- * Updates existing skill in database
- * @param id - Skill ID to update
- * @param updates - Partial skill data to update
- * @returns Promise<Skill> - Updated skill object
- */
 export const updateSkillInDB = async (id: string, updates: SkillUpdateData): Promise<Skill> => {
-  console.log('Updating skill in database:', id, updates);
-  
-  const updateData: any = {};
-  if (updates.name) updateData.name = updates.name;
-  if (updates.description !== undefined) updateData.description = updates.description;
-  if (updates.category) updateData.category = updates.category;
-  if (updates.proficiencyLevel) updateData.proficiency_level = updates.proficiencyLevel;
-  
-  const { data, error } = await supabase
-    .from('skills')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    const updateData: Partial<SkillRow> = {};
+    
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.proficiencyLevel !== undefined) updateData.proficiency_level = updates.proficiencyLevel;
 
-  if (error) {
-    console.error('Database error updating skill:', error);
+    const { data, error } = await supabase
+      .from("skills")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new SkillsServiceError(
+          `Skill with ID ${id} not found`,
+          'SKILL_NOT_FOUND',
+          error
+        );
+      }
+      if (error.code === '23505') { // Unique constraint violation
+        throw new SkillsServiceError(
+          `A skill with the name "${updates.name}" already exists`,
+          'DUPLICATE_SKILL',
+          error
+        );
+      }
+      throw new SkillsServiceError(
+        `Database error updating skill ${id}: ${error.message}`,
+        'DATABASE_ERROR',
+        error
+      );
+    }
+    
+    if (!data) {
+      throw new SkillsServiceError(
+        `No data returned after updating skill ${id}`,
+        'DATABASE_ERROR'
+      );
+    }
+    
+    return mapSkillFromDB(data);
+  } catch (error) {
+    if (error instanceof SkillsServiceError) {
+      throw error;
+    }
     throw new SkillsServiceError(
-      `Failed to update skill: ${error.message}`,
-      error.code,
-      error.details
+      `Unexpected error updating skill ${id} in database`,
+      'UNKNOWN_ERROR',
+      error
     );
   }
-
-  return mapSkillFromDB(data);
 };
 
-/**
- * Deletes skill from database
- * @param id - Skill ID to delete
- * @returns Promise<void>
- */
 export const deleteSkillFromDB = async (id: string): Promise<void> => {
-  console.log('Deleting skill from database:', id);
-  
-  const { error } = await supabase
-    .from('skills')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    console.error('Database error deleting skill:', error);
+  try {
+    const { error } = await supabase
+      .from("skills")
+      .delete()
+      .eq("id", id);
+    
+    if (error) {
+      throw new SkillsServiceError(
+        `Database error deleting skill ${id}: ${error.message}`,
+        'DATABASE_ERROR',
+        error
+      );
+    }
+  } catch (error) {
+    if (error instanceof SkillsServiceError) {
+      throw error;
+    }
     throw new SkillsServiceError(
-      `Failed to delete skill: ${error.message}`,
-      error.code,
-      error.details
+      `Unexpected error deleting skill ${id} from database`,
+      'UNKNOWN_ERROR',
+      error
     );
   }
 };
