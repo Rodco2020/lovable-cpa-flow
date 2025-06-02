@@ -7,6 +7,8 @@ import { Skill } from '@/types/skill';
  * This file provides fallback skills that are critical for the CPA Practice Management
  * System to function properly. These skills serve as defaults when the database is
  * unavailable or when skills are accidentally deleted.
+ * 
+ * Updated to match the actual skill names in the database.
  */
 
 /**
@@ -16,7 +18,7 @@ import { Skill } from '@/types/skill';
 export const getDefaultSkills = (): Skill[] => [
   {
     id: 'cpa-skill',
-    name: 'CPA Skill',
+    name: 'CPA',
     description: 'Certified Public Accountant with advanced accounting and auditing expertise',
     category: 'Audit',
     proficiencyLevel: 'Expert',
@@ -25,7 +27,7 @@ export const getDefaultSkills = (): Skill[] => [
   },
   {
     id: 'senior-staff-skill',
-    name: 'Senior Skill',
+    name: 'Senior',
     description: 'Experienced accounting professional with supervisory capabilities',
     category: 'Tax',
     proficiencyLevel: 'Intermediate',
@@ -34,7 +36,7 @@ export const getDefaultSkills = (): Skill[] => [
   },
   {
     id: 'junior-staff-skill',
-    name: 'Junior Skill',
+    name: 'Junior',
     description: 'Entry-level accounting professional with basic competencies',
     category: 'Bookkeeping',
     proficiencyLevel: 'Beginner',
@@ -95,7 +97,7 @@ export const getDefaultSkills = (): Skill[] => [
 export const getCriticalSkills = (): Skill[] => {
   const allDefaults = getDefaultSkills();
   return allDefaults.filter(skill => 
-    ['CPA Skill', 'Senior Skill', 'Junior Skill'].includes(skill.name)
+    ['CPA', 'Senior', 'Junior'].includes(skill.name)
   );
 };
 
@@ -103,7 +105,7 @@ export const getCriticalSkills = (): Skill[] => {
  * Check if a skill is considered critical for system operation
  */
 export const isCriticalSkill = (skillName: string): boolean => {
-  return ['CPA Skill', 'Senior Skill', 'Junior Skill'].includes(skillName);
+  return ['CPA', 'Senior', 'Junior'].includes(skillName);
 };
 
 /**
@@ -121,7 +123,7 @@ export const validateCriticalSkillsPresent = (skills: Skill[]): {
   isValid: boolean;
   missingSkills: string[];
 } => {
-  const criticalSkillNames = ['CPA Skill', 'Senior Skill', 'Junior Skill'];
+  const criticalSkillNames = ['CPA', 'Senior', 'Junior'];
   const presentSkillNames = skills.map(skill => skill.name);
   const missingSkills = criticalSkillNames.filter(name => 
     !presentSkillNames.includes(name)
