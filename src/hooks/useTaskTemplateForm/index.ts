@@ -21,7 +21,7 @@ export function useTaskTemplateForm(initialTemplate: TaskTemplate | null = null)
     updateField,
   } = useTaskTemplateFormState(initialTemplate);
 
-  // Skill operations
+  // Skill operations - now using the correct FormState type
   const {
     handleSkillChange,
     isSkillSelected,

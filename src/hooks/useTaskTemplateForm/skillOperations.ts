@@ -1,121 +1,82 @@
 
-import { TaskTemplate } from '@/types/task';
 import { useCallback } from 'react';
+import { Skill } from '@/types/skill';
 
-/**
- * Custom hook for managing skill-related operations in task template forms
- * Handles skill selection, validation, and cleanup logic
- */
+interface FormState {
+  name: string;
+  description: string;
+  defaultEstimatedHours: number;
+  requiredSkills: string[];
+  defaultPriority: string;
+  category: string;
+}
+
+interface UseSkillOperationsProps {
+  formData: FormState;
+  setFormData: React.Dispatch<React.SetStateAction<FormState>>;
+}
+
 export function useSkillOperations(
-  formData: Partial<TaskTemplate>,
-  setFormData: (updater: (prev: Partial<TaskTemplate>) => Partial<TaskTemplate>) => void
+  formData: FormState,
+  setFormData: React.Dispatch<React.SetStateAction<FormState>>
 ) {
-  // Handle skill selection/deselection with enhanced debugging
   const handleSkillChange = useCallback((skillId: string, checked: boolean) => {
-    // Ensure skillId is a string and normalize it
-    const normalizedSkillId = String(skillId).trim();
-    
-    // Get current skills (or empty array if undefined)
-    const currentSkills = formData.requiredSkills || [];
-    
-    console.log('skillOperations: Skill change requested:', {
-      skillId: normalizedSkillId,
-      checked,
-      currentSkills,
-      formDataSnapshot: { ...formData }
-    });
-    
-    let updatedSkills: string[];
-    if (checked) {
-      // Add skill only if it doesn't already exist
-      if (!currentSkills.some(s => String(s).trim() === normalizedSkillId)) {
-        updatedSkills = [...currentSkills, normalizedSkillId];
-        console.log('skillOperations: Adding skill:', normalizedSkillId, '-> updated skills:', updatedSkills);
-      } else {
-        updatedSkills = [...currentSkills];
-        console.log('skillOperations: Skill already exists, no change needed');
-      }
-    } else {
-      // Remove skill
-      updatedSkills = currentSkills.filter(s => String(s).trim() !== normalizedSkillId);
-      console.log('skillOperations: Removing skill:', normalizedSkillId, '-> updated skills:', updatedSkills);
-    }
-    
-    // Update form data with new skills array
+    console.log('SkillOperations: Handling skill change:', { skillId, checked });
     setFormData(prev => {
-      const updated = {
-        ...prev,
-        requiredSkills: updatedSkills
-      };
-      console.log('skillOperations: Form data updated:', {
-        previous: prev,
-        updated: updated
+      const currentSkills = prev.requiredSkills || [];
+      let updatedSkills: string[];
+      
+      if (checked) {
+        // Add skill if not already present
+        updatedSkills = currentSkills.includes(skillId) 
+          ? currentSkills 
+          : [...currentSkills, skillId];
+      } else {
+        // Remove skill
+        updatedSkills = currentSkills.filter(id => id !== skillId);
+      }
+      
+      const updated = { ...prev, requiredSkills: updatedSkills };
+      console.log('SkillOperations: Updated skills:', { 
+        oldSkills: currentSkills, 
+        newSkills: updatedSkills,
+        formData: updated
       });
       return updated;
     });
-  }, [formData, setFormData]);
+  }, [setFormData]);
 
-  // Helper function to check if a skill is selected with enhanced debugging
   const isSkillSelected = useCallback((skillId: string): boolean => {
-    if (!formData.requiredSkills) {
-      console.log('skillOperations: No required skills in form data');
-      return false;
-    }
-    
-    // Convert skill ID to string for comparison
-    const normalizedSkillId = String(skillId).trim();
-    
-    // Check if the skill is in the current selection
-    const isSelected = formData.requiredSkills.some(
-      selectedId => String(selectedId).trim() === normalizedSkillId
-    );
-    
-    console.log('skillOperations: Checking skill selection:', {
-      skillId: normalizedSkillId,
-      currentSkills: formData.requiredSkills,
-      isSelected
-    });
-    
-    return isSelected;
+    const selected = (formData.requiredSkills || []).includes(skillId);
+    console.log('SkillOperations: Checking if skill selected:', { skillId, selected });
+    return selected;
   }, [formData.requiredSkills]);
 
-  // Get all skills that are stored but don't match available skills
-  const getUnmatchedSkills = useCallback((availableSkills: Array<{id: string, name: string}>) => {
-    if (!formData.requiredSkills) return [];
+  const getUnmatchedSkills = useCallback((availableSkills: Array<{id: string, name: string}>): string[] => {
+    const availableSkillIds = new Set(availableSkills.map(skill => skill.id));
+    const unmatchedSkills = (formData.requiredSkills || []).filter(skillId => !availableSkillIds.has(skillId));
     
-    const availableSkillIds = availableSkills.map(skill => String(skill.id).trim());
-    const unmatchedSkills = formData.requiredSkills.filter(
-      skillId => !availableSkillIds.includes(String(skillId).trim())
-    );
-    
-    console.log('skillOperations: Unmatched skills analysis:', {
-      availableSkillIds,
-      formSkills: formData.requiredSkills,
+    console.log('SkillOperations: Finding unmatched skills:', {
+      availableSkillIds: Array.from(availableSkillIds),
+      requiredSkills: formData.requiredSkills,
       unmatchedSkills
     });
     
     return unmatchedSkills;
   }, [formData.requiredSkills]);
 
-  // Clean up skills to remove any that don't exist in the available skills
-  const cleanupSkills = useCallback((availableSkills: Array<{id: string, name: string}>) => {
-    if (!formData.requiredSkills) return;
+  const cleanupSkills = useCallback((availableSkills: Array<{id: string, name: string}>): void => {
+    const availableSkillIds = new Set(availableSkills.map(skill => skill.id));
+    const cleanedSkills = (formData.requiredSkills || []).filter(skillId => availableSkillIds.has(skillId));
     
-    const availableSkillIds = availableSkills.map(skill => String(skill.id).trim());
-    const validSkills = formData.requiredSkills.filter(
-      skillId => availableSkillIds.includes(String(skillId).trim())
-    );
-    
-    if (validSkills.length !== formData.requiredSkills.length) {
-      console.log('skillOperations: Cleaning up skills:', {
-        before: formData.requiredSkills,
-        after: validSkills,
-        removed: formData.requiredSkills.filter(s => !validSkills.includes(s))
+    if (cleanedSkills.length !== (formData.requiredSkills || []).length) {
+      console.log('SkillOperations: Cleaning up invalid skills:', {
+        originalSkills: formData.requiredSkills,
+        cleanedSkills,
+        removedSkills: (formData.requiredSkills || []).filter(skillId => !availableSkillIds.has(skillId))
       });
-      setFormData(prev => ({
-        ...prev,
-        requiredSkills: validSkills
-      }));
+      
+      setFormData(prev => ({ ...prev, requiredSkills: cleanedSkills }));
     }
   }, [formData.requiredSkills, setFormData]);
 
