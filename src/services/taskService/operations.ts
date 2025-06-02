@@ -57,6 +57,111 @@ export const createTaskTemplate = async (templateData: Omit<TaskTemplate, 'id' |
 };
 
 /**
+ * Update task template with enhanced validation and error handling
+ */
+export const updateTaskTemplate = async (id: string, updates: Partial<Omit<TaskTemplate, 'id' | 'createdAt' | 'updatedAt' | 'version'>>): Promise<TaskTemplate> => {
+  try {
+    console.log('Updating task template:', id, updates);
+    
+    // Build the update object dynamically
+    const updateData: any = {};
+    
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.defaultEstimatedHours !== undefined) updateData.default_estimated_hours = updates.defaultEstimatedHours;
+    if (updates.requiredSkills !== undefined) updateData.required_skills = updates.requiredSkills;
+    if (updates.defaultPriority !== undefined) updateData.default_priority = updates.defaultPriority;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.isArchived !== undefined) updateData.is_archived = updates.isArchived;
+
+    const { data, error } = await supabase
+      .from('task_templates')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating task template:', error);
+      if (error.code === 'PGRST116') {
+        throw new TaskServiceError(
+          `Task template with ID ${id} not found`,
+          'TEMPLATE_NOT_FOUND',
+          error
+        );
+      }
+      throw new TaskServiceError(
+        `Failed to update task template: ${error.message}`,
+        error.code,
+        error.details
+      );
+    }
+
+    if (!data) {
+      throw new TaskServiceError(
+        `No data returned after updating task template ${id}`,
+        'DATABASE_ERROR'
+      );
+    }
+
+    return mapTaskTemplateFromDB(data);
+  } catch (error) {
+    console.error('Task template update failed:', error);
+    if (error instanceof TaskServiceError) {
+      throw error;
+    }
+    throw new TaskServiceError('Unexpected error updating task template', 'UNKNOWN_ERROR', error);
+  }
+};
+
+/**
+ * Archive task template with enhanced validation
+ */
+export const archiveTaskTemplate = async (id: string): Promise<TaskTemplate> => {
+  try {
+    console.log('Archiving task template:', id);
+    
+    const { data, error } = await supabase
+      .from('task_templates')
+      .update({ is_archived: true })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error archiving task template:', error);
+      if (error.code === 'PGRST116') {
+        throw new TaskServiceError(
+          `Task template with ID ${id} not found`,
+          'TEMPLATE_NOT_FOUND',
+          error
+        );
+      }
+      throw new TaskServiceError(
+        `Failed to archive task template: ${error.message}`,
+        error.code,
+        error.details
+      );
+    }
+
+    if (!data) {
+      throw new TaskServiceError(
+        `No data returned after archiving task template ${id}`,
+        'DATABASE_ERROR'
+      );
+    }
+
+    return mapTaskTemplateFromDB(data);
+  } catch (error) {
+    console.error('Task template archiving failed:', error);
+    if (error instanceof TaskServiceError) {
+      throw error;
+    }
+    throw new TaskServiceError('Unexpected error archiving task template', 'UNKNOWN_ERROR', error);
+  }
+};
+
+/**
  * Create a recurring task with enhanced validation and error handling
  */
 export const createRecurringTask = async (taskData: Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<RecurringTask> => {

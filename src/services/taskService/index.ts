@@ -19,5 +19,7 @@ export {
   deleteRecurringTaskAssignment,
   deleteTaskInstance,
   createTaskTemplate,
+  updateTaskTemplate,
+  archiveTaskTemplate,
   TaskServiceError
 } from './operations';

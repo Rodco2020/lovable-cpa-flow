@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTaskTemplates, createTaskTemplate } from '@/services/taskService';
-import { getAllSkills } from '@/services/skillsService';
+import { getTaskTemplates, createTaskTemplate, updateTaskTemplate, archiveTaskTemplate } from '@/services/taskService';
+import { getAllSkills } from '@/services/skills/skillsService';
 import { useToast } from '@/hooks/use-toast';
 import TaskTemplateTable from './TaskTemplateTable';
 import TaskTemplateDialog from './TaskTemplateDialog';
@@ -54,6 +54,46 @@ const TaskTemplateManagement: React.FC = () => {
     },
   });
 
+  const updateTemplateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) => updateTaskTemplate(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-templates'] });
+      toast({
+        title: 'Success',
+        description: 'Task template updated successfully',
+      });
+      setIsDialogOpen(false);
+      setEditingTemplate(null);
+    },
+    onError: (error) => {
+      console.error('Error updating template:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update task template',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const archiveTemplateMutation = useMutation({
+    mutationFn: archiveTaskTemplate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-templates'] });
+      toast({
+        title: 'Success',
+        description: 'Task template archived successfully',
+      });
+    },
+    onError: (error) => {
+      console.error('Error archiving template:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to archive task template',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Event handlers
   const handleCreateNew = () => {
     setEditingTemplate(null);
@@ -66,11 +106,11 @@ const TaskTemplateManagement: React.FC = () => {
   };
 
   const handleArchiveTemplate = async (templateId: string) => {
-    console.log('Archive template:', templateId);
-    toast({
-      title: 'Info',
-      description: 'Archive functionality will be implemented soon',
-    });
+    try {
+      await archiveTemplateMutation.mutateAsync(templateId);
+    } catch (error) {
+      // Error handling is done in the mutation onError callback
+    }
   };
 
   const handleDeleteTemplate = async (templateId: string, templateName: string) => {
@@ -84,12 +124,7 @@ const TaskTemplateManagement: React.FC = () => {
   const handleSubmit = async (submissionData: any, isEditing: boolean, templateId?: string) => {
     try {
       if (isEditing && templateId) {
-        // TODO: Implement update functionality
-        console.log('Update template:', templateId, submissionData);
-        toast({
-          title: 'Info',
-          description: 'Update functionality will be implemented soon',
-        });
+        await updateTemplateMutation.mutateAsync({ id: templateId, updates: submissionData });
       } else {
         await createTemplateMutation.mutateAsync(submissionData);
       }
