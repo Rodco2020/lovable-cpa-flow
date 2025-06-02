@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { ArrowLeft } from "lucide-react";
 
 // Define the schema with required name field
 const skillSchema = z.object({
@@ -43,13 +44,17 @@ const SkillForm: React.FC = () => {
   const queryClient = useQueryClient();
   const isEditMode = Boolean(id);
 
-  const { data: existingSkill, isLoading: isLoadingSkill } = useQuery({
+  const { data: existingSkill, isLoading: isLoadingSkill, error: loadError } = useQuery({
     queryKey: ["skill", id],
     queryFn: async () => {
       if (!id) return null;
-      return getSkillById(id);
+      console.log("Loading skill for edit:", id);
+      const skill = await getSkillById(id);
+      console.log("Loaded skill:", skill);
+      return skill;
     },
     enabled: isEditMode,
+    retry: false
   });
 
   const form = useForm<FormValues>({
@@ -73,6 +78,7 @@ const SkillForm: React.FC = () => {
     onSuccess: () => {
       toast.success("Skill created successfully");
       queryClient.invalidateQueries({ queryKey: ["skills"] });
+      queryClient.invalidateQueries({ queryKey: ["skills-health-check"] });
       navigate("/skills");
     },
     onError: (error) => {
@@ -86,6 +92,7 @@ const SkillForm: React.FC = () => {
     onSuccess: () => {
       toast.success("Skill updated successfully");
       queryClient.invalidateQueries({ queryKey: ["skills"] });
+      queryClient.invalidateQueries({ queryKey: ["skills-health-check"] });
       queryClient.invalidateQueries({ queryKey: ["skill", id] });
       navigate("/skills");
     },
@@ -116,16 +123,26 @@ const SkillForm: React.FC = () => {
   const proficiencyLevels: ProficiencyLevel[] = ["Beginner", "Intermediate", "Expert"];
 
   if (isEditMode && isLoadingSkill) {
-    return <div className="text-center py-8">Loading skill data...</div>;
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center py-8">Loading skill data...</div>
+      </div>
+    );
   }
 
-  if (isEditMode && !existingSkill) {
+  if (isEditMode && (loadError || !existingSkill)) {
+    console.error("Error loading skill for edit:", loadError);
     return (
-      <div className="text-center py-8">
-        <div className="text-red-500 mb-4">Skill not found</div>
-        <Button variant="secondary" onClick={() => navigate("/skills")}>
-          Back to Skills List
-        </Button>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 mb-4">
+            {loadError instanceof Error ? loadError.message : "Skill not found"}
+          </div>
+          <Button variant="secondary" onClick={() => navigate("/skills")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Skills List
+          </Button>
+        </div>
       </div>
     );
   }
@@ -135,6 +152,7 @@ const SkillForm: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{isEditMode ? "Edit Skill" : "Add New Skill"}</h1>
         <Button variant="outline" onClick={() => navigate("/skills")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Cancel
         </Button>
       </div>

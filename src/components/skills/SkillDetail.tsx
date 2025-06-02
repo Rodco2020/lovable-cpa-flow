@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Pencil, Trash } from "lucide-react";
+import { Pencil, Trash, ArrowLeft } from "lucide-react";
 
 const SkillDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,13 +17,19 @@ const SkillDetail: React.FC = () => {
   const { data: skill, isLoading, error } = useQuery({
     queryKey: ["skill", id],
     queryFn: async () => {
-      if (!id) return null;
+      if (!id) {
+        throw new Error("Skill ID is required");
+      }
+      console.log("Fetching skill with ID:", id);
       const skill = await getSkillById(id);
+      console.log("Fetched skill:", skill);
       if (!skill) {
         throw new Error("Skill not found");
       }
       return skill;
-    }
+    },
+    enabled: Boolean(id),
+    retry: false
   });
 
   const deleteMutation = useMutation({
@@ -31,6 +37,7 @@ const SkillDetail: React.FC = () => {
     onSuccess: () => {
       toast.success("Skill deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["skills"] });
+      queryClient.invalidateQueries({ queryKey: ["skills-health-check"] });
       navigate("/skills");
     },
     onError: (error) => {
@@ -44,17 +51,41 @@ const SkillDetail: React.FC = () => {
     deleteMutation.mutate(id);
   };
 
+  if (!id) {
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 mb-4">Invalid skill ID</div>
+          <Button variant="secondary" onClick={() => navigate("/skills")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Skills List
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
-    return <div className="text-center py-8">Loading skill details...</div>;
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center py-8">Loading skill details...</div>
+      </div>
+    );
   }
 
   if (error || !skill) {
+    console.error("Error loading skill:", error);
     return (
-      <div className="text-center py-8">
-        <div className="text-red-500 mb-4">Skill not found or error loading details</div>
-        <Button variant="secondary" onClick={() => navigate("/skills")}>
-          Back to Skills List
-        </Button>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 mb-4">
+            {error instanceof Error ? error.message : "Skill not found or error loading details"}
+          </div>
+          <Button variant="secondary" onClick={() => navigate("/skills")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Skills List
+          </Button>
+        </div>
       </div>
     );
   }
@@ -65,7 +96,10 @@ const SkillDetail: React.FC = () => {
         <h1 className="text-3xl font-bold">{skill.name}</h1>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link to="/skills">Back to List</Link>
+            <Link to="/skills">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to List
+            </Link>
           </Button>
           <Button variant="outline" asChild>
             <Link to={`/skills/${id}/edit`}>
@@ -135,12 +169,30 @@ const SkillDetail: React.FC = () => {
                 {!skill.proficiencyLevel && "Not specified"}
               </p>
             </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Skill ID</h3>
+              <p className="text-sm text-muted-foreground font-mono">{skill.id}</p>
+            </div>
           </div>
           
           <div>
             <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
             <p className="text-lg whitespace-pre-wrap">{skill.description || "No description provided"}</p>
           </div>
+
+          {skill.createdAt && (
+            <div className="flex gap-4 text-sm text-muted-foreground">
+              <div>
+                <span className="font-medium">Created:</span> {new Date(skill.createdAt).toLocaleDateString()}
+              </div>
+              {skill.updatedAt && skill.updatedAt !== skill.createdAt && (
+                <div>
+                  <span className="font-medium">Updated:</span> {new Date(skill.updatedAt).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

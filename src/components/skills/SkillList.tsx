@@ -22,7 +22,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Eye, Edit } from "lucide-react";
 import SkillSystemHealth from './SkillSystemHealth';
 import SkillManagementActions from './SkillManagementActions';
 
@@ -35,10 +35,16 @@ const SkillList: React.FC = () => {
   const { data: skills = [], isLoading, error } = useQuery({
     queryKey: ["skills", searchQuery, categoryFilter, proficiencyFilter],
     queryFn: async () => {
+      console.log("Fetching skills with filters:", { searchQuery, categoryFilter, proficiencyFilter });
+      
       if (searchQuery) {
-        return searchSkills(searchQuery);
+        const results = await searchSkills(searchQuery);
+        console.log("Search results:", results);
+        return results;
       }
+      
       const allSkills = await getAllSkills();
+      console.log("All skills fetched:", allSkills);
       
       return allSkills.filter(skill => 
         (categoryFilter === "all" || skill.category === categoryFilter) &&
@@ -58,14 +64,29 @@ const SkillList: React.FC = () => {
     setProficiencyFilter("all");
   };
 
+  const handleViewSkill = (skillId: string) => {
+    console.log("Navigating to skill detail:", skillId);
+    navigate(`/skills/${skillId}`);
+  };
+
+  const handleEditSkill = (skillId: string) => {
+    console.log("Navigating to skill edit:", skillId);
+    navigate(`/skills/${skillId}/edit`);
+  };
+
   const categories: SkillCategory[] = ["Tax", "Audit", "Advisory", "Bookkeeping", "Compliance", "Administrative", "Other"];
   const proficiencyLevels: ProficiencyLevel[] = ["Beginner", "Intermediate", "Expert"];
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading skills data...</div>;
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center py-8">Loading skills data...</div>
+      </div>
+    );
   }
 
   if (error) {
+    console.error("Error loading skills:", error);
     return (
       <div className="container mx-auto py-6 space-y-6">
         <SkillSystemHealth />
@@ -174,17 +195,29 @@ const SkillList: React.FC = () => {
                 <TableCell className="max-w-xs truncate">{skill.description || "-"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/skills/${skill.id}`}>View</Link>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleViewSkill(skill.id)}
+                      title="View skill details"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
                     </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/skills/${skill.id}/edit`}>Edit</Link>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleEditSkill(skill.id)}
+                      title="Edit skill"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
+          </tbody>
         </Table>
       )}
     </div>
