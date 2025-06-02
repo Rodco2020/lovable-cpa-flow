@@ -68,6 +68,44 @@ export const fetchSkillByIdFromDB = async (id: string): Promise<Skill | null> =>
   }
 };
 
+/**
+ * Fetch multiple skills by their UUIDs
+ * @param ids Array of skill UUIDs
+ * @returns Promise<Skill[]> - Array of skills
+ */
+export const fetchSkillsByIdsFromDB = async (ids: string[]): Promise<Skill[]> => {
+  try {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from("skills")
+      .select("*")
+      .in("id", ids)
+      .order("name");
+    
+    if (error) {
+      throw new SkillsServiceError(
+        `Database error fetching skills by IDs: ${error.message}`,
+        'DATABASE_ERROR',
+        error
+      );
+    }
+    
+    return data?.map(mapSkillFromDB) || [];
+  } catch (error) {
+    if (error instanceof SkillsServiceError) {
+      throw error;
+    }
+    throw new SkillsServiceError(
+      'Unexpected error fetching skills by IDs from database',
+      'UNKNOWN_ERROR',
+      error
+    );
+  }
+};
+
 export const createSkillInDB = async (skillData: SkillCreateData): Promise<Skill> => {
   try {
     const insertData = {

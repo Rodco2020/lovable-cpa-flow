@@ -13,7 +13,9 @@ interface SkillsAndCostCardProps {
  * Component that displays the skills and cost information in a card
  */
 const SkillsAndCostCard: React.FC<SkillsAndCostCardProps> = ({ staff }) => {
-  const { skillsMap, isLoading: skillsLoading } = useSkillNames(staff.skills || []);
+  // Use the staff.skills array which should now contain UUIDs
+  const skillIds = staff.skills || staff.assignedSkills || [];
+  const { skillsMap, isLoading: skillsLoading } = useSkillNames(skillIds);
 
   return (
     <Card>
@@ -33,10 +35,10 @@ const SkillsAndCostCard: React.FC<SkillsAndCostCardProps> = ({ staff }) => {
               <div className="flex flex-wrap gap-2">
                 {skillsLoading ? (
                   <span className="text-sm text-muted-foreground">Loading skills...</span>
-                ) : staff.skills.length > 0 ? (
-                  staff.skills.map((skillId) => (
+                ) : skillIds.length > 0 ? (
+                  skillIds.map((skillId) => (
                     <CustomBadge key={skillId} variant="outline" className="bg-slate-100">
-                      {skillsMap[skillId]?.name || skillId}
+                      {skillsMap[skillId]?.name || `Skill ${skillId.slice(0, 8)}`}
                     </CustomBadge>
                   ))
                 ) : (

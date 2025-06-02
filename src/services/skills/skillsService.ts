@@ -4,6 +4,7 @@ import { SkillsServiceError, SkillCreateData, SkillUpdateData } from './types';
 import { 
   fetchAllSkillsFromDB, 
   fetchSkillByIdFromDB, 
+  fetchSkillsByIdsFromDB,
   createSkillInDB, 
   updateSkillInDB, 
   deleteSkillFromDB 
@@ -15,12 +16,11 @@ import { getDefaultSkills } from './defaults';
  * Enhanced Skills Service
  * 
  * Provides a robust interface for managing skills with comprehensive error handling,
- * fallback mechanisms, and skill resolution capabilities. This service ensures the
- * application continues to function even when database operations fail.
+ * fallback mechanisms, and UUID-based skill resolution capabilities.
  * 
  * Key features:
  * - Fallback to default skills when database is unavailable
- * - Enhanced skill resolution by name or ID
+ * - UUID-based skill resolution for consistency
  * - Comprehensive error handling with custom error types
  * - Automatic fallback skill creation for missing skills
  */
@@ -78,53 +78,63 @@ export const getSkillById = async (id: string): Promise<Skill | null> => {
   } catch (error) {
     console.error('Failed to fetch skill by ID from database, checking defaults:', error);
     const defaultSkills = getDefaultSkills();
-    return defaultSkills.find(skill => skill.id === id || skill.name === id) || null;
+    return defaultSkills.find(skill => skill.id === id) || null;
   }
 };
 
 /**
- * Resolve skill names to skill objects with enhanced fallback
- * This is a critical function for the application as it ensures skills are always resolved
- * @param skillNames - Array of skill names to resolve
- * @returns Promise<Skill[]> - Array of resolved skills, never fails
+ * Get multiple skills by their UUIDs
+ * @param ids - Array of skill UUIDs
+ * @returns Promise<Skill[]> - Array of skills
  */
-export const resolveSkills = async (skillNames: string[]): Promise<Skill[]> => {
+export const getSkillsByIds = async (ids: string[]): Promise<Skill[]> => {
   try {
-    console.log('Resolving skills:', skillNames);
-    
-    if (!skillNames || skillNames.length === 0) {
+    if (!ids || ids.length === 0) {
       return [];
     }
 
-    // Get all available skills
-    const allSkills = await getAllSkills();
-    const resolvedSkills: Skill[] = [];
-
-    for (const skillName of skillNames) {
-      // Try exact name match first (case-insensitive)
-      let skill = allSkills.find(s => s.name.toLowerCase() === skillName.toLowerCase());
+    console.log('Fetching skills by UUIDs:', ids);
+    
+    // Fetch from database first
+    const skills = await fetchSkillsByIdsFromDB(ids);
+    
+    // Check if we got all requested skills
+    const foundIds = skills.map(skill => skill.id);
+    const missingIds = ids.filter(id => !foundIds.includes(id));
+    
+    // For missing IDs, try to find in defaults
+    if (missingIds.length > 0) {
+      console.log('Some skills missing from database, checking defaults:', missingIds);
+      const defaultSkills = getDefaultSkills();
+      const defaultMatches = defaultSkills.filter(skill => missingIds.includes(skill.id));
+      skills.push(...defaultMatches);
       
-      // If not found, try ID match
-      if (!skill) {
-        skill = allSkills.find(s => s.id === skillName);
+      // For still missing skills, create fallback skills
+      const stillMissingIds = missingIds.filter(id => !defaultMatches.some(skill => skill.id === id));
+      if (stillMissingIds.length > 0) {
+        console.log('Creating fallback skills for missing UUIDs:', stillMissingIds);
+        const fallbackSkills = stillMissingIds.map(id => createFallbackSkill(`Skill ${id.slice(0, 8)}`));
+        skills.push(...fallbackSkills);
       }
-      
-      // If still not found, create a fallback skill
-      if (!skill) {
-        console.log(`Creating fallback skill for: ${skillName}`);
-        skill = createFallbackSkill(skillName);
-      }
-      
-      resolvedSkills.push(skill);
     }
-
-    console.log(`Successfully resolved ${resolvedSkills.length} skills`);
-    return resolvedSkills;
+    
+    console.log(`Successfully resolved ${skills.length} skills from ${ids.length} UUIDs`);
+    return skills;
   } catch (error) {
-    console.error('Failed to resolve skills, creating fallbacks:', error);
-    // Return fallback skills for all requested names
-    return skillNames.map(createFallbackSkill);
+    console.error('Failed to fetch skills by IDs, creating fallbacks:', error);
+    // Return fallback skills for all requested IDs
+    return ids.map(id => createFallbackSkill(`Skill ${id.slice(0, 8)}`));
   }
+};
+
+/**
+ * Resolve skill UUIDs to skill objects with enhanced fallback
+ * This is the primary function for resolving skill UUIDs throughout the application
+ * @param skillIds - Array of skill UUIDs to resolve
+ * @returns Promise<Skill[]> - Array of resolved skills, never fails
+ */
+export const resolveSkills = async (skillIds: string[]): Promise<Skill[]> => {
+  return getSkillsByIds(skillIds);
 };
 
 /**

@@ -446,7 +446,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      validate_uuid_array: {
+        Args: { arr: string[] }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
