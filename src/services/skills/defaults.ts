@@ -1,3 +1,4 @@
+
 import { Skill } from '@/types/skill';
 
 /**
@@ -104,32 +105,48 @@ export const getCriticalSkills = (): Skill[] => {
  * Check if a skill is considered critical for system operation
  */
 export const isCriticalSkill = (skillName: string): boolean => {
-  return ['CPA', 'Senior', 'Junior'].includes(skillName);
+  const normalizedName = skillName.trim();
+  return ['CPA', 'Senior', 'Junior'].includes(normalizedName);
 };
 
 /**
- * Get skill by name from defaults
+ * Get skill by name from defaults with whitespace handling
  */
 export const getDefaultSkillByName = (name: string): Skill | null => {
+  const normalizedSearchName = name.trim().toLowerCase();
   const defaults = getDefaultSkills();
-  return defaults.find(skill => skill.name.toLowerCase() === name.toLowerCase()) || null;
+  return defaults.find(skill => 
+    skill.name.trim().toLowerCase() === normalizedSearchName
+  ) || null;
 };
 
 /**
  * Validate that critical skills are present in a skill list
+ * Now handles whitespace issues that were causing false negatives
  */
 export const validateCriticalSkillsPresent = (skills: Skill[]): {
   isValid: boolean;
   missingSkills: string[];
 } => {
+  console.log('Skills validation: Starting validation with skills:', skills.map(s => s.name));
+  
   const criticalSkillNames = ['CPA', 'Senior', 'Junior'];
-  const presentSkillNames = skills.map(skill => skill.name);
-  const missingSkills = criticalSkillNames.filter(name => 
-    !presentSkillNames.includes(name)
+  
+  // Normalize skill names by trimming whitespace for comparison
+  const presentSkillNames = skills.map(skill => skill.name.trim());
+  console.log('Skills validation: Present skills (normalized):', presentSkillNames);
+  
+  const missingSkills = criticalSkillNames.filter(criticalName => 
+    !presentSkillNames.includes(criticalName)
   );
   
-  return {
+  console.log('Skills validation: Missing skills:', missingSkills);
+  
+  const result = {
     isValid: missingSkills.length === 0,
     missingSkills
   };
+  
+  console.log('Skills validation: Final result:', result);
+  return result;
 };

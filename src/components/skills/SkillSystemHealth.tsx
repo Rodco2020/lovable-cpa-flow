@@ -14,12 +14,15 @@ import { validateCriticalSkillsPresent, getCriticalSkills } from '@/services/ski
  * 
  * Monitors the health of the skills system and provides diagnostics
  * for critical skills that are required for the application to function properly.
+ * 
+ * Updated to use consistent data fetching and improved validation logic.
  */
 const SkillSystemHealth: React.FC = () => {
   const [lastCheck, setLastCheck] = useState<Date>(new Date());
 
+  // Use consistent query key with the main skills list
   const { data: skills = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['skills-health-check'],
+    queryKey: ['skills'],
     queryFn: getAllSkills,
     refetchInterval: 30000, // Check every 30 seconds
   });
@@ -55,6 +58,9 @@ const SkillSystemHealth: React.FC = () => {
     if (error || !healthStatus.isValid) return "destructive";
     return "default";
   };
+
+  console.log('SkillSystemHealth: Rendering with skills:', skills.map(s => s.name));
+  console.log('SkillSystemHealth: Health status:', healthStatus);
 
   return (
     <Card className="mb-6">
@@ -94,7 +100,8 @@ const SkillSystemHealth: React.FC = () => {
             <h4 className="text-sm font-medium">Critical Skills Status</h4>
             <div className="flex gap-1">
               {criticalSkills.map(skill => {
-                const isPresent = skills.some(s => s.name === skill.name);
+                // Use trimmed comparison for better accuracy
+                const isPresent = skills.some(s => s.name.trim() === skill.name.trim());
                 return (
                   <Badge 
                     key={skill.name} 
@@ -116,13 +123,14 @@ const SkillSystemHealth: React.FC = () => {
           </div>
         </div>
 
+        {/* Only show this alert if there are actually missing skills to avoid redundancy */}
         {healthStatus.missingSkills.length > 0 && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Critical Skills Missing</AlertTitle>
             <AlertDescription>
               The following critical skills are missing from the database: {healthStatus.missingSkills.join(', ')}. 
-              This may cause issues with forecasting and task assignment. Please contact your system administrator.
+              This may cause issues with forecasting and task assignment. Use the management actions below to restore them.
             </AlertDescription>
           </Alert>
         )}

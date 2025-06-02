@@ -29,6 +29,8 @@ interface SkillManagementActionsProps {
  * 
  * Provides administrative actions for managing the skills system,
  * including restoring critical skills and system maintenance.
+ * 
+ * Updated to use improved validation logic and consistent data handling.
  */
 const SkillManagementActions: React.FC<SkillManagementActionsProps> = ({ currentSkills }) => {
   const [isRestoring, setIsRestoring] = useState(false);
@@ -37,29 +39,42 @@ const SkillManagementActions: React.FC<SkillManagementActionsProps> = ({ current
   const criticalSkills = getCriticalSkills();
   const healthStatus = validateCriticalSkillsPresent(currentSkills);
 
+  console.log('SkillManagementActions: Current skills:', currentSkills.map(s => s.name));
+  console.log('SkillManagementActions: Health status:', healthStatus);
+
   const restoreCriticalSkillsMutation = useMutation({
     mutationFn: async () => {
+      console.log('SkillManagementActions: Starting restore operation');
+      
+      // Find missing skills using the same logic as validation
+      const presentSkillNames = currentSkills.map(skill => skill.name.trim());
       const missingSkills = criticalSkills.filter(critical => 
-        !currentSkills.some(existing => existing.name === critical.name)
+        !presentSkillNames.includes(critical.name.trim())
       );
       
+      console.log('SkillManagementActions: Missing skills to restore:', missingSkills.map(s => s.name));
+      
       const results = await Promise.allSettled(
-        missingSkills.map(skill => 
-          createSkill({
+        missingSkills.map(skill => {
+          console.log('SkillManagementActions: Creating skill:', skill.name);
+          return createSkill({
             name: skill.name,
             description: skill.description,
             category: skill.category,
             proficiencyLevel: skill.proficiencyLevel
-          })
-        )
+          });
+        })
       );
       
       const successful = results.filter(result => result.status === 'fulfilled').length;
       const failed = results.filter(result => result.status === 'rejected').length;
       
+      console.log('SkillManagementActions: Restore results:', { successful, failed, total: missingSkills.length });
+      
       return { successful, failed, total: missingSkills.length };
     },
     onSuccess: (result) => {
+      // Invalidate both query keys to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['skills'] });
       queryClient.invalidateQueries({ queryKey: ['skills-health-check'] });
       
@@ -70,7 +85,7 @@ const SkillManagementActions: React.FC<SkillManagementActionsProps> = ({ current
       }
     },
     onError: (error) => {
-      console.error('Failed to restore critical skills:', error);
+      console.error('SkillManagementActions: Failed to restore critical skills:', error);
       toast.error('Failed to restore critical skills. Please try again.');
     }
   });
@@ -84,12 +99,15 @@ const SkillManagementActions: React.FC<SkillManagementActionsProps> = ({ current
     }
   };
 
+  // Use the same logic as the validation function for consistency
+  const presentSkillNames = currentSkills.map(skill => skill.name.trim());
   const missingCriticalSkills = criticalSkills.filter(critical => 
-    !currentSkills.some(existing => existing.name === critical.name)
+    !presentSkillNames.includes(critical.name.trim())
   );
 
   return (
     <div className="space-y-4">
+      {/* Only show warning if there are actually missing skills */}
       {!healthStatus.isValid && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
