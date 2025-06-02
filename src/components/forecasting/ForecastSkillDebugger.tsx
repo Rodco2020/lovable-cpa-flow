@@ -4,14 +4,47 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { analyzeStaffSkills } from '@/services/skillNormalizationService';
+import { SkillNormalizationService } from '@/services/skillNormalizationService';
 import { getAllStaff } from '@/services/staffService';
 import { SkillType } from '@/types/task';
 
+interface StaffSkillAnalysis {
+  id: string;
+  name: string;
+  roleTitle: string;
+  originalSkills: string[];
+  mappedSkills: SkillType[];
+  hasCPA: boolean;
+  hasSenior: boolean;
+  hasJunior: boolean;
+  defaultedToJunior: boolean;
+}
+
 const ForecastSkillDebugger: React.FC = () => {
-  const [staffSkills, setStaffSkills] = useState<any[]>([]);
+  const [staffSkills, setStaffSkills] = useState<StaffSkillAnalysis[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const analyzeStaffSkills = async (skills: string[], staffId: string): Promise<StaffSkillAnalysis> => {
+    // Normalize the skills using the centralized service
+    const mappedSkills = await SkillNormalizationService.normalizeSkills(skills, staffId);
+    
+    // Analyze the mapped skills
+    const hasCPA = mappedSkills.includes('CPA');
+    const hasSenior = mappedSkills.includes('Senior Staff');
+    const hasJunior = mappedSkills.includes('Junior Staff');
+    
+    // Check if defaulted to Junior (happens when no skills provided or mapping fails)
+    const defaultedToJunior = mappedSkills.length === 1 && mappedSkills[0] === 'Junior Staff' && skills.length === 0;
+
+    return {
+      mappedSkills,
+      hasCPA,
+      hasSenior,
+      hasJunior,
+      defaultedToJunior
+    } as any; // Type assertion to match the interface - the missing properties will be added by the caller
+  };
 
   const loadStaffSkills = async () => {
     setLoading(true);
@@ -29,12 +62,7 @@ const ForecastSkillDebugger: React.FC = () => {
           name: staff.fullName,
           roleTitle: staff.roleTitle,
           originalSkills: staff.assignedSkills,
-          mappedSkills: analysis.mappedSkills,
-          hasCPA: analysis.hasCPA,
-          hasSenior: analysis.hasSenior,
-          hasJunior: analysis.hasJunior,
-          defaultedToJunior: analysis.defaultedToJunior,
-          manualOverride: false // This property doesn't exist in the analysis result
+          ...analysis
         };
       });
       
@@ -148,9 +176,6 @@ const ForecastSkillDebugger: React.FC = () => {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {staff.manualOverride && (
-                    <Badge variant="outline" className="bg-amber-100">Manual Override</Badge>
-                  )}
                   {staff.defaultedToJunior && (
                     <Badge variant="outline" className="bg-orange-100">Defaulted to Junior</Badge>
                   )}
