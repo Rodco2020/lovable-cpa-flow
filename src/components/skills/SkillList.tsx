@@ -217,7 +217,7 @@ const SkillList: React.FC = () => {
                 </TableCell>
               </TableRow>
             ))}
-          </tbody>
+          </TableBody>
         </Table>
       )}
     </div>
