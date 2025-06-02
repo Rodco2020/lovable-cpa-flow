@@ -6,10 +6,12 @@ import {
   getClientAdHocTasks,
   getAllClients
 } from '@/services/clientService';
+import { resolveSkillNames } from '@/services/bulkOperations/skillResolver';
 
 /**
  * Service for fetching client and task data
  * Centralizes all data fetching operations for the Client Assigned Tasks Overview
+ * Updated to resolve skill IDs to skill names during data transformation
  */
 export class TaskDataService {
   /**
@@ -49,7 +51,29 @@ export class TaskDataService {
   }
 
   /**
-   * Fetch all tasks for all clients
+   * Resolve skill IDs to skill names for a task
+   * @param skillIds Array of skill UUIDs to resolve
+   * @returns Promise resolving to array of skill names
+   */
+  private static async resolveTaskSkills(skillIds: string[]): Promise<string[]> {
+    if (!skillIds || skillIds.length === 0) {
+      return [];
+    }
+
+    try {
+      console.log(`[TaskDataService] Resolving ${skillIds.length} skill IDs:`, skillIds);
+      const resolvedNames = await resolveSkillNames(skillIds);
+      console.log(`[TaskDataService] Resolved skill names:`, resolvedNames);
+      return resolvedNames;
+    } catch (error) {
+      console.error('[TaskDataService] Error resolving skill names:', error);
+      // Fallback to showing placeholder names
+      return skillIds.map(id => `Skill ${id.slice(0, 8)}`);
+    }
+  }
+
+  /**
+   * Fetch all tasks for all clients with skill ID resolution
    */
   static async fetchAllClientTasks(clients: Client[]): Promise<{
     formattedTasks: FormattedTask[];
@@ -62,63 +86,91 @@ export class TaskDataService {
     
     for (const client of clients) {
       try {
+        console.log(`[TaskDataService] Processing tasks for client: ${client.legalName}`);
+        
         // Get recurring tasks
         const recurringTasks = await this.fetchClientRecurringTasks(client.id);
         
-        // Format recurring tasks
-        const formattedRecurringTasks: FormattedTask[] = recurringTasks.map(task => {
-          // Collect skills and priorities for filter options
-          task.requiredSkills.forEach(skill => skills.add(skill));
-          priorities.add(task.priority);
-          
-          return {
-            id: task.id,
-            clientId: client.id,
-            clientName: client.legalName,
-            taskName: task.name,
-            taskType: 'Recurring',
-            dueDate: task.dueDate,
-            recurrencePattern: task.recurrencePattern,
-            estimatedHours: task.estimatedHours,
-            requiredSkills: task.requiredSkills,
-            priority: task.priority,
-            status: task.status,
-            isActive: task.isActive
-          };
-        });
+        // Format recurring tasks with skill resolution
+        const formattedRecurringTasks: FormattedTask[] = await Promise.all(
+          recurringTasks.map(async (task) => {
+            // Resolve skill IDs to skill names
+            const resolvedSkills = await this.resolveTaskSkills(task.requiredSkills);
+            
+            // Collect resolved skills and priorities for filter options
+            resolvedSkills.forEach(skill => skills.add(skill));
+            priorities.add(task.priority);
+            
+            console.log(`[TaskDataService] Recurring task "${task.name}" skills:`, {
+              originalSkillIds: task.requiredSkills,
+              resolvedSkills
+            });
+            
+            return {
+              id: task.id,
+              clientId: client.id,
+              clientName: client.legalName,
+              taskName: task.name,
+              taskType: 'Recurring',
+              dueDate: task.dueDate,
+              recurrencePattern: task.recurrencePattern,
+              estimatedHours: task.estimatedHours,
+              requiredSkills: resolvedSkills, // Use resolved skill names
+              priority: task.priority,
+              status: task.status,
+              isActive: task.isActive
+            };
+          })
+        );
         
         // Get ad-hoc tasks
         const adHocTasksData = await this.fetchClientAdHocTasks(client.id);
         
-        // Format ad-hoc tasks - extract task instance from TaskInstanceData
-        const formattedAdHocTasks: FormattedTask[] = adHocTasksData.map(taskData => {
-          const task = taskData.taskInstance; // Extract the TaskInstance from TaskInstanceData
-          
-          // Collect skills and priorities for filter options
-          task.requiredSkills.forEach(skill => skills.add(skill));
-          priorities.add(task.priority);
-          
-          return {
-            id: task.id,
-            clientId: client.id,
-            clientName: client.legalName,
-            taskName: task.name,
-            taskType: 'Ad-hoc',
-            dueDate: task.dueDate,
-            estimatedHours: task.estimatedHours,
-            requiredSkills: task.requiredSkills,
-            priority: task.priority,
-            status: task.status
-          };
-        });
+        // Format ad-hoc tasks with skill resolution
+        const formattedAdHocTasks: FormattedTask[] = await Promise.all(
+          adHocTasksData.map(async (taskData) => {
+            const task = taskData.taskInstance; // Extract the TaskInstance from TaskInstanceData
+            
+            // Resolve skill IDs to skill names
+            const resolvedSkills = await this.resolveTaskSkills(task.requiredSkills);
+            
+            // Collect resolved skills and priorities for filter options
+            resolvedSkills.forEach(skill => skills.add(skill));
+            priorities.add(task.priority);
+            
+            console.log(`[TaskDataService] Ad-hoc task "${task.name}" skills:`, {
+              originalSkillIds: task.requiredSkills,
+              resolvedSkills
+            });
+            
+            return {
+              id: task.id,
+              clientId: client.id,
+              clientName: client.legalName,
+              taskName: task.name,
+              taskType: 'Ad-hoc',
+              dueDate: task.dueDate,
+              estimatedHours: task.estimatedHours,
+              requiredSkills: resolvedSkills, // Use resolved skill names
+              priority: task.priority,
+              status: task.status
+            };
+          })
+        );
         
         // Add all tasks to the array
         allFormattedTasks.push(...formattedRecurringTasks, ...formattedAdHocTasks);
+        
+        console.log(`[TaskDataService] Processed ${formattedRecurringTasks.length} recurring and ${formattedAdHocTasks.length} ad-hoc tasks for client ${client.legalName}`);
       } catch (error) {
         console.error(`Error processing tasks for client ${client.legalName}:`, error);
         // Continue with other clients even if one fails
       }
     }
+    
+    console.log(`[TaskDataService] Total tasks processed: ${allFormattedTasks.length}`);
+    console.log(`[TaskDataService] Unique skills collected: ${Array.from(skills)}`);
+    console.log(`[TaskDataService] Unique priorities collected: ${Array.from(priorities)}`);
     
     return {
       formattedTasks: allFormattedTasks,
