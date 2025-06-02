@@ -16,7 +16,7 @@ import { Skill } from '@/types/skill';
 export const getDefaultSkills = (): Skill[] => [
   {
     id: 'cpa-skill',
-    name: 'CPA',
+    name: 'CPA Skill',
     description: 'Certified Public Accountant with advanced accounting and auditing expertise',
     category: 'Audit',
     proficiencyLevel: 'Expert',
@@ -25,7 +25,7 @@ export const getDefaultSkills = (): Skill[] => [
   },
   {
     id: 'senior-staff-skill',
-    name: 'Senior Staff',
+    name: 'Senior Skill',
     description: 'Experienced accounting professional with supervisory capabilities',
     category: 'Tax',
     proficiencyLevel: 'Intermediate',
@@ -34,7 +34,7 @@ export const getDefaultSkills = (): Skill[] => [
   },
   {
     id: 'junior-staff-skill',
-    name: 'Junior Staff',
+    name: 'Junior Skill',
     description: 'Entry-level accounting professional with basic competencies',
     category: 'Bookkeeping',
     proficiencyLevel: 'Beginner',
@@ -95,7 +95,7 @@ export const getDefaultSkills = (): Skill[] => [
 export const getCriticalSkills = (): Skill[] => {
   const allDefaults = getDefaultSkills();
   return allDefaults.filter(skill => 
-    ['CPA', 'Senior Staff', 'Junior Staff'].includes(skill.name)
+    ['CPA Skill', 'Senior Skill', 'Junior Skill'].includes(skill.name)
   );
 };
 
@@ -103,7 +103,7 @@ export const getCriticalSkills = (): Skill[] => {
  * Check if a skill is considered critical for system operation
  */
 export const isCriticalSkill = (skillName: string): boolean => {
-  return ['CPA', 'Senior Staff', 'Junior Staff'].includes(skillName);
+  return ['CPA Skill', 'Senior Skill', 'Junior Skill'].includes(skillName);
 };
 
 /**
@@ -121,7 +121,7 @@ export const validateCriticalSkillsPresent = (skills: Skill[]): {
   isValid: boolean;
   missingSkills: string[];
 } => {
-  const criticalSkillNames = ['CPA', 'Senior Staff', 'Junior Staff'];
+  const criticalSkillNames = ['CPA Skill', 'Senior Skill', 'Junior Skill'];
   const presentSkillNames = skills.map(skill => skill.name);
   const missingSkills = criticalSkillNames.filter(name => 
     !presentSkillNames.includes(name)
