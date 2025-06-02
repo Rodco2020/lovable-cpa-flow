@@ -2,62 +2,133 @@
 import { Skill } from '@/types/skill';
 
 /**
- * Default skills when database is empty or unavailable
- * These provide a fallback to ensure the application continues to function
+ * Default Skills Configuration
+ * 
+ * This file provides fallback skills that are critical for the CPA Practice Management
+ * System to function properly. These skills serve as defaults when the database is
+ * unavailable or when skills are accidentally deleted.
+ */
+
+/**
+ * Core skills that are essential for the forecasting and task management systems
+ * These correspond to the standard skill types used throughout the application
  */
 export const getDefaultSkills = (): Skill[] => [
   {
-    id: 'junior-staff',
+    id: 'cpa-skill',
+    name: 'CPA',
+    description: 'Certified Public Accountant with advanced accounting and auditing expertise',
+    category: 'Audit',
+    proficiencyLevel: 'Expert',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'senior-staff-skill',
+    name: 'Senior Staff',
+    description: 'Experienced accounting professional with supervisory capabilities',
+    category: 'Tax',
+    proficiencyLevel: 'Intermediate',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'junior-staff-skill',
     name: 'Junior Staff',
-    description: 'Entry-level accounting and administrative tasks',
-    category: 'Administrative',
+    description: 'Entry-level accounting professional with basic competencies',
+    category: 'Bookkeeping',
     proficiencyLevel: 'Beginner',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'senior-staff',
-    name: 'Senior Staff',
-    description: 'Advanced accounting and supervisory tasks',
-    category: 'Administrative',
-    proficiencyLevel: 'Expert',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'cpa',
-    name: 'CPA',
-    description: 'Certified Public Accountant level expertise',
-    category: 'Audit',
-    proficiencyLevel: 'Expert',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'tax-specialist',
-    name: 'Tax Specialist',
-    description: 'Specialized tax preparation and planning',
+    id: 'tax-preparation-skill',
+    name: 'Tax Preparation',
+    description: 'Preparation of individual and business tax returns',
     category: 'Tax',
-    proficiencyLevel: 'Expert',
+    proficiencyLevel: 'Intermediate',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'audit-specialist',
-    name: 'Audit Specialist',
-    description: 'Financial auditing and compliance',
+    id: 'bookkeeping-skill',
+    name: 'Bookkeeping',
+    description: 'Maintaining financial records and basic accounting functions',
+    category: 'Bookkeeping',
+    proficiencyLevel: 'Beginner',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'audit-skill',
+    name: 'Audit',
+    description: 'Examination and verification of financial records and statements',
     category: 'Audit',
     proficiencyLevel: 'Expert',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'bookkeeping',
-    name: 'Bookkeeping',
-    description: 'Basic bookkeeping and data entry',
-    category: 'Bookkeeping',
+    id: 'payroll-skill',
+    name: 'Payroll Processing',
+    description: 'Processing employee payroll and related tax obligations',
+    category: 'Compliance',
     proficiencyLevel: 'Intermediate',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'financial-advisory-skill',
+    name: 'Financial Advisory',
+    description: 'Providing financial planning and advisory services to clients',
+    category: 'Advisory',
+    proficiencyLevel: 'Expert',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
 ];
+
+/**
+ * Critical skills that must always be available for the system to function
+ * These are used by the forecasting and staff allocation systems
+ */
+export const getCriticalSkills = (): Skill[] => {
+  const allDefaults = getDefaultSkills();
+  return allDefaults.filter(skill => 
+    ['CPA', 'Senior Staff', 'Junior Staff'].includes(skill.name)
+  );
+};
+
+/**
+ * Check if a skill is considered critical for system operation
+ */
+export const isCriticalSkill = (skillName: string): boolean => {
+  return ['CPA', 'Senior Staff', 'Junior Staff'].includes(skillName);
+};
+
+/**
+ * Get skill by name from defaults
+ */
+export const getDefaultSkillByName = (name: string): Skill | null => {
+  const defaults = getDefaultSkills();
+  return defaults.find(skill => skill.name.toLowerCase() === name.toLowerCase()) || null;
+};
+
+/**
+ * Validate that critical skills are present in a skill list
+ */
+export const validateCriticalSkillsPresent = (skills: Skill[]): {
+  isValid: boolean;
+  missingSkills: string[];
+} => {
+  const criticalSkillNames = ['CPA', 'Senior Staff', 'Junior Staff'];
+  const presentSkillNames = skills.map(skill => skill.name);
+  const missingSkills = criticalSkillNames.filter(name => 
+    !presentSkillNames.includes(name)
+  );
+  
+  return {
+    isValid: missingSkills.length === 0,
+    missingSkills
+  };
+};

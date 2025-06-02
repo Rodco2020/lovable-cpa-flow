@@ -39,6 +39,35 @@ export const getAllSkills = async (): Promise<Skill[]> => {
 };
 
 /**
+ * Search skills with fallback to defaults
+ * @param query - Search query string
+ * @returns Promise<Skill[]> - Array of matching skills
+ */
+export const searchSkills = async (query: string): Promise<Skill[]> => {
+  try {
+    // First try to get all skills from database
+    const allSkills = await fetchAllSkillsFromDB();
+    
+    // Filter based on query
+    const lowercaseQuery = query.toLowerCase();
+    return allSkills.filter(skill =>
+      skill.name.toLowerCase().includes(lowercaseQuery) ||
+      (skill.description && skill.description.toLowerCase().includes(lowercaseQuery))
+    );
+  } catch (error) {
+    console.error('Failed to search skills in database, searching defaults:', error);
+    
+    // Fallback to searching default skills
+    const defaultSkills = getDefaultSkills();
+    const lowercaseQuery = query.toLowerCase();
+    return defaultSkills.filter(skill =>
+      skill.name.toLowerCase().includes(lowercaseQuery) ||
+      (skill.description && skill.description.toLowerCase().includes(lowercaseQuery))
+    );
+  }
+};
+
+/**
  * Get skill by ID with fallback to default skills
  * @param id - Skill ID to fetch
  * @returns Promise<Skill | null> - Skill object or null if not found

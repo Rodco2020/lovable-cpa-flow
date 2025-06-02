@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { getAllSkills, searchSkills } from "@/services/skillService";
+import { getAllSkills, searchSkills } from "@/services/skills/skillsService";
 import { SkillCategory, ProficiencyLevel } from "@/types/skill";
 import { 
   Table, 
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Plus, Search, Filter } from "lucide-react";
+import SkillSystemHealth from './SkillSystemHealth';
+import SkillManagementActions from './SkillManagementActions';
 
 const SkillList: React.FC = () => {
   const navigate = useNavigate();
@@ -64,7 +66,14 @@ const SkillList: React.FC = () => {
   }
 
   if (error) {
-    return <div className="text-center text-red-500 py-8">Error loading skills data</div>;
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <SkillSystemHealth />
+        <div className="text-center text-red-500 py-8">
+          Error loading skills data. Please check the system health above.
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -75,6 +84,10 @@ const SkillList: React.FC = () => {
           <Plus className="mr-2 h-4 w-4" /> Add New Skill
         </Button>
       </div>
+
+      <SkillSystemHealth />
+      
+      <SkillManagementActions currentSkills={skills} />
 
       <Card className="p-4">
         <div className="flex flex-col md:flex-row gap-4">
