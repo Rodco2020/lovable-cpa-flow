@@ -1,7 +1,7 @@
 
 import { SkillType } from '@/types/task';
 import { SkillMappingCache, CACHE_DURATION } from './types';
-import { getAllSkills } from '@/services/skillService';
+import { getAllSkills } from '@/services/skills/skillsService';
 import { debugLog } from '@/services/forecasting/logger';
 import { SkillMappingRules } from './mappingRules';
 
