@@ -31,7 +31,7 @@ import { createScreenReaderAnnouncement } from './utils/accessibilityUtils';
  * 
  * Key Features:
  * - Unified view of all client tasks (recurring and ad-hoc)
- * - Advanced filtering by client, skill, priority, and status
+ * - Advanced filtering by client, skill, priority, status, and staff liaison
  * - Tab-based navigation (All/Recurring/Ad-hoc)
  * - Task management operations (edit, delete, bulk operations)
  * - Integration with task management dialog for creating new tasks
@@ -63,6 +63,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
     error,
     availableSkills,
     availablePriorities,
+    staffOptions,
     handleEditComplete
   } = useTasksData();
 
@@ -216,6 +217,7 @@ const ClientAssignedTasksOverview: React.FC = () => {
                 clients={clients}
                 availableSkills={availableSkills}
                 availablePriorities={availablePriorities}
+                staffOptions={staffOptions}
               />
 
               <ContentDisplaySection

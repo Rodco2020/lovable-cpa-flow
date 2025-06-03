@@ -16,6 +16,7 @@ import { useTaskMetrics } from './useTaskMetrics';
  * - Handles loading states and error management
  * - Provides refresh functionality for data updates
  * - NEW: Includes task metrics calculations
+ * - NEW: Includes staff options for staff liaison filtering
  * 
  * Architecture:
  * - Uses TaskDataService for all data fetching operations
@@ -31,6 +32,7 @@ export const useTasksData = () => {
     error,
     availableSkills,
     availablePriorities,
+    staffOptions,
     fetchData,
     handleRefresh
   } = useTaskDataFetching();
@@ -43,7 +45,7 @@ export const useTasksData = () => {
     fetchData();
   }, []);
 
-  // Extended interface with metrics
+  // Extended interface with metrics and staff options
   return {
     clients,
     formattedTasks,
@@ -51,6 +53,7 @@ export const useTasksData = () => {
     error,
     availableSkills,
     availablePriorities,
+    staffOptions,
     handleEditComplete: handleRefresh,
     // New metrics functionality
     taskMetrics,
