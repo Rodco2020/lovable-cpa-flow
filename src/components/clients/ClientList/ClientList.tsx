@@ -33,7 +33,8 @@ const ClientList: React.FC<ClientListProps> = ({ metricsFilters = {} }) => {
     isExporting,
     handleExport,
     handlePrint,
-    handlePrintExecute
+    handlePrintExecute,
+    handleViewClient
   } = useClientListActions();
 
   // Convert clients to export format
@@ -47,7 +48,6 @@ const ClientList: React.FC<ClientListProps> = ({ metricsFilters = {} }) => {
 
   // Handle navigation actions
   const handleAddClient = () => navigate('/clients/new');
-  const handleViewClient = (clientId: string) => navigate(`/clients/${clientId}`);
   const handleRetry = () => navigate(0);
   
   if (showPrintView) {

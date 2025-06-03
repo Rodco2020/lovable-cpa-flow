@@ -35,6 +35,10 @@ export const useClientListActions = () => {
     setShowPrintView(false);
   };
 
+  const handleViewClient = (clientId: string) => {
+    navigate(`/clients/${clientId}`);
+  };
+
   return {
     navigate,
     showPrintView,
@@ -42,6 +46,7 @@ export const useClientListActions = () => {
     isExporting,
     handleExport,
     handlePrint,
-    handlePrintExecute
+    handlePrintExecute,
+    handleViewClient
   };
 };
