@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -25,16 +25,21 @@ export const TemplateBrowser: React.FC<TemplateBrowserProps> = ({
   const [filterPriority, setFilterPriority] = useState('');
 
   // Filter templates based on search and filters
-  const filteredTemplates = templates.filter(template => {
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !filterCategory || template.category === filterCategory;
-    const matchesPriority = !filterPriority || template.defaultPriority === filterPriority;
-    return matchesSearch && matchesCategory && matchesPriority && !template.isArchived;
-  });
+  const filteredTemplates = useMemo(() => {
+    return templates.filter(template => {
+      const matchesSearch = searchTerm === '' || 
+        template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        template.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = filterCategory === '' || template.category === filterCategory;
+      const matchesPriority = filterPriority === '' || template.defaultPriority === filterPriority;
+      
+      return matchesSearch && matchesCategory && matchesPriority && !template.isArchived;
+    });
+  }, [templates, searchTerm, filterCategory, filterPriority]);
 
   // Get unique categories and priorities for filters
-  const categories = [...new Set(templates.map(t => t.category))];
+  const categories = useMemo(() => [...new Set(templates.map(t => t.category))], [templates]);
   const priorities = ['Low', 'Medium', 'High', 'Urgent'];
 
   if (isLoading) {
@@ -57,7 +62,7 @@ export const TemplateBrowser: React.FC<TemplateBrowserProps> = ({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search templates..."
+            placeholder="Search templates by name or description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -86,6 +91,13 @@ export const TemplateBrowser: React.FC<TemplateBrowserProps> = ({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Results count */}
+      {(searchTerm || filterCategory || filterPriority) && (
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredTemplates.length} of {templates.length} templates
+        </div>
+      )}
 
       {/* Template Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
@@ -162,7 +174,10 @@ export const TemplateBrowser: React.FC<TemplateBrowserProps> = ({
 
       {filteredTemplates.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          No templates found matching your criteria
+          {searchTerm || filterCategory || filterPriority 
+            ? 'No templates found matching your criteria'
+            : 'No templates available'
+          }
         </div>
       )}
     </div>
