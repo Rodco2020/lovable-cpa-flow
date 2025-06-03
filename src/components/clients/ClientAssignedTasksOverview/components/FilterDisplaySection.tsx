@@ -4,6 +4,7 @@ import { TaskFilters } from './TaskFilters';
 import { AdvancedFilters, AdvancedFilterState } from './AdvancedFilters';
 import { FilterState } from '../types';
 import { Client } from '@/types/client';
+import { StaffOption } from '@/types/staffOption';
 
 interface FilterDisplaySectionProps {
   showAdvancedFilters: boolean;
@@ -15,6 +16,7 @@ interface FilterDisplaySectionProps {
   clients: Client[] | undefined;
   availableSkills: string[];
   availablePriorities: string[];
+  staffOptions: StaffOption[];
 }
 
 /**
@@ -32,7 +34,8 @@ export const FilterDisplaySection: React.FC<FilterDisplaySectionProps> = ({
   onResetFilters,
   clients,
   availableSkills,
-  availablePriorities
+  availablePriorities,
+  staffOptions
 }) => {
   if (showAdvancedFilters) {
     return (
@@ -42,6 +45,7 @@ export const FilterDisplaySection: React.FC<FilterDisplaySectionProps> = ({
         clients={clients}
         availableSkills={availableSkills}
         availablePriorities={availablePriorities}
+        staffOptions={staffOptions}
       />
     );
   }
