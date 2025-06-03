@@ -1,92 +1,48 @@
 
 import { Client } from '@/types/client';
 import { FormattedTask } from '../types';
-import { 
-  getClientRecurringTasks, 
-  getClientAdHocTasks,
-  getAllClients
-} from '@/services/clientService';
-import { resolveSkillNames } from '@/services/bulkOperations/skillResolver';
+import { DataFetchingService } from './core/dataFetchingService';
+import { TaskFormattingService } from './core/taskFormattingService';
 
 /**
- * Service for fetching client and task data
- * Centralizes all data fetching operations for the Client Assigned Tasks Overview
- * Updated to resolve skill IDs to skill names during data transformation
- * and include staff liaison information
+ * Main Task Data Service - Refactored for better maintainability
+ * 
+ * Orchestrates data fetching and formatting operations using specialized services.
+ * This service maintains the same external interface while improving internal structure.
+ * 
+ * Key improvements:
+ * - Separated concerns into focused services
+ * - Better error handling and logging
+ * - Improved testability through smaller, focused modules
+ * - Maintained backward compatibility
  */
 export class TaskDataService {
   /**
    * Fetch all clients from the service
    */
   static async fetchClients(): Promise<Client[]> {
-    try {
-      return await getAllClients();
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      throw new Error('Failed to fetch clients');
-    }
+    return DataFetchingService.fetchClients();
   }
 
   /**
    * Fetch recurring tasks for a specific client
    */
   static async fetchClientRecurringTasks(clientId: string) {
-    try {
-      return await getClientRecurringTasks(clientId);
-    } catch (error) {
-      console.error(`Error fetching recurring tasks for client ${clientId}:`, error);
-      throw new Error(`Failed to fetch recurring tasks for client ${clientId}`);
-    }
+    return DataFetchingService.fetchClientRecurringTasks(clientId);
   }
 
   /**
    * Fetch ad-hoc tasks for a specific client
    */
   static async fetchClientAdHocTasks(clientId: string) {
-    try {
-      return await getClientAdHocTasks(clientId);
-    } catch (error) {
-      console.error(`Error fetching ad-hoc tasks for client ${clientId}:`, error);
-      throw new Error(`Failed to fetch ad-hoc tasks for client ${clientId}`);
-    }
-  }
-
-  /**
-   * Resolve skill IDs to skill names for a task
-   * @param skillIds Array of skill UUIDs to resolve
-   * @returns Promise resolving to array of skill names
-   */
-  private static async resolveTaskSkills(skillIds: string[]): Promise<string[]> {
-    if (!skillIds || skillIds.length === 0) {
-      return [];
-    }
-
-    try {
-      console.log(`[TaskDataService] Resolving ${skillIds.length} skill IDs:`, skillIds);
-      const resolvedNames = await resolveSkillNames(skillIds);
-      console.log(`[TaskDataService] Resolved skill names:`, resolvedNames);
-      return resolvedNames;
-    } catch (error) {
-      console.error('[TaskDataService] Error resolving skill names:', error);
-      // Fallback to showing placeholder names
-      return skillIds.map(id => `Skill ${id.slice(0, 8)}`);
-    }
-  }
-
-  /**
-   * Get staff liaison name from client data
-   */
-  private static getStaffLiaisonInfo(client: Client): { staffLiaisonId?: string; staffLiaisonName?: string } {
-    // Note: This assumes the client object contains staff liaison information
-    // If staff liaison data needs to be fetched separately, this method would need to be updated
-    return {
-      staffLiaisonId: client.staffLiaisonId || undefined,
-      staffLiaisonName: client.staffLiaisonName || undefined
-    };
+    return DataFetchingService.fetchClientAdHocTasks(clientId);
   }
 
   /**
    * Fetch all tasks for all clients with skill ID resolution and staff liaison information
+   * 
+   * This is the main orchestration method that coordinates all the specialized services
+   * to fetch, format, and return task data in the expected format.
    */
   static async fetchAllClientTasks(clients: Client[]): Promise<{
     formattedTasks: FormattedTask[];
@@ -101,81 +57,26 @@ export class TaskDataService {
       try {
         console.log(`[TaskDataService] Processing tasks for client: ${client.legalName}`);
         
-        // Get staff liaison info for this client
-        const { staffLiaisonId, staffLiaisonName } = this.getStaffLiaisonInfo(client);
-        
         // Get recurring tasks
         const recurringTasks = await this.fetchClientRecurringTasks(client.id);
         
         // Format recurring tasks with skill resolution and staff liaison info
-        const formattedRecurringTasks: FormattedTask[] = await Promise.all(
-          recurringTasks.map(async (task) => {
-            // Resolve skill IDs to skill names
-            const resolvedSkills = await this.resolveTaskSkills(task.requiredSkills);
-            
-            // Collect resolved skills and priorities for filter options
-            resolvedSkills.forEach(skill => skills.add(skill));
-            priorities.add(task.priority);
-            
-            console.log(`[TaskDataService] Recurring task "${task.name}" skills:`, {
-              originalSkillIds: task.requiredSkills,
-              resolvedSkills
-            });
-            
-            return {
-              id: task.id,
-              clientId: client.id,
-              clientName: client.legalName,
-              taskName: task.name,
-              taskType: 'Recurring',
-              dueDate: task.dueDate,
-              recurrencePattern: task.recurrencePattern,
-              estimatedHours: task.estimatedHours,
-              requiredSkills: resolvedSkills, // Use resolved skill names
-              priority: task.priority,
-              status: task.status,
-              isActive: task.isActive,
-              staffLiaisonId,
-              staffLiaisonName
-            };
-          })
+        const formattedRecurringTasks = await TaskFormattingService.formatRecurringTasks(
+          recurringTasks, 
+          client, 
+          skills, 
+          priorities
         );
         
         // Get ad-hoc tasks
         const adHocTasksData = await this.fetchClientAdHocTasks(client.id);
         
         // Format ad-hoc tasks with skill resolution and staff liaison info
-        const formattedAdHocTasks: FormattedTask[] = await Promise.all(
-          adHocTasksData.map(async (taskData) => {
-            const task = taskData.taskInstance; // Extract the TaskInstance from TaskInstanceData
-            
-            // Resolve skill IDs to skill names
-            const resolvedSkills = await this.resolveTaskSkills(task.requiredSkills);
-            
-            // Collect resolved skills and priorities for filter options
-            resolvedSkills.forEach(skill => skills.add(skill));
-            priorities.add(task.priority);
-            
-            console.log(`[TaskDataService] Ad-hoc task "${task.name}" skills:`, {
-              originalSkillIds: task.requiredSkills,
-              resolvedSkills
-            });
-            
-            return {
-              id: task.id,
-              clientId: client.id,
-              clientName: client.legalName,
-              taskName: task.name,
-              taskType: 'Ad-hoc',
-              dueDate: task.dueDate,
-              estimatedHours: task.estimatedHours,
-              requiredSkills: resolvedSkills, // Use resolved skill names
-              priority: task.priority,
-              status: task.status,
-              staffLiaisonId,
-              staffLiaisonName
-            };
-          })
+        const formattedAdHocTasks = await TaskFormattingService.formatAdHocTasks(
+          adHocTasksData, 
+          client, 
+          skills, 
+          priorities
         );
         
         // Add all tasks to the array
