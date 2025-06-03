@@ -74,7 +74,7 @@ function App() {
                       <Routes>
                         <Route path="/" element={<Index />} />
                         <Route path="/tasks" element={<TaskModule />} />
-                        <Route path="/clients" element={<ClientModule />} />
+                        <Route path="/clients/*" element={<ClientModule />} />
                         <Route path="/staff/*" element={<StaffModule />} />
                         <Route path="/forecasting" element={<ForecastingModule />} />
                         <Route path="/scheduler" element={<SchedulerModule />} />
