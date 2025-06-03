@@ -1,6 +1,7 @@
+
 import { processSingleAssignment, validateOperation } from './taskCreationService';
 import { BulkOperationsLogger } from './loggingService';
-import { BatchOperation, BatchProcessingConfig, BulkAssignmentRequest } from './types';
+import { BatchOperation, BatchProcessingConfig, BulkAssignment } from './types';
 
 /**
  * Main Bulk Operations Service - Updated with enhanced error handling
@@ -12,7 +13,7 @@ import { BatchOperation, BatchProcessingConfig, BulkAssignmentRequest } from './
  * Process bulk assignments with improved error handling and logging
  */
 export const processBulkAssignments = async (
-  bulkRequest: BulkAssignmentRequest,
+  bulkRequest: BulkAssignment,
   config: BatchProcessingConfig,
   progressCallback?: (progress: any) => void
 ): Promise<{
@@ -36,6 +37,7 @@ export const processBulkAssignments = async (
   for (const templateId of bulkRequest.templateIds) {
     for (const clientId of bulkRequest.clientIds) {
       operations.push({
+        id: `${clientId}-${templateId}`,
         templateId,
         clientId,
         config: bulkRequest.config
@@ -118,3 +120,16 @@ export const getTemplatesForBulkOperations = async () => {
   ];
   return templates;
 };
+
+// Export validation function
+export { validateBulkOperation } from './validationService';
+
+// Re-export types for external use
+export type {
+  BulkAssignment,
+  BatchOperation,
+  BulkOperationConfig,
+  BulkOperationResult,
+  BulkOperationError,
+  ProgressUpdate
+} from './types';

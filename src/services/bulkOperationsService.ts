@@ -23,4 +23,4 @@ export type {
   BulkOperationResult,
   BulkOperationError,
   ProgressUpdate
-} from './bulkOperations';
+} from './bulkOperations/types';
