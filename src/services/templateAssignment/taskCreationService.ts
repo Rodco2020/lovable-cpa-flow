@@ -1,35 +1,14 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { getAllSkills } from '@/services/skillService';
 import { AssignmentConfig } from '@/components/clients/TaskWizard/AssignmentConfiguration';
 
 /**
- * Task Creation Service
+ * Task Creation Service - Updated for UUID-based skill system
  * 
  * Handles the creation of ad-hoc and recurring tasks from templates.
+ * 
+ * IMPORTANT: Skills are stored as UUIDs in the database, not as names.
  */
-
-/**
- * Resolve skill IDs to skill names
- */
-const resolveSkillNames = async (skillIds: string[]): Promise<string[]> => {
-  if (!skillIds || skillIds.length === 0) return [];
-  
-  try {
-    const skills = await getAllSkills();
-    const skillsMap = skills.reduce((map, skill) => {
-      map[skill.id] = skill.name;
-      return map;
-    }, {} as Record<string, string>);
-    
-    // Convert skill IDs to names, fallback to ID if name not found
-    return skillIds.map(skillId => skillsMap[skillId] || skillId);
-  } catch (error) {
-    console.error('Error resolving skill names:', error);
-    // Fallback to returning the original skill IDs if resolution fails
-    return skillIds;
-  }
-};
 
 /**
  * Create an ad-hoc task instance from template
@@ -40,8 +19,17 @@ export const createAdHocTask = async (
   template: any,
   config: AssignmentConfig
 ) => {
-  // Resolve skill IDs to names
-  const resolvedSkills = await resolveSkillNames(template.required_skills || []);
+  console.log('[TemplateAssignment] Creating ad-hoc task with UUID skills:', {
+    templateId,
+    clientId,
+    templateSkills: template.required_skills
+  });
+
+  // CRITICAL FIX: Store skill UUIDs directly, do NOT resolve to names
+  // The template.required_skills already contains UUIDs from the database
+  const skillUuids = template.required_skills || [];
+
+  console.log('[TemplateAssignment] Skills to store (UUIDs):', skillUuids);
   
   const taskData = {
     template_id: templateId,
@@ -49,7 +37,7 @@ export const createAdHocTask = async (
     name: template.name,
     description: template.description,
     estimated_hours: config.estimatedHours || template.default_estimated_hours,
-    required_skills: resolvedSkills, // Store skill names instead of IDs
+    required_skills: skillUuids, // Store UUIDs directly
     priority: config.priority || template.default_priority,
     category: template.category,
     status: 'Unscheduled',
@@ -57,13 +45,18 @@ export const createAdHocTask = async (
     notes: `Created from template: ${template.name}`
   };
 
+  console.log('[TemplateAssignment] Inserting ad-hoc task data:', taskData);
+
   const { error: insertError } = await supabase
     .from('task_instances')
     .insert(taskData);
 
   if (insertError) {
+    console.error('[TemplateAssignment] Failed to create ad-hoc task:', insertError);
     throw new Error(`Failed to create task for client ${clientId}: ${insertError.message}`);
   }
+
+  console.log('[TemplateAssignment] Successfully created ad-hoc task');
 };
 
 /**
@@ -75,8 +68,17 @@ export const createRecurringTask = async (
   template: any,
   config: AssignmentConfig
 ) => {
-  // Resolve skill IDs to names
-  const resolvedSkills = await resolveSkillNames(template.required_skills || []);
+  console.log('[TemplateAssignment] Creating recurring task with UUID skills:', {
+    templateId,
+    clientId,
+    templateSkills: template.required_skills
+  });
+
+  // CRITICAL FIX: Store skill UUIDs directly, do NOT resolve to names
+  // The template.required_skills already contains UUIDs from the database
+  const skillUuids = template.required_skills || [];
+
+  console.log('[TemplateAssignment] Skills to store (UUIDs):', skillUuids);
   
   const recurringTaskData = {
     template_id: templateId,
@@ -84,7 +86,7 @@ export const createRecurringTask = async (
     name: template.name,
     description: template.description,
     estimated_hours: config.estimatedHours || template.default_estimated_hours,
-    required_skills: resolvedSkills, // Store skill names instead of IDs
+    required_skills: skillUuids, // Store UUIDs directly
     priority: config.priority || template.default_priority,
     category: template.category,
     status: 'Unscheduled',
@@ -100,11 +102,16 @@ export const createRecurringTask = async (
     notes: `Created from template: ${template.name}`
   };
 
+  console.log('[TemplateAssignment] Inserting recurring task data:', recurringTaskData);
+
   const { error: recurringError } = await supabase
     .from('recurring_tasks')
     .insert(recurringTaskData);
 
   if (recurringError) {
+    console.error('[TemplateAssignment] Failed to create recurring task:', recurringError);
     throw new Error(`Failed to create recurring task for client ${clientId}: ${recurringError.message}`);
   }
+
+  console.log('[TemplateAssignment] Successfully created recurring task');
 };

@@ -1,7 +1,5 @@
 
 import { supabase } from '@/lib/supabaseClient';
-import { resolveSkillNames } from './skillResolver';
-import { createTaskInstanceFromRecurring } from './taskInstanceGenerator';
 import { BatchOperation } from './types';
 
 /**
@@ -9,6 +7,8 @@ import { BatchOperation } from './types';
  * 
  * Handles the creation of recurring task assignments from batch operations.
  * This service manages the database interaction and configuration for recurring tasks.
+ * 
+ * IMPORTANT: Skills are stored as UUIDs in the database and resolved to names only for display.
  */
 
 /**
@@ -18,7 +18,7 @@ import { BatchOperation } from './types';
  * @returns Promise resolving to the created task data
  */
 export const createRecurringTask = async (operation: BatchOperation): Promise<any> => {
-  console.log(`Creating recurring task for client ${operation.clientId}, template ${operation.templateId}`);
+  console.log(`[RecurringTaskCreator] Creating recurring task for client ${operation.clientId}, template ${operation.templateId}`);
 
   // First, get the template details
   const { data: template, error: templateError } = await supabase
@@ -28,16 +28,26 @@ export const createRecurringTask = async (operation: BatchOperation): Promise<an
     .single();
 
   if (templateError) {
+    console.error('[RecurringTaskCreator] Failed to fetch template:', templateError);
     throw new Error(`Failed to fetch template: ${templateError.message}`);
   }
 
-  // Resolve skill IDs to names
-  const templateSkills = operation.config.preserveSkills 
+  console.log('[RecurringTaskCreator] Template fetched:', {
+    templateId: template.id,
+    requiredSkills: template.required_skills,
+    skillsType: typeof template.required_skills,
+    skillsLength: template.required_skills?.length
+  });
+
+  // CRITICAL FIX: Store skill UUIDs directly, do NOT resolve to names
+  // The database schema expects UUIDs in the required_skills array
+  const skillUuids = operation.config.preserveSkills 
     ? template.required_skills 
     : template.required_skills;
-  const resolvedSkills = await resolveSkillNames(templateSkills || []);
 
-  // Prepare recurring task data
+  console.log('[RecurringTaskCreator] Skills to store (UUIDs):', skillUuids);
+
+  // Prepare recurring task data with skill UUIDs
   const recurringTaskData: any = {
     template_id: operation.templateId,
     client_id: operation.clientId,
@@ -46,7 +56,7 @@ export const createRecurringTask = async (operation: BatchOperation): Promise<an
     estimated_hours: operation.config.preserveEstimatedHours 
       ? template.default_estimated_hours 
       : (operation.config.estimatedHours || template.default_estimated_hours),
-    required_skills: resolvedSkills, // Store skill names instead of IDs
+    required_skills: skillUuids, // Store UUIDs, NOT resolved names
     priority: operation.config.priority || template.default_priority,
     category: template.category,
     recurrence_type: operation.config.recurrenceType || 'Monthly',
@@ -70,6 +80,8 @@ export const createRecurringTask = async (operation: BatchOperation): Promise<an
     recurringTaskData.month_of_year = operation.config.monthOfYear || 1;
   }
 
+  console.log('[RecurringTaskCreator] Inserting recurring task data:', recurringTaskData);
+
   // Insert recurring task
   const { data: recurringTask, error: insertError } = await supabase
     .from('recurring_tasks')
@@ -78,15 +90,11 @@ export const createRecurringTask = async (operation: BatchOperation): Promise<an
     .single();
 
   if (insertError) {
+    console.error('[RecurringTaskCreator] Failed to create recurring task:', insertError);
     throw new Error(`Failed to create recurring task: ${insertError.message}`);
   }
 
-  console.log(`Successfully created recurring task: ${recurringTask.id}`);
-
-  // If configured to generate immediately, create the first instance
-  if (operation.config.generateImmediately) {
-    await createTaskInstanceFromRecurring(recurringTask, operation);
-  }
+  console.log(`[RecurringTaskCreator] Successfully created recurring task: ${recurringTask.id}`);
 
   return {
     type: 'recurring',

@@ -1,48 +1,65 @@
 
+import { supabase } from '@/lib/supabaseClient';
 import { createRecurringTask } from './recurringTaskCreator';
 import { createAdHocTask } from './adHocTaskCreator';
 import { BatchOperation } from './types';
 
 /**
- * Task Creation Service - Main Orchestrator
+ * Task Creation Service - Updated for UUID-based skill system
  * 
- * This service coordinates task creation by delegating to specialized
- * creation services based on the operation configuration.
- * 
- * Maintains the exact same public API as the original service while
- * providing improved internal structure and maintainability.
+ * Central service for creating tasks from batch operations.
+ * Handles both ad-hoc and recurring task creation with proper UUID skill storage.
  */
 
 /**
  * Process a single assignment operation
  * 
- * Creates either an ad-hoc task or recurring task based on the operation configuration.
- * This function handles the delegation to appropriate creation services.
- * 
  * @param operation - The batch operation to process
  * @returns Promise resolving to the created task data
  */
 export const processSingleAssignment = async (operation: BatchOperation): Promise<any> => {
-  console.log(`Processing assignment: ${operation.clientId} - ${operation.templateId}`);
+  console.log(`[TaskCreationService] Processing assignment:`, {
+    clientId: operation.clientId,
+    templateId: operation.templateId,
+    taskType: operation.config.taskType
+  });
 
   try {
-    // Determine task type from config
-    const taskType = operation.config.taskType || operation.config.assignmentType;
-    
-    if (taskType === 'recurring') {
-      return await createRecurringTask(operation);
+    let result;
+
+    if (operation.config.taskType === 'recurring') {
+      result = await createRecurringTask(operation);
     } else {
-      return await createAdHocTask(operation);
+      result = await createAdHocTask(operation);
     }
+
+    console.log(`[TaskCreationService] Successfully processed assignment:`, result);
+    return result;
+
   } catch (error) {
-    console.error(`Failed to process assignment ${operation.id}:`, error);
-    throw error;
+    console.error('[TaskCreationService] Failed to process assignment:', error);
+    throw new Error(`Failed to create ${operation.config.taskType} task: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
-// Re-export specialized functions for direct use if needed
-export { createRecurringTask } from './recurringTaskCreator';
-export { createAdHocTask } from './adHocTaskCreator';
-export { createTaskInstanceFromRecurring } from './taskInstanceGenerator';
-export { calculateNextDueDate } from './dueDateCalculator';
-export { resolveSkillNames } from './skillResolver';
+/**
+ * Validate operation before processing
+ * 
+ * @param operation - The batch operation to validate
+ * @returns true if valid, throws error if invalid
+ */
+export const validateOperation = (operation: BatchOperation): boolean => {
+  if (!operation.clientId) {
+    throw new Error('Client ID is required');
+  }
+
+  if (!operation.templateId) {
+    throw new Error('Template ID is required');
+  }
+
+  if (!operation.config.taskType) {
+    throw new Error('Task type is required');
+  }
+
+  return true;
+};

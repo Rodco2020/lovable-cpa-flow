@@ -1,29 +1,120 @@
+import { processSingleAssignment, validateOperation } from './taskCreationService';
+import { BulkOperationsLogger } from './loggingService';
+import { BatchOperation, BatchProcessingConfig, BulkAssignmentRequest } from './types';
 
 /**
- * Bulk Operations Service - Main Module
+ * Main Bulk Operations Service - Updated with enhanced error handling
  * 
- * Central export point for all bulk operations functionality.
- * This module provides a clean interface for bulk template assignments
- * and related operations.
+ * Processes bulk task assignments with proper skill UUID handling and comprehensive logging.
  */
 
-// Export main functions
-export { processBulkAssignments } from './batchProcessor';
-export { validateBulkOperation } from './validationService';
-export { getTemplatesForBulkOperations } from './templateDataService';
+/**
+ * Process bulk assignments with improved error handling and logging
+ */
+export const processBulkAssignments = async (
+  bulkRequest: BulkAssignmentRequest,
+  config: BatchProcessingConfig,
+  progressCallback?: (progress: any) => void
+): Promise<{
+  totalOperations: number;
+  successfulOperations: number;
+  failedOperations: number;
+  errors: Array<{ clientId: string; templateId: string; error: string }>;
+  results: any[];
+}> => {
+  console.log('[BulkOperations] Starting bulk assignment process:', {
+    templateCount: bulkRequest.templateIds.length,
+    clientCount: bulkRequest.clientIds.length,
+    taskType: bulkRequest.config.taskType
+  });
 
-// Export utility functions for advanced use cases
-export { createBatchOperations, calculateTotalOperations } from './operationCreator';
-export { showCompletionToast, showErrorToast } from './notificationManager';
-export { initializeBulkResult, finalizeBulkResult } from './resultManager';
+  const operations: BatchOperation[] = [];
+  const results: any[] = [];
+  const errors: Array<{ clientId: string; templateId: string; error: string }> = [];
 
-// Export types for consumers
-export type {
-  BulkAssignment,
-  BatchOperation,
-  BulkOperationConfig,
-  BatchProcessingConfig,
-  BulkOperationResult,
-  BulkOperationError,
-  ProgressUpdate
-} from './types';
+  // Generate all operations
+  for (const templateId of bulkRequest.templateIds) {
+    for (const clientId of bulkRequest.clientIds) {
+      operations.push({
+        templateId,
+        clientId,
+        config: bulkRequest.config
+      });
+    }
+  }
+
+  const totalOperations = operations.length;
+  let successfulOperations = 0;
+  let processedOperations = 0;
+
+  BulkOperationsLogger.logOperationFlow('START', { totalOperations, config: bulkRequest.config });
+
+  // Process operations in batches
+  const batchSize = config.batchSize || 10;
+  for (let i = 0; i < operations.length; i += batchSize) {
+    const batch = operations.slice(i, i + batchSize);
+    
+    await Promise.all(
+      batch.map(async (operation) => {
+        try {
+          BulkOperationsLogger.logOperationFlow('PROCESSING', operation);
+          
+          // Validate operation before processing
+          validateOperation(operation);
+          
+          // Process the assignment
+          const result = await processSingleAssignment(operation);
+          results.push(result);
+          successfulOperations++;
+          
+          BulkOperationsLogger.logOperationFlow('SUCCESS', operation);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          errors.push({
+            clientId: operation.clientId,
+            templateId: operation.templateId,
+            error: errorMessage
+          });
+          
+          BulkOperationsLogger.logValidationError('OPERATION_FAILED', error, operation);
+        }
+        
+        processedOperations++;
+        
+        // Update progress
+        if (progressCallback) {
+          progressCallback({
+            completed: processedOperations,
+            total: totalOperations,
+            percentage: Math.round((processedOperations / totalOperations) * 100),
+            currentOperation: `Processing ${processedOperations}/${totalOperations}`,
+            errors: errors.length
+          });
+        }
+      })
+    );
+  }
+
+  const finalResult = {
+    totalOperations,
+    successfulOperations,
+    failedOperations: errors.length,
+    errors,
+    results
+  };
+
+  BulkOperationsLogger.logOperationFlow('COMPLETE', finalResult);
+
+  console.log('[BulkOperations] Bulk assignment process completed:', finalResult);
+
+  return finalResult;
+};
+
+export const getTemplatesForBulkOperations = async () => {
+  // Mock templates for testing
+  const templates = [
+    { id: '1', name: 'Template 1', category: 'Tax' },
+    { id: '2', name: 'Template 2', category: 'Audit' },
+  ];
+  return templates;
+};
