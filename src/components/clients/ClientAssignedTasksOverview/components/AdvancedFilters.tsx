@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Client } from '@/types/client';
+import { StaffOption } from '@/types/staffOption';
 import { SkillDeduplicationService } from '../services/skillDeduplicationService';
 
 export interface AdvancedFilterState {
@@ -25,6 +27,7 @@ export interface AdvancedFilterState {
   clientFilters: string[];
   priorityFilters: string[];
   statusFilters: string[];
+  staffLiaisonFilters: string[];
   dateRange: {
     from: Date | undefined;
     to: Date | undefined;
@@ -38,6 +41,7 @@ interface AdvancedFiltersProps {
   clients: Client[];
   availableSkills: string[];
   availablePriorities: string[];
+  staffOptions: StaffOption[];
   className?: string;
 }
 
@@ -45,7 +49,7 @@ interface AdvancedFiltersProps {
  * Advanced Filters Component
  * 
  * Provides multi-select filters, date range filtering, and quick presets
- * for complex filtering scenarios. Now uses proper skill deduplication.
+ * for complex filtering scenarios. Now includes staff liaison filtering.
  */
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   filters,
@@ -53,6 +57,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   clients,
   availableSkills,
   availablePriorities,
+  staffOptions,
   className = ''
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -113,6 +118,21 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     );
   }, [availablePriorities]);
 
+  // Validation for staff options
+  const validStaffOptions = React.useMemo(() => {
+    if (!Array.isArray(staffOptions)) return [];
+    return staffOptions.filter(staff => 
+      staff && 
+      typeof staff === 'object' && 
+      staff.id && 
+      typeof staff.id === 'string' && 
+      staff.id.trim() !== '' &&
+      staff.full_name &&
+      typeof staff.full_name === 'string' &&
+      staff.full_name.trim() !== ''
+    );
+  }, [staffOptions]);
+
   // Quick filter presets
   const presets = [
     { id: 'high-priority', label: 'High Priority Tasks', description: 'Tasks with high priority' },
@@ -122,7 +142,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   ];
 
   const updateMultiSelectFilter = (
-    filterKey: keyof Pick<AdvancedFilterState, 'skillFilters' | 'clientFilters' | 'priorityFilters' | 'statusFilters'>,
+    filterKey: keyof Pick<AdvancedFilterState, 'skillFilters' | 'clientFilters' | 'priorityFilters' | 'statusFilters' | 'staffLiaisonFilters'>,
     value: string,
     checked: boolean
   ) => {
@@ -198,6 +218,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
       clientFilters: [],
       priorityFilters: [],
       statusFilters: [],
+      staffLiaisonFilters: [],
       dateRange: { from: undefined, to: undefined },
       preset: null
     });
@@ -208,6 +229,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
            filters.clientFilters.length + 
            filters.priorityFilters.length + 
            filters.statusFilters.length +
+           filters.staffLiaisonFilters.length +
            (filters.dateRange.from || filters.dateRange.to ? 1 : 0);
   };
 
@@ -326,9 +348,9 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             </div>
           </div>
 
-          {/* Multi-select Filters Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Skills Filter - Now with proper deduplication */}
+          {/* Multi-select Filters Grid - Now with 5 columns to accommodate staff liaison */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Skills Filter */}
             <div>
               <h4 className="text-sm font-medium mb-2">
                 Skills 
@@ -460,6 +482,41 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                     </Button>
                   </Badge>
                 ))}
+              </div>
+            </div>
+
+            {/* Staff Liaison Filter - New */}
+            <div>
+              <h4 className="text-sm font-medium mb-2">Staff Liaison</h4>
+              <Select onValueChange={(value) => updateMultiSelectFilter('staffLiaisonFilters', value, true)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Add staff..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {validStaffOptions
+                    .filter(staff => !filters.staffLiaisonFilters.includes(staff.id))
+                    .map(staff => (
+                      <SelectItem key={staff.id} value={staff.id}>{staff.full_name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {filters.staffLiaisonFilters.map(staffId => {
+                  const staff = validStaffOptions.find(s => s.id === staffId);
+                  return (
+                    <Badge key={staffId} variant="secondary" className="text-xs">
+                      {staff?.full_name || 'Unknown'}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-1 h-3 w-3 p-0"
+                        onClick={() => updateMultiSelectFilter('staffLiaisonFilters', staffId, false)}
+                      >
+                        <X className="h-2 w-2" />
+                      </Button>
+                    </Badge>
+                  );
+                })}
               </div>
             </div>
           </div>

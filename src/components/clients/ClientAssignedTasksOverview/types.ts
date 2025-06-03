@@ -14,6 +14,8 @@ export interface FormattedTask {
   priority: string;
   status: string;
   isActive?: boolean;
+  staffLiaisonId?: string;
+  staffLiaisonName?: string;
 }
 
 export interface FilterState {

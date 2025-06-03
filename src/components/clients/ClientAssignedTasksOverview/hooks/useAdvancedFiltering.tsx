@@ -9,6 +9,7 @@ import { AdvancedFilterState } from '../components/AdvancedFilters';
  * Handles the complex multi-criteria filtering logic that was previously
  * inline in the main component. Provides advanced filter state management
  * and applies multi-select filters, date ranges, and preset filters.
+ * Now includes staff liaison filtering.
  */
 export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -17,6 +18,7 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
     clientFilters: [],
     priorityFilters: [],
     statusFilters: [],
+    staffLiaisonFilters: [],
     dateRange: { from: undefined, to: undefined },
     preset: null
   });
@@ -72,6 +74,15 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
       console.log('After status filter:', filtered.length);
     }
 
+    // Apply staff liaison filter
+    if (advancedFilters.staffLiaisonFilters.length > 0) {
+      filtered = filtered.filter(task => {
+        return task.staffLiaisonId && 
+               advancedFilters.staffLiaisonFilters.includes(task.staffLiaisonId);
+      });
+      console.log('After staff liaison filter:', filtered.length);
+    }
+
     // Apply date range filter
     if (advancedFilters.dateRange.from || advancedFilters.dateRange.to) {
       filtered = filtered.filter(task => {
@@ -104,6 +115,7 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
       clientFilters: [],
       priorityFilters: [],
       statusFilters: [],
+      staffLiaisonFilters: [],
       dateRange: { from: undefined, to: undefined },
       preset: null
     });

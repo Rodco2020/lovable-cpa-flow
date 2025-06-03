@@ -1,16 +1,19 @@
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Client } from '@/types/client';
+import { StaffOption } from '@/types/staffOption';
 import { FormattedTask } from '../types';
 import { TaskDataService } from '../services/taskDataService';
 import { TaskDataUtils } from '../utils/taskDataUtils';
 import { SkillDeduplicationService } from '../services/skillDeduplicationService';
+import { getStaffForLiaisonDropdown } from '@/services/client/staffLiaisonService';
 
 /**
  * Hook to manage the data fetching process for clients and tasks
  * Handles loading states, error handling, and data transformation
- * Now uses SkillDeduplicationService for proper skill deduplication
+ * Now includes staff options fetching for staff liaison filtering
  */
 export const useTaskDataFetching = () => {
   const { toast } = useToast();
@@ -20,6 +23,13 @@ export const useTaskDataFetching = () => {
   const [error, setError] = useState<string | null>(null);
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
   const [availablePriorities, setAvailablePriorities] = useState<string[]>([]);
+
+  // Fetch staff options for staff liaison filtering
+  const { data: staffOptions = [], isLoading: isStaffLoading } = useQuery({
+    queryKey: ['staff-liaison-dropdown'],
+    queryFn: getStaffForLiaisonDropdown,
+    staleTime: 10 * 60 * 1000, // 10 minutes cache
+  });
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -85,10 +95,11 @@ export const useTaskDataFetching = () => {
   return {
     clients,
     formattedTasks,
-    isLoading,
+    isLoading: isLoading || isStaffLoading,
     error,
     availableSkills,
     availablePriorities,
+    staffOptions,
     fetchData,
     handleRefresh
   };

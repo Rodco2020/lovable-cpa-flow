@@ -12,6 +12,7 @@ import { resolveSkillNames } from '@/services/bulkOperations/skillResolver';
  * Service for fetching client and task data
  * Centralizes all data fetching operations for the Client Assigned Tasks Overview
  * Updated to resolve skill IDs to skill names during data transformation
+ * and include staff liaison information
  */
 export class TaskDataService {
   /**
@@ -73,7 +74,19 @@ export class TaskDataService {
   }
 
   /**
-   * Fetch all tasks for all clients with skill ID resolution
+   * Get staff liaison name from client data
+   */
+  private static getStaffLiaisonInfo(client: Client): { staffLiaisonId?: string; staffLiaisonName?: string } {
+    // Note: This assumes the client object contains staff liaison information
+    // If staff liaison data needs to be fetched separately, this method would need to be updated
+    return {
+      staffLiaisonId: client.staffLiaisonId || undefined,
+      staffLiaisonName: client.staffLiaisonName || undefined
+    };
+  }
+
+  /**
+   * Fetch all tasks for all clients with skill ID resolution and staff liaison information
    */
   static async fetchAllClientTasks(clients: Client[]): Promise<{
     formattedTasks: FormattedTask[];
@@ -88,10 +101,13 @@ export class TaskDataService {
       try {
         console.log(`[TaskDataService] Processing tasks for client: ${client.legalName}`);
         
+        // Get staff liaison info for this client
+        const { staffLiaisonId, staffLiaisonName } = this.getStaffLiaisonInfo(client);
+        
         // Get recurring tasks
         const recurringTasks = await this.fetchClientRecurringTasks(client.id);
         
-        // Format recurring tasks with skill resolution
+        // Format recurring tasks with skill resolution and staff liaison info
         const formattedRecurringTasks: FormattedTask[] = await Promise.all(
           recurringTasks.map(async (task) => {
             // Resolve skill IDs to skill names
@@ -118,7 +134,9 @@ export class TaskDataService {
               requiredSkills: resolvedSkills, // Use resolved skill names
               priority: task.priority,
               status: task.status,
-              isActive: task.isActive
+              isActive: task.isActive,
+              staffLiaisonId,
+              staffLiaisonName
             };
           })
         );
@@ -126,7 +144,7 @@ export class TaskDataService {
         // Get ad-hoc tasks
         const adHocTasksData = await this.fetchClientAdHocTasks(client.id);
         
-        // Format ad-hoc tasks with skill resolution
+        // Format ad-hoc tasks with skill resolution and staff liaison info
         const formattedAdHocTasks: FormattedTask[] = await Promise.all(
           adHocTasksData.map(async (taskData) => {
             const task = taskData.taskInstance; // Extract the TaskInstance from TaskInstanceData
@@ -153,7 +171,9 @@ export class TaskDataService {
               estimatedHours: task.estimatedHours,
               requiredSkills: resolvedSkills, // Use resolved skill names
               priority: task.priority,
-              status: task.status
+              status: task.status,
+              staffLiaisonId,
+              staffLiaisonName
             };
           })
         );
