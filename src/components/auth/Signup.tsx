@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ const Signup = () => {
   const [lastName, setLastName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signUp } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,10 @@ const Signup = () => {
     setIsSubmitting(true);
     try {
       await signUp(email, password, firstName, lastName);
+      // Redirect to login after successful signup
+      navigate('/auth/login');
+    } catch (error) {
+      // Error is already handled in the signUp function
     } finally {
       setIsSubmitting(false);
     }

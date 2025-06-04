@@ -21,7 +21,19 @@ interface PageShellProps {
 }
 
 const PageShell: React.FC<PageShellProps> = ({ children }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isLoading } = useAuth();
+
+  // Show loading state while auth is being determined
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -125,7 +137,7 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
           </NavLink>
           
           <NavLink 
-            to="/reports/staff" 
+            to="/reports" 
             className={({ isActive }) => cn(
               "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
               isActive 
@@ -134,7 +146,7 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
             )}
           >
             <FileBarChart className="h-5 w-5" />
-            <span>Staff Report</span>
+            <span>Reports</span>
           </NavLink>
         </nav>
         
@@ -145,9 +157,9 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
                 <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center">
                   <User className="h-4 w-4" />
                 </div>
-                <div>
-                  <div className="text-sm font-medium">{user.email}</div>
-                  <div className="text-xs text-slate-400">Staff</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{user.email}</div>
+                  <div className="text-xs text-slate-400">Staff Member</div>
                 </div>
               </div>
               <Button 
@@ -160,18 +172,9 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
               </Button>
             </div>
           ) : (
-            <NavLink 
-              to="/auth/login" 
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                isActive 
-                  ? "bg-slate-800 text-white" 
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
-              )}
-            >
-              <User className="h-5 w-5" />
-              <span>Sign In</span>
-            </NavLink>
+            <div className="text-center">
+              <p className="text-slate-400 text-sm mb-2">Not authenticated</p>
+            </div>
           )}
         </div>
       </div>
@@ -179,7 +182,15 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
       {/* Main content */}
       <div className="flex-grow bg-slate-50">
         <header className="bg-white border-b h-16 flex items-center px-6">
-          <h2 className="text-lg font-medium">CPA Practice Management</h2>
+          <div className="flex items-center justify-between w-full">
+            <h2 className="text-lg font-medium">CPA Practice Management</h2>
+            {user && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <User className="h-4 w-4" />
+                <span>Welcome, {user.email}</span>
+              </div>
+            )}
+          </div>
         </header>
         <main className="p-6">
           {children}

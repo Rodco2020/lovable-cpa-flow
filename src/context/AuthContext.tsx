@@ -21,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
 
   // Thorough cleanup function for all Supabase auth tokens
   const cleanupAuthState = () => {
@@ -56,6 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             checkAndCreateStaffRecord(session.user);
           }, 0);
         }
+        
+        setIsLoading(false);
       }
     );
 
@@ -137,11 +138,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data.user) {
         toast.success('Signed in successfully');
-        navigate('/');
+        // Let the auth state change handler redirect
       }
     } catch (error: any) {
       toast.error(`Error signing in: ${error.message}`);
       console.error('Error signing in:', error);
+      throw error;
     }
   };
 
@@ -164,10 +166,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       toast.success('Signup successful! Check your email for the confirmation link.');
-      navigate('/auth/login');
     } catch (error: any) {
       toast.error(`Error signing up: ${error.message}`);
       console.error('Error signing up:', error);
+      throw error;
     }
   };
 
