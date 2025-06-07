@@ -145,11 +145,11 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   // Handlers
   const handleExport = (options: any = {}) => {
     console.log('Export options:', options);
-    handleEnhancedExport(options);
+    handleEnhancedExport('csv', options);
   };
 
   const handlePrintAction = () => {
-    handlePrint();
+    handlePrint({});
   };
 
   // Debug logging for Phase 2 verification
@@ -186,7 +186,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         viewMode="hours"
         isLoading={isLoading || clientsLoading}
         skillsLoading={skillsLoading}
-        error={error || clientsError}
+        error={error?.message || clientsError?.message || ''}
         skillsError={skillsError}
         filteredData={filteredData}
         onRetryMatrix={loadMatrixData}
