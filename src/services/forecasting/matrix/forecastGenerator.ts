@@ -68,8 +68,16 @@ export class MatrixForecastGenerator {
       throw new Error('Invalid client options provided');
     }
 
-    // Step 2: Normalize date range
-    const normalizedStartDate = startOfMonth(startDate);
+    // Step 2: Normalize date range and align with earliest task data
+    let normalizedStartDate = startOfMonth(startDate);
+    const earliestDate = await SkillAwareForecastingService.getEarliestTaskDate(
+      options?.clientIds
+    );
+
+    if (earliestDate && earliestDate < normalizedStartDate) {
+      normalizedStartDate = startOfMonth(earliestDate);
+    }
+
     const endDate = endOfMonth(addMonths(normalizedStartDate, 11));
 
     debugLog('Step 1: Date normalization complete', {
