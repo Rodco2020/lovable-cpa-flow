@@ -97,6 +97,19 @@ export const EnhancedExportSection: React.FC<EnhancedExportSectionProps> = ({
     return parts.join(', ');
   };
 
+  // Checkbox handlers to properly handle CheckedState type
+  const handleIncludeAnalyticsChange = (checked: boolean | "indeterminate") => {
+    setIncludeAnalytics(checked === true);
+  };
+
+  const handleIncludeClientFilterChange = (checked: boolean | "indeterminate") => {
+    setIncludeClientFilter(checked === true);
+  };
+
+  const handleIncludeChartsChange = (checked: boolean | "indeterminate") => {
+    setIncludeCharts(checked === true);
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -127,7 +140,7 @@ export const EnhancedExportSection: React.FC<EnhancedExportSectionProps> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={includeAnalytics}
-                  onCheckedChange={setIncludeAnalytics}
+                  onCheckedChange={handleIncludeAnalyticsChange}
                 />
                 <label className="text-sm">Include analytics & trends</label>
               </div>
@@ -135,7 +148,7 @@ export const EnhancedExportSection: React.FC<EnhancedExportSectionProps> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={includeClientFilter}
-                  onCheckedChange={setIncludeClientFilter}
+                  onCheckedChange={handleIncludeClientFilterChange}
                 />
                 <label className="text-sm">Apply client filter</label>
               </div>
@@ -172,7 +185,7 @@ export const EnhancedExportSection: React.FC<EnhancedExportSectionProps> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={includeCharts}
-                  onCheckedChange={setIncludeCharts}
+                  onCheckedChange={handleIncludeChartsChange}
                 />
                 <label className="text-sm">Include charts</label>
               </div>
