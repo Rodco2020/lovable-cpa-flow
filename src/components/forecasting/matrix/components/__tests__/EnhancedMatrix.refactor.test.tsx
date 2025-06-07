@@ -115,7 +115,8 @@ describe('Enhanced Matrix Refactoring', () => {
           { skillType: 'Senior', month: '2024-01', demandHours: 80, capacityHours: 100, gap: 20, utilizationPercent: 80 }
         ],
         totalDemand: 180,
-        totalCapacity: 220
+        totalCapacity: 220,
+        totalGap: 40
       };
 
       const result = filterMatrixData(mockMatrixData, {
@@ -191,7 +192,8 @@ describe('Matrix Data Filter Utility', () => {
         { skillType: 'Senior', month: '2024-01', demandHours: 80, capacityHours: 100, gap: 20, utilizationPercent: 80 }
       ],
       totalDemand: 180,
-      totalCapacity: 220
+      totalCapacity: 220,
+      totalGap: 40
     };
 
     const result = filterMatrixData(mockData, {
