@@ -1,3 +1,4 @@
+
 import { 
   ForecastParameters, 
   ForecastResult,
@@ -33,7 +34,7 @@ export class MatrixForecastGenerator {
     options?: MatrixGenerationOptions
   ): Promise<{ forecastResult: ForecastResult; availableSkills: SkillType[] }> {
     debugLog('=== PHASE 3 MATRIX FORECAST GENERATION START - WITH CLIENT FILTERING FIX + STATUS FIX ===');
-    debugLog('Generating 12-month matrix forecast with CLIENT FILTERING LOGIC FIX + STAFF STATUS FIX:', { 
+    debugLog('Generating 12-month matrix forecast with CLIENT FILTERING LOGIC FIX:', { 
       forecastType, 
       startDate,
       hasClientFilter: !!options?.clientIds,
@@ -134,11 +135,15 @@ export class MatrixForecastGenerator {
       generatedAt: new Date()
     };
 
+    // Calculate gap after totals are computed
+    forecastResult.summary.gap = forecastResult.summary.totalDemand - forecastResult.summary.totalCapacity;
+
     debugLog('=== PHASE 3 MATRIX FORECAST GENERATION COMPLETE WITH CLIENT FILTERING FIX + STATUS FIX ===');
     debugLog('Final result summary:', {
       periodsGenerated: mergedForecastData.length,
       totalDemand: forecastResult.summary.totalDemand,
       totalCapacity: forecastResult.summary.totalCapacity,
+      totalGap: forecastResult.summary.gap,
       clientFilteringMode: options?.clientIds ? 'filtered' : 'all clients',
       clientsIncluded: options?.clientIds?.length || 'all'
     });
