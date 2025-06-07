@@ -48,7 +48,8 @@ describe('EnhancedCapacityMatrix - Hook Integration', () => {
 
     expect(mockUseEnhancedMatrixData).toHaveBeenCalledWith({
       forecastType: 'actual',
-      selectedClientIds: []
+      selectedClientIds: [],
+      totalClientCount: undefined
     });
   });
 
