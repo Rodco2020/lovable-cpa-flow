@@ -1,9 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MatrixControls } from '../MatrixControls';
+import { ClientFilterSection } from './ClientFilterSection';
+import { EnhancedExportSection } from './EnhancedExportSection';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { SkillType } from '@/types/task';
+import { MatrixData } from '@/services/forecasting/matrixUtils';
 
 interface MatrixControlsPanelProps {
   isControlsExpanded: boolean;
@@ -16,6 +19,11 @@ interface MatrixControlsPanelProps {
   onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
   onExport: () => void;
   onReset: () => void;
+  matrixData?: MatrixData;
+  selectedClientIds?: string[];
+  onClientSelectionChange?: (clientIds: string[]) => void;
+  onEnhancedExport?: (format: 'csv' | 'json', options: any) => void;
+  onPrint?: (options: any) => void;
 }
 
 export const MatrixControlsPanel: React.FC<MatrixControlsPanelProps> = ({
@@ -28,8 +36,16 @@ export const MatrixControlsPanel: React.FC<MatrixControlsPanelProps> = ({
   monthRange,
   onMonthRangeChange,
   onExport,
-  onReset
+  onReset,
+  matrixData,
+  selectedClientIds = [],
+  onClientSelectionChange = () => {},
+  onEnhancedExport = () => {},
+  onPrint = () => {}
 }) => {
+  const [clientFilterCollapsed, setClientFilterCollapsed] = useState(false);
+  const [exportSectionCollapsed, setExportSectionCollapsed] = useState(false);
+
   return (
     <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
       <div className="xl:hidden mb-4">
@@ -44,7 +60,16 @@ export const MatrixControlsPanel: React.FC<MatrixControlsPanelProps> = ({
         </Button>
       </div>
       
-      <div className={`${isControlsExpanded ? 'block' : 'hidden xl:block'}`}>
+      <div className={`${isControlsExpanded ? 'block' : 'hidden xl:block'} space-y-4`}>
+        {/* Client Filter Section */}
+        <ClientFilterSection
+          selectedClientIds={selectedClientIds}
+          onClientSelectionChange={onClientSelectionChange}
+          isCollapsed={clientFilterCollapsed}
+          onToggleCollapse={() => setClientFilterCollapsed(!clientFilterCollapsed)}
+        />
+
+        {/* Original Matrix Controls */}
         <MatrixControls
           selectedSkills={selectedSkills}
           onSkillToggle={onSkillToggle}
@@ -55,6 +80,20 @@ export const MatrixControlsPanel: React.FC<MatrixControlsPanelProps> = ({
           onExport={onExport}
           onReset={onReset}
         />
+
+        {/* Enhanced Export & Print Section */}
+        {matrixData && (
+          <EnhancedExportSection
+            matrixData={matrixData}
+            selectedSkills={selectedSkills}
+            selectedClientIds={selectedClientIds}
+            monthRange={monthRange}
+            onExport={onEnhancedExport}
+            onPrint={onPrint}
+            isCollapsed={exportSectionCollapsed}
+            onToggleCollapse={() => setExportSectionCollapsed(!exportSectionCollapsed)}
+          />
+        )}
       </div>
     </div>
   );
