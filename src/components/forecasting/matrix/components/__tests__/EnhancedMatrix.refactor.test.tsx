@@ -111,8 +111,8 @@ describe('Enhanced Matrix Refactoring', () => {
           { key: '2024-02', label: 'Feb 2024' }
         ],
         dataPoints: [
-          { skillType: 'Junior', month: '2024-01', demandHours: 100, capacityHours: 120, gap: 20, utilizationPercent: 83 },
-          { skillType: 'Senior', month: '2024-01', demandHours: 80, capacityHours: 100, gap: 20, utilizationPercent: 80 }
+          { skillType: 'Junior', month: '2024-01', monthLabel: 'Jan 2024', demandHours: 100, capacityHours: 120, gap: 20, utilizationPercent: 83 },
+          { skillType: 'Senior', month: '2024-01', monthLabel: 'Jan 2024', demandHours: 80, capacityHours: 100, gap: 20, utilizationPercent: 80 }
         ],
         totalDemand: 180,
         totalCapacity: 220,
@@ -188,8 +188,8 @@ describe('Matrix Data Filter Utility', () => {
       skills: ['Junior', 'Senior', 'CPA'],
       months: [{ key: '2024-01', label: 'Jan 2024' }],
       dataPoints: [
-        { skillType: 'Junior', month: '2024-01', demandHours: 100, capacityHours: 120, gap: 20, utilizationPercent: 83 },
-        { skillType: 'Senior', month: '2024-01', demandHours: 80, capacityHours: 100, gap: 20, utilizationPercent: 80 }
+        { skillType: 'Junior', month: '2024-01', monthLabel: 'Jan 2024', demandHours: 100, capacityHours: 120, gap: 20, utilizationPercent: 83 },
+        { skillType: 'Senior', month: '2024-01', monthLabel: 'Jan 2024', demandHours: 80, capacityHours: 100, gap: 20, utilizationPercent: 80 }
       ],
       totalDemand: 180,
       totalCapacity: 220,
