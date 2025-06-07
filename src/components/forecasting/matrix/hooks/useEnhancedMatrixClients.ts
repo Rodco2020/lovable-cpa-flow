@@ -25,30 +25,43 @@ export const useEnhancedMatrixClients = ({
     queryFn: async () => {
       console.log('🔍 EnhancedCapacityMatrix: Fetching clients for default selection...');
       
+      // Fetch clients using case-insensitive status match
       const { data, error } = await supabase
         .from('clients')
-        .select('id, legal_name')
-        .eq('status', 'active');
+        .select('id, legal_name, status')
+        .in('status', ['active', 'Active']);
       
       if (error) {
         console.error('❌ EnhancedCapacityMatrix: Client fetch error:', error);
         throw error;
       }
       
+      const statusCounts = (data || []).reduce<Record<string, number>>(
+        (acc, client) => {
+          acc[client.status] = (acc[client.status] || 0) + 1;
+          return acc;
+        },
+        {}
+      );
+
       console.log('📊 EnhancedCapacityMatrix: Client data received:', {
         totalClients: data?.length || 0,
+        statusCounts,
         clientIds: data?.map(c => c.id) || []
       });
       
       // Return both the names object and the full client data
-      const clientNames = data.reduce((acc, client) => ({
-        ...acc,
-        [client.id]: client.legal_name
-      }), {} as Record<string, string>);
-      
-      return { 
-        clientNames, 
-        clients: data || []
+      const clientNames = (data || []).reduce<Record<string, string>>(
+        (acc, client) => ({
+          ...acc,
+          [client.id]: client.legal_name
+        }),
+        {}
+      );
+
+      return {
+        clientNames,
+        clients: (data || []).map(({ id, legal_name }) => ({ id, legal_name }))
       };
     }
   });
