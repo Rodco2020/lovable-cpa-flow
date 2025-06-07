@@ -1,8 +1,9 @@
 
 import { MatrixData } from '@/services/forecasting/matrixUtils';
+import { SkillType } from '@/types/task';
 
 interface FilterOptions {
-  selectedSkills: string[];
+  selectedSkills: SkillType[];
   monthRange: { start: number; end: number };
 }
 
@@ -37,14 +38,14 @@ export const filterMatrixData = (
 
   // Filter data points based on filtered skills and months
   const filteredDataPoints = matrixData.dataPoints.filter(dataPoint => {
-    const skillMatch = filteredSkills.includes(dataPoint.skill);
+    const skillMatch = filteredSkills.includes(dataPoint.skillType);
     const monthMatch = filteredMonths.some(month => month.key === dataPoint.month);
     return skillMatch && monthMatch;
   });
 
   // Recalculate totals
-  const totalDemand = filteredDataPoints.reduce((sum, dp) => sum + dp.demand, 0);
-  const totalCapacity = filteredDataPoints.reduce((sum, dp) => sum + dp.capacity, 0);
+  const totalDemand = filteredDataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+  const totalCapacity = filteredDataPoints.reduce((sum, dp) => sum + dp.capacityHours, 0);
   const totalGap = filteredDataPoints.reduce((sum, dp) => sum + dp.gap, 0);
 
   return {

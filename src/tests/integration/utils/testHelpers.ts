@@ -1,4 +1,3 @@
-
 /**
  * Phase 5: Integration Testing Utilities
  * 
@@ -6,6 +5,7 @@
  */
 
 import { MatrixData } from '@/services/forecasting/matrixUtils';
+import { SkillType } from '@/types/task';
 
 export class IntegrationTestHelpers {
   /**
@@ -22,8 +22,8 @@ export class IntegrationTestHelpers {
       includeData = true
     } = options;
 
-    const skills = Array.from({ length: skillCount }, (_, i) => 
-      ['Junior', 'Senior', 'CPA', 'Manager', 'Partner'][i] || `Skill${i + 1}`
+    const skills: SkillType[] = Array.from({ length: skillCount }, (_, i) => 
+      (['Junior', 'Senior', 'CPA', 'Manager', 'Partner'][i] || `Skill${i + 1}`) as SkillType
     );
 
     const months = Array.from({ length: monthCount }, (_, i) => {
@@ -37,17 +37,19 @@ export class IntegrationTestHelpers {
     const dataPoints = includeData 
       ? skills.flatMap(skill =>
           months.map(month => ({
-            skill,
+            skillType: skill,
             month: month.key,
-            demand: Math.floor(Math.random() * 100) + 50,
-            capacity: Math.floor(Math.random() * 120) + 60,
-            gap: Math.floor(Math.random() * 40) - 20
+            monthLabel: month.label,
+            demandHours: Math.floor(Math.random() * 100) + 50,
+            capacityHours: Math.floor(Math.random() * 120) + 60,
+            gap: Math.floor(Math.random() * 40) - 20,
+            utilizationPercent: Math.floor(Math.random() * 100) + 10
           }))
         )
       : [];
 
-    const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demand, 0);
-    const totalCapacity = dataPoints.reduce((sum, dp) => sum + dp.capacity, 0);
+    const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+    const totalCapacity = dataPoints.reduce((sum, dp) => sum + dp.capacityHours, 0);
     const totalGap = dataPoints.reduce((sum, dp) => sum + dp.gap, 0);
 
     return {
@@ -116,15 +118,15 @@ export class IntegrationTestHelpers {
 
     // Verify data point structure
     matrixData.dataPoints.forEach((dp, index) => {
-      if (!dp.skill || !dp.month || typeof dp.demand !== 'number' || 
-          typeof dp.capacity !== 'number' || typeof dp.gap !== 'number') {
+      if (!dp.skillType || !dp.month || typeof dp.demandHours !== 'number' || 
+          typeof dp.capacityHours !== 'number' || typeof dp.gap !== 'number') {
         issues.push(`Invalid data point structure at index ${index}`);
       }
     });
 
     // Verify totals consistency
-    const calculatedDemand = matrixData.dataPoints.reduce((sum, dp) => sum + dp.demand, 0);
-    const calculatedCapacity = matrixData.dataPoints.reduce((sum, dp) => sum + dp.capacity, 0);
+    const calculatedDemand = matrixData.dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+    const calculatedCapacity = matrixData.dataPoints.reduce((sum, dp) => sum + dp.capacityHours, 0);
     const calculatedGap = matrixData.dataPoints.reduce((sum, dp) => sum + dp.gap, 0);
 
     if (Math.abs(calculatedDemand - matrixData.totalDemand) > 0.01) {
