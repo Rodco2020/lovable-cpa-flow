@@ -63,12 +63,12 @@ export const generateMatrixForecast = async (
     // Ensure we have some data or create fallback
     if (demandForecast.length === 0 && capacityForecast.length === 0) {
       debugLog('No forecast data generated, creating fallback data');
-      return await this.createFallbackMatrixData(normalizedStartDate, endDate, forecastType);
+      return await createFallbackMatrixData(normalizedStartDate, endDate, forecastType);
     }
 
     debugLog('Step 3: Merging demand and capacity data');
     
-    // Merge demand and capacity data
+    // Merge demand and capacity data with proper null checking
     const mergedForecastData = demandForecast.map((demandPeriod, index) => {
       const capacityPeriod = capacityForecast[index];
       return {
@@ -185,7 +185,7 @@ export const generateMatrixForecast = async (
     
     // Create fallback data so the UI doesn't completely break
     try {
-      return await this.createFallbackMatrixData(normalizedStartDate, endDate, forecastType);
+      return await createFallbackMatrixData(normalizedStartDate, endDate, forecastType);
     } catch (fallbackError) {
       debugLog('Fallback data creation also failed:', fallbackError);
       throw new Error(`Matrix forecast generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -203,9 +203,15 @@ const createFallbackMatrixData = async (
 ): Promise<{ forecastResult: ForecastResult; matrixData: MatrixData }> => {
   debugLog('Creating fallback matrix data');
   
-  // Get standard skills
-  const standardSkills = await SkillsIntegrationService.getAvailableSkills();
-  const skills = standardSkills.length > 0 ? standardSkills : ['Junior Staff', 'Senior Staff', 'CPA'];
+  // Get standard skills with proper error handling
+  let skills: SkillType[] = [];
+  try {
+    const standardSkills = await SkillsIntegrationService.getAvailableSkills();
+    skills = standardSkills.length > 0 ? standardSkills : ['Junior Staff', 'Senior Staff', 'CPA'];
+  } catch (error) {
+    debugLog('Error getting skills for fallback, using defaults:', error);
+    skills = ['Junior Staff', 'Senior Staff', 'CPA'];
+  }
   
   // Generate 12 months
   const months = generate12MonthPeriods(startDate);
