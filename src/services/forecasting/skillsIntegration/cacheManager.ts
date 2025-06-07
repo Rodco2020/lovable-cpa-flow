@@ -1,4 +1,3 @@
-
 import { SkillType } from '@/types/task';
 import { Skill } from '@/types/skill';
 import { SkillCache, SKILLS_CACHE_DURATION } from './types';
@@ -7,8 +6,9 @@ import { SkillNormalizationService } from '@/services/skillNormalizationService'
 import { debugLog } from '../logger';
 
 /**
- * Skills Integration Cache Manager
+ * Skills Integration Cache Manager - Database-Only Implementation
  * Handles caching of skill data for performance optimization
+ * Now strictly enforces database-only skills
  */
 export class SkillsCacheManager {
   private static cache: SkillCache = {
@@ -28,13 +28,22 @@ export class SkillsCacheManager {
   }
 
   /**
-   * Update skills cache with fresh data from database
+   * Update skills cache with fresh data from database - DATABASE ONLY
    */
   static async updateCache(): Promise<void> {
     try {
-      debugLog('Updating skills integration cache');
+      debugLog('Updating skills integration cache from database only');
       
       const skills = await getAllSkills();
+      
+      if (skills.length === 0) {
+        debugLog('No skills found in database - cache will be empty');
+        this.cache.skillsMap.clear();
+        this.cache.skillIdToNameMap.clear();
+        this.cache.lastCacheUpdate = Date.now();
+        return;
+      }
+      
       const skillTypes = this.convertSkillsToSkillTypes(skills);
       
       // Update both caches
@@ -53,15 +62,12 @@ export class SkillsCacheManager {
       
       this.cache.lastCacheUpdate = Date.now();
       
-      debugLog(`Updated skills cache with ${skills.length} skills -> ${skillTypes.length} skill types`);
+      debugLog(`Updated skills cache with ${skills.length} database skills -> ${skillTypes.length} skill types`);
     } catch (error) {
-      debugLog('Error updating skills cache:', error);
-      // Fallback to standard skills if database fails
-      const standardSkills = SkillNormalizationService.getStandardForecastSkills();
+      debugLog('Error updating skills cache from database:', error);
+      // Do NOT fall back to standard skills - keep cache empty
       this.cache.skillsMap.clear();
-      standardSkills.forEach(skill => {
-        this.cache.skillsMap.set(skill, skill);
-      });
+      this.cache.skillIdToNameMap.clear();
       this.cache.lastCacheUpdate = Date.now();
     }
   }
@@ -101,20 +107,25 @@ export class SkillsCacheManager {
   }
 
   /**
-   * Convert database skills to normalized SkillType array
+   * Convert database skills to normalized SkillType array - DATABASE ONLY
    */
   private static convertSkillsToSkillTypes(skills: Skill[]): SkillType[] {
     const skillTypesSet = new Set<SkillType>();
     
     skills.forEach(skill => {
-      const normalizedSkill = SkillNormalizationService.normalizeSkill(skill.name);
+      // Use the skill name directly as a SkillType, with basic normalization
+      const normalizedSkill = this.normalizeSkillName(skill.name) as SkillType;
       skillTypesSet.add(normalizedSkill);
     });
     
-    // Always include standard forecast skills
-    const standardSkills = SkillNormalizationService.getStandardForecastSkills();
-    standardSkills.forEach(skill => skillTypesSet.add(skill));
-    
+    // DO NOT include standard forecast skills - only database skills
     return Array.from(skillTypesSet).sort();
+  }
+
+  /**
+   * Basic skill name normalization
+   */
+  private static normalizeSkillName(skillName: string): string {
+    return skillName.trim().charAt(0).toUpperCase() + skillName.trim().slice(1).toLowerCase();
   }
 }

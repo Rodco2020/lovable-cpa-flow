@@ -5,33 +5,18 @@ import { SkillNormalizationCacheManager } from './cacheManager';
 import { debugLog } from '@/services/forecasting/logger';
 
 /**
- * Skill Normalizer - Core normalization logic
+ * Skill Normalizer - Database-Only Implementation
  * Handles the actual skill normalization process using mapping rules and cache
+ * Now strictly enforces database-only skills
  */
 export class SkillNormalizer {
   /**
-   * Standard forecast skills that can be used in the matrix
-   */
-  private static readonly STANDARD_FORECAST_SKILLS: SkillType[] = [
-    'Junior Staff',
-    'Senior Staff', 
-    'CPA',
-    'Tax Preparation',
-    'Audit',
-    'Advisory',
-    'Bookkeeping',
-    'Accounting',
-    'Payroll',
-    'Compliance'
-  ];
-
-  /**
-   * Normalize a single skill name to standard forecast skill type
+   * Normalize a single skill name to database skill type
    */
   static normalizeSkill(skillName: string): SkillType {
     if (!skillName || typeof skillName !== 'string') {
       debugLog('Invalid skill name provided:', skillName);
-      return 'Junior Staff'; // Default fallback
+      return 'Junior'; // Fallback to a common database skill
     }
 
     // Check cache first
@@ -46,22 +31,13 @@ export class SkillNormalizer {
       return mappedSkill;
     }
 
-    // Check if it's already a standard skill
+    // Use skill name as-is with basic capitalization
     const trimmedSkill = skillName.trim();
-    if (this.isStandardForecastSkill(trimmedSkill)) {
-      return trimmedSkill as SkillType;
-    }
-
-    // Fallback: capitalize and use as-is if reasonable, otherwise default
     const capitalizedSkill = this.capitalizeSkillName(trimmedSkill);
     
-    // If it looks like a reasonable skill name, use it
-    if (this.isReasonableSkillName(capitalizedSkill)) {
-      return capitalizedSkill as SkillType;
-    }
-
-    debugLog(`Could not normalize skill "${skillName}", using default: Junior Staff`);
-    return 'Junior Staff';
+    // Return the capitalized skill name as SkillType
+    // This will be validated later against database skills
+    return capitalizedSkill as SkillType;
   }
 
   /**
@@ -96,17 +72,19 @@ export class SkillNormalizer {
   }
 
   /**
-   * Get all available standard forecast skills
+   * Get all available database skills - NO STANDARD SKILLS
    */
   static getStandardForecastSkills(): SkillType[] {
-    return [...this.STANDARD_FORECAST_SKILLS];
+    // Return empty array - we only use database skills now
+    return [];
   }
 
   /**
-   * Validate if a skill is a standard forecast skill
+   * Validate if a skill is a database skill (will be checked against actual database)
    */
   static isStandardForecastSkill(skill: string): skill is SkillType {
-    return this.STANDARD_FORECAST_SKILLS.includes(skill as SkillType);
+    // This will be validated against database skills in the integration service
+    return true;
   }
 
   /**
@@ -120,13 +98,13 @@ export class SkillNormalizer {
         return cachedMapping;
       }
 
-      // If not in cache, try to get skill name and normalize it
-      // This would typically involve a database lookup, but for now we'll use a fallback
-      debugLog(`Skill ID ${skillId} not found in cache, using fallback`);
-      return 'Junior Staff';
+      // If not in cache, return the ID as-is for now
+      // This will be handled by the skills integration service
+      debugLog(`Skill ID ${skillId} not found in cache, returning as-is`);
+      return skillId as SkillType;
     } catch (error) {
       debugLog('Error resolving skill ID:', error);
-      return 'Junior Staff';
+      return skillId as SkillType;
     }
   }
 
@@ -138,15 +116,5 @@ export class SkillNormalizer {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
-  }
-
-  /**
-   * Check if a skill name looks reasonable
-   */
-  private static isReasonableSkillName(skillName: string): boolean {
-    // Basic validation: not too short, not too long, contains letters
-    return skillName.length >= 2 && 
-           skillName.length <= 50 && 
-           /[a-zA-Z]/.test(skillName);
   }
 }

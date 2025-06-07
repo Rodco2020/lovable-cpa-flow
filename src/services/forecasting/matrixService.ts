@@ -1,4 +1,3 @@
-
 import { 
   ForecastParameters, 
   ForecastResult
@@ -12,14 +11,14 @@ import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 /**
  * Generate forecast data specifically optimized for 12-month matrix display
- * Enhanced with proper skill ID resolution and normalization
+ * Enhanced with database-only skill enforcement
  */
 export const generateMatrixForecast = async (
   forecastType: 'virtual' | 'actual' = 'virtual',
   startDate: Date = new Date()
 ): Promise<{ forecastResult: ForecastResult; matrixData: MatrixData }> => {
-  debugLog('=== MATRIX FORECAST GENERATION START ===');
-  debugLog('Generating 12-month matrix forecast with enhanced skill resolution', { forecastType, startDate });
+  debugLog('=== MATRIX FORECAST GENERATION START - DATABASE SKILLS ONLY ===');
+  debugLog('Generating 12-month matrix forecast with database-only skills', { forecastType, startDate });
 
   // Normalize start date to beginning of month
   const normalizedStartDate = startOfMonth(startDate);
@@ -28,15 +27,15 @@ export const generateMatrixForecast = async (
   const endDate = endOfMonth(addMonths(normalizedStartDate, 11));
 
   try {
-    debugLog('Step 1: Testing skills integration service');
+    debugLog('Step 1: Getting database skills only');
     
-    // Test skills integration first
-    try {
-      const availableSkills = await SkillsIntegrationService.getAvailableSkills();
-      debugLog('Skills integration test successful:', { skillsCount: availableSkills.length, skills: availableSkills });
-    } catch (skillsError) {
-      debugLog('Skills integration test failed:', skillsError);
-      throw new Error(`Skills integration failed: ${skillsError instanceof Error ? skillsError.message : 'Unknown skills error'}`);
+    // Get ONLY database skills - no fallbacks
+    const availableSkills = await SkillsIntegrationService.getAvailableSkills();
+    debugLog('Database skills retrieved:', { skillsCount: availableSkills.length, skills: availableSkills });
+    
+    if (availableSkills.length === 0) {
+      debugLog('No database skills found - returning empty matrix');
+      return await createEmptyMatrixData(normalizedStartDate, endDate, forecastType);
     }
 
     debugLog('Step 2: Generating demand and capacity forecasts');
@@ -59,12 +58,6 @@ export const generateMatrixForecast = async (
       demandSample: demandForecast[0],
       capacitySample: capacityForecast[0]
     });
-
-    // Ensure we have some data or create fallback
-    if (demandForecast.length === 0 && capacityForecast.length === 0) {
-      debugLog('No forecast data generated, creating fallback data');
-      return await createFallbackMatrixData(normalizedStartDate, endDate, forecastType);
-    }
 
     debugLog('Step 3: Merging demand and capacity data');
     
@@ -120,51 +113,42 @@ export const generateMatrixForecast = async (
       months: matrixData.months.map(m => m.key)
     });
 
-    debugLog('Step 6: Normalizing skills for matrix display');
+    debugLog('Step 6: Enforcing database-only skills for matrix display');
     
-    // Ensure skills are properly normalized for matrix display
-    const normalizedSkills = await Promise.all(
-      matrixData.skills.map(skill => SkillsIntegrationService.normalizeSkill(skill))
+    // Filter matrix skills to only include database skills
+    const validMatrixSkills = matrixData.skills.filter(skill => 
+      availableSkills.includes(skill)
     );
     
-    // Remove duplicates and ensure consistent ordering
-    const uniqueNormalizedSkills = Array.from(new Set(normalizedSkills)).sort();
-    
-    debugLog('Matrix skills normalization:', {
+    debugLog('Matrix skills filtered to database skills only:', {
       originalSkills: matrixData.skills,
-      normalizedSkills: uniqueNormalizedSkills
+      databaseSkills: availableSkills,
+      validMatrixSkills: validMatrixSkills
     });
 
-    // Update matrix data with normalized skills
+    // Update matrix data with database-only skills
     matrixData = {
       ...matrixData,
-      skills: uniqueNormalizedSkills,
-      dataPoints: matrixData.dataPoints.map(point => ({
-        ...point,
-        skillType: SkillsIntegrationService.normalizeSkill(point.skillType)
-      }))
+      skills: validMatrixSkills,
+      dataPoints: matrixData.dataPoints.filter(point => 
+        validMatrixSkills.includes(point.skillType)
+      )
     };
 
-    debugLog('Step 7: Ensuring complete matrix data');
+    debugLog('Step 7: Ensuring complete matrix data with database skills only');
     
     // Generate expected months for validation
     const expectedMonths = generate12MonthPeriods(normalizedStartDate);
     
-    // Get all available skills from integration service
-    const availableSkills = await SkillsIntegrationService.getAvailableSkills();
-    
-    // Use the combination of available skills and matrix skills
-    const allSkills = Array.from(new Set([...availableSkills, ...uniqueNormalizedSkills])).sort();
-
-    // Fill any missing data to ensure complete matrix
-    const completeMatrixData = fillMissingMatrixData(matrixData, allSkills, expectedMonths);
+    // Fill any missing data to ensure complete matrix - DATABASE SKILLS ONLY
+    const completeMatrixData = fillMissingMatrixData(matrixData, availableSkills, expectedMonths);
 
     debugLog('=== MATRIX FORECAST GENERATION COMPLETE ===');
-    debugLog('Final matrix data:', {
+    debugLog('Final matrix data with database skills only:', {
       periodsCount: forecastResult.data.length,
       matrixMonths: completeMatrixData.months.length,
       matrixSkills: completeMatrixData.skills.length,
-      availableSkills: availableSkills.length,
+      databaseSkills: availableSkills.length,
       dataPoints: completeMatrixData.dataPoints.length,
       totalDemand: completeMatrixData.totalDemand,
       totalCapacity: completeMatrixData.totalCapacity,
@@ -183,56 +167,34 @@ export const generateMatrixForecast = async (
     debugLog('=== MATRIX FORECAST GENERATION FAILED ===');
     debugLog('Error generating matrix forecast:', error);
     
-    // Create fallback data so the UI doesn't completely break
+    // Create empty data so the UI doesn't completely break
     try {
-      return await createFallbackMatrixData(normalizedStartDate, endDate, forecastType);
+      return await createEmptyMatrixData(normalizedStartDate, endDate, forecastType);
     } catch (fallbackError) {
-      debugLog('Fallback data creation also failed:', fallbackError);
+      debugLog('Empty data creation also failed:', fallbackError);
       throw new Error(`Matrix forecast generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
 
 /**
- * Create fallback matrix data when main generation fails
+ * Create empty matrix data when no database skills exist
  */
-const createFallbackMatrixData = async (
+const createEmptyMatrixData = async (
   startDate: Date, 
   endDate: Date, 
   forecastType: 'virtual' | 'actual'
 ): Promise<{ forecastResult: ForecastResult; matrixData: MatrixData }> => {
-  debugLog('Creating fallback matrix data');
-  
-  // Get standard skills with proper error handling
-  let skills: SkillType[] = [];
-  try {
-    const standardSkills = await SkillsIntegrationService.getAvailableSkills();
-    skills = standardSkills.length > 0 ? standardSkills : ['Junior Staff', 'Senior Staff', 'CPA'];
-  } catch (error) {
-    debugLog('Error getting skills for fallback, using defaults:', error);
-    skills = ['Junior Staff', 'Senior Staff', 'CPA'];
-  }
+  debugLog('Creating empty matrix data - no database skills available');
   
   // Generate 12 months
   const months = generate12MonthPeriods(startDate);
   
-  // Create minimal data points
-  const dataPoints = skills.flatMap(skill =>
-    months.map(month => ({
-      skillType: skill,
-      month: month.key,
-      monthLabel: month.label,
-      demandHours: 0,
-      capacityHours: 0,
-      gap: 0,
-      utilizationPercent: 0
-    }))
-  );
-  
+  // Empty matrix with no skills
   const matrixData: MatrixData = {
-    skills,
+    skills: [], // Empty because no database skills exist
     months,
-    dataPoints,
+    dataPoints: [], // Empty because no skills
     totalDemand: 0,
     totalCapacity: 0,
     totalGap: 0
@@ -259,16 +221,14 @@ const createFallbackMatrixData = async (
     generatedAt: new Date()
   };
   
-  debugLog('Fallback matrix data created:', {
-    skills: skills.length,
-    months: months.length,
-    dataPoints: dataPoints.length
-  });
+  debugLog('Empty matrix data created - user needs to add skills to database');
   
   return { forecastResult, matrixData };
 };
 
-// Enhanced validation that checks for skills consistency
+/**
+ * Validate matrix data to ensure it meets expected criteria
+ */
 export const validateMatrixData = (matrixData: MatrixData): string[] => {
   const issues: string[] = [];
 
