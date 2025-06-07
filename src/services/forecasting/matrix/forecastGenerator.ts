@@ -97,8 +97,8 @@ export class MatrixForecastGenerator {
       filteredClientCount: options?.clientIds?.length || 'all',
       demandSample: demandForecast[0],
       capacitySample: capacityForecast[0],
-      totalDemandHours: demandForecast.reduce((sum, period) => sum + (period.demandHours || 0), 0),
-      totalCapacityHours: capacityForecast.reduce((sum, period) => sum + (period.capacityHours || 0), 0)
+      totalDemandHours: demandForecast.reduce((sum: number, period) => sum + (period.demandHours || 0), 0),
+      totalCapacityHours: capacityForecast.reduce((sum: number, period) => sum + (period.capacityHours || 0), 0)
     });
 
     debugLog('Phase 3: Step 3 - Merging demand and capacity data with client filtering applied');
@@ -125,8 +125,8 @@ export class MatrixForecastGenerator {
       data: mergedForecastData,
       financials: [],
       summary: {
-        totalDemand: mergedForecastData.reduce((sum, period) => sum + (period.demandHours || 0), 0),
-        totalCapacity: mergedForecastData.reduce((sum, period) => sum + (period.capacityHours || 0), 0),
+        totalDemand: mergedForecastData.reduce((sum: number, period) => sum + (period.demandHours || 0), 0),
+        totalCapacity: mergedForecastData.reduce((sum: number, period) => sum + (period.capacityHours || 0), 0),
         gap: 0,
         totalRevenue: 0,
         totalCost: 0,
