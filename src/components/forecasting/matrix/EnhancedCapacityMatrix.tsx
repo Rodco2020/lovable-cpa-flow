@@ -80,6 +80,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   } = useMatrixSkills();
   
   // Enhanced matrix data management with debouncing and better UX
+  // CRITICAL FIX: Pass total client count for proper "all clients" detection
   const {
     matrixData,
     isLoading,
@@ -89,7 +90,8 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     loadMatrixData
   } = useEnhancedMatrixData({
     forecastType: forecastMode,
-    selectedClientIds
+    selectedClientIds,
+    totalClientCount: clients.length // KEY FIX: Pass total client count
   });
 
   // Export functionality - existing hook
@@ -121,16 +123,19 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     monthRange: { start: 0, end: 11 }
   });
 
-  // Debug logging for Phase 4 verification
+  // Debug logging for Phase 4 verification with CLIENT FILTERING FIX
   useEffect(() => {
-    console.log('🎨 EnhancedCapacityMatrix: Phase 4 State Check:', {
+    console.log('🎨 EnhancedCapacityMatrix: Phase 4 State Check with CLIENT FILTERING FIX:', {
       hasClients: clients.length > 0,
+      totalClientCount: clients.length,
       selectedClientCount: selectedClientIds.length,
+      isAllClientsSelected: clients.length > 0 && selectedClientIds.length === clients.length,
       shouldShowData: selectedClientIds.length > 0,
       matrixDataAvailable: !!matrixData,
       isLoading,
       isRefreshing,
-      hasValidationIssues: validationIssues.length > 0
+      hasValidationIssues: validationIssues.length > 0,
+      clientFilteringLogicFixed: true
     });
   }, [clients, selectedClientIds, matrixData, isLoading, isRefreshing, validationIssues]);
 

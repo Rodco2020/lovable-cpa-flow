@@ -16,25 +16,31 @@ interface MatrixGenerationOptions {
 }
 
 /**
- * Matrix Forecast Generator (Phase 3: Client Filtering Enhanced)
+ * Matrix Forecast Generator (Phase 3: Client Filtering Enhanced + Phase 4 Fix)
  * Handles the core logic for generating forecast data for matrix display with client filtering
+ * 
+ * CRITICAL FIX: Properly handles undefined clientIds to mean "include all clients"
  */
 export class MatrixForecastGenerator {
   /**
    * Generate forecast data for 12-month matrix display with client filtering support
+   * 
+   * CRITICAL FIX: undefined clientIds means "include all clients" (no filtering)
+   * Non-empty array means "filter to these specific clients only"
    */
   static async generateForecastData(
     forecastType: 'virtual' | 'actual',
     startDate: Date,
     options?: MatrixGenerationOptions
   ): Promise<{ forecastResult: ForecastResult; availableSkills: SkillType[] }> {
-    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION START - WITH CLIENT FILTERING ===');
-    debugLog('Generating 12-month matrix forecast with client filtering:', { 
+    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION START - WITH CLIENT FILTERING FIX ===');
+    debugLog('Generating 12-month matrix forecast with CLIENT FILTERING LOGIC FIX:', { 
       forecastType, 
       startDate,
       hasClientFilter: !!options?.clientIds,
       clientCount: options?.clientIds?.length || 0,
-      clientIds: options?.clientIds
+      clientIds: options?.clientIds,
+      filteringMode: options?.clientIds ? 'specific clients only' : 'all clients (no filter)'
     });
 
     // Normalize start date to beginning of month
@@ -54,14 +60,20 @@ export class MatrixForecastGenerator {
       return await this.createEmptyForecastData(normalizedStartDate, endDate, forecastType);
     }
 
-    debugLog('Phase 3: Step 2 - Generating demand and capacity forecasts with client filtering');
+    debugLog('Phase 3: Step 2 - Generating demand and capacity forecasts with CLIENT FILTERING FIX');
+    debugLog('Client filtering logic applied:', {
+      optionsProvided: !!options,
+      clientIdsProvided: !!options?.clientIds,
+      clientIdsLength: options?.clientIds?.length || 0,
+      filteringMode: options?.clientIds ? `filter to ${options.clientIds.length} specific clients` : 'include all clients (no filtering)'
+    });
     
     // Generate demand and capacity forecasts using skill-aware service with client filtering
     const [demandForecast, capacityForecast] = await Promise.all([
       SkillAwareForecastingService.generateDemandForecast(
         normalizedStartDate, 
         endDate, 
-        options?.clientIds // Pass client filtering to demand forecast
+        options?.clientIds // Pass client filtering - undefined = all clients, array = specific clients
       ).catch(error => {
         debugLog('Demand forecast generation failed:', error);
         return []; // Return empty array as fallback
@@ -69,18 +81,18 @@ export class MatrixForecastGenerator {
       SkillAwareForecastingService.generateCapacityForecast(
         normalizedStartDate, 
         endDate,
-        options?.clientIds // Pass client filtering to capacity forecast  
+        options?.clientIds // Pass client filtering - undefined = all clients, array = specific clients
       ).catch(error => {
         debugLog('Capacity forecast generation failed:', error);
         return []; // Return empty array as fallback
       })
     ]);
 
-    debugLog('Phase 3: Forecast generation results with client filtering:', {
+    debugLog('Phase 3: Forecast generation results with CLIENT FILTERING FIX:', {
       demandPeriods: demandForecast.length,
       capacityPeriods: capacityForecast.length,
-      clientFilterApplied: !!options?.clientIds,
-      filteredClientCount: options?.clientIds?.length || 0,
+      clientFilteringMode: options?.clientIds ? 'filtered to specific clients' : 'all clients included',
+      filteredClientCount: options?.clientIds?.length || 'all',
       demandSample: demandForecast[0],
       capacitySample: capacityForecast[0]
     });
@@ -90,7 +102,7 @@ export class MatrixForecastGenerator {
     // Merge demand and capacity data with proper null checking
     const mergedForecastData = this.mergeForecastData(demandForecast, capacityForecast);
 
-    debugLog(`Phase 3: Generated merged forecast with ${mergedForecastData.length} periods (client filtering: ${!!options?.clientIds})`);
+    debugLog(`Phase 3: Generated merged forecast with ${mergedForecastData.length} periods (client filtering mode: ${options?.clientIds ? 'specific clients' : 'all clients'})`);
 
     debugLog('Phase 3: Step 4 - Creating forecast result with client filtering metadata');
     
@@ -119,13 +131,13 @@ export class MatrixForecastGenerator {
       generatedAt: new Date()
     };
 
-    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION COMPLETE ===');
+    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION COMPLETE WITH CLIENT FILTERING FIX ===');
     debugLog('Final result summary:', {
       periodsGenerated: mergedForecastData.length,
       totalDemand: forecastResult.summary.totalDemand,
       totalCapacity: forecastResult.summary.totalCapacity,
-      clientFilteringApplied: !!options?.clientIds,
-      clientsFiltered: options?.clientIds?.length || 'all'
+      clientFilteringMode: options?.clientIds ? 'filtered' : 'all clients',
+      clientsIncluded: options?.clientIds?.length || 'all'
     });
 
     return {

@@ -8,6 +8,7 @@ import { debounce } from 'lodash';
 interface UseEnhancedMatrixDataProps {
   forecastType: 'virtual' | 'actual';
   selectedClientIds: string[];
+  totalClientCount?: number; // Add total client count to detect "all selected"
 }
 
 interface UseEnhancedMatrixDataResult {
@@ -21,7 +22,8 @@ interface UseEnhancedMatrixDataResult {
 
 export const useEnhancedMatrixData = ({
   forecastType,
-  selectedClientIds
+  selectedClientIds,
+  totalClientCount = 0
 }: UseEnhancedMatrixDataProps): UseEnhancedMatrixDataResult => {
   const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,10 +34,17 @@ export const useEnhancedMatrixData = ({
 
   const loadMatrixData = useCallback(async (showRefreshIndicator = false) => {
     console.log('=== PHASE 4 ENHANCED MATRIX DATA LOADING START ===');
-    console.log('Loading matrix data with enhanced UX:', { 
+    
+    // CRITICAL FIX: Detect when all clients are selected
+    const isAllClientsSelected = totalClientCount > 0 && selectedClientIds.length === totalClientCount;
+    const clientFilterForAPI = isAllClientsSelected ? undefined : selectedClientIds;
+    
+    console.log('Loading matrix data with enhanced UX and CLIENT FILTERING FIX:', { 
       forecastType, 
-      selectedClientIds,
-      clientCount: selectedClientIds.length,
+      selectedClientIds: selectedClientIds.length,
+      totalClientCount,
+      isAllClientsSelected,
+      clientFilterForAPI: clientFilterForAPI ? `${clientFilterForAPI.length} clients` : 'undefined (all clients)',
       showRefreshIndicator
     });
     
@@ -48,40 +57,55 @@ export const useEnhancedMatrixData = ({
     setValidationIssues([]);
 
     try {
-      console.log('Phase 4: Generating matrix forecast with client filtering');
+      console.log('Phase 4: Generating matrix forecast with CLIENT FILTERING LOGIC FIX');
+      console.log('Client filtering decision:', {
+        selectedCount: selectedClientIds.length,
+        totalCount: totalClientCount,
+        isAllSelected: isAllClientsSelected,
+        passToAPI: clientFilterForAPI ? 'specific clients' : 'undefined (all clients)'
+      });
       
       const { matrixData: newMatrixData } = await generateMatrixForecast(
         forecastType, 
         new Date(), 
-        selectedClientIds.length > 0 ? { clientIds: selectedClientIds } : undefined
+        clientFilterForAPI ? { clientIds: clientFilterForAPI } : undefined // KEY FIX: Pass undefined when all selected
       );
       
-      console.log('Phase 4: Matrix data received:', {
+      console.log('Phase 4: Matrix data received with CLIENT FILTERING FIX:', {
         skills: newMatrixData?.skills?.length || 0,
         months: newMatrixData?.months?.length || 0,
         dataPoints: newMatrixData?.dataPoints?.length || 0,
         totalDemand: newMatrixData?.totalDemand || 0,
         totalCapacity: newMatrixData?.totalCapacity || 0,
-        clientFilterApplied: selectedClientIds.length > 0,
-        filteredClientCount: selectedClientIds.length
+        clientFilteringApplied: !isAllClientsSelected,
+        effectiveClientFilter: isAllClientsSelected ? 'all clients (no filter)' : `${selectedClientIds.length} specific clients`
       });
       
-      // Enhanced client filtering feedback
-      if (selectedClientIds.length > 0) {
-        console.log('Phase 4: Client filter applied - showing success toast');
+      // Enhanced client filtering feedback with better logic
+      if (isAllClientsSelected) {
+        console.log('Phase 4: All clients selected - showing "all clients" feedback');
         
         toast({
           title: "Matrix updated",
-          description: `Showing data for ${selectedClientIds.length} selected client${selectedClientIds.length === 1 ? '' : 's'}.`,
+          description: `Showing data for all ${totalClientCount} clients.`,
+          duration: 3000
+        });
+      } else if (selectedClientIds.length > 0) {
+        console.log('Phase 4: Specific clients selected - showing filtered feedback');
+        
+        toast({
+          title: "Matrix filtered",
+          description: `Showing data for ${selectedClientIds.length} of ${totalClientCount} clients.`,
           duration: 3000
         });
       } else {
-        console.log('Phase 4: All clients selected - showing info toast');
+        console.log('Phase 4: No clients selected - showing empty state feedback');
         
         toast({
-          title: "All clients included",
-          description: "Matrix displays data for all active clients.",
-          duration: 3000
+          title: "No clients selected",
+          description: "Select clients to view matrix data.",
+          variant: "destructive",
+          duration: 5000
         });
       }
       
@@ -120,7 +144,7 @@ export const useEnhancedMatrixData = ({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [forecastType, selectedClientIds, toast]);
+  }, [forecastType, selectedClientIds, totalClientCount, toast]);
 
   // Debounced version for rapid client selection changes
   const debouncedLoadMatrixData = useCallback(
@@ -133,9 +157,11 @@ export const useEnhancedMatrixData = ({
 
   useEffect(() => {
     console.log('Phase 4: useEffect triggered - client selection changed');
-    console.log('Client filtering state:', {
+    console.log('Client filtering state with TOTAL COUNT:', {
       hasClients: selectedClientIds.length > 0,
-      clientIds: selectedClientIds,
+      selectedCount: selectedClientIds.length,
+      totalCount: totalClientCount,
+      isAllSelected: totalClientCount > 0 && selectedClientIds.length === totalClientCount,
       forecastType
     });
 
@@ -151,7 +177,7 @@ export const useEnhancedMatrixData = ({
     return () => {
       debouncedLoadMatrixData.cancel();
     };
-  }, [forecastType, JSON.stringify(selectedClientIds)]); // Use JSON.stringify for array comparison
+  }, [forecastType, JSON.stringify(selectedClientIds), totalClientCount]); // Include totalClientCount in dependencies
 
   // Manual refresh function that always shows loading and returns Promise<void>
   const manualRefresh = useCallback(async () => {

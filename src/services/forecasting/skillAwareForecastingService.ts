@@ -1,4 +1,3 @@
-
 import { 
   ForecastData, 
   SkillHours,
@@ -26,19 +25,22 @@ export class SkillAwareForecastingService {
   
   /**
    * Generate demand forecast with optional client filtering
+   * 
+   * CRITICAL FIX: undefined clientIds means "include all clients" (no filtering)
    */
   static async generateDemandForecast(
     startDate: Date,
     endDate: Date,
     clientIds?: string[]
   ): Promise<ForecastData[]> {
-    debugLog('=== PHASE 3 SKILL-AWARE DEMAND FORECAST START ===');
-    debugLog('Generating demand forecast with client filtering:', {
+    debugLog('=== PHASE 3 SKILL-AWARE DEMAND FORECAST START WITH CLIENT FILTERING FIX ===');
+    debugLog('Generating demand forecast with CLIENT FILTERING LOGIC FIX:', {
       startDate,
       endDate,
       hasClientFilter: !!clientIds,
       clientCount: clientIds?.length || 0,
-      clientIds
+      clientIds,
+      filteringMode: clientIds ? `filter to ${clientIds.length} specific clients` : 'include all clients (no filtering)'
     });
 
     const availableSkills = await SkillsIntegrationService.getAvailableSkills();
@@ -53,12 +55,12 @@ export class SkillAwareForecastingService {
       startDate,
       endDate,
       availableSkills,
-      clientIds
+      clientIds // Pass undefined or array - service will handle appropriately
     );
 
-    debugLog('Phase 3: Demand forecast generated with client filtering:', {
+    debugLog('Phase 3: Demand forecast generated with CLIENT FILTERING FIX:', {
       periodsGenerated: demandData.length,
-      clientFilterApplied: !!clientIds,
+      clientFilteringMode: clientIds ? 'filtered to specific clients' : 'all clients included',
       skillsUsed: availableSkills.length,
       totalDemandHours: demandData.reduce((sum, period) => sum + (period.demandHours || 0), 0)
     });
@@ -68,19 +70,22 @@ export class SkillAwareForecastingService {
 
   /**
    * Generate capacity forecast with optional client filtering
+   * 
+   * CRITICAL FIX: undefined clientIds means "include all clients" (no filtering)
    */
   static async generateCapacityForecast(
     startDate: Date,
     endDate: Date,
     clientIds?: string[]
   ): Promise<ForecastData[]> {
-    debugLog('=== PHASE 3 SKILL-AWARE CAPACITY FORECAST START ===');
-    debugLog('Generating capacity forecast with client filtering context:', {
+    debugLog('=== PHASE 3 SKILL-AWARE CAPACITY FORECAST START WITH CLIENT FILTERING FIX ===');
+    debugLog('Generating capacity forecast with CLIENT FILTERING LOGIC FIX:', {
       startDate,
       endDate,
       hasClientFilter: !!clientIds,
       clientCount: clientIds?.length || 0,
-      note: 'Capacity is staff-based, client filter affects demand allocation context'
+      note: 'Capacity is staff-based, client filter affects demand allocation context',
+      filteringMode: clientIds ? `context for ${clientIds.length} specific clients` : 'context for all clients'
     });
 
     const availableSkills = await SkillsIntegrationService.getAvailableSkills();
@@ -96,14 +101,14 @@ export class SkillAwareForecastingService {
       startDate,
       endDate,
       availableSkills,
-      clientIds
+      clientIds // Pass undefined or array - service will handle appropriately
     );
 
-    debugLog('Phase 3: Capacity forecast generated:', {
+    debugLog('Phase 3: Capacity forecast generated with CLIENT FILTERING FIX:', {
       periodsGenerated: capacityData.length,
       skillsUsed: availableSkills.length,
       totalCapacityHours: capacityData.reduce((sum, period) => sum + (period.capacityHours || 0), 0),
-      clientContextApplied: !!clientIds
+      clientContextMode: clientIds ? 'specific clients context' : 'all clients context'
     });
 
     return capacityData;
@@ -111,6 +116,8 @@ export class SkillAwareForecastingService {
 
   /**
    * Generate demand data from tasks with client filtering
+   * 
+   * CRITICAL FIX: undefined clientIds means "include all clients" (no WHERE IN clause)
    */
   private static async generateDemandFromTasks(
     startDate: Date,
@@ -121,13 +128,13 @@ export class SkillAwareForecastingService {
     const periods: ForecastData[] = [];
     let currentDate = startOfMonth(startDate);
 
-    debugLog('Phase 3: Generating demand from tasks with client filtering:', {
+    debugLog('Phase 3: Generating demand from tasks with CLIENT FILTERING FIX:', {
       availableSkills: availableSkills.length,
-      clientFilterApplied: !!clientIds,
-      clientCount: clientIds?.length || 0
+      clientFilteringMode: clientIds ? 'filtered to specific clients' : 'all clients included',
+      clientCount: clientIds?.length || 'all'
     });
 
-    // Fetch recurring tasks with optional client filtering
+    // Fetch recurring tasks with PROPER client filtering logic
     let recurringTasksQuery = supabase
       .from('recurring_tasks')
       .select(`
@@ -141,18 +148,20 @@ export class SkillAwareForecastingService {
       `)
       .eq('is_active', true);
 
-    // Apply client filter if specified
+    // CRITICAL FIX: Only apply client filter when clientIds is explicitly provided
     if (clientIds && clientIds.length > 0) {
       recurringTasksQuery = recurringTasksQuery.in('client_id', clientIds);
-      debugLog('Phase 3: Applied client filter to recurring tasks query:', { clientIds });
+      debugLog('Phase 3: Applied client filter to recurring tasks query (SPECIFIC CLIENTS):', { clientIds });
+    } else {
+      debugLog('Phase 3: NO client filter applied - including ALL CLIENTS in recurring tasks query');
     }
 
     const { data: recurringTasks } = await recurringTasksQuery;
 
-    debugLog('Phase 3: Recurring tasks fetched:', {
+    debugLog('Phase 3: Recurring tasks fetched with CLIENT FILTERING FIX:', {
       totalTasks: recurringTasks?.length || 0,
-      clientFiltered: !!clientIds,
-      filteredForClients: clientIds?.length || 'all'
+      clientFilteringMode: clientIds ? 'filtered to specific clients' : 'all clients included',
+      filteredForClients: clientIds?.length || 'all clients'
     });
 
     while (currentDate <= endDate) {
@@ -178,10 +187,10 @@ export class SkillAwareForecastingService {
       currentDate = addMonths(currentDate, 1);
     }
 
-    debugLog('Phase 3: Demand periods generated with client filtering:', {
+    debugLog('Phase 3: Demand periods generated with CLIENT FILTERING FIX:', {
       periodsCount: periods.length,
       totalDemandHours: periods.reduce((sum, p) => sum + (p.demandHours || 0), 0),
-      clientFilterApplied: !!clientIds
+      clientFilteringMode: clientIds ? 'filtered data' : 'all clients data'
     });
 
     return periods;
