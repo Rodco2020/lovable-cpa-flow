@@ -8,7 +8,12 @@ import { debounce } from 'lodash';
 interface UseEnhancedMatrixDataProps {
   forecastType: 'virtual' | 'actual';
   selectedClientIds: string[];
-  totalClientCount?: number; // Add total client count to detect "all selected"
+  /**
+   * Total number of available clients.
+   *
+   * Undefined indicates the client list has not loaded yet.
+   */
+  totalClientCount?: number;
 }
 
 interface UseEnhancedMatrixDataResult {
@@ -23,7 +28,7 @@ interface UseEnhancedMatrixDataResult {
 export const useEnhancedMatrixData = ({
   forecastType,
   selectedClientIds,
-  totalClientCount = 0
+  totalClientCount
 }: UseEnhancedMatrixDataProps): UseEnhancedMatrixDataResult => {
   const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +41,10 @@ export const useEnhancedMatrixData = ({
     console.log('=== PHASE 4 ENHANCED MATRIX DATA LOADING START ===');
     
     // CRITICAL FIX: Detect when all clients are selected
-    const isAllClientsSelected = totalClientCount > 0 && selectedClientIds.length === totalClientCount;
+    const isAllClientsSelected =
+      typeof totalClientCount === 'number' &&
+      totalClientCount > 0 &&
+      selectedClientIds.length === totalClientCount;
     const clientFilterForAPI = isAllClientsSelected ? undefined : selectedClientIds;
     
     console.log('Loading matrix data with enhanced UX and CLIENT FILTERING FIX:', { 
@@ -156,12 +164,18 @@ export const useEnhancedMatrixData = ({
   );
 
   useEffect(() => {
+    if (typeof totalClientCount !== 'number') {
+      // Client list not loaded yet - defer loading
+      return;
+    }
+
     console.log('Phase 4: useEffect triggered - client selection changed');
     console.log('Client filtering state with TOTAL COUNT:', {
       hasClients: selectedClientIds.length > 0,
       selectedCount: selectedClientIds.length,
       totalCount: totalClientCount,
-      isAllSelected: totalClientCount > 0 && selectedClientIds.length === totalClientCount,
+      isAllSelected:
+        totalClientCount > 0 && selectedClientIds.length === totalClientCount,
       forecastType
     });
 

@@ -91,7 +91,8 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   } = useEnhancedMatrixData({
     forecastType: forecastMode,
     selectedClientIds,
-    totalClientCount: clients.length // KEY FIX: Pass total client count
+    // Pass undefined until clients are loaded so the hook doesn't assume zero
+    totalClientCount: clients.length > 0 ? clients.length : undefined
   });
 
   // Export functionality - existing hook
