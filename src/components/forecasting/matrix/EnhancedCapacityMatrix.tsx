@@ -130,22 +130,20 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   }
 
   // Show loading, error, or empty states
-  const stateComponent = (
-    <EnhancedMatrixState
-      className={className}
-      viewMode={viewMode}
-      isLoading={isLoading}
-      skillsLoading={skillsLoading}
-      error={error}
-      skillsError={skillsError}
-      filteredData={filteredData}
-      onRetryMatrix={loadMatrixData}
-      onRetrySkills={refetchSkills}
-    />
-  );
-
-  if (stateComponent) {
-    return stateComponent;
+  if (isLoading || skillsLoading || error || skillsError || !filteredData) {
+    return (
+      <EnhancedMatrixState
+        className={className}
+        viewMode={viewMode}
+        isLoading={isLoading}
+        skillsLoading={skillsLoading}
+        error={error}
+        skillsError={skillsError}
+        filteredData={filteredData}
+        onRetryMatrix={loadMatrixData}
+        onRetrySkills={refetchSkills}
+      />
+    );
   }
 
   // Main matrix display
