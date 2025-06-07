@@ -1,100 +1,100 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { MatrixControls } from '../MatrixControls';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CalendarDays, Filter, Eye } from 'lucide-react';
+import { MatrixControlsCore } from './MatrixControlsCore';
 import { ClientFilterSection } from './ClientFilterSection';
-import { EnhancedExportSection } from './EnhancedExportSection';
-import { Maximize2, Minimize2 } from 'lucide-react';
-import { SkillType } from '@/types/task';
-import { MatrixData } from '@/services/forecasting/matrixUtils';
+import { ClientFilterDebugger } from './ClientFilterDebugger';
+import { useMatrixControls } from '../hooks/useMatrixControls';
 
 interface MatrixControlsPanelProps {
-  isControlsExpanded: boolean;
-  onToggleControls: () => void;
-  selectedSkills: SkillType[];
-  onSkillToggle: (skill: SkillType) => void;
-  viewMode: 'hours' | 'percentage';
-  onViewModeChange: (viewMode: 'hours' | 'percentage') => void;
-  monthRange: { start: number; end: number };
-  onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
-  onExport: () => void;
-  onReset: () => void;
-  matrixData?: MatrixData;
-  selectedClientIds?: string[];
-  onClientSelectionChange?: (clientIds: string[]) => void;
-  onEnhancedExport?: (format: 'csv' | 'json', options: any) => void;
-  onPrint?: (options: any) => void;
+  // Matrix controls props
+  selectedSkills: string[];
+  onSkillsChange: (skills: string[]) => void;
+  forecastMode: 'virtual' | 'actual';
+  onForecastModeChange: (mode: 'virtual' | 'actual') => void;
+  startMonth: Date;
+  onStartMonthChange: (date: Date) => void;
+  onExport: (options: any) => void;
+  onPrint: () => void;
+  isExporting: boolean;
+  
+  // Client filter props
+  selectedClientIds: string[];
+  onClientSelectionChange: (clientIds: string[]) => void;
 }
 
 export const MatrixControlsPanel: React.FC<MatrixControlsPanelProps> = ({
-  isControlsExpanded,
-  onToggleControls,
   selectedSkills,
-  onSkillToggle,
-  viewMode,
-  onViewModeChange,
-  monthRange,
-  onMonthRangeChange,
+  onSkillsChange,
+  forecastMode,
+  onForecastModeChange,
+  startMonth,
+  onStartMonthChange,
   onExport,
-  onReset,
-  matrixData,
-  selectedClientIds = [],
-  onClientSelectionChange = () => {},
-  onEnhancedExport = () => {},
-  onPrint = () => {}
+  onPrint,
+  isExporting,
+  selectedClientIds,
+  onClientSelectionChange
 }) => {
-  const [clientFilterCollapsed, setClientFilterCollapsed] = useState(false);
-  const [exportSectionCollapsed, setExportSectionCollapsed] = useState(false);
+  const {
+    isClientFilterCollapsed,
+    toggleClientFilter,
+    isDebugMode
+  } = useMatrixControls();
 
   return (
-    <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
-      <div className="xl:hidden mb-4">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={onToggleControls}
-          className="w-full"
-        >
-          {isControlsExpanded ? <Minimize2 className="h-4 w-4 mr-2" /> : <Maximize2 className="h-4 w-4 mr-2" />}
-          {isControlsExpanded ? 'Hide Controls' : 'Show Controls'}
-        </Button>
-      </div>
-      
-      <div className={`${isControlsExpanded ? 'block' : 'hidden xl:block'} space-y-4`}>
-        {/* Client Filter Section */}
-        <ClientFilterSection
-          selectedClientIds={selectedClientIds}
-          onClientSelectionChange={onClientSelectionChange}
-          isCollapsed={clientFilterCollapsed}
-          onToggleCollapse={() => setClientFilterCollapsed(!clientFilterCollapsed)}
-        />
+    <div className="space-y-4">
+      {/* Debug section - visible during Phase 1 testing */}
+      {isDebugMode && (
+        <ClientFilterDebugger />
+      )}
 
-        {/* Original Matrix Controls */}
-        <MatrixControls
-          selectedSkills={selectedSkills}
-          onSkillToggle={onSkillToggle}
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-          monthRange={monthRange}
-          onMonthRangeChange={onMonthRangeChange}
-          onExport={onExport}
-          onReset={onReset}
-        />
-
-        {/* Enhanced Export & Print Section */}
-        {matrixData && (
-          <EnhancedExportSection
-            matrixData={matrixData}
+      {/* Matrix Controls */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Matrix Controls
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MatrixControlsCore
             selectedSkills={selectedSkills}
-            selectedClientIds={selectedClientIds}
-            monthRange={monthRange}
-            onExport={onEnhancedExport}
+            onSkillsChange={onSkillsChange}
+            forecastMode={forecastMode}
+            onForecastModeChange={onForecastModeChange}
+            startMonth={startMonth}
+            onStartMonthChange={onStartMonthChange}
+            onExport={onExport}
             onPrint={onPrint}
-            isCollapsed={exportSectionCollapsed}
-            onToggleCollapse={() => setExportSectionCollapsed(!exportSectionCollapsed)}
+            isExporting={isExporting}
           />
-        )}
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Client Filter */}
+      <ClientFilterSection
+        selectedClientIds={selectedClientIds}
+        onClientSelectionChange={onClientSelectionChange}
+        isCollapsed={isClientFilterCollapsed}
+        onToggleCollapse={toggleClientFilter}
+      />
+
+      {/* View Controls */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            View Options
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            Additional view controls will be added here
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
