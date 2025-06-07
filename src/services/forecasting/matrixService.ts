@@ -1,13 +1,28 @@
+
 import { 
   ForecastParameters, 
   ForecastResult
 } from '@/types/forecasting';
-import { MatrixData, transformForecastDataToMatrix, generate12MonthPeriods, fillMissingMatrixData } from './matrixUtils';
-import { SkillsIntegrationService } from './skillsIntegrationService';
-import { SkillAwareForecastingService } from './skillAwareForecastingService';
-import { SkillType } from '@/types/task';
+import { MatrixData } from './matrixUtils';
+import { MatrixForecastGenerator } from './matrix/forecastGenerator';
+import { MatrixDataTransformer } from './matrix/matrixTransformer';
+import { MatrixDataValidator } from './matrix/matrixValidator';
+import { MatrixCacheUtils } from './matrix/cacheUtils';
 import { debugLog } from './logger';
-import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth } from 'date-fns';
+
+/**
+ * Matrix Service - Main Orchestrator
+ * 
+ * Coordinates the generation of forecast data optimized for 12-month matrix display.
+ * Enhanced with database-only skill enforcement and modular architecture.
+ * 
+ * This service has been refactored into focused modules for better maintainability:
+ * - MatrixForecastGenerator: Core forecast generation logic
+ * - MatrixDataTransformer: Data transformation and formatting
+ * - MatrixDataValidator: Data validation and quality checks
+ * - MatrixCacheUtils: Cache management utilities
+ */
 
 /**
  * Generate forecast data specifically optimized for 12-month matrix display
@@ -17,151 +32,31 @@ export const generateMatrixForecast = async (
   forecastType: 'virtual' | 'actual' = 'virtual',
   startDate: Date = new Date()
 ): Promise<{ forecastResult: ForecastResult; matrixData: MatrixData }> => {
-  debugLog('=== MATRIX FORECAST GENERATION START - DATABASE SKILLS ONLY ===');
-  debugLog('Generating 12-month matrix forecast with database-only skills', { forecastType, startDate });
-
-  // Normalize start date to beginning of month
   const normalizedStartDate = startOfMonth(startDate);
-  
-  // Calculate end date (12 months from start)
-  const endDate = endOfMonth(addMonths(normalizedStartDate, 11));
 
   try {
-    debugLog('Step 1: Getting database skills only');
-    
-    // Get ONLY database skills - no fallbacks
-    const availableSkills = await SkillsIntegrationService.getAvailableSkills();
-    debugLog('Database skills retrieved:', { skillsCount: availableSkills.length, skills: availableSkills });
-    
+    // Step 1-4: Generate forecast data
+    const { forecastResult, availableSkills } = await MatrixForecastGenerator.generateForecastData(
+      forecastType,
+      normalizedStartDate
+    );
+
+    // Handle empty skills case
     if (availableSkills.length === 0) {
-      debugLog('No database skills found - returning empty matrix');
-      return await createEmptyMatrixData(normalizedStartDate, endDate, forecastType);
+      const emptyMatrixData = MatrixDataTransformer.createEmptyMatrixData(normalizedStartDate);
+      return { forecastResult, matrixData: emptyMatrixData };
     }
 
-    debugLog('Step 2: Generating demand and capacity forecasts');
-    
-    // Generate demand and capacity forecasts using skill-aware service
-    const [demandForecast, capacityForecast] = await Promise.all([
-      SkillAwareForecastingService.generateDemandForecast(normalizedStartDate, endDate).catch(error => {
-        debugLog('Demand forecast generation failed:', error);
-        return []; // Return empty array as fallback
-      }),
-      SkillAwareForecastingService.generateCapacityForecast(normalizedStartDate, endDate).catch(error => {
-        debugLog('Capacity forecast generation failed:', error);
-        return []; // Return empty array as fallback
-      })
-    ]);
-
-    debugLog('Forecast generation results:', {
-      demandPeriods: demandForecast.length,
-      capacityPeriods: capacityForecast.length,
-      demandSample: demandForecast[0],
-      capacitySample: capacityForecast[0]
-    });
-
-    debugLog('Step 3: Merging demand and capacity data');
-    
-    // Merge demand and capacity data with proper null checking
-    const mergedForecastData = demandForecast.map((demandPeriod, index) => {
-      const capacityPeriod = capacityForecast[index];
-      return {
-        ...demandPeriod,
-        capacity: capacityPeriod?.capacity || [],
-        capacityHours: capacityPeriod?.capacityHours || 0
-      };
-    });
-
-    debugLog(`Generated merged forecast with ${mergedForecastData.length} periods`);
-
-    debugLog('Step 4: Creating forecast result');
-    
-    // Create forecast result
-    const forecastResult: ForecastResult = {
-      parameters: {
-        mode: forecastType,
-        timeframe: 'custom',
-        dateRange: {
-          startDate: normalizedStartDate,
-          endDate: endDate
-        },
-        granularity: 'monthly',
-        includeSkills: 'all'
-      },
-      data: mergedForecastData,
-      financials: [],
-      summary: {
-        totalDemand: mergedForecastData.reduce((sum, period) => sum + (period.demandHours || 0), 0),
-        totalCapacity: mergedForecastData.reduce((sum, period) => sum + (period.capacityHours || 0), 0),
-        gap: 0,
-        totalRevenue: 0,
-        totalCost: 0,
-        totalProfit: 0
-      },
-      generatedAt: new Date()
-    };
-
-    debugLog('Step 5: Transforming to matrix format');
-    
-    // Transform forecast data to matrix format
-    let matrixData = transformForecastDataToMatrix(forecastResult.data);
-
-    debugLog('Initial matrix transformation:', {
-      skillsCount: matrixData.skills.length,
-      monthsCount: matrixData.months.length,
-      dataPointsCount: matrixData.dataPoints.length,
-      skills: matrixData.skills,
-      months: matrixData.months.map(m => m.key)
-    });
-
-    debugLog('Step 6: Enforcing database-only skills for matrix display');
-    
-    // Filter matrix skills to only include database skills
-    const validMatrixSkills = matrixData.skills.filter(skill => 
-      availableSkills.includes(skill)
+    // Step 5-7: Transform to matrix format
+    const matrixData = MatrixDataTransformer.transformToMatrixData(
+      forecastResult,
+      availableSkills,
+      normalizedStartDate
     );
-    
-    debugLog('Matrix skills filtered to database skills only:', {
-      originalSkills: matrixData.skills,
-      databaseSkills: availableSkills,
-      validMatrixSkills: validMatrixSkills
-    });
-
-    // Update matrix data with database-only skills
-    matrixData = {
-      ...matrixData,
-      skills: validMatrixSkills,
-      dataPoints: matrixData.dataPoints.filter(point => 
-        validMatrixSkills.includes(point.skillType)
-      )
-    };
-
-    debugLog('Step 7: Ensuring complete matrix data with database skills only');
-    
-    // Generate expected months for validation
-    const expectedMonths = generate12MonthPeriods(normalizedStartDate);
-    
-    // Fill any missing data to ensure complete matrix - DATABASE SKILLS ONLY
-    const completeMatrixData = fillMissingMatrixData(matrixData, availableSkills, expectedMonths);
-
-    debugLog('=== MATRIX FORECAST GENERATION COMPLETE ===');
-    debugLog('Final matrix data with database skills only:', {
-      periodsCount: forecastResult.data.length,
-      matrixMonths: completeMatrixData.months.length,
-      matrixSkills: completeMatrixData.skills.length,
-      databaseSkills: availableSkills.length,
-      dataPoints: completeMatrixData.dataPoints.length,
-      totalDemand: completeMatrixData.totalDemand,
-      totalCapacity: completeMatrixData.totalCapacity,
-      totalGap: completeMatrixData.totalGap,
-      skillBreakdown: completeMatrixData.skills.reduce((acc, skill) => {
-        acc[skill] = completeMatrixData.dataPoints.filter(p => p.skillType === skill).length;
-        return acc;
-      }, {} as Record<string, number>)
-    });
 
     return {
       forecastResult,
-      matrixData: completeMatrixData
+      matrixData
     };
   } catch (error) {
     debugLog('=== MATRIX FORECAST GENERATION FAILED ===');
@@ -169,7 +64,35 @@ export const generateMatrixForecast = async (
     
     // Create empty data so the UI doesn't completely break
     try {
-      return await createEmptyMatrixData(normalizedStartDate, endDate, forecastType);
+      const emptyMatrixData = MatrixDataTransformer.createEmptyMatrixData(normalizedStartDate);
+      const emptyForecastResult: ForecastResult = {
+        parameters: {
+          mode: forecastType,
+          timeframe: 'custom',
+          dateRange: { 
+            startDate: normalizedStartDate, 
+            endDate: normalizedStartDate 
+          },
+          granularity: 'monthly',
+          includeSkills: 'all'
+        },
+        data: [],
+        financials: [],
+        summary: {
+          totalDemand: 0,
+          totalCapacity: 0,
+          gap: 0,
+          totalRevenue: 0,
+          totalCost: 0,
+          totalProfit: 0
+        },
+        generatedAt: new Date()
+      };
+      
+      return { 
+        forecastResult: emptyForecastResult, 
+        matrixData: emptyMatrixData 
+      };
     } catch (fallbackError) {
       debugLog('Empty data creation also failed:', fallbackError);
       throw new Error(`Matrix forecast generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -178,108 +101,10 @@ export const generateMatrixForecast = async (
 }
 
 /**
- * Create empty matrix data when no database skills exist
- */
-const createEmptyMatrixData = async (
-  startDate: Date, 
-  endDate: Date, 
-  forecastType: 'virtual' | 'actual'
-): Promise<{ forecastResult: ForecastResult; matrixData: MatrixData }> => {
-  debugLog('Creating empty matrix data - no database skills available');
-  
-  // Generate 12 months
-  const months = generate12MonthPeriods(startDate);
-  
-  // Empty matrix with no skills
-  const matrixData: MatrixData = {
-    skills: [], // Empty because no database skills exist
-    months,
-    dataPoints: [], // Empty because no skills
-    totalDemand: 0,
-    totalCapacity: 0,
-    totalGap: 0
-  };
-  
-  const forecastResult: ForecastResult = {
-    parameters: {
-      mode: forecastType,
-      timeframe: 'custom',
-      dateRange: { startDate, endDate },
-      granularity: 'monthly',
-      includeSkills: 'all'
-    },
-    data: [],
-    financials: [],
-    summary: {
-      totalDemand: 0,
-      totalCapacity: 0,
-      gap: 0,
-      totalRevenue: 0,
-      totalCost: 0,
-      totalProfit: 0
-    },
-    generatedAt: new Date()
-  };
-  
-  debugLog('Empty matrix data created - user needs to add skills to database');
-  
-  return { forecastResult, matrixData };
-};
-
-/**
  * Validate matrix data to ensure it meets expected criteria
  */
 export const validateMatrixData = (matrixData: MatrixData): string[] => {
-  const issues: string[] = [];
-
-  // Check for expected number of months (should be 12)
-  if (matrixData.months.length !== 12) {
-    issues.push(`Expected 12 months, got ${matrixData.months.length}`);
-  }
-
-  // Check for minimum expected skills
-  if (matrixData.skills.length === 0) {
-    issues.push('No skills found in matrix data');
-  }
-
-  // Check for data completeness
-  const expectedDataPoints = matrixData.months.length * matrixData.skills.length;
-  if (matrixData.dataPoints.length !== expectedDataPoints) {
-    issues.push(`Expected ${expectedDataPoints} data points, got ${matrixData.dataPoints.length}. Skills: ${matrixData.skills.length}, Months: ${matrixData.months.length}`);
-  }
-
-  // Check for skills consistency in data points
-  const dataPointSkills = new Set(matrixData.dataPoints.map(point => point.skillType));
-  const matrixSkillsSet = new Set(matrixData.skills);
-  
-  const missingSkillsInData = matrixData.skills.filter(skill => !dataPointSkills.has(skill));
-  const extraSkillsInData = Array.from(dataPointSkills).filter(skill => !matrixSkillsSet.has(skill));
-  
-  if (missingSkillsInData.length > 0) {
-    issues.push(`Skills missing from data points: ${missingSkillsInData.join(', ')}`);
-  }
-  
-  if (extraSkillsInData.length > 0) {
-    issues.push(`Extra skills in data points: ${extraSkillsInData.join(', ')}`);
-  }
-
-  // Check for negative values
-  const negativeValues = matrixData.dataPoints.filter(
-    point => point.demandHours < 0 || point.capacityHours < 0
-  );
-  if (negativeValues.length > 0) {
-    issues.push(`Found ${negativeValues.length} data points with negative values`);
-  }
-
-  // Check for unreasonable utilization values
-  const unreasonableUtilization = matrixData.dataPoints.filter(
-    point => point.utilizationPercent < 0 || point.utilizationPercent > 1000
-  );
-  if (unreasonableUtilization.length > 0) {
-    issues.push(`Found ${unreasonableUtilization.length} data points with unreasonable utilization values`);
-  }
-
-  return issues;
+  return MatrixDataValidator.validateMatrixData(matrixData);
 };
 
 /**
@@ -289,5 +114,11 @@ export const getMatrixCacheKey = (
   forecastType: 'virtual' | 'actual',
   startDate: Date
 ): string => {
-  return `matrix_${forecastType}_${startDate.toISOString().slice(0, 7)}`;
+  return MatrixCacheUtils.getMatrixCacheKey(forecastType, startDate);
 };
+
+// Re-export utilities for backward compatibility
+export { MatrixForecastGenerator } from './matrix/forecastGenerator';
+export { MatrixDataTransformer } from './matrix/matrixTransformer';
+export { MatrixDataValidator } from './matrix/matrixValidator';
+export { MatrixCacheUtils } from './matrix/cacheUtils';
