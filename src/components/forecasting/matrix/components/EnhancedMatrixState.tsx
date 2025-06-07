@@ -12,9 +12,11 @@ interface EnhancedMatrixStateProps {
   viewMode: 'hours' | 'percentage';
   isLoading: boolean;
   skillsLoading: boolean;
+  isRefreshing?: boolean;
   error: string | null;
   skillsError: any;
   filteredData: MatrixData | null;
+  selectedClientCount?: number;
   onRetryMatrix: () => void;
   onRetrySkills: () => void;
 }
@@ -24,19 +26,23 @@ export const EnhancedMatrixState: React.FC<EnhancedMatrixStateProps> = ({
   viewMode,
   isLoading,
   skillsLoading,
+  isRefreshing = false,
   error,
   skillsError,
   filteredData,
+  selectedClientCount = 0,
   onRetryMatrix,
   onRetrySkills
 }) => {
-  // Loading state
+  // Loading state - enhanced with refresh support
   if (isLoading || skillsLoading) {
     return (
       <MatrixLoadingState 
         className={className}
         viewMode={viewMode}
         skillsLoading={skillsLoading}
+        isRefreshing={isRefreshing}
+        selectedClientCount={selectedClientCount}
       />
     );
   }

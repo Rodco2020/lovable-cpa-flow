@@ -18,10 +18,15 @@ interface EnhancedCapacityMatrixProps {
 }
 
 /**
- * Enhanced capacity matrix with client filtering, printing, and enhanced export capabilities
+ * Enhanced capacity matrix with Phase 4 UI/UX improvements
  * 
- * This component has been refactored for improved maintainability while preserving
- * all existing functionality and UI behavior.
+ * This component includes all Phase 4 enhancements:
+ * - Enhanced visual feedback with toast notifications
+ * - Debounced matrix updates for performance
+ * - Better loading states and refresh indicators
+ * - Improved accessibility with keyboard navigation
+ * - Clear indicators of active filters
+ * - Better error messages and help text
  * 
  * Key features:
  * - Interactive capacity vs demand matrix visualization
@@ -34,7 +39,7 @@ interface EnhancedCapacityMatrixProps {
  * Architecture:
  * - useEnhancedMatrixState: UI state management
  * - useEnhancedMatrixClients: Client data fetching and default selection
- * - useEnhancedMatrixData: Matrix data management
+ * - useEnhancedMatrixData: Matrix data management with debouncing
  * - useEnhancedMatrixActions: Export and print actions
  * - EnhancedMatrixMain: Main content display component
  */
@@ -74,10 +79,11 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     refetchSkills 
   } = useMatrixSkills();
   
-  // Matrix data management - existing hook
+  // Enhanced matrix data management with debouncing and better UX
   const {
     matrixData,
     isLoading,
+    isRefreshing,
     error,
     validationIssues,
     loadMatrixData
@@ -115,16 +121,18 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     monthRange: { start: 0, end: 11 }
   });
 
-  // Debug logging for Phase 2 verification
+  // Debug logging for Phase 4 verification
   useEffect(() => {
-    console.log('🎨 EnhancedCapacityMatrix: Phase 2 State Check:', {
+    console.log('🎨 EnhancedCapacityMatrix: Phase 4 State Check:', {
       hasClients: clients.length > 0,
       selectedClientCount: selectedClientIds.length,
       shouldShowData: selectedClientIds.length > 0,
       matrixDataAvailable: !!matrixData,
-      isLoading
+      isLoading,
+      isRefreshing,
+      hasValidationIssues: validationIssues.length > 0
     });
-  }, [clients, selectedClientIds, matrixData, isLoading]);
+  }, [clients, selectedClientIds, matrixData, isLoading, isRefreshing, validationIssues]);
 
   // Show print view
   if (showPrintView && filteredData && printOptions) {
@@ -141,7 +149,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     );
   }
 
-  // Show loading, error, or empty states
+  // Show loading, error, or empty states with enhanced UX
   if (isLoading || skillsLoading || clientsLoading || error || skillsError || clientsError || !filteredData) {
     return (
       <EnhancedMatrixState
@@ -149,16 +157,18 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         viewMode="hours"
         isLoading={isLoading || clientsLoading}
         skillsLoading={skillsLoading}
+        isRefreshing={isRefreshing}
         error={error || clientsError || ''}
         skillsError={skillsError}
         filteredData={filteredData}
+        selectedClientCount={selectedClientIds.length}
         onRetryMatrix={loadMatrixData}
         onRetrySkills={refetchSkills}
       />
     );
   }
 
-  // Main matrix display - refactored into separate component
+  // Main matrix display with enhanced UX features
   return (
     <div className={className}>
       <EnhancedMatrixMain
@@ -175,6 +185,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         onClientSelectionChange={setSelectedClientIds}
         filteredData={filteredData!}
         isLoading={isLoading}
+        isRefreshing={isRefreshing}
         validationIssues={validationIssues}
         availableSkills={availableSkills}
         onRefresh={loadMatrixData}

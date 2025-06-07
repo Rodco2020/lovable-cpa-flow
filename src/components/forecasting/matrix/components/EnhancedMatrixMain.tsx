@@ -18,6 +18,7 @@ interface EnhancedMatrixMainProps {
   onClientSelectionChange: (clientIds: string[]) => void;
   filteredData: any;
   isLoading: boolean;
+  isRefreshing?: boolean;
   validationIssues: string[];
   availableSkills: any[];
   onRefresh: () => void;
@@ -37,6 +38,7 @@ export const EnhancedMatrixMain: React.FC<EnhancedMatrixMainProps> = ({
   onClientSelectionChange,
   filteredData,
   isLoading,
+  isRefreshing = false,
   validationIssues,
   availableSkills,
   onRefresh
@@ -62,13 +64,14 @@ export const EnhancedMatrixMain: React.FC<EnhancedMatrixMainProps> = ({
           onClientSelectionChange={onClientSelectionChange}
         />
         
-        {/* Matrix Panel */}
+        {/* Matrix Panel with enhanced loading states */}
         <div className={`xl:col-span-3 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
           <EnhancedMatrixContent
             filteredData={filteredData}
             viewMode="hours"
             forecastType={forecastMode}
             isLoading={isLoading}
+            isRefreshing={isRefreshing}
             validationIssues={validationIssues}
             availableSkills={availableSkills}
             onRefresh={onRefresh}
