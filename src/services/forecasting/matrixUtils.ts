@@ -28,6 +28,19 @@ export interface MatrixData {
 }
 
 /**
+ * Get a specific data point from matrix data by skill and month
+ */
+export const getMatrixDataPoint = (
+  matrixData: MatrixData,
+  skillType: SkillType,
+  monthKey: string
+): MatrixDataPoint | undefined => {
+  return matrixData.dataPoints.find(
+    point => point.skillType === skillType && point.month === monthKey
+  );
+};
+
+/**
  * Transform forecast data into matrix format
  */
 export const transformForecastDataToMatrix = (forecastData: ForecastData[]): MatrixData => {
