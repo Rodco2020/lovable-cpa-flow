@@ -11,7 +11,7 @@ interface MatrixControlsCoreProps {
   onForecastModeChange: (mode: 'virtual' | 'actual') => void;
   startMonth: Date;
   onStartMonthChange: (date: Date) => void;
-  onExport: (options: any) => void;
+  onExport: (options?: any) => void;
   onPrint: () => void;
   isExporting: boolean;
 }
@@ -42,7 +42,7 @@ export const MatrixControlsCore: React.FC<MatrixControlsCoreProps> = ({
       />
 
       {/* Actions */}
-      <ActionsSection onExport={() => onExport({})} />
+      <ActionsSection onExport={onExport} />
     </div>
   );
 };

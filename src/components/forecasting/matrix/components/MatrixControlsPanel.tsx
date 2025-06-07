@@ -15,7 +15,7 @@ interface MatrixControlsPanelProps {
   onForecastModeChange: (mode: 'virtual' | 'actual') => void;
   startMonth: Date;
   onStartMonthChange: (date: Date) => void;
-  onExport: (options: any) => void;
+  onExport: (options?: any) => void;
   onPrint: () => void;
   isExporting: boolean;
   
