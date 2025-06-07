@@ -1,35 +1,58 @@
 
 import { MatrixData } from '@/services/forecasting/matrixUtils';
-import { SkillType } from '@/types/task';
 
-export interface MatrixDataFilterOptions {
-  selectedSkills: SkillType[];
+interface FilterOptions {
+  selectedSkills: string[];
   monthRange: { start: number; end: number };
 }
 
 /**
  * Filter matrix data based on selected skills and month range
+ * 
+ * This utility function filters the matrix data while maintaining
+ * the correct data structure and recalculating totals.
  */
 export const filterMatrixData = (
   matrixData: MatrixData | null,
-  options: MatrixDataFilterOptions
+  options: FilterOptions
 ): MatrixData | null => {
-  if (!matrixData) return null;
+  if (!matrixData) {
+    return null;
+  }
 
   const { selectedSkills, monthRange } = options;
 
+  // If no filters applied, return original data
+  if (selectedSkills.length === 0 && monthRange.start === 0 && monthRange.end >= 11) {
+    return matrixData;
+  }
+
+  // Filter skills
+  const filteredSkills = selectedSkills.length > 0 
+    ? matrixData.skills.filter(skill => selectedSkills.includes(skill))
+    : matrixData.skills;
+
+  // Filter months based on range
   const filteredMonths = matrixData.months.slice(monthRange.start, monthRange.end + 1);
-  const filteredSkills = matrixData.skills.filter(skill => selectedSkills.includes(skill));
-  const filteredDataPoints = matrixData.dataPoints.filter(
-    point => 
-      selectedSkills.includes(point.skillType) &&
-      filteredMonths.some(month => month.key === point.month)
-  );
+
+  // Filter data points based on filtered skills and months
+  const filteredDataPoints = matrixData.dataPoints.filter(dataPoint => {
+    const skillMatch = filteredSkills.includes(dataPoint.skill);
+    const monthMatch = filteredMonths.some(month => month.key === dataPoint.month);
+    return skillMatch && monthMatch;
+  });
+
+  // Recalculate totals
+  const totalDemand = filteredDataPoints.reduce((sum, dp) => sum + dp.demand, 0);
+  const totalCapacity = filteredDataPoints.reduce((sum, dp) => sum + dp.capacity, 0);
+  const totalGap = filteredDataPoints.reduce((sum, dp) => sum + dp.gap, 0);
 
   return {
-    ...matrixData,
-    months: filteredMonths,
     skills: filteredSkills,
-    dataPoints: filteredDataPoints
+    months: filteredMonths,
+    dataPoints: filteredDataPoints,
+    totalDemand,
+    totalCapacity,
+    totalGap
   };
 };
