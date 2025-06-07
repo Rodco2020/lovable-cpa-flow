@@ -22,6 +22,53 @@ import { addMonths, startOfMonth, format } from 'date-fns';
  * - Maintains backward compatibility
  */
 export class SkillAwareForecastingService {
+
+  /**
+   * Get the earliest due date from tasks and recurring tasks.
+   * Returns null if no dates are found or on error.
+   */
+  static async getEarliestTaskDate(clientIds?: string[]): Promise<Date | null> {
+    try {
+      let recurringQuery = supabase
+        .from('recurring_tasks')
+        .select('due_date')
+        .order('due_date', { ascending: true })
+        .limit(1);
+
+      let instanceQuery = supabase
+        .from('task_instances')
+        .select('due_date')
+        .order('due_date', { ascending: true })
+        .limit(1);
+
+      if (clientIds && clientIds.length > 0) {
+        recurringQuery = recurringQuery.in('client_id', clientIds);
+        instanceQuery = instanceQuery.in('client_id', clientIds);
+      }
+
+      const [{ data: recurData }, { data: instData }] = await Promise.all([
+        recurringQuery,
+        instanceQuery
+      ]);
+
+      const dates: Date[] = [];
+      if (recurData && recurData[0]?.due_date) {
+        dates.push(new Date(recurData[0].due_date));
+      }
+      if (instData && instData[0]?.due_date) {
+        dates.push(new Date(instData[0].due_date));
+      }
+
+      if (dates.length === 0) {
+        return null;
+      }
+
+      return dates.sort((a, b) => a.getTime() - b.getTime())[0];
+    } catch (err) {
+      debugLog('Failed to fetch earliest task date:', err);
+      return null;
+    }
+  }
   
   /**
    * Generate demand forecast with optional client filtering
