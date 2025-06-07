@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, Filter, Eye } from 'lucide-react';
+import { CalendarDays, Eye } from 'lucide-react';
 import { MatrixControlsCore } from './MatrixControlsCore';
 import { ClientFilterSection } from './ClientFilterSection';
 import { ClientFilterDebugger } from './ClientFilterDebugger';
