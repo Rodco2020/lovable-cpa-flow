@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EnhancedMatrixLegend } from './EnhancedMatrixLegend';
 import { useMatrixSkills } from './hooks/useMatrixSkills';
 import { useQuery } from '@tanstack/react-query';
@@ -26,7 +26,7 @@ interface EnhancedCapacityMatrixProps {
  * 
  * Key features:
  * - Interactive capacity vs demand matrix visualization
- * - Client filtering capabilities
+ * - Client filtering capabilities with automatic default selection
  * - Enhanced export options (CSV, JSON)
  * - Print functionality with customizable options
  * - Skills synchronization and validation
@@ -43,23 +43,60 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   const [forecastMode, setForecastMode] = useState<'virtual' | 'actual'>(forecastType);
   const [startMonth, setStartMonth] = useState(new Date());
 
-  // Fetch client names for display
-  const { data: clientNames = {} } = useQuery({
+  // Fetch client names for display and default selection
+  const { data: clientNames = {}, data: clients = [] } = useQuery({
     queryKey: ['client-names'],
     queryFn: async () => {
+      console.log('🔍 EnhancedCapacityMatrix: Fetching clients for default selection...');
+      
       const { data, error } = await supabase
         .from('clients')
         .select('id, legal_name')
         .eq('status', 'active');
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ EnhancedCapacityMatrix: Client fetch error:', error);
+        throw error;
+      }
       
-      return data.reduce((acc, client) => ({
+      console.log('📊 EnhancedCapacityMatrix: Client data received:', {
+        totalClients: data?.length || 0,
+        clientIds: data?.map(c => c.id) || []
+      });
+      
+      // Return both the names object and the full client data
+      const namesObj = data.reduce((acc, client) => ({
         ...acc,
         [client.id]: client.legal_name
       }), {} as Record<string, string>);
-    }
+      
+      return { clientNames: namesObj, clients: data };
+    },
+    select: (data) => ({
+      clientNames: data.clientNames,
+      clients: data.clients
+    })
   });
+
+  // Default client selection logic - Phase 2 Implementation
+  useEffect(() => {
+    if (clients && clients.length > 0 && selectedClientIds.length === 0) {
+      const allClientIds = clients.map(client => client.id);
+      
+      console.log('🎯 EnhancedCapacityMatrix: Implementing default client selection:', {
+        totalAvailableClients: allClientIds.length,
+        clientIds: allClientIds,
+        currentSelection: selectedClientIds.length
+      });
+      
+      setSelectedClientIds(allClientIds);
+      
+      console.log('✅ EnhancedCapacityMatrix: Default client selection completed:', {
+        selectedCount: allClientIds.length,
+        selectedIds: allClientIds
+      });
+    }
+  }, [clients, selectedClientIds.length]);
 
   // Skills integration
   const { 
@@ -103,13 +140,24 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   });
 
   // Handlers
-  const handleExport = (options: any) => {
+  const handleExport = (options?: any) => {
     console.log('Export options:', options);
   };
 
   const handlePrintAction = () => {
     handlePrint();
   };
+
+  // Debug logging for Phase 2 verification
+  useEffect(() => {
+    console.log('🎨 EnhancedCapacityMatrix: Phase 2 State Check:', {
+      hasClients: clients.length > 0,
+      selectedClientCount: selectedClientIds.length,
+      shouldShowData: selectedClientIds.length > 0,
+      matrixDataAvailable: !!matrixData,
+      isLoading
+    });
+  }, [clients, selectedClientIds, matrixData, isLoading]);
 
   // Show print view
   if (showPrintView && filteredData && printOptions) {
@@ -118,7 +166,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         matrixData={filteredData}
         selectedSkills={selectedSkills}
         selectedClientIds={selectedClientIds}
-        clientNames={clientNames}
+        clientNames={clientNames.clientNames || {}}
         monthRange={{ start: 0, end: 11 }}
         printOptions={printOptions}
         onPrint={handlePrintExecute}

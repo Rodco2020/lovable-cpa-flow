@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -95,6 +95,28 @@ export const ClientFilterSection: React.FC<ClientFilterSectionProps> = ({
     return filtered;
   }, [clients, searchTerm]);
 
+  // Phase 2: UI state synchronization for default selection
+  const isAllSelected = useMemo(() => {
+    if (clients.length === 0) return false;
+    return selectedClientIds.length === clients.length && 
+           clients.every(client => selectedClientIds.includes(client.id));
+  }, [clients, selectedClientIds]);
+
+  const isPartiallySelected = useMemo(() => {
+    return selectedClientIds.length > 0 && selectedClientIds.length < clients.length;
+  }, [clients, selectedClientIds]);
+
+  // Phase 2: Debug logging for UI state verification
+  useEffect(() => {
+    console.log('🎨 ClientFilterSection: Phase 2 UI State Check:', {
+      totalClients: clients.length,
+      selectedCount: selectedClientIds.length,
+      isAllSelected,
+      isPartiallySelected,
+      shouldShowAsDefaultSelected: isAllSelected
+    });
+  }, [clients, selectedClientIds, isAllSelected, isPartiallySelected]);
+
   const handleClientToggle = (clientId: string) => {
     console.log('🎯 ClientFilterSection: Client toggle requested:', { clientId, currentlySelected: selectedClientIds.includes(clientId) });
     
@@ -129,7 +151,9 @@ export const ClientFilterSection: React.FC<ClientFilterSectionProps> = ({
     filteredCount: filteredClients.length,
     selectedCount: selectedClientIds.length,
     searchTerm,
-    isCollapsed
+    isCollapsed,
+    isAllSelected,
+    isPartiallySelected
   });
 
   return (
@@ -154,7 +178,11 @@ export const ClientFilterSection: React.FC<ClientFilterSectionProps> = ({
         
         {selectedClientIds.length > 0 && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{selectedClientIds.length} clients selected</span>
+            <span>
+              {selectedClientIds.length} clients selected
+              {isAllSelected && ' (All)'}
+              {isPartiallySelected && ' (Partial)'}
+            </span>
             <Button variant="ghost" size="sm" onClick={handleClearAll}>
               <X className="h-3 w-3 mr-1" />
               Clear
@@ -204,15 +232,32 @@ export const ClientFilterSection: React.FC<ClientFilterSectionProps> = ({
                 />
               </div>
 
-              {/* Bulk actions */}
+              {/* Bulk actions with enhanced state display */}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSelectAll}
+                  disabled={isAllSelected}
+                >
                   Select All ({filteredClients.length})
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleClearAll}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleClearAll}
+                  disabled={selectedClientIds.length === 0}
+                >
                   Clear All
                 </Button>
               </div>
+
+              {/* Phase 2: Visual indicator for default selection */}
+              {isAllSelected && (
+                <div className="text-xs text-green-600 bg-green-50 p-2 rounded border">
+                  ✅ All clients selected by default
+                </div>
+              )}
 
               {/* Client list */}
               <div className="max-h-40 overflow-y-auto space-y-1">
