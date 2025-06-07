@@ -1,4 +1,5 @@
 
+
 import * as React from "react"
 import * as MenubarPrimitive from "@radix-ui/react-menubar"
 import { Check, ChevronRight, Circle } from "lucide-react"
@@ -165,7 +166,7 @@ const MenubarRadioItem = React.forwardRef<
       </MenubarPrimitive.ItemIndicator>
     </span>
     {children}
-  </MenubarRadioItem>
+  </MenubarPrimitive.RadioItem>
 ))
 MenubarRadioItem.displayName = MenubarPrimitive.RadioItem.displayName
 
@@ -233,3 +234,4 @@ export {
   MenubarSub,
   MenubarShortcut,
 }
+
