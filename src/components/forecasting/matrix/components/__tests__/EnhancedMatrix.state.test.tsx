@@ -34,6 +34,7 @@ describe('EnhancedCapacityMatrix - State Management', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: null,
       isLoading: true,
+      isRefreshing: false,
       error: null,
       validationIssues: [],
       loadMatrixData: jest.fn()
@@ -53,6 +54,7 @@ describe('EnhancedCapacityMatrix - State Management', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: null,
       isLoading: false,
+      isRefreshing: false,
       error: 'Test error',
       validationIssues: [],
       loadMatrixData: jest.fn()
@@ -72,6 +74,7 @@ describe('EnhancedCapacityMatrix - State Management', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: null,
       isLoading: false,
+      isRefreshing: false,
       error: null,
       validationIssues: [],
       loadMatrixData: jest.fn()
@@ -100,6 +103,7 @@ describe('EnhancedCapacityMatrix - State Management', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: mockMatrixData,
       isLoading: false,
+      isRefreshing: false,
       error: null,
       validationIssues: [],
       loadMatrixData: jest.fn()

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MatrixData } from '@/services/forecasting/matrixUtils';
 import { generateMatrixForecast, validateMatrixData } from '@/services/forecasting/matrixService';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { debounce } from 'lodash';
 
 interface UseEnhancedMatrixDataProps {
@@ -153,10 +153,10 @@ export const useEnhancedMatrixData = ({
     };
   }, [forecastType, JSON.stringify(selectedClientIds)]); // Use JSON.stringify for array comparison
 
-  // Manual refresh function that always shows loading
-  const manualRefresh = useCallback(() => {
+  // Manual refresh function that always shows loading and returns Promise<void>
+  const manualRefresh = useCallback(async () => {
     console.log('Phase 4: Manual refresh triggered');
-    loadMatrixData();
+    await loadMatrixData();
   }, [loadMatrixData]);
 
   return {

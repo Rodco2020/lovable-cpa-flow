@@ -20,6 +20,7 @@ describe('EnhancedCapacityMatrix - Hook Integration', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: null,
       isLoading: false,
+      isRefreshing: false,
       error: null,
       validationIssues: [],
       loadMatrixData: jest.fn()
@@ -84,6 +85,7 @@ describe('EnhancedCapacityMatrix - Hook Integration', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: mockMatrixData,
       isLoading: false,
+      isRefreshing: false,
       error: null,
       validationIssues: [],
       loadMatrixData: jest.fn()

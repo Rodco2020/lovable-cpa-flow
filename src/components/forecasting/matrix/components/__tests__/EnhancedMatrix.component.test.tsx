@@ -20,6 +20,7 @@ describe('EnhancedCapacityMatrix - Component Structure', () => {
     mockUseEnhancedMatrixData.mockReturnValue({
       matrixData: null,
       isLoading: false,
+      isRefreshing: false,
       error: null,
       validationIssues: [],
       loadMatrixData: jest.fn()
