@@ -1,16 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
-import { EnhancedMatrixLegend } from './EnhancedMatrixLegend';
+import React, { useEffect } from 'react';
 import { useMatrixSkills } from './hooks/useMatrixSkills';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { MatrixControlsPanel } from './components';
-import { EnhancedMatrixContent } from './components/EnhancedMatrixContent';
 import { EnhancedMatrixState } from './components/EnhancedMatrixState';
 import { MatrixPrintView } from './components/MatrixPrintView';
+import { EnhancedMatrixMain } from './components/EnhancedMatrixMain';
+import { useEnhancedMatrixState } from './hooks/useEnhancedMatrixState';
+import { useEnhancedMatrixClients } from './hooks/useEnhancedMatrixClients';
 import { useEnhancedMatrixData } from './hooks/useEnhancedMatrixData';
 import { useEnhancedMatrixExport } from './hooks/useEnhancedMatrixExport';
 import { useEnhancedMatrixPrint } from './hooks/useEnhancedMatrixPrint';
+import { useEnhancedMatrixActions } from './hooks/useEnhancedMatrixActions';
 import { filterMatrixData } from './utils/matrixDataFilter';
 
 interface EnhancedCapacityMatrixProps {
@@ -31,77 +30,43 @@ interface EnhancedCapacityMatrixProps {
  * - Print functionality with customizable options
  * - Skills synchronization and validation
  * - Responsive layout with collapsible controls
+ * 
+ * Architecture:
+ * - useEnhancedMatrixState: UI state management
+ * - useEnhancedMatrixClients: Client data fetching and default selection
+ * - useEnhancedMatrixData: Matrix data management
+ * - useEnhancedMatrixActions: Export and print actions
+ * - EnhancedMatrixMain: Main content display component
  */
 export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({ 
   className,
   forecastType = 'virtual'
 }) => {
-  // UI state management
-  const [isControlsExpanded, setIsControlsExpanded] = useState(false);
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [forecastMode, setForecastMode] = useState<'virtual' | 'actual'>(forecastType);
-  const [startMonth, setStartMonth] = useState(new Date());
+  // UI state management - refactored into custom hook
+  const {
+    isControlsExpanded,
+    selectedClientIds,
+    setSelectedClientIds,
+    selectedSkills,
+    setSelectedSkills,
+    forecastMode,
+    setForecastMode,
+    startMonth,
+    setStartMonth
+  } = useEnhancedMatrixState(forecastType);
 
-  // Fetch client names for display and default selection
-  const { data: clientData, isLoading: clientsLoading, error: clientsError } = useQuery({
-    queryKey: ['client-names'],
-    queryFn: async () => {
-      console.log('🔍 EnhancedCapacityMatrix: Fetching clients for default selection...');
-      
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, legal_name')
-        .eq('status', 'active');
-      
-      if (error) {
-        console.error('❌ EnhancedCapacityMatrix: Client fetch error:', error);
-        throw error;
-      }
-      
-      console.log('📊 EnhancedCapacityMatrix: Client data received:', {
-        totalClients: data?.length || 0,
-        clientIds: data?.map(c => c.id) || []
-      });
-      
-      // Return both the names object and the full client data
-      const clientNames = data.reduce((acc, client) => ({
-        ...acc,
-        [client.id]: client.legal_name
-      }), {} as Record<string, string>);
-      
-      return { 
-        clientNames, 
-        clients: data || []
-      };
-    }
+  // Client data management - refactored into custom hook
+  const {
+    clients,
+    clientNames,
+    isLoading: clientsLoading,
+    error: clientsError
+  } = useEnhancedMatrixClients({
+    selectedClientIds,
+    setSelectedClientIds
   });
 
-  // Extract clients and clientNames from the query data
-  const clients = clientData?.clients || [];
-  const clientNames = clientData?.clientNames || {};
-
-  // Default client selection logic - Phase 2 Implementation
-  useEffect(() => {
-    if (clients.length > 0 && selectedClientIds.length === 0) {
-      const allClientIds = clients.map(client => client.id);
-      
-      console.log('🎯 EnhancedCapacityMatrix: Implementing default client selection:', {
-        totalAvailableClients: allClientIds.length,
-        clientIds: allClientIds,
-        currentSelection: selectedClientIds.length
-      });
-      
-      setSelectedClientIds(allClientIds);
-      
-      console.log('✅ EnhancedCapacityMatrix: Default client selection completed:', {
-        selectedCount: allClientIds.length,
-        selectedIds: allClientIds
-      });
-    }
-  }, [clients, selectedClientIds.length]);
-
-  // Skills integration
+  // Skills integration - existing hook
   const { 
     availableSkills, 
     isLoading: skillsLoading, 
@@ -109,7 +74,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     refetchSkills 
   } = useMatrixSkills();
   
-  // Matrix data management
+  // Matrix data management - existing hook
   const {
     matrixData,
     isLoading,
@@ -121,14 +86,14 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     selectedClientIds
   });
 
-  // Export functionality
+  // Export functionality - existing hook
   const { handleEnhancedExport } = useEnhancedMatrixExport({
     matrixData,
     selectedSkills,
     monthRange: { start: 0, end: 11 }
   });
 
-  // Print functionality
+  // Print functionality - existing hook
   const {
     showPrintView,
     printOptions,
@@ -136,21 +101,19 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     handlePrintExecute
   } = useEnhancedMatrixPrint();
 
+  // Action handlers - refactored into custom hook
+  const { handleExport, handlePrintAction } = useEnhancedMatrixActions({
+    matrixData,
+    selectedSkills,
+    onEnhancedExport: handleEnhancedExport,
+    onPrint: handlePrint
+  });
+
   // Filter data based on controls
   const filteredData = filterMatrixData(matrixData, {
     selectedSkills,
     monthRange: { start: 0, end: 11 }
   });
-
-  // Handlers
-  const handleExport = (options: any = {}) => {
-    console.log('Export options:', options);
-    handleEnhancedExport('csv', options);
-  };
-
-  const handlePrintAction = () => {
-    handlePrint({});
-  };
 
   // Debug logging for Phase 2 verification
   useEffect(() => {
@@ -186,7 +149,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         viewMode="hours"
         isLoading={isLoading || clientsLoading}
         skillsLoading={skillsLoading}
-        error={error || clientsError?.message || ''}
+        error={error || clientsError || ''}
         skillsError={skillsError}
         filteredData={filteredData}
         onRetryMatrix={loadMatrixData}
@@ -195,41 +158,27 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     );
   }
 
-  // Main matrix display
+  // Main matrix display - refactored into separate component
   return (
     <div className={className}>
-      <EnhancedMatrixLegend viewMode="hours" />
-      
-      {/* Responsive layout for matrix and controls */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        {/* Enhanced Controls Panel */}
-        <MatrixControlsPanel
-          selectedSkills={selectedSkills}
-          onSkillsChange={setSelectedSkills}
-          forecastMode={forecastMode}
-          onForecastModeChange={setForecastMode}
-          startMonth={startMonth}
-          onStartMonthChange={setStartMonth}
-          onExport={handleExport}
-          onPrint={handlePrintAction}
-          isExporting={false}
-          selectedClientIds={selectedClientIds}
-          onClientSelectionChange={setSelectedClientIds}
-        />
-        
-        {/* Matrix Panel */}
-        <div className={`xl:col-span-3 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
-          <EnhancedMatrixContent
-            filteredData={filteredData!}
-            viewMode="hours"
-            forecastType={forecastMode}
-            isLoading={isLoading}
-            validationIssues={validationIssues}
-            availableSkills={availableSkills}
-            onRefresh={loadMatrixData}
-          />
-        </div>
-      </div>
+      <EnhancedMatrixMain
+        isControlsExpanded={isControlsExpanded}
+        selectedSkills={selectedSkills}
+        onSkillsChange={setSelectedSkills}
+        forecastMode={forecastMode}
+        onForecastModeChange={setForecastMode}
+        startMonth={startMonth}
+        onStartMonthChange={setStartMonth}
+        onExport={handleExport}
+        onPrint={handlePrintAction}
+        selectedClientIds={selectedClientIds}
+        onClientSelectionChange={setSelectedClientIds}
+        filteredData={filteredData!}
+        isLoading={isLoading}
+        validationIssues={validationIssues}
+        availableSkills={availableSkills}
+        onRefresh={loadMatrixData}
+      />
     </div>
   );
 };
