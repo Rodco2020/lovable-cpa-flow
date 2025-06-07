@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { EnhancedMatrixLegend } from './EnhancedMatrixLegend';
-import { useMatrixControls } from './hooks/useMatrixControls';
 import { useMatrixSkills } from './hooks/useMatrixSkills';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +39,9 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   // UI state management
   const [isControlsExpanded, setIsControlsExpanded] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [forecastMode, setForecastMode] = useState<'virtual' | 'actual'>(forecastType);
+  const [startMonth, setStartMonth] = useState(new Date());
 
   // Fetch client names for display
   const { data: clientNames = {} } = useQuery({
@@ -75,29 +77,15 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     validationIssues,
     loadMatrixData
   } = useEnhancedMatrixData({
-    forecastType,
+    forecastType: forecastMode,
     selectedClientIds
-  });
-
-  // Matrix controls
-  const {
-    selectedSkills,
-    viewMode,
-    monthRange,
-    handleSkillToggle,
-    handleViewModeChange,
-    handleMonthRangeChange,
-    handleReset,
-    handleExport
-  } = useMatrixControls({
-    matrixSkills: matrixData?.skills || []
   });
 
   // Export functionality
   const { handleEnhancedExport } = useEnhancedMatrixExport({
     matrixData,
     selectedSkills,
-    monthRange
+    monthRange: { start: 0, end: 11 }
   });
 
   // Print functionality
@@ -111,8 +99,17 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   // Filter data based on controls
   const filteredData = filterMatrixData(matrixData, {
     selectedSkills,
-    monthRange
+    monthRange: { start: 0, end: 11 }
   });
+
+  // Handlers
+  const handleExport = (options: any) => {
+    console.log('Export options:', options);
+  };
+
+  const handlePrintAction = () => {
+    handlePrint();
+  };
 
   // Show print view
   if (showPrintView && filteredData && printOptions) {
@@ -122,7 +119,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         selectedSkills={selectedSkills}
         selectedClientIds={selectedClientIds}
         clientNames={clientNames}
-        monthRange={monthRange}
+        monthRange={{ start: 0, end: 11 }}
         printOptions={printOptions}
         onPrint={handlePrintExecute}
       />
@@ -134,7 +131,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     return (
       <EnhancedMatrixState
         className={className}
-        viewMode={viewMode}
+        viewMode="hours"
         isLoading={isLoading}
         skillsLoading={skillsLoading}
         error={error}
@@ -149,35 +146,31 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   // Main matrix display
   return (
     <div className={className}>
-      <EnhancedMatrixLegend viewMode={viewMode} />
+      <EnhancedMatrixLegend viewMode="hours" />
       
       {/* Responsive layout for matrix and controls */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
         {/* Enhanced Controls Panel */}
         <MatrixControlsPanel
-          isControlsExpanded={isControlsExpanded}
-          onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
           selectedSkills={selectedSkills}
-          onSkillToggle={handleSkillToggle}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          monthRange={monthRange}
-          onMonthRangeChange={handleMonthRangeChange}
+          onSkillsChange={setSelectedSkills}
+          forecastMode={forecastMode}
+          onForecastModeChange={setForecastMode}
+          startMonth={startMonth}
+          onStartMonthChange={setStartMonth}
           onExport={handleExport}
-          onReset={handleReset}
-          matrixData={filteredData}
+          onPrint={handlePrintAction}
+          isExporting={false}
           selectedClientIds={selectedClientIds}
           onClientSelectionChange={setSelectedClientIds}
-          onEnhancedExport={handleEnhancedExport}
-          onPrint={handlePrint}
         />
         
         {/* Matrix Panel */}
         <div className={`xl:col-span-3 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
           <EnhancedMatrixContent
             filteredData={filteredData!}
-            viewMode={viewMode}
-            forecastType={forecastType}
+            viewMode="hours"
+            forecastType={forecastMode}
             isLoading={isLoading}
             validationIssues={validationIssues}
             availableSkills={availableSkills}
