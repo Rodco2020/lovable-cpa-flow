@@ -14,6 +14,8 @@ interface UseEnhancedMatrixDataProps {
    * Undefined indicates the client list has not loaded yet.
    */
   totalClientCount?: number;
+  clientsLoading?: boolean;
+  clientsError?: string | null;
 }
 
 interface UseEnhancedMatrixDataResult {
@@ -28,7 +30,9 @@ interface UseEnhancedMatrixDataResult {
 export const useEnhancedMatrixData = ({
   forecastType,
   selectedClientIds,
-  totalClientCount
+  totalClientCount,
+  clientsLoading = false,
+  clientsError = null
 }: UseEnhancedMatrixDataProps): UseEnhancedMatrixDataResult => {
   const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,8 +168,25 @@ export const useEnhancedMatrixData = ({
   );
 
   useEffect(() => {
+    if (clientsError) {
+      console.log('Phase 4: Client data error detected - loading matrix without client filter');
+      if (matrixData === null) {
+        loadMatrixData();
+      } else {
+        debouncedLoadMatrixData();
+      }
+      return;
+    }
+
     if (typeof totalClientCount !== 'number') {
-      // Client list not loaded yet - defer loading
+      if (!clientsLoading) {
+        console.log('Phase 4: Client data unavailable - loading matrix without filter');
+        if (matrixData === null) {
+          loadMatrixData();
+        } else {
+          debouncedLoadMatrixData();
+        }
+      }
       return;
     }
 
@@ -191,7 +212,7 @@ export const useEnhancedMatrixData = ({
     return () => {
       debouncedLoadMatrixData.cancel();
     };
-  }, [forecastType, JSON.stringify(selectedClientIds), totalClientCount]); // Include totalClientCount in dependencies
+  }, [forecastType, JSON.stringify(selectedClientIds), totalClientCount, clientsLoading, clientsError]);
 
   // Manual refresh function that always shows loading and returns Promise<void>
   const manualRefresh = useCallback(async () => {

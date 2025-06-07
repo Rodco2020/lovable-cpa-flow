@@ -46,11 +46,13 @@ describe('EnhancedCapacityMatrix - Hook Integration', () => {
       </TestWrapper>
     );
 
-    expect(mockUseEnhancedMatrixData).toHaveBeenCalledWith({
-      forecastType: 'actual',
-      selectedClientIds: [],
-      totalClientCount: undefined
-    });
+    expect(mockUseEnhancedMatrixData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        forecastType: 'actual',
+        selectedClientIds: [],
+        totalClientCount: undefined
+      })
+    );
   });
 
   it('should integrate export functionality', () => {
