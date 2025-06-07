@@ -44,7 +44,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   const [startMonth, setStartMonth] = useState(new Date());
 
   // Fetch client names for display and default selection
-  const { data: clientNames = {}, data: clients = [] } = useQuery({
+  const { data: clientData, isLoading: clientsLoading, error: clientsError } = useQuery({
     queryKey: ['client-names'],
     queryFn: async () => {
       console.log('🔍 EnhancedCapacityMatrix: Fetching clients for default selection...');
@@ -65,22 +65,25 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
       });
       
       // Return both the names object and the full client data
-      const namesObj = data.reduce((acc, client) => ({
+      const clientNames = data.reduce((acc, client) => ({
         ...acc,
         [client.id]: client.legal_name
       }), {} as Record<string, string>);
       
-      return { clientNames: namesObj, clients: data };
-    },
-    select: (data) => ({
-      clientNames: data.clientNames,
-      clients: data.clients
-    })
+      return { 
+        clientNames, 
+        clients: data || []
+      };
+    }
   });
+
+  // Extract clients and clientNames from the query data
+  const clients = clientData?.clients || [];
+  const clientNames = clientData?.clientNames || {};
 
   // Default client selection logic - Phase 2 Implementation
   useEffect(() => {
-    if (clients && clients.length > 0 && selectedClientIds.length === 0) {
+    if (clients.length > 0 && selectedClientIds.length === 0) {
       const allClientIds = clients.map(client => client.id);
       
       console.log('🎯 EnhancedCapacityMatrix: Implementing default client selection:', {
@@ -140,8 +143,9 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   });
 
   // Handlers
-  const handleExport = (options?: any) => {
+  const handleExport = (options: any = {}) => {
     console.log('Export options:', options);
+    handleEnhancedExport(options);
   };
 
   const handlePrintAction = () => {
@@ -166,7 +170,7 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
         matrixData={filteredData}
         selectedSkills={selectedSkills}
         selectedClientIds={selectedClientIds}
-        clientNames={clientNames.clientNames || {}}
+        clientNames={clientNames}
         monthRange={{ start: 0, end: 11 }}
         printOptions={printOptions}
         onPrint={handlePrintExecute}
@@ -175,14 +179,14 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
   }
 
   // Show loading, error, or empty states
-  if (isLoading || skillsLoading || error || skillsError || !filteredData) {
+  if (isLoading || skillsLoading || clientsLoading || error || skillsError || clientsError || !filteredData) {
     return (
       <EnhancedMatrixState
         className={className}
         viewMode="hours"
-        isLoading={isLoading}
+        isLoading={isLoading || clientsLoading}
         skillsLoading={skillsLoading}
-        error={error}
+        error={error || clientsError}
         skillsError={skillsError}
         filteredData={filteredData}
         onRetryMatrix={loadMatrixData}
