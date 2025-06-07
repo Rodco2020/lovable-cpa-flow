@@ -241,7 +241,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          assigned_skills: string[]
+          assigned_skills?: string[]
           cost_per_hour?: number
           created_at?: string
           email: string

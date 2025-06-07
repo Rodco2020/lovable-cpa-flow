@@ -214,7 +214,7 @@ export class SkillAwareForecastingService {
       note: 'Capacity based on staff availability, client context for allocation'
     });
 
-    // Fetch staff data
+    // Fetch staff data with corrected status filter
     const { data: staffData } = await supabase
       .from('staff')
       .select(`
@@ -224,11 +224,13 @@ export class SkillAwareForecastingService {
         cost_per_hour,
         status
       `)
-      .eq('status', 'Active');
+      .eq('status', 'active'); // Use lowercase 'active' to match database
 
-    debugLog('Phase 3: Staff data fetched for capacity:', {
+    debugLog('Phase 3: Staff data fetched for capacity with CORRECTED STATUS FILTER:', {
       totalStaff: staffData?.length || 0,
-      availableSkills: availableSkills.length
+      availableSkills: availableSkills.length,
+      statusFilter: 'active (lowercase)',
+      staffFound: staffData?.map(s => ({ name: s.full_name, status: s.status })) || []
     });
 
     while (currentDate <= endDate) {

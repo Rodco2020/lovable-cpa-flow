@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -28,6 +27,20 @@ const StaffList: React.FC = () => {
     queryKey: ["staff"],
     queryFn: getAllStaff,
   });
+
+  // Enhanced debug logging for staff status values
+  useEffect(() => {
+    if (staffList && staffList.length > 0) {
+      console.log('StaffList: Staff data loaded with status values:', 
+        staffList.map(s => ({ 
+          id: s.id, 
+          name: s.fullName, 
+          status: s.status,
+          statusType: typeof s.status 
+        }))
+      );
+    }
+  }, [staffList]);
 
   // Fetch availability summaries for each staff member
   useEffect(() => {
@@ -142,14 +155,33 @@ const StaffList: React.FC = () => {
     return <div className="flex justify-center p-8">Loading staff data...</div>;
   }
 
+  // Enhanced error display for debugging
   if (error) {
-    return <div className="text-red-500 p-4">Error loading staff data: {(error as Error).message}</div>;
+    console.error('StaffList: Error details:', error);
+    return (
+      <div className="text-red-500 p-4">
+        <div className="mb-2">Error loading staff data: {(error as Error).message}</div>
+        <div className="text-xs text-gray-500">
+          Check console for detailed error information. This may be related to staff status values.
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+      {/* Enhanced header with status debugging info in development */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Staff List</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Staff List</h1>
+          {process.env.NODE_ENV === 'development' && staffList && (
+            <div className="text-xs text-gray-500 mt-1">
+              Debug: {staffList.length} staff loaded, status values: {
+                [...new Set(staffList.map(s => s.status))].join(', ')
+              }
+            </div>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button asChild>
             <Link to="/staff/new">

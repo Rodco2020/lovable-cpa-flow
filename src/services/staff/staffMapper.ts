@@ -7,6 +7,11 @@ import { Staff } from "@/types/staff";
  * @returns A properly formatted Staff object
  */
 export const mapStaffFromDbRecord = (data: any): Staff => {
+  // Handle status mapping - ensure we properly handle the corrected status values
+  const status = data.status === 'active' ? 'active' : 'inactive';
+  
+  console.log(`Mapping staff ${data.full_name}: database status "${data.status}" -> mapped status "${status}"`);
+  
   return {
     id: data.id,
     fullName: data.full_name,
@@ -16,7 +21,7 @@ export const mapStaffFromDbRecord = (data: any): Staff => {
     costPerHour: data.cost_per_hour,
     email: data.email,
     phone: data.phone || "",
-    status: (data.status === "active" ? "active" : "inactive") as Staff["status"],
+    status: status,
     createdAt: new Date(data.created_at),
     updatedAt: new Date(data.updated_at)
   };
@@ -37,7 +42,10 @@ export const mapStaffToDbRecord = (staffData: Partial<Staff>): Record<string, an
   if (staffData.costPerHour !== undefined) dbData.cost_per_hour = staffData.costPerHour;
   if (staffData.email !== undefined) dbData.email = staffData.email;
   if (staffData.phone !== undefined) dbData.phone = staffData.phone;
-  if (staffData.status !== undefined) dbData.status = staffData.status;
+  if (staffData.status !== undefined) {
+    // Ensure we're using the correct lowercase status values
+    dbData.status = staffData.status === 'active' ? 'active' : 'inactive';
+  }
   
   return dbData;
 };
