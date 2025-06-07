@@ -10,142 +10,133 @@ import { SkillType } from '@/types/task';
 import { debugLog } from '../logger';
 import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
 
-interface MatrixGenerationOptions {
-  clientIds?: string[];
-  includeInactive?: boolean;
-}
+// Import refactored modules
+import { MatrixGenerationOptions, MatrixForecastResult } from './types';
+import { MatrixForecastValidators } from './validators';
+import { MatrixDataProcessor } from './dataProcessor';
+import { EmptyStateHandler } from './emptyStateHandler';
 
 /**
- * Matrix Forecast Generator (Phase 3: Client Filtering Enhanced + Phase 4 Fix)
- * Handles the core logic for generating forecast data for matrix display with client filtering
+ * Matrix Forecast Generator (Refactored for Maintainability)
  * 
- * CRITICAL FIX: Properly handles undefined clientIds to mean "include all clients"
+ * Core responsibilities:
+ * - Orchestrates 12-month forecast generation with client filtering
+ * - Coordinates skill validation, data fetching, and result assembly
+ * - Handles empty states and error scenarios gracefully
+ * 
+ * Key Features:
+ * - Client filtering support (undefined = all clients, array = specific clients)
+ * - Database skill validation and integration
+ * - Modular architecture for improved maintainability
+ * - Comprehensive logging for debugging
+ * 
+ * Architecture:
+ * - MatrixForecastValidators: Input validation and data integrity checks
+ * - MatrixDataProcessor: Data merging and summary calculations  
+ * - EmptyStateHandler: Empty state management
+ * - SkillAwareForecastingService: Core forecast generation logic
  */
 export class MatrixForecastGenerator {
   /**
    * Generate forecast data for 12-month matrix display with client filtering support
    * 
-   * CRITICAL FIX: undefined clientIds means "include all clients" (no filtering)
+   * CRITICAL: undefined clientIds means "include all clients" (no filtering)
    * Non-empty array means "filter to these specific clients only"
+   * 
+   * @param forecastType - 'virtual' or 'actual' forecast mode
+   * @param startDate - Start date for forecast period
+   * @param options - Optional client filtering and other configuration
+   * @returns Promise resolving to forecast result and available skills
    */
   static async generateForecastData(
     forecastType: 'virtual' | 'actual',
     startDate: Date,
     options?: MatrixGenerationOptions
-  ): Promise<{ forecastResult: ForecastResult; availableSkills: SkillType[] }> {
-    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION START - WITH CLIENT FILTERING FIX + STATUS FIX ===');
-    debugLog('Generating 12-month matrix forecast with CLIENT FILTERING LOGIC FIX:', { 
+  ): Promise<MatrixForecastResult> {
+    debugLog('=== MATRIX FORECAST GENERATION START (REFACTORED) ===');
+    debugLog('Generating 12-month matrix forecast:', { 
       forecastType, 
       startDate,
       hasClientFilter: !!options?.clientIds,
       clientCount: options?.clientIds?.length || 0,
       clientIds: options?.clientIds,
-      filteringMode: options?.clientIds ? 'specific clients only' : 'all clients (no filter)',
-      statusFilterNote: 'Using lowercase "active" status for staff filtering'
+      filteringMode: options?.clientIds ? 'specific clients only' : 'all clients (no filter)'
     });
 
-    // Normalize start date to beginning of month
-    const normalizedStartDate = startOfMonth(startDate);
-    
-    // Calculate end date (12 months from start)
-    const endDate = endOfMonth(addMonths(normalizedStartDate, 11));
-
-    debugLog('Phase 3: Step 1 - Getting database skills only');
-    
-    // Get ONLY database skills - no fallbacks
-    const availableSkills = await SkillsIntegrationService.getAvailableSkills();
-    debugLog('Database skills retrieved:', { skillsCount: availableSkills.length, skills: availableSkills });
-    
-    if (availableSkills.length === 0) {
-      debugLog('No database skills found - returning empty forecast');
-      return await this.createEmptyForecastData(normalizedStartDate, endDate, forecastType);
+    // Step 1: Validate inputs
+    if (!MatrixForecastValidators.validateClientOptions(options?.clientIds)) {
+      throw new Error('Invalid client options provided');
     }
 
-    debugLog('Phase 3: Step 2 - Generating demand and capacity forecasts with CLIENT FILTERING FIX + STATUS FIX');
-    debugLog('Client filtering logic applied with staff status correction:', {
-      optionsProvided: !!options,
-      clientIdsProvided: !!options?.clientIds,
-      clientIdsLength: options?.clientIds?.length || 0,
-      filteringMode: options?.clientIds ? `filter to ${options.clientIds.length} specific clients` : 'include all clients (no filtering)',
-      staffStatusFilter: 'active (lowercase)'
+    // Step 2: Normalize date range
+    const normalizedStartDate = startOfMonth(startDate);
+    const endDate = endOfMonth(addMonths(normalizedStartDate, 11));
+
+    debugLog('Step 1: Date normalization complete', {
+      originalStart: startDate,
+      normalizedStart: normalizedStartDate,
+      calculatedEnd: endDate
     });
+
+    // Step 3: Fetch and validate skills
+    debugLog('Step 2: Fetching database skills');
+    const availableSkills = await SkillsIntegrationService.getAvailableSkills();
     
-    // Generate demand and capacity forecasts using skill-aware service with client filtering
-    const [demandForecast, capacityForecast] = await Promise.all([
-      SkillAwareForecastingService.generateDemandForecast(
+    if (!MatrixForecastValidators.validateSkillsAvailability(availableSkills)) {
+      debugLog('No skills available - returning empty forecast');
+      return await EmptyStateHandler.createEmptyForecastData(
         normalizedStartDate, 
         endDate, 
-        options?.clientIds // Pass client filtering - undefined = all clients, array = specific clients
-      ).catch(error => {
-        debugLog('Demand forecast generation failed:', error);
-        return []; // Return empty array as fallback
-      }),
-      SkillAwareForecastingService.generateCapacityForecast(
-        normalizedStartDate, 
-        endDate,
-        options?.clientIds // Pass client filtering - undefined = all clients, array = specific clients
-      ).catch(error => {
-        debugLog('Capacity forecast generation failed:', error);
-        return []; // Return empty array as fallback
-      })
-    ]);
+        forecastType
+      );
+    }
 
-    debugLog('Phase 3: Forecast generation results with CLIENT FILTERING FIX + STATUS FIX:', {
-      demandPeriods: demandForecast.length,
-      capacityPeriods: capacityForecast.length,
-      clientFilteringMode: options?.clientIds ? 'filtered to specific clients' : 'all clients included',
-      filteredClientCount: options?.clientIds?.length || 'all',
-      demandSample: demandForecast[0],
-      capacitySample: capacityForecast[0],
-      totalDemandHours: demandForecast.reduce((sum: number, period) => sum + (period.demandHours || 0), 0),
-      totalCapacityHours: capacityForecast.reduce((sum: number, period) => sum + (period.capacityHours || 0), 0)
+    debugLog('Step 2 complete: Skills validated', { 
+      skillsCount: availableSkills.length, 
+      skills: availableSkills 
     });
 
-    debugLog('Phase 3: Step 3 - Merging demand and capacity data with client filtering applied');
-    
-    // Merge demand and capacity data with proper null checking
-    const mergedForecastData = this.mergeForecastData(demandForecast, capacityForecast);
+    // Step 4: Generate demand and capacity forecasts
+    debugLog('Step 3: Generating demand and capacity forecasts');
+    const [demandForecast, capacityForecast] = await this.generateForecasts(
+      normalizedStartDate,
+      endDate,
+      options?.clientIds
+    );
 
-    debugLog(`Phase 3: Generated merged forecast with ${mergedForecastData.length} periods (client filtering mode: ${options?.clientIds ? 'specific clients' : 'all clients'})`);
+    debugLog('Step 3 complete: Forecasts generated', {
+      demandPeriods: demandForecast.length,
+      capacityPeriods: capacityForecast.length,
+      clientFilteringMode: options?.clientIds ? 'filtered to specific clients' : 'all clients included'
+    });
 
-    debugLog('Phase 3: Step 4 - Creating forecast result with client filtering metadata');
-    
-    // Create forecast result with client filtering metadata
-    const forecastResult: ForecastResult = {
-      parameters: {
-        mode: forecastType,
-        timeframe: 'custom',
-        dateRange: {
-          startDate: normalizedStartDate,
-          endDate: endDate
-        },
-        granularity: 'monthly',
-        includeSkills: 'all'
-      },
-      data: mergedForecastData,
-      financials: [],
-      summary: {
-        totalDemand: mergedForecastData.reduce((sum: number, period) => sum + (period.demandHours || 0), 0),
-        totalCapacity: mergedForecastData.reduce((sum: number, period) => sum + (period.capacityHours || 0), 0),
-        gap: 0,
-        totalRevenue: 0,
-        totalCost: 0,
-        totalProfit: 0
-      },
-      generatedAt: new Date()
-    };
+    // Step 5: Process and merge data
+    debugLog('Step 4: Processing and merging forecast data');
+    const mergedForecastData = MatrixDataProcessor.mergeForecastData(
+      demandForecast, 
+      capacityForecast
+    );
 
-    // Calculate gap after totals are computed
-    forecastResult.summary.gap = forecastResult.summary.totalDemand - forecastResult.summary.totalCapacity;
+    if (!MatrixForecastValidators.validateForecastData(mergedForecastData)) {
+      debugLog('Warning: Generated forecast data failed validation');
+    }
 
-    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION COMPLETE WITH CLIENT FILTERING FIX + STATUS FIX ===');
+    // Step 6: Create final result
+    debugLog('Step 5: Creating forecast result');
+    const forecastResult = MatrixDataProcessor.createForecastResult(
+      mergedForecastData,
+      normalizedStartDate,
+      endDate,
+      forecastType
+    );
+
+    debugLog('=== MATRIX FORECAST GENERATION COMPLETE (REFACTORED) ===');
     debugLog('Final result summary:', {
       periodsGenerated: mergedForecastData.length,
       totalDemand: forecastResult.summary.totalDemand,
       totalCapacity: forecastResult.summary.totalCapacity,
       totalGap: forecastResult.summary.gap,
-      clientFilteringMode: options?.clientIds ? 'filtered' : 'all clients',
-      clientsIncluded: options?.clientIds?.length || 'all'
+      clientFilteringMode: options?.clientIds ? 'filtered' : 'all clients'
     });
 
     return {
@@ -155,58 +146,40 @@ export class MatrixForecastGenerator {
   }
 
   /**
-   * Merge demand and capacity forecast data
+   * Generate demand and capacity forecasts in parallel
+   * Handles error scenarios with fallback to empty arrays
+   * 
+   * @private
    */
-  private static mergeForecastData(
-    demandForecast: ForecastData[],
-    capacityForecast: ForecastData[]
-  ): ForecastData[] {
-    return demandForecast.map((demandPeriod, index) => {
-      const capacityPeriod = capacityForecast[index];
-      return {
-        ...demandPeriod,
-        capacity: capacityPeriod?.capacity || [],
-        capacityHours: capacityPeriod?.capacityHours || 0
-      };
-    });
-  }
+  private static async generateForecasts(
+    startDate: Date,
+    endDate: Date,
+    clientIds?: string[]
+  ): Promise<[ForecastData[], ForecastData[]]> {
+    try {
+      const [demandForecast, capacityForecast] = await Promise.all([
+        SkillAwareForecastingService.generateDemandForecast(
+          startDate, 
+          endDate, 
+          clientIds
+        ).catch(error => {
+          debugLog('Demand forecast generation failed:', error);
+          return []; // Fallback to empty array
+        }),
+        SkillAwareForecastingService.generateCapacityForecast(
+          startDate, 
+          endDate,
+          clientIds
+        ).catch(error => {
+          debugLog('Capacity forecast generation failed:', error);
+          return []; // Fallback to empty array
+        })
+      ]);
 
-  /**
-   * Create empty forecast data when no database skills exist
-   */
-  private static async createEmptyForecastData(
-    startDate: Date, 
-    endDate: Date, 
-    forecastType: 'virtual' | 'actual'
-  ): Promise<{ forecastResult: ForecastResult; availableSkills: SkillType[] }> {
-    debugLog('Phase 3: Creating empty forecast data - no database skills available');
-    
-    const forecastResult: ForecastResult = {
-      parameters: {
-        mode: forecastType,
-        timeframe: 'custom',
-        dateRange: { startDate, endDate },
-        granularity: 'monthly',
-        includeSkills: 'all'
-      },
-      data: [],
-      financials: [],
-      summary: {
-        totalDemand: 0,
-        totalCapacity: 0,
-        gap: 0,
-        totalRevenue: 0,
-        totalCost: 0,
-        totalProfit: 0
-      },
-      generatedAt: new Date()
-    };
-    
-    debugLog('Phase 3: Empty forecast data created - user needs to add skills to database');
-    
-    return { 
-      forecastResult, 
-      availableSkills: [] 
-    };
+      return [demandForecast, capacityForecast];
+    } catch (error) {
+      debugLog('Critical error in forecast generation:', error);
+      return [[], []]; // Fallback for any unexpected errors
+    }
   }
 }
