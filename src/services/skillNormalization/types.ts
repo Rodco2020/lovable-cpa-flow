@@ -3,12 +3,26 @@ import { SkillType } from '@/types/task';
 
 /**
  * Skill Normalization Types
- * Centralized type definitions for skill normalization functionality
+ * Defines interfaces and constants for the skill normalization system
  */
 
 export interface SkillMappingRule {
   pattern: string;
-  target: SkillType;
+  mappedTo: SkillType;
+  priority: number;
+}
+
+export interface NormalizationResult {
+  originalSkill: string;
+  normalizedSkill: SkillType;
+  matchedRule?: string;
+  confidence: number;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  normalizedSkill: SkillType;
+  errors: string[];
 }
 
 export interface SkillMappingCache {
@@ -16,32 +30,7 @@ export interface SkillMappingCache {
   lastCacheUpdate: number;
 }
 
-export interface NormalizationResult {
-  normalizedSkill: SkillType;
-  wasMapping: boolean;
-  originalInput: string;
-}
-
-export interface ValidationResult {
-  valid: SkillType[];
-  invalid: SkillType[];
-  normalized: SkillType[];
-}
-
-export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
 /**
- * Standard forecast skill types - must match what the matrix expects
+ * Cache duration for skill mappings (10 minutes)
  */
-export const STANDARD_FORECAST_SKILLS: SkillType[] = [
-  'Junior Staff',
-  'Senior Staff', 
-  'CPA',
-  'Tax Preparation',
-  'Audit',
-  'Advisory',
-  'Bookkeeping',
-  'Accounting',
-  'Payroll',
-  'Compliance'
-];
+export const CACHE_DURATION = 10 * 60 * 1000;

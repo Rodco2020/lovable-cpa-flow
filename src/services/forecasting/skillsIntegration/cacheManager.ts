@@ -38,17 +38,31 @@ export class SkillsCacheManager {
       const skillTypes = this.convertSkillsToSkillTypes(skills);
       
       // Update both caches
-      this.updateSkillsCache(skillTypes);
-      this.updateSkillIdCache(skills);
+      this.cache.skillsMap.clear();
+      this.cache.skillIdToNameMap.clear();
       
-      // Also update the normalization service cache
-      await SkillNormalizationService.updateSkillMappingCache();
+      // Cache skill types for quick access
+      skillTypes.forEach(skillType => {
+        this.cache.skillsMap.set(skillType, skillType);
+      });
+      
+      // Cache skill ID to name mappings
+      skills.forEach(skill => {
+        this.cache.skillIdToNameMap.set(skill.id, skill.name);
+      });
       
       this.cache.lastCacheUpdate = Date.now();
-      debugLog(`Updated skills integration cache with ${skills.length} skills`);
+      
+      debugLog(`Updated skills cache with ${skills.length} skills -> ${skillTypes.length} skill types`);
     } catch (error) {
-      debugLog('Error updating skills integration cache', error);
-      throw error;
+      debugLog('Error updating skills cache:', error);
+      // Fallback to standard skills if database fails
+      const standardSkills = SkillNormalizationService.getStandardForecastSkills();
+      this.cache.skillsMap.clear();
+      standardSkills.forEach(skill => {
+        this.cache.skillsMap.set(skill, skill);
+      });
+      this.cache.lastCacheUpdate = Date.now();
     }
   }
 
@@ -56,29 +70,27 @@ export class SkillsCacheManager {
    * Get cached skills as SkillType array
    */
   static getCachedSkills(): SkillType[] {
-    return Array.from(this.cache.skillsMap.values());
+    return Array.from(this.cache.skillsMap.keys());
   }
 
   /**
-   * Get skill name by ID from cache
+   * Get cached skill name by ID
    */
   static getCachedSkillName(skillId: string): string | null {
     return this.cache.skillIdToNameMap.get(skillId) || null;
   }
 
   /**
-   * Clear all caches
+   * Clear the cache
    */
   static clearCache(): void {
     this.cache.skillsMap.clear();
     this.cache.skillIdToNameMap.clear();
     this.cache.lastCacheUpdate = 0;
-    SkillNormalizationService.clearCache();
-    debugLog('Cleared skills integration cache');
   }
 
   /**
-   * Get cache statistics for debugging
+   * Get cache statistics
    */
   static getCacheStats(): { skillsCount: number; lastUpdate: number; age: number } {
     return {
@@ -89,43 +101,20 @@ export class SkillsCacheManager {
   }
 
   /**
-   * Convert database Skill objects to SkillType strings using centralized normalization
+   * Convert database skills to normalized SkillType array
    */
   private static convertSkillsToSkillTypes(skills: Skill[]): SkillType[] {
-    const skillTypes = skills
-      .filter(skill => skill.name && skill.name.trim().length > 0)
-      .map(skill => SkillNormalizationService.normalizeSkill(skill.name))
-      .filter((skill, index, array) => array.indexOf(skill) === index) // Remove duplicates
-      .sort();
-
-    debugLog(`Converted ${skills.length} database skills to ${skillTypes.length} normalized skill types`);
-
-    // Ensure we have some standard skills if database is empty
-    if (skillTypes.length === 0) {
-      return SkillNormalizationService.getStandardForecastSkills();
-    }
-
-    return skillTypes;
-  }
-
-  /**
-   * Update skills cache with skill types
-   */
-  private static updateSkillsCache(skills: SkillType[]): void {
-    this.cache.skillsMap.clear();
+    const skillTypesSet = new Set<SkillType>();
+    
     skills.forEach(skill => {
-      this.cache.skillsMap.set(skill, skill);
+      const normalizedSkill = SkillNormalizationService.normalizeSkill(skill.name);
+      skillTypesSet.add(normalizedSkill);
     });
-  }
-
-  /**
-   * Update skill ID to name cache
-   */
-  private static updateSkillIdCache(skills: Skill[]): void {
-    this.cache.skillIdToNameMap.clear();
-    skills.forEach(skill => {
-      this.cache.skillIdToNameMap.set(skill.id, skill.name);
-    });
-    debugLog(`Updated skill ID cache with ${skills.length} entries`);
+    
+    // Always include standard forecast skills
+    const standardSkills = SkillNormalizationService.getStandardForecastSkills();
+    standardSkills.forEach(skill => skillTypesSet.add(skill));
+    
+    return Array.from(skillTypesSet).sort();
   }
 }

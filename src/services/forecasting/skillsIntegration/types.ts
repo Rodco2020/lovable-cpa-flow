@@ -1,14 +1,13 @@
 
 import { SkillType } from '@/types/task';
-import { Skill } from '@/types/skill';
 
 /**
  * Skills Integration Types
- * Shared type definitions for skills integration functionality
+ * Defines interfaces and constants for the skills integration system
  */
 
 export interface SkillCache {
-  skillsMap: Map<string, SkillType>;
+  skillsMap: Map<SkillType, SkillType>;
   skillIdToNameMap: Map<string, string>;
   lastCacheUpdate: number;
 }
@@ -16,7 +15,6 @@ export interface SkillCache {
 export interface SkillValidationResult {
   valid: SkillType[];
   invalid: SkillType[];
-  normalized: SkillType[];
 }
 
 export interface SkillResolutionResult {
@@ -25,7 +23,7 @@ export interface SkillResolutionResult {
   invalidSkills: string[];
 }
 
-export const SKILLS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Re-export commonly used types for convenience
-export type { SkillType, Skill };
+/**
+ * Cache duration for skills data (5 minutes)
+ */
+export const SKILLS_CACHE_DURATION = 5 * 60 * 1000;

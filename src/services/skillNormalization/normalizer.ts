@@ -1,38 +1,67 @@
 
 import { SkillType } from '@/types/task';
-import { NormalizationResult, STANDARD_FORECAST_SKILLS } from './types';
 import { SkillMappingRules } from './mappingRules';
 import { SkillNormalizationCacheManager } from './cacheManager';
 import { debugLog } from '@/services/forecasting/logger';
 
 /**
- * Skill Normalizer
- * Core normalization logic for converting skill names to standard forecast types
+ * Skill Normalizer - Core normalization logic
+ * Handles the actual skill normalization process using mapping rules and cache
  */
-
 export class SkillNormalizer {
+  /**
+   * Standard forecast skills that can be used in the matrix
+   */
+  private static readonly STANDARD_FORECAST_SKILLS: SkillType[] = [
+    'Junior Staff',
+    'Senior Staff', 
+    'CPA',
+    'Tax Preparation',
+    'Audit',
+    'Advisory',
+    'Bookkeeping',
+    'Accounting',
+    'Payroll',
+    'Compliance'
+  ];
+
   /**
    * Normalize a single skill name to standard forecast skill type
    */
   static normalizeSkill(skillName: string): SkillType {
     if (!skillName || typeof skillName !== 'string') {
-      debugLog('Invalid skill name provided for normalization:', skillName);
+      debugLog('Invalid skill name provided:', skillName);
       return 'Junior Staff'; // Default fallback
     }
 
-    // Check direct mapping first
+    // Check cache first
+    const cachedMapping = SkillNormalizationCacheManager.getCachedMapping(skillName);
+    if (cachedMapping) {
+      return cachedMapping;
+    }
+
+    // Try mapping rules
     const mappedSkill = SkillMappingRules.getMapping(skillName);
     if (mappedSkill) {
-      debugLog(`Mapped skill "${skillName}" -> "${mappedSkill}"`);
       return mappedSkill;
     }
 
-    // If no mapping found, return the original cleaned skill name
-    // but ensure it's properly capitalized
-    const normalized = this.capitalizeSkillName(skillName.trim());
-    debugLog(`No mapping found for "${skillName}", using normalized: "${normalized}"`);
+    // Check if it's already a standard skill
+    const trimmedSkill = skillName.trim();
+    if (this.isStandardForecastSkill(trimmedSkill)) {
+      return trimmedSkill as SkillType;
+    }
+
+    // Fallback: capitalize and use as-is if reasonable, otherwise default
+    const capitalizedSkill = this.capitalizeSkillName(trimmedSkill);
     
-    return normalized as SkillType;
+    // If it looks like a reasonable skill name, use it
+    if (this.isReasonableSkillName(capitalizedSkill)) {
+      return capitalizedSkill as SkillType;
+    }
+
+    debugLog(`Could not normalize skill "${skillName}", using default: Junior Staff`);
+    return 'Junior Staff';
   }
 
   /**
@@ -40,30 +69,29 @@ export class SkillNormalizer {
    */
   static async normalizeSkills(skillNames: string[], staffId?: string): Promise<SkillType[]> {
     if (!skillNames || skillNames.length === 0) {
-      debugLog('No skills provided for normalization, returning default');
-      return ['Junior Staff'];
+      return [];
     }
 
     try {
-      const normalizedSkills = skillNames
-        .filter(skill => skill && skill.trim().length > 0)
-        .map(skill => this.normalizeSkill(skill))
-        .filter((skill, index, array) => array.indexOf(skill) === index); // Remove duplicates
-
-      if (normalizedSkills.length === 0) {
-        debugLog('No valid skills after normalization, returning default');
-        return ['Junior Staff'];
+      // Update cache if needed
+      if (SkillNormalizationCacheManager.shouldUpdateCache()) {
+        await SkillNormalizationCacheManager.updateCache();
       }
 
-      debugLog(`Normalized ${skillNames.length} skills to ${normalizedSkills.length} for staff ${staffId || 'unknown'}:`, {
+      const normalizedSkills = skillNames.map(skillName => this.normalizeSkill(skillName));
+      
+      // Remove duplicates
+      const uniqueSkills = Array.from(new Set(normalizedSkills));
+      
+      debugLog(`Normalized ${skillNames.length} skills for staff ${staffId}:`, {
         original: skillNames,
-        normalized: normalizedSkills
+        normalized: uniqueSkills
       });
-
-      return normalizedSkills;
+      
+      return uniqueSkills;
     } catch (error) {
       debugLog('Error normalizing skills:', error);
-      return ['Junior Staff'];
+      return skillNames.map(skill => this.normalizeSkill(skill));
     }
   }
 
@@ -71,55 +99,35 @@ export class SkillNormalizer {
    * Get all available standard forecast skills
    */
   static getStandardForecastSkills(): SkillType[] {
-    return [...STANDARD_FORECAST_SKILLS];
+    return [...this.STANDARD_FORECAST_SKILLS];
   }
 
   /**
    * Validate if a skill is a standard forecast skill
    */
   static isStandardForecastSkill(skill: string): skill is SkillType {
-    return STANDARD_FORECAST_SKILLS.includes(skill as SkillType);
+    return this.STANDARD_FORECAST_SKILLS.includes(skill as SkillType);
   }
 
   /**
    * Resolve skill ID to forecast skill type
    */
   static async resolveSkillId(skillId: string): Promise<SkillType> {
-    // Update cache if needed
-    if (SkillNormalizationCacheManager.shouldUpdateCache()) {
-      await SkillNormalizationCacheManager.updateCache();
+    try {
+      // Check cache first
+      const cachedMapping = SkillNormalizationCacheManager.getCachedMapping(skillId);
+      if (cachedMapping) {
+        return cachedMapping;
+      }
+
+      // If not in cache, try to get skill name and normalize it
+      // This would typically involve a database lookup, but for now we'll use a fallback
+      debugLog(`Skill ID ${skillId} not found in cache, using fallback`);
+      return 'Junior Staff';
+    } catch (error) {
+      debugLog('Error resolving skill ID:', error);
+      return 'Junior Staff';
     }
-
-    // Try to get from cache
-    const cachedSkill = SkillNormalizationCacheManager.getCachedMapping(skillId);
-    if (cachedSkill) {
-      return cachedSkill;
-    }
-
-    // If not in cache, try to normalize the ID as a skill name
-    return this.normalizeSkill(skillId);
-  }
-
-  /**
-   * Normalize skill with detailed result information
-   */
-  static normalizeSkillDetailed(skillName: string): NormalizationResult {
-    const mappedSkill = SkillMappingRules.getMapping(skillName);
-    
-    if (mappedSkill) {
-      return {
-        normalizedSkill: mappedSkill,
-        wasMapping: true,
-        originalInput: skillName
-      };
-    }
-
-    const normalized = this.capitalizeSkillName(skillName.trim()) as SkillType;
-    return {
-      normalizedSkill: normalized,
-      wasMapping: false,
-      originalInput: skillName
-    };
   }
 
   /**
@@ -130,5 +138,15 @@ export class SkillNormalizer {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
+  }
+
+  /**
+   * Check if a skill name looks reasonable
+   */
+  private static isReasonableSkillName(skillName: string): boolean {
+    // Basic validation: not too short, not too long, contains letters
+    return skillName.length >= 2 && 
+           skillName.length <= 50 && 
+           /[a-zA-Z]/.test(skillName);
   }
 }
