@@ -10,20 +10,32 @@ import { SkillType } from '@/types/task';
 import { debugLog } from '../logger';
 import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
 
+interface MatrixGenerationOptions {
+  clientIds?: string[];
+  includeInactive?: boolean;
+}
+
 /**
- * Matrix Forecast Generator
- * Handles the core logic for generating forecast data for matrix display
+ * Matrix Forecast Generator (Phase 3: Client Filtering Enhanced)
+ * Handles the core logic for generating forecast data for matrix display with client filtering
  */
 export class MatrixForecastGenerator {
   /**
-   * Generate forecast data for 12-month matrix display
+   * Generate forecast data for 12-month matrix display with client filtering support
    */
   static async generateForecastData(
     forecastType: 'virtual' | 'actual',
-    startDate: Date
+    startDate: Date,
+    options?: MatrixGenerationOptions
   ): Promise<{ forecastResult: ForecastResult; availableSkills: SkillType[] }> {
-    debugLog('=== MATRIX FORECAST GENERATION START - DATABASE SKILLS ONLY ===');
-    debugLog('Generating 12-month matrix forecast with database-only skills', { forecastType, startDate });
+    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION START - WITH CLIENT FILTERING ===');
+    debugLog('Generating 12-month matrix forecast with client filtering:', { 
+      forecastType, 
+      startDate,
+      hasClientFilter: !!options?.clientIds,
+      clientCount: options?.clientIds?.length || 0,
+      clientIds: options?.clientIds
+    });
 
     // Normalize start date to beginning of month
     const normalizedStartDate = startOfMonth(startDate);
@@ -31,7 +43,7 @@ export class MatrixForecastGenerator {
     // Calculate end date (12 months from start)
     const endDate = endOfMonth(addMonths(normalizedStartDate, 11));
 
-    debugLog('Step 1: Getting database skills only');
+    debugLog('Phase 3: Step 1 - Getting database skills only');
     
     // Get ONLY database skills - no fallbacks
     const availableSkills = await SkillsIntegrationService.getAvailableSkills();
@@ -42,37 +54,47 @@ export class MatrixForecastGenerator {
       return await this.createEmptyForecastData(normalizedStartDate, endDate, forecastType);
     }
 
-    debugLog('Step 2: Generating demand and capacity forecasts');
+    debugLog('Phase 3: Step 2 - Generating demand and capacity forecasts with client filtering');
     
-    // Generate demand and capacity forecasts using skill-aware service
+    // Generate demand and capacity forecasts using skill-aware service with client filtering
     const [demandForecast, capacityForecast] = await Promise.all([
-      SkillAwareForecastingService.generateDemandForecast(normalizedStartDate, endDate).catch(error => {
+      SkillAwareForecastingService.generateDemandForecast(
+        normalizedStartDate, 
+        endDate, 
+        options?.clientIds // Pass client filtering to demand forecast
+      ).catch(error => {
         debugLog('Demand forecast generation failed:', error);
         return []; // Return empty array as fallback
       }),
-      SkillAwareForecastingService.generateCapacityForecast(normalizedStartDate, endDate).catch(error => {
+      SkillAwareForecastingService.generateCapacityForecast(
+        normalizedStartDate, 
+        endDate,
+        options?.clientIds // Pass client filtering to capacity forecast  
+      ).catch(error => {
         debugLog('Capacity forecast generation failed:', error);
         return []; // Return empty array as fallback
       })
     ]);
 
-    debugLog('Forecast generation results:', {
+    debugLog('Phase 3: Forecast generation results with client filtering:', {
       demandPeriods: demandForecast.length,
       capacityPeriods: capacityForecast.length,
+      clientFilterApplied: !!options?.clientIds,
+      filteredClientCount: options?.clientIds?.length || 0,
       demandSample: demandForecast[0],
       capacitySample: capacityForecast[0]
     });
 
-    debugLog('Step 3: Merging demand and capacity data');
+    debugLog('Phase 3: Step 3 - Merging demand and capacity data with client filtering applied');
     
     // Merge demand and capacity data with proper null checking
     const mergedForecastData = this.mergeForecastData(demandForecast, capacityForecast);
 
-    debugLog(`Generated merged forecast with ${mergedForecastData.length} periods`);
+    debugLog(`Phase 3: Generated merged forecast with ${mergedForecastData.length} periods (client filtering: ${!!options?.clientIds})`);
 
-    debugLog('Step 4: Creating forecast result');
+    debugLog('Phase 3: Step 4 - Creating forecast result with client filtering metadata');
     
-    // Create forecast result
+    // Create forecast result with client filtering metadata
     const forecastResult: ForecastResult = {
       parameters: {
         mode: forecastType,
@@ -97,7 +119,14 @@ export class MatrixForecastGenerator {
       generatedAt: new Date()
     };
 
-    debugLog('=== MATRIX FORECAST GENERATION COMPLETE ===');
+    debugLog('=== PHASE 3 MATRIX FORECAST GENERATION COMPLETE ===');
+    debugLog('Final result summary:', {
+      periodsGenerated: mergedForecastData.length,
+      totalDemand: forecastResult.summary.totalDemand,
+      totalCapacity: forecastResult.summary.totalCapacity,
+      clientFilteringApplied: !!options?.clientIds,
+      clientsFiltered: options?.clientIds?.length || 'all'
+    });
 
     return {
       forecastResult,
@@ -130,7 +159,7 @@ export class MatrixForecastGenerator {
     endDate: Date, 
     forecastType: 'virtual' | 'actual'
   ): Promise<{ forecastResult: ForecastResult; availableSkills: SkillType[] }> {
-    debugLog('Creating empty forecast data - no database skills available');
+    debugLog('Phase 3: Creating empty forecast data - no database skills available');
     
     const forecastResult: ForecastResult = {
       parameters: {
@@ -153,7 +182,7 @@ export class MatrixForecastGenerator {
       generatedAt: new Date()
     };
     
-    debugLog('Empty forecast data created - user needs to add skills to database');
+    debugLog('Phase 3: Empty forecast data created - user needs to add skills to database');
     
     return { 
       forecastResult, 

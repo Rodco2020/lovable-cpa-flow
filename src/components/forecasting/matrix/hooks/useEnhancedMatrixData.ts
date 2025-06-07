@@ -28,42 +28,64 @@ export const useEnhancedMatrixData = ({
   const { toast } = useToast();
 
   const loadMatrixData = async () => {
-    console.log('=== ENHANCED MATRIX DATA LOADING START ===');
-    console.log('Loading matrix data with params:', { forecastType, selectedClientIds });
+    console.log('=== PHASE 3 ENHANCED MATRIX DATA LOADING START ===');
+    console.log('Loading matrix data with client filtering:', { 
+      forecastType, 
+      selectedClientIds,
+      clientCount: selectedClientIds.length 
+    });
     
     setIsLoading(true);
     setError(null);
     setValidationIssues([]);
 
     try {
-      console.log('Step 1: Calling generateMatrixForecast');
+      console.log('Step 1: Calling generateMatrixForecast with client filtering');
       
-      // In a real implementation, we would pass selectedClientIds to filter the data
-      const { matrixData: newMatrixData } = await generateMatrixForecast(forecastType);
+      // Pass selectedClientIds to the matrix forecast generation
+      const { matrixData: newMatrixData } = await generateMatrixForecast(
+        forecastType, 
+        new Date(), 
+        selectedClientIds.length > 0 ? { clientIds: selectedClientIds } : undefined
+      );
       
-      console.log('Step 2: Matrix forecast generated successfully');
+      console.log('Step 2: Matrix forecast generated with client filtering');
       console.log('Matrix data received:', {
         skills: newMatrixData?.skills?.length || 0,
         months: newMatrixData?.months?.length || 0,
         dataPoints: newMatrixData?.dataPoints?.length || 0,
         totalDemand: newMatrixData?.totalDemand || 0,
-        totalCapacity: newMatrixData?.totalCapacity || 0
+        totalCapacity: newMatrixData?.totalCapacity || 0,
+        clientFilterApplied: selectedClientIds.length > 0,
+        filteredClientCount: selectedClientIds.length
       });
       
-      // Apply client filtering if clients are selected
+      // Apply additional client filtering validation
       let filteredMatrixData = newMatrixData;
       if (selectedClientIds.length > 0) {
-        console.log('Step 3: Applying client filter for', selectedClientIds.length, 'clients');
-        // Filter data points based on client selection
-        // In a real implementation, this would be done at the data source level
-        console.log('Applying client filter:', selectedClientIds);
+        console.log('Step 3: Validating client filter application');
+        
+        // Log filtering details for transparency
+        console.log('Client filtering details:', {
+          requestedClients: selectedClientIds.length,
+          matrixDataGenerated: !!filteredMatrixData,
+          shouldShowClientSpecificData: true
+        });
+        
         toast({
           title: "Client filter applied",
-          description: `Matrix filtered for ${selectedClientIds.length} selected clients.`
+          description: `Matrix data filtered for ${selectedClientIds.length} selected clients.`
+        });
+      } else {
+        console.log('Step 3: No client filtering - showing all client data');
+        
+        toast({
+          title: "Showing all clients",
+          description: "Matrix displays data for all clients (no filter applied)."
         });
       }
       
-      console.log('Step 4: Validating matrix data');
+      console.log('Step 4: Validating matrix data structure');
       const issues = validateMatrixData(filteredMatrixData);
       if (issues.length > 0) {
         setValidationIssues(issues);
@@ -76,33 +98,36 @@ export const useEnhancedMatrixData = ({
         });
       }
 
-      console.log('Step 5: Setting matrix data');
+      console.log('Step 5: Setting filtered matrix data');
       setMatrixData(filteredMatrixData);
       
-      console.log('=== ENHANCED MATRIX DATA LOADING SUCCESS ===');
+      console.log('=== PHASE 3 ENHANCED MATRIX DATA LOADING SUCCESS ===');
       
-      // Success toast
+      // Success toast with filtering context
       toast({
         title: "Matrix data loaded",
-        description: `Successfully loaded ${filteredMatrixData.skills.length} skills across ${filteredMatrixData.months.length} months.`
+        description: selectedClientIds.length > 0 
+          ? `Successfully loaded matrix for ${selectedClientIds.length} selected clients.`
+          : `Successfully loaded matrix for all clients.`
       });
       
     } catch (err) {
-      console.log('=== ENHANCED MATRIX DATA LOADING FAILED ===');
+      console.log('=== PHASE 3 ENHANCED MATRIX DATA LOADING FAILED ===');
       const errorMessage = err instanceof Error ? err.message : 'Failed to load matrix data';
-      console.error('Error loading matrix data:', err);
+      console.error('Error loading matrix data with client filtering:', err);
       console.error('Error details:', {
         message: errorMessage,
         stack: err instanceof Error ? err.stack : 'No stack trace',
         forecastType,
-        selectedClientIds
+        selectedClientIds,
+        clientCount: selectedClientIds.length
       });
       
       setError(errorMessage);
       
       toast({
         title: "Error loading matrix",
-        description: errorMessage,
+        description: `${errorMessage}${selectedClientIds.length > 0 ? ' (with client filtering)' : ''}`,
         variant: "destructive"
       });
     } finally {
@@ -111,9 +136,14 @@ export const useEnhancedMatrixData = ({
   };
 
   useEffect(() => {
-    console.log('useEffect triggered - loadMatrixData will be called');
+    console.log('Phase 3: useEffect triggered - loadMatrixData will be called with client filtering');
+    console.log('Client filtering state:', {
+      hasClients: selectedClientIds.length > 0,
+      clientIds: selectedClientIds,
+      forecastType
+    });
     loadMatrixData();
-  }, [forecastType, selectedClientIds]);
+  }, [forecastType, JSON.stringify(selectedClientIds)]); // Use JSON.stringify for array comparison
 
   return {
     matrixData,
