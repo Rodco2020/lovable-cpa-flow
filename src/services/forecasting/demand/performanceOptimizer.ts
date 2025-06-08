@@ -1,284 +1,103 @@
+
+/**
+ * Legacy Performance Optimizer - Refactored
+ * 
+ * This file maintains backward compatibility while delegating to the new modular performance system.
+ * All functionality remains exactly the same, but the code is now better organized.
+ */
+
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { debugLog } from '../logger';
+import { 
+  DataProcessor, 
+  DataFilter, 
+  CacheManager, 
+  PerformanceMonitor,
+  PerformanceStats 
+} from './performance';
 
 /**
  * Performance Optimizer for Demand Matrix
  * Handles large datasets, caching, and performance monitoring
+ * 
+ * @deprecated Use the individual classes from './performance' for new code
  */
 export class DemandPerformanceOptimizer {
+  // Re-export constants for backward compatibility
   private static readonly CHUNK_SIZE = 100;
   private static readonly CACHE_SIZE_LIMIT = 50;
   private static readonly PERFORMANCE_THRESHOLD_MS = 1000;
-  
-  private static performanceMetrics: Map<string, number[]> = new Map();
-  private static memoryUsageLog: number[] = [];
 
   /**
    * Optimize large dataset processing with chunking
+   * @deprecated Use DataProcessor.optimizeDataProcessing instead
    */
   static optimizeDataProcessing<T, R>(
     data: T[],
     processor: (chunk: T[]) => R[],
     chunkSize: number = this.CHUNK_SIZE
   ): R[] {
-    const startTime = performance.now();
-    
-    if (data.length <= chunkSize) {
-      const result = processor(data);
-      this.recordPerformance('data-processing-small', performance.now() - startTime);
-      return result;
-    }
-
-    debugLog(`Processing ${data.length} items in chunks of ${chunkSize}`);
-    
-    const results: R[] = [];
-    for (let i = 0; i < data.length; i += chunkSize) {
-      const chunk = data.slice(i, i + chunkSize);
-      const chunkResult = processor(chunk);
-      results.push(...chunkResult);
-      
-      // Note: Removed async delay since this needs to be synchronous
-      // For large datasets, consider using a web worker or async processing
-    }
-    
-    const processingTime = performance.now() - startTime;
-    this.recordPerformance('data-processing-chunked', processingTime);
-    
-    debugLog(`Completed chunked processing in ${processingTime.toFixed(2)}ms`);
-    return results;
+    return DataProcessor.optimizeDataProcessing(data, processor, { chunkSize });
   }
 
   /**
    * Efficient data filtering with early exit conditions
+   * @deprecated Use DataFilter.optimizeFiltering instead
    */
   static optimizeFiltering(
     data: DemandMatrixData,
     filters: DemandFilters
   ): DemandMatrixData {
-    const startTime = performance.now();
-    
-    // Early exit for no filters
-    if (this.hasNoActiveFilters(filters)) {
-      this.recordPerformance('filtering-no-op', performance.now() - startTime);
-      return data;
-    }
-
-    // Pre-calculate filter sets for efficiency
-    const skillSet = new Set(filters.skills || []);
-    const clientSet = new Set(filters.clients || []);
-    
-    // Filter data points efficiently
-    const filteredDataPoints = data.dataPoints.filter(point => {
-      // Skill filter
-      if (skillSet.size > 0 && !skillSet.has(point.skillType)) {
-        return false;
-      }
-      
-      // Time horizon filter
-      if (filters.timeHorizon) {
-        const pointDate = new Date(point.month);
-        if (pointDate < filters.timeHorizon.start || pointDate > filters.timeHorizon.end) {
-          return false;
-        }
-      }
-      
-      // Client filter (check task breakdown)
-      if (clientSet.size > 0) {
-        const hasMatchingClient = point.taskBreakdown?.some(task => 
-          clientSet.has(task.clientId)
-        );
-        if (!hasMatchingClient) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-
-    // Filter skills and months based on remaining data
-    const remainingSkills = new Set(filteredDataPoints.map(p => p.skillType));
-    const remainingMonths = new Set(filteredDataPoints.map(p => p.month));
-    
-    const result = {
-      ...data,
-      skills: data.skills.filter(skill => remainingSkills.has(skill)),
-      months: data.months.filter(month => remainingMonths.has(month.key)),
-      dataPoints: filteredDataPoints,
-      totalDemand: filteredDataPoints.reduce((sum, point) => sum + point.demandHours, 0),
-      totalTasks: filteredDataPoints.reduce((sum, point) => sum + point.taskCount, 0),
-      totalClients: new Set(
-        filteredDataPoints.flatMap(point => 
-          point.taskBreakdown?.map(task => task.clientId) || []
-        )
-      ).size
-    };
-    
-    const filteringTime = performance.now() - startTime;
-    this.recordPerformance('filtering-optimized', filteringTime);
-    
-    debugLog(`Optimized filtering completed in ${filteringTime.toFixed(2)}ms`);
-    return result;
+    return DataFilter.optimizeFiltering(data, filters);
   }
 
   /**
    * Memory-efficient matrix transformation
+   * @deprecated Use DataProcessor.optimizeMatrixTransformation instead
    */
   static optimizeMatrixTransformation(rawData: any[]): any[] {
-    const startTime = performance.now();
-    
-    // Monitor memory usage
-    const initialMemory = this.getMemoryUsage();
-    
-    // Use Map for efficient lookups
-    const dataMap = new Map<string, any>();
-    const skillsSet = new Set<string>();
-    const monthsSet = new Set<string>();
-    
-    // Single pass through data to build maps
-    rawData.forEach(item => {
-      const key = `${item.skillType}-${item.month}`;
-      
-      if (dataMap.has(key)) {
-        // Aggregate existing entry
-        const existing = dataMap.get(key)!;
-        existing.demandHours += item.demandHours;
-        existing.taskCount += item.taskCount;
-        existing.taskBreakdown = [...(existing.taskBreakdown || []), ...(item.taskBreakdown || [])];
-      } else {
-        // Create new entry
-        dataMap.set(key, { ...item });
-        skillsSet.add(item.skillType);
-        monthsSet.add(item.month);
-      }
-    });
-    
-    // Convert back to array
-    const result = Array.from(dataMap.values());
-    
-    const transformTime = performance.now() - startTime;
-    const finalMemory = this.getMemoryUsage();
-    
-    this.recordPerformance('matrix-transformation', transformTime);
-    this.recordMemoryUsage(finalMemory - initialMemory);
-    
-    debugLog(`Matrix transformation: ${transformTime.toFixed(2)}ms, memory delta: ${((finalMemory - initialMemory) / 1024 / 1024).toFixed(2)}MB`);
-    
-    return result;
+    return DataProcessor.optimizeMatrixTransformation(rawData);
   }
 
   /**
    * Intelligent cache management with LRU eviction
+   * @deprecated Use CacheManager.manageCacheSize instead
    */
   static manageCacheSize<T>(cache: Map<string, T>, maxSize: number = this.CACHE_SIZE_LIMIT): void {
-    if (cache.size <= maxSize) return;
-    
-    const entriesToRemove = cache.size - maxSize;
-    const keys = Array.from(cache.keys());
-    
-    // Remove oldest entries (assuming insertion order)
-    for (let i = 0; i < entriesToRemove; i++) {
-      cache.delete(keys[i]);
-    }
-    
-    debugLog(`Cache trimmed: removed ${entriesToRemove} entries, now ${cache.size} items`);
+    CacheManager.manageCacheSize(cache, { maxSize });
   }
 
   /**
    * Performance monitoring and alerts
+   * @deprecated Use PerformanceMonitor.recordPerformance instead
    */
   static recordPerformance(operation: string, timeMs: number): void {
-    if (!this.performanceMetrics.has(operation)) {
-      this.performanceMetrics.set(operation, []);
-    }
-    
-    const metrics = this.performanceMetrics.get(operation)!;
-    metrics.push(timeMs);
-    
-    // Keep only last 100 measurements
-    if (metrics.length > 100) {
-      metrics.shift();
-    }
-    
-    // Alert on slow operations
-    if (timeMs > this.PERFORMANCE_THRESHOLD_MS) {
-      console.warn(`⚠️ Slow operation detected: ${operation} took ${timeMs.toFixed(2)}ms`);
-    }
+    const monitor = new PerformanceMonitor();
+    monitor.recordPerformance(operation, timeMs);
   }
 
   /**
    * Memory usage tracking
+   * @deprecated Use PerformanceMonitor.recordMemoryUsage instead
    */
   static recordMemoryUsage(deltaBytes: number): void {
-    this.memoryUsageLog.push(deltaBytes);
-    
-    // Keep only last 50 measurements
-    if (this.memoryUsageLog.length > 50) {
-      this.memoryUsageLog.shift();
-    }
-    
-    // Alert on high memory usage (10MB delta)
-    if (Math.abs(deltaBytes) > 10 * 1024 * 1024) {
-      console.warn(`⚠️ High memory usage: ${(deltaBytes / 1024 / 1024).toFixed(2)}MB delta`);
-    }
+    const monitor = new PerformanceMonitor();
+    monitor.recordMemoryUsage(deltaBytes);
   }
 
   /**
    * Get performance statistics
+   * @deprecated Use PerformanceMonitor.getPerformanceStats instead
    */
-  static getPerformanceStats(): Record<string, any> {
-    const stats: Record<string, any> = {};
-    
-    this.performanceMetrics.forEach((times, operation) => {
-      const avg = times.reduce((a, b) => a + b, 0) / times.length;
-      const max = Math.max(...times);
-      const min = Math.min(...times);
-      
-      stats[operation] = {
-        average: avg.toFixed(2),
-        max: max.toFixed(2),
-        min: min.toFixed(2),
-        samples: times.length
-      };
-    });
-    
-    const totalMemoryDelta = this.memoryUsageLog.reduce((a, b) => a + b, 0);
-    stats.memory = {
-      totalDelta: (totalMemoryDelta / 1024 / 1024).toFixed(2) + 'MB',
-      averageDelta: (totalMemoryDelta / this.memoryUsageLog.length / 1024 / 1024).toFixed(2) + 'MB',
-      samples: this.memoryUsageLog.length
-    };
-    
-    return stats;
-  }
-
-  /**
-   * Check if filters are effectively empty
-   */
-  private static hasNoActiveFilters(filters: DemandFilters): boolean {
-    return (
-      (!filters.skills || filters.skills.length === 0) &&
-      (!filters.clients || filters.clients.length === 0) &&
-      !filters.timeHorizon &&
-      !filters.includeInactive
-    );
-  }
-
-  /**
-   * Get current memory usage
-   */
-  private static getMemoryUsage(): number {
-    if ('memory' in performance) {
-      return (performance as any).memory.usedJSHeapSize;
-    }
-    return 0;
+  static getPerformanceStats(): PerformanceStats {
+    return PerformanceMonitor.getPerformanceStats();
   }
 
   /**
    * Clear performance data (for cleanup)
+   * @deprecated Use PerformanceMonitor.clearPerformanceData instead
    */
   static clearPerformanceData(): void {
-    this.performanceMetrics.clear();
-    this.memoryUsageLog.length = 0;
-    debugLog('Performance monitoring data cleared');
+    PerformanceMonitor.clearPerformanceData();
   }
 }
