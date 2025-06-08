@@ -12,8 +12,18 @@ export { ExportManager } from './exportManager';
 export { DrillDownProvider } from './drillDownProvider';
 export { ReportGenerator } from './reportGenerator';
 
+// Export demand-specific analytics
+export { DemandAnalyticsService } from '../analytics/demandAnalyticsService';
+
 export type {
   EnhancedMatrixOptions,
   EnhancedMatrixResult,
   ExportOptions
 } from './types';
+
+// Re-export demand analytics types
+export type {
+  DemandTrendAnalysis,
+  ClientWorkloadDistribution,
+  DemandAnalytics
+} from '../analytics/demandAnalyticsService';
