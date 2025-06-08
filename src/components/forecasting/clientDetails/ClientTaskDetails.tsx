@@ -1,237 +1,212 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Calendar, Clock, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  BarChart3, 
+  Calendar, 
+  Filter, 
+  Table as TableIcon,
+  PieChart,
+  TrendingUp
+} from 'lucide-react';
+import ClientTaskTable from './ClientTaskTable';
+import ClientTaskFilters from './ClientTaskFilters';
+import ClientMonthlyBreakdown from './ClientMonthlyBreakdown';
+import ClientSummaryStats from './ClientSummaryStats';
+import TaskDetailsModal from './TaskDetailsModal';
+import { useClientFiltering } from '../matrix/hooks/useClientFiltering';
 
 interface ClientTaskDetailsProps {
   clientId: string;
 }
 
-/**
- * Client Task Details Component
- * Container for displaying client-specific task data
- */
+interface FilterState {
+  dateRange: { start: Date; end: Date } | null;
+  status: string[];
+  skills: string[];
+  categories: string[];
+  priorities: string[];
+  taskType: 'all' | 'recurring' | 'instances';
+}
+
+interface TaskData {
+  id: string;
+  name: string;
+  description?: string;
+  estimated_hours: number;
+  priority: string;
+  category: string;
+  status: string;
+  due_date?: string;
+  required_skills: string[];
+  is_active?: boolean;
+  recurrence_type?: string;
+}
+
 const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
-  // Fetch client's recurring tasks
-  const {
-    data: recurringTasks,
-    isLoading: loadingRecurring,
-    error: recurringError
-  } = useQuery({
-    queryKey: ['client-recurring-tasks', clientId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('recurring_tasks')
-        .select(`
-          id,
-          name,
-          description,
-          estimated_hours,
-          priority,
-          category,
-          status,
-          is_active,
-          recurrence_type,
-          required_skills
-        `)
-        .eq('client_id', clientId)
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!clientId
+  const [filters, setFilters] = useState<FilterState>({
+    dateRange: null,
+    status: [],
+    skills: [],
+    categories: [],
+    priorities: [],
+    taskType: 'all'
   });
 
-  // Fetch client's task instances
-  const {
-    data: taskInstances,
-    isLoading: loadingInstances,
-    error: instancesError
-  } = useQuery({
-    queryKey: ['client-task-instances', clientId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('task_instances')
-        .select(`
-          id,
-          name,
-          description,
-          estimated_hours,
-          priority,
-          category,
-          status,
-          due_date,
-          required_skills
-        `)
-        .eq('client_id', clientId)
-        .gte('due_date', new Date().toISOString())
-        .order('due_date');
+  const [selectedTask, setSelectedTask] = useState<TaskData | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState('summary');
 
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!clientId
+  // Use client filtering hook for performance monitoring
+  const { 
+    clientMatrixData, 
+    isLoading: clientDataLoading,
+    error: clientDataError 
+  } = useClientFiltering({
+    forecastType: 'virtual',
+    dateRange: filters.dateRange || undefined
   });
 
-  const isLoading = loadingRecurring || loadingInstances;
-  const hasErrors = recurringError || instancesError;
+  const handleTaskSelect = (task: TaskData) => {
+    setSelectedTask(task);
+    setIsTaskModalOpen(true);
+  };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="ml-2">Loading task details...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleDrillDown = (taskId: string, skill: string) => {
+    console.log('Drill down to matrix:', { taskId, skill, clientId });
+    // This would trigger navigation to matrix tab with specific filters
+  };
 
-  if (hasErrors) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center text-destructive">
-            Error loading task details
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleFiltersChange = (newFilters: FilterState) => {
+    setFilters(newFilters);
+  };
+
+  // Get default date range for monthly breakdown (last 12 months)
+  const getDefaultDateRange = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - 12);
+    return { start, end };
+  };
 
   return (
     <div className="space-y-6">
-      {/* Recurring Tasks */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Recurring Tasks ({recurringTasks?.length || 0})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recurringTasks && recurringTasks.length > 0 ? (
-            <div className="space-y-3">
-              {recurringTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{task.name}</h4>
-                        <Badge variant="outline">{task.category}</Badge>
-                        <Badge variant={task.priority === 'High' ? 'destructive' : 
-                                     task.priority === 'Medium' ? 'default' : 'secondary'}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                      {task.description && (
-                        <p className="text-sm text-muted-foreground">{task.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {task.estimated_hours}h
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {task.recurrence_type}
-                        </div>
-                        {task.required_skills && task.required_skills.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {task.required_skills.join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant={task.status === 'Active' ? 'default' : 'secondary'}>
-                      {task.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-muted-foreground">
-              No recurring tasks found for this client.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Filters Section */}
+      <ClientTaskFilters
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        isCollapsed={filtersCollapsed}
+        onToggleCollapse={() => setFiltersCollapsed(!filtersCollapsed)}
+      />
 
-      {/* Upcoming Task Instances */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Upcoming Tasks ({taskInstances?.length || 0})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {taskInstances && taskInstances.length > 0 ? (
-            <div className="space-y-3">
-              {taskInstances.map((task) => (
-                <div
-                  key={task.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{task.name}</h4>
-                        <Badge variant="outline">{task.category}</Badge>
-                        <Badge variant={task.priority === 'High' ? 'destructive' : 
-                                     task.priority === 'Medium' ? 'default' : 'secondary'}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                      {task.description && (
-                        <p className="text-sm text-muted-foreground">{task.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {task.estimated_hours}h
-                        </div>
-                        {task.due_date && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            Due: {new Date(task.due_date).toLocaleDateString()}
-                          </div>
-                        )}
-                        {task.required_skills && task.required_skills.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {task.required_skills.join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant={task.status === 'Completed' ? 'default' : 
-                                  task.status === 'In Progress' ? 'secondary' : 'outline'}>
-                      {task.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="summary" className="flex items-center gap-2">
+            <PieChart className="h-4 w-4" />
+            <span className="hidden sm:inline">Summary</span>
+          </TabsTrigger>
+          <TabsTrigger value="table" className="flex items-center gap-2">
+            <TableIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Task Table</span>
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Monthly View</span>
+          </TabsTrigger>
+          <TabsTrigger value="trends" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            <span className="hidden sm:inline">Trends</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Summary Tab */}
+        <TabsContent value="summary" className="space-y-6">
+          <ClientSummaryStats 
+            clientId={clientId} 
+            dateRange={filters.dateRange || undefined}
+          />
+        </TabsContent>
+
+        {/* Task Table Tab */}
+        <TabsContent value="table" className="space-y-6">
+          <ClientTaskTable
+            clientId={clientId}
+            taskType={filters.taskType}
+            filters={{
+              status: filters.status,
+              skills: filters.skills,
+              categories: filters.categories,
+              priorities: filters.priorities,
+              dateRange: filters.dateRange || undefined
+            }}
+            onTaskSelect={handleTaskSelect}
+            onDrillDown={handleDrillDown}
+          />
+        </TabsContent>
+
+        {/* Monthly Breakdown Tab */}
+        <TabsContent value="monthly" className="space-y-6">
+          <ClientMonthlyBreakdown
+            clientId={clientId}
+            dateRange={filters.dateRange || getDefaultDateRange()}
+            skillFilter={filters.skills.length > 0 ? filters.skills : undefined}
+          />
+        </TabsContent>
+
+        {/* Trends Tab - Placeholder for future enhancement */}
+        <TabsContent value="trends" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Task Trends Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="py-12 text-center">
+              <div className="text-muted-foreground">
+                <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">Trends Analysis Coming Soon</h3>
+                <p>Advanced trend analysis and predictive insights for client task patterns.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Task Details Modal */}
+      <TaskDetailsModal
+        isOpen={isTaskModalOpen}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setSelectedTask(null);
+        }}
+        task={selectedTask}
+      />
+
+      {/* Performance Monitoring (Development Only) */}
+      {process.env.NODE_ENV === 'development' && clientDataLoading && (
+        <Card className="border-blue-200">
+          <CardContent className="py-4">
+            <div className="text-sm text-blue-600">
+              Loading client-specific data... (Performance monitoring active)
             </div>
-          ) : (
-            <div className="text-center py-6 text-muted-foreground">
-              No upcoming tasks found for this client.
+          </CardContent>
+        </Card>
+      )}
+
+      {process.env.NODE_ENV === 'development' && clientDataError && (
+        <Card className="border-red-200">
+          <CardContent className="py-4">
+            <div className="text-sm text-red-600">
+              Client data error: {clientDataError}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
