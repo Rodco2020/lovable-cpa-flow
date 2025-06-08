@@ -10,7 +10,7 @@ import {
   RecurrenceCalculation,
   DemandFilters
 } from '@/types/demand';
-import { RecurringTask, SkillType } from '@/types/task';
+import { RecurringTaskDB, SkillType } from '@/types/task';
 import { ForecastData, SkillHours } from '@/types/forecasting';
 
 /**
@@ -21,7 +21,7 @@ export class DemandDataService {
   /**
    * Fetch all client-assigned recurring tasks with filtering
    */
-  static async fetchClientAssignedTasks(filters?: DemandFilters): Promise<RecurringTask[]> {
+  static async fetchClientAssignedTasks(filters?: DemandFilters): Promise<RecurringTaskDB[]> {
     debugLog('Fetching client-assigned recurring tasks', { filters });
 
     try {
@@ -62,7 +62,7 @@ export class DemandDataService {
       }
 
       debugLog(`Found ${tasks.length} client-assigned tasks`);
-      return tasks as RecurringTask[];
+      return tasks as RecurringTaskDB[];
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
       throw error;
@@ -73,7 +73,7 @@ export class DemandDataService {
    * Calculate monthly demand from recurrence patterns
    */
   static calculateMonthlyDemand(
-    task: RecurringTask,
+    task: RecurringTaskDB,
     startDate: Date,
     endDate: Date
   ): RecurrenceCalculation {
@@ -91,7 +91,7 @@ export class DemandDataService {
   /**
    * Calculate how many times a task occurs per month based on recurrence pattern
    */
-  private static calculateRecurrenceFrequency(task: RecurringTask): number {
+  private static calculateRecurrenceFrequency(task: RecurringTaskDB): number {
     const { recurrence_type, recurrence_interval = 1 } = task;
 
     switch (recurrence_type) {
@@ -114,7 +114,7 @@ export class DemandDataService {
    * Generate specific occurrence dates for a task within the forecast period
    */
   private static generateOccurrenceDates(
-    task: RecurringTask,
+    task: RecurringTaskDB,
     startDate: Date,
     endDate: Date
   ): Date[] {
@@ -177,7 +177,10 @@ export class DemandDataService {
     const filters: DemandFilters = {
       skills: includeSkills === 'all' ? [] : includeSkills,
       clients: includeClients === 'all' ? [] : includeClients,
-      timeHorizon: dateRange
+      timeHorizon: {
+        start: dateRange.startDate,
+        end: dateRange.endDate
+      }
     };
 
     // Fetch client-assigned tasks
@@ -215,7 +218,7 @@ export class DemandDataService {
    * Calculate demand by skill for a specific month
    */
   private static calculateMonthlyDemandBySkill(
-    tasks: RecurringTask[],
+    tasks: RecurringTaskDB[],
     monthStart: Date,
     monthEnd: Date
   ): SkillHours[] {
@@ -265,7 +268,7 @@ export class DemandDataService {
    */
   static transformToMatrixData(
     forecastData: ForecastData[],
-    tasks: RecurringTask[]
+    tasks: RecurringTaskDB[]
   ): DemandMatrixData {
     const months = forecastData.map(data => ({
       key: data.period,
@@ -339,7 +342,7 @@ export class DemandDataService {
    * Create detailed task breakdown for drill-down functionality
    */
   private static createTaskBreakdown(
-    tasks: RecurringTask[],
+    tasks: RecurringTaskDB[],
     skillType: SkillType,
     month: string
   ): ClientTaskDemand[] {

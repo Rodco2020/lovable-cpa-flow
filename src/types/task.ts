@@ -48,7 +48,39 @@ export interface BaseTask {
   notes?: string;
 }
 
-// Client-assigned recurring task (subscription)
+// Database-level recurring task (matches actual database schema)
+export interface RecurringTaskDB {
+  id: string;
+  template_id: string;
+  client_id: string;
+  name: string;
+  description: string | null;
+  estimated_hours: number;
+  required_skills: SkillType[];
+  priority: TaskPriority;
+  category: TaskCategory;
+  status: TaskStatus;
+  due_date: string | null;
+  recurrence_type: string;
+  recurrence_interval: number | null;
+  weekdays: number[] | null;
+  day_of_month: number | null;
+  month_of_year: number | null;
+  end_date: string | null;
+  custom_offset_days: number | null;
+  last_generated_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  notes: string | null;
+  // Join data from clients table
+  clients?: {
+    id: string;
+    legal_name: string;
+  };
+}
+
+// Client-assigned recurring task (application-level interface)
 export interface RecurringTask extends BaseTask {
   recurrencePattern: RecurrencePattern;
   lastGeneratedDate: Date | null;

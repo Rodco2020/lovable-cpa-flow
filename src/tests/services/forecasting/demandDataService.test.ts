@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DemandDataService } from '@/services/forecasting/demandDataService';
 import { DemandForecastParameters } from '@/types/demand';
-import { RecurringTask } from '@/types/task';
+import { RecurringTaskDB } from '@/types/task';
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -32,7 +32,7 @@ describe('DemandDataService', () => {
 
   describe('calculateMonthlyDemand', () => {
     it('should calculate monthly demand correctly for different recurrence patterns', () => {
-      const monthlyTask: RecurringTask = {
+      const monthlyTask: RecurringTaskDB = {
         id: '1',
         name: 'Monthly Task',
         template_id: 'template-1',
@@ -45,9 +45,9 @@ describe('DemandDataService', () => {
         recurrence_type: 'Monthly',
         recurrence_interval: 1,
         is_active: true,
-        due_date: new Date('2025-01-15'),
-        created_at: new Date(),
-        updated_at: new Date(),
+        due_date: '2025-01-15T00:00:00Z',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
         description: 'Test monthly task',
         notes: null,
         weekdays: null,
@@ -69,7 +69,7 @@ describe('DemandDataService', () => {
     });
 
     it('should handle quarterly recurrence correctly', () => {
-      const quarterlyTask: RecurringTask = {
+      const quarterlyTask: RecurringTaskDB = {
         id: '2',
         name: 'Quarterly Task',
         template_id: 'template-2',
@@ -82,9 +82,9 @@ describe('DemandDataService', () => {
         recurrence_type: 'Quarterly',
         recurrence_interval: 1,
         is_active: true,
-        due_date: new Date('2025-01-15'),
-        created_at: new Date(),
-        updated_at: new Date(),
+        due_date: '2025-01-15T00:00:00Z',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
         description: 'Test quarterly task',
         notes: null,
         weekdays: null,
@@ -144,7 +144,7 @@ describe('DemandDataService', () => {
         }
       ];
 
-      const tasks: RecurringTask[] = [
+      const tasks: RecurringTaskDB[] = [
         {
           id: '1',
           name: 'Tax Task',
@@ -158,9 +158,9 @@ describe('DemandDataService', () => {
           recurrence_type: 'Monthly',
           recurrence_interval: 1,
           is_active: true,
-          due_date: new Date('2025-01-15'),
-          created_at: new Date(),
-          updated_at: new Date(),
+          due_date: '2025-01-15T00:00:00Z',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
           description: 'Test task',
           notes: null,
           weekdays: null,
