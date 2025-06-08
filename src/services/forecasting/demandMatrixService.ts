@@ -1,6 +1,5 @@
-
 import { debugLog } from './logger';
-import { DemandDataService } from './demandDataService';
+import { DataFetcher, ForecastGenerator, MatrixTransformer } from './demand';
 import { 
   DemandForecastParameters, 
   DemandMatrixData, 
@@ -11,6 +10,7 @@ import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
 /**
  * Demand Matrix Service
  * Handles demand-specific matrix generation and validation
+ * Now uses the refactored demand services for better maintainability
  */
 export class DemandMatrixService {
   /**
@@ -41,11 +41,11 @@ export class DemandMatrixService {
         granularity: 'monthly'
       };
 
-      // Generate demand forecast
-      const demandForecastData = await DemandDataService.generateDemandForecast(parameters);
+      // Generate demand forecast using refactored service
+      const demandForecastData = await ForecastGenerator.generateDemandForecast(parameters);
 
-      // Fetch tasks for matrix transformation
-      const tasks = await DemandDataService.fetchClientAssignedTasks({
+      // Fetch tasks for matrix transformation using refactored service
+      const tasks = await DataFetcher.fetchClientAssignedTasks({
         skills: [],
         clients: [],
         timeHorizon: {
@@ -54,8 +54,8 @@ export class DemandMatrixService {
         }
       });
 
-      // Transform to matrix format
-      const matrixData = DemandDataService.transformToMatrixData(demandForecastData, tasks);
+      // Transform to matrix format using refactored service
+      const matrixData = MatrixTransformer.transformToMatrixData(demandForecastData, tasks);
 
       // Create result
       const demandResult: DemandForecastResult = {

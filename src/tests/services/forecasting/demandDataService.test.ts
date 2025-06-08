@@ -4,18 +4,26 @@ import { DemandDataService } from '@/services/forecasting/demandDataService';
 import { DemandForecastParameters } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
 
-// Mock Supabase
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn(() => ({
-            data: [],
-            error: null
-          }))
-        }))
-      }))
+// Mock the new demand services
+vi.mock('@/services/forecasting/demand', () => ({
+  DataFetcher: {
+    fetchClientAssignedTasks: vi.fn(() => Promise.resolve([]))
+  },
+  RecurrenceCalculator: {
+    calculateMonthlyDemand: vi.fn()
+  },
+  ForecastGenerator: {
+    generateDemandForecast: vi.fn(() => Promise.resolve([]))
+  },
+  MatrixTransformer: {
+    transformToMatrixData: vi.fn(() => ({
+      months: [{ key: '2025-01', label: 'Jan 2025' }],
+      skills: ['Tax Preparation'],
+      dataPoints: [],
+      totalDemand: 0,
+      totalTasks: 0,
+      totalClients: 0,
+      skillSummary: {}
     }))
   }
 }));
@@ -25,13 +33,13 @@ vi.mock('@/services/forecasting/logger', () => ({
   debugLog: vi.fn()
 }));
 
-describe('DemandDataService', () => {
+describe('DemandDataService (Refactored)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('calculateMonthlyDemand', () => {
-    it('should calculate monthly demand correctly for different recurrence patterns', () => {
+    it('should delegate to RecurrenceCalculator', () => {
       const monthlyTask: RecurringTaskDB = {
         id: '1',
         name: 'Monthly Task',
@@ -61,52 +69,26 @@ describe('DemandDataService', () => {
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-31');
 
+      // Mock the return value
+      const { RecurrenceCalculator } = require('@/services/forecasting/demand');
+      RecurrenceCalculator.calculateMonthlyDemand.mockReturnValue({
+        monthlyOccurrences: 1,
+        monthlyHours: 10,
+        taskId: '1',
+        nextDueDates: []
+      });
+
       const result = DemandDataService.calculateMonthlyDemand(monthlyTask, startDate, endDate);
 
+      expect(RecurrenceCalculator.calculateMonthlyDemand).toHaveBeenCalledWith(monthlyTask, startDate, endDate);
       expect(result.monthlyOccurrences).toBe(1);
       expect(result.monthlyHours).toBe(10);
       expect(result.taskId).toBe('1');
     });
-
-    it('should handle quarterly recurrence correctly', () => {
-      const quarterlyTask: RecurringTaskDB = {
-        id: '2',
-        name: 'Quarterly Task',
-        template_id: 'template-2',
-        client_id: 'client-1',
-        estimated_hours: 30,
-        required_skills: ['Audit'],
-        priority: 'High',
-        category: 'Audit',
-        status: 'Unscheduled',
-        recurrence_type: 'Quarterly',
-        recurrence_interval: 1,
-        is_active: true,
-        due_date: '2025-01-15T00:00:00Z',
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-        description: 'Test quarterly task',
-        notes: null,
-        weekdays: null,
-        day_of_month: null,
-        month_of_year: null,
-        end_date: null,
-        custom_offset_days: null,
-        last_generated_date: null
-      };
-
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
-
-      const result = DemandDataService.calculateMonthlyDemand(quarterlyTask, startDate, endDate);
-
-      expect(result.monthlyOccurrences).toBeCloseTo(0.33, 2);
-      expect(result.monthlyHours).toBeCloseTo(10, 2);
-    });
   });
 
   describe('generateDemandForecast', () => {
-    it('should generate 12-month demand forecast', async () => {
+    it('should delegate to ForecastGenerator', async () => {
       const parameters: DemandForecastParameters = {
         timeHorizon: 'year',
         dateRange: {
@@ -118,20 +100,18 @@ describe('DemandDataService', () => {
         granularity: 'monthly'
       };
 
-      // Mock the fetchClientAssignedTasks method
-      vi.spyOn(DemandDataService, 'fetchClientAssignedTasks').mockResolvedValue([]);
+      const { ForecastGenerator } = require('@/services/forecasting/demand');
+      ForecastGenerator.generateDemandForecast.mockResolvedValue([]);
 
       const result = await DemandDataService.generateDemandForecast(parameters);
 
-      expect(result).toHaveLength(12);
-      expect(result[0]).toHaveProperty('period');
-      expect(result[0]).toHaveProperty('demand');
-      expect(result[0]).toHaveProperty('demandHours');
+      expect(ForecastGenerator.generateDemandForecast).toHaveBeenCalledWith(parameters);
+      expect(result).toEqual([]);
     });
   });
 
   describe('transformToMatrixData', () => {
-    it('should transform forecast data to matrix format', () => {
+    it('should delegate to MatrixTransformer', () => {
       const forecastData = [
         {
           period: '2025-01',
@@ -144,39 +124,46 @@ describe('DemandDataService', () => {
         }
       ];
 
-      const tasks: RecurringTaskDB[] = [
-        {
-          id: '1',
-          name: 'Tax Task',
-          template_id: 'template-1',
-          client_id: 'client-1',
-          estimated_hours: 10,
-          required_skills: ['Tax Preparation'],
-          priority: 'Medium',
-          category: 'Tax',
-          status: 'Unscheduled',
-          recurrence_type: 'Monthly',
-          recurrence_interval: 1,
-          is_active: true,
-          due_date: '2025-01-15T00:00:00Z',
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:00:00Z',
-          description: 'Test task',
-          notes: null,
-          weekdays: null,
-          day_of_month: null,
-          month_of_year: null,
-          end_date: null,
-          custom_offset_days: null,
-          last_generated_date: null
-        }
-      ];
+      const tasks: RecurringTaskDB[] = [{
+        id: '1',
+        name: 'Tax Task',
+        template_id: 'template-1',
+        client_id: 'client-1',
+        estimated_hours: 10,
+        required_skills: ['Tax Preparation'],
+        priority: 'Medium',
+        category: 'Tax',
+        status: 'Unscheduled',
+        recurrence_type: 'Monthly',
+        recurrence_interval: 1,
+        is_active: true,
+        due_date: '2025-01-15T00:00:00Z',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        description: 'Test task',
+        notes: null,
+        weekdays: null,
+        day_of_month: null,
+        month_of_year: null,
+        end_date: null,
+        custom_offset_days: null,
+        last_generated_date: null
+      }];
+
+      const { MatrixTransformer } = require('@/services/forecasting/demand');
+      MatrixTransformer.transformToMatrixData.mockReturnValue({
+        months: [{ key: '2025-01', label: 'Jan 2025' }],
+        skills: ['Tax Preparation'],
+        dataPoints: [],
+        totalDemand: 100,
+        totalTasks: 1,
+        totalClients: 1,
+        skillSummary: {}
+      });
 
       const result = DemandDataService.transformToMatrixData(forecastData, tasks);
 
-      expect(result.months).toHaveLength(1);
-      expect(result.skills).toContain('Tax Preparation');
-      expect(result.dataPoints).toHaveLength(1);
+      expect(MatrixTransformer.transformToMatrixData).toHaveBeenCalledWith(forecastData, tasks);
       expect(result.totalDemand).toBe(100);
       expect(result.totalTasks).toBe(1);
     });

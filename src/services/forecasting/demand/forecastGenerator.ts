@@ -1,0 +1,65 @@
+
+import { format } from 'date-fns';
+import { debugLog } from '../logger';
+import { DemandForecastParameters, DemandFilters } from '@/types/demand';
+import { ForecastData } from '@/types/forecasting';
+import { DataFetcher } from './dataFetcher';
+import { PeriodGenerator } from './periodGenerator';
+import { SkillCalculator } from './skillCalculator';
+
+/**
+ * Forecast Generator Service
+ * Handles the main demand forecast generation logic
+ */
+export class ForecastGenerator {
+  /**
+   * Generate demand forecast data for 12-month matrix display
+   */
+  static async generateDemandForecast(
+    parameters: DemandForecastParameters
+  ): Promise<ForecastData[]> {
+    debugLog('Generating demand forecast', { parameters });
+
+    const { dateRange, includeSkills, includeClients } = parameters;
+    
+    // Create filters from parameters
+    const filters: DemandFilters = {
+      skills: includeSkills === 'all' ? [] : includeSkills,
+      clients: includeClients === 'all' ? [] : includeClients,
+      timeHorizon: {
+        start: dateRange.startDate,
+        end: dateRange.endDate
+      }
+    };
+
+    // Fetch client-assigned tasks
+    const tasks = await DataFetcher.fetchClientAssignedTasks(filters);
+
+    // Generate monthly periods
+    const months = PeriodGenerator.generateMonthlyPeriods(dateRange.startDate, dateRange.endDate);
+    
+    // Process each month
+    const forecastData: ForecastData[] = months.map(month => {
+      const monthStart = new Date(month.start);
+      const monthEnd = new Date(month.end);
+      
+      // Calculate demand for this month
+      const demandBySkill = SkillCalculator.calculateMonthlyDemandBySkill(
+        tasks,
+        monthStart,
+        monthEnd
+      );
+
+      return {
+        period: format(monthStart, 'yyyy-MM'),
+        demand: demandBySkill,
+        capacity: [], // Demand-only forecast
+        demandHours: demandBySkill.reduce((sum, skill) => sum + skill.hours, 0),
+        capacityHours: 0
+      };
+    });
+
+    debugLog(`Generated demand forecast with ${forecastData.length} periods`);
+    return forecastData;
+  }
+}
