@@ -140,8 +140,8 @@ describe('Demand Matrix Integration Tests', () => {
       });
 
       // Simulate task modification event
-      const eventHandler = (eventService.subscribe as any).mock.calls
-        .find(([type]: [string]) => type === 'task.scheduled')?.[1];
+      const mockCalls = (eventService.subscribe as any).mock.calls;
+      const eventHandler = mockCalls.find((call: any[]) => call[0] === 'task.scheduled')?.[1];
 
       if (eventHandler) {
         eventHandler({
@@ -169,8 +169,8 @@ describe('Demand Matrix Integration Tests', () => {
       });
 
       // Simulate client data change
-      const eventHandler = (eventService.subscribe as any).mock.calls
-        .find(([type]: [string]) => type === 'availability.updated')?.[1];
+      const mockCalls = (eventService.subscribe as any).mock.calls;
+      const eventHandler = mockCalls.find((call: any[]) => call[0] === 'availability.updated')?.[1];
 
       if (eventHandler) {
         eventHandler({
