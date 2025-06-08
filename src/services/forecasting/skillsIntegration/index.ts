@@ -7,31 +7,41 @@ import { SkillsValidator } from './skillValidator';
 import { SkillValidationResult } from './types';
 
 /**
- * Skills Integration Service - Refactored Main Interface
+ * Skills Integration Service - Database-Only Implementation
  * 
- * Handles integration between database skills and forecasting skill types
- * Now uses centralized SkillNormalizationService for all mappings with
- * improved modular structure for better maintainability.
+ * Now strictly enforces database-only skills to fix matrix display issues.
+ * No fallback to standard skills - only skills from the database are allowed.
  */
 export class SkillsIntegrationService {
   /**
-   * Get all available skills as SkillType array
+   * Get all available skills as SkillType array - DATABASE ONLY
    */
   static async getAvailableSkills(): Promise<SkillType[]> {
     try {
       // Check cache first
       if (SkillsCacheManager.isCacheValid()) {
         const cachedSkills = SkillsCacheManager.getCachedSkills();
-        return cachedSkills;
+        // Only return cached skills if they exist and are from database
+        if (cachedSkills.length > 0) {
+          return cachedSkills;
+        }
       }
 
-      // Update cache and return fresh data
+      // Update cache and return fresh data from database
       await SkillsCacheManager.updateCache();
-      return SkillsCacheManager.getCachedSkills();
+      const databaseSkills = SkillsCacheManager.getCachedSkills();
+      
+      // If no database skills exist, return empty array instead of fallback
+      if (databaseSkills.length === 0) {
+        console.warn('No skills found in database. Matrix will be empty until skills are added.');
+        return [];
+      }
+      
+      return databaseSkills;
     } catch (error) {
-      // Fallback to standard skills if database fails
-      const fallbackSkills = SkillNormalizationService.getStandardForecastSkills();
-      return fallbackSkills;
+      console.error('Error getting available skills from database:', error);
+      // Return empty array instead of fallback to ensure matrix shows only database skills
+      return [];
     }
   }
 

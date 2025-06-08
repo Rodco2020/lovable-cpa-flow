@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 
 interface ActionsSectionProps {
-  onExport: () => void;
+  onExport: (options?: any) => void;
 }
 
 /**
@@ -19,7 +19,7 @@ export const ActionsSection: React.FC<ActionsSectionProps> = ({ onExport }) => {
       <Button 
         variant="outline" 
         size="sm" 
-        onClick={onExport}
+        onClick={() => onExport({})}
         className="w-full justify-start"
       >
         <Download className="h-4 w-4 mr-2" />

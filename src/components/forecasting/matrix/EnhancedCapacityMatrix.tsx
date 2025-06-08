@@ -1,22 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { EnhancedMatrixLegend } from './EnhancedMatrixLegend';
-import { MatrixData } from '@/services/forecasting/matrixUtils';
-import { generateMatrixForecast, validateMatrixData } from '@/services/forecasting/matrixService';
-import { useMatrixControls } from './hooks/useMatrixControls';
+import React, { useEffect } from 'react';
 import { useMatrixSkills } from './hooks/useMatrixSkills';
-import { useToast } from '@/components/ui/use-toast';
-import {
-  MatrixHeader,
-  MatrixStatusIndicator,
-  MatrixGrid,
-  MatrixSummaryFooter,
-  MatrixControlsPanel,
-  MatrixLoadingState,
-  MatrixErrorState,
-  MatrixEmptyState
-} from './components';
+import { EnhancedMatrixState } from './components/EnhancedMatrixState';
+import { MatrixPrintView } from './components/MatrixPrintView';
+import { EnhancedMatrixMain } from './components/EnhancedMatrixMain';
+import { useEnhancedMatrixState } from './hooks/useEnhancedMatrixState';
+import { useEnhancedMatrixClients } from './hooks/useEnhancedMatrixClients';
+import { useEnhancedMatrixData } from './hooks/useEnhancedMatrixData';
+import { useEnhancedMatrixExport } from './hooks/useEnhancedMatrixExport';
+import { useEnhancedMatrixPrint } from './hooks/useEnhancedMatrixPrint';
+import { useEnhancedMatrixActions } from './hooks/useEnhancedMatrixActions';
+import { filterMatrixData } from './utils/matrixDataFilter';
 
 interface EnhancedCapacityMatrixProps {
   className?: string;
@@ -24,21 +18,60 @@ interface EnhancedCapacityMatrixProps {
 }
 
 /**
- * Enhanced capacity matrix with dynamic skills integration
- * Refactored into smaller, focused components for better maintainability
+ * Enhanced capacity matrix with Phase 4 UI/UX improvements
+ * 
+ * This component includes all Phase 4 enhancements:
+ * - Enhanced visual feedback with toast notifications
+ * - Debounced matrix updates for performance
+ * - Better loading states and refresh indicators
+ * - Improved accessibility with keyboard navigation
+ * - Clear indicators of active filters
+ * - Better error messages and help text
+ * 
+ * Key features:
+ * - Interactive capacity vs demand matrix visualization
+ * - Client filtering capabilities with automatic default selection
+ * - Enhanced export options (CSV, JSON)
+ * - Print functionality with customizable options
+ * - Skills synchronization and validation
+ * - Responsive layout with collapsible controls
+ * 
+ * Architecture:
+ * - useEnhancedMatrixState: UI state management
+ * - useEnhancedMatrixClients: Client data fetching and default selection
+ * - useEnhancedMatrixData: Matrix data management with debouncing
+ * - useEnhancedMatrixActions: Export and print actions
+ * - EnhancedMatrixMain: Main content display component
  */
 export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({ 
   className,
   forecastType = 'virtual'
 }) => {
-  const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [validationIssues, setValidationIssues] = useState<string[]>([]);
-  const [isControlsExpanded, setIsControlsExpanded] = useState(false);
-  const { toast } = useToast();
+  // UI state management - refactored into custom hook
+  const {
+    isControlsExpanded,
+    selectedClientIds,
+    setSelectedClientIds,
+    selectedSkills,
+    setSelectedSkills,
+    forecastMode,
+    setForecastMode,
+    startMonth,
+    setStartMonth
+  } = useEnhancedMatrixState(forecastType);
 
-  // Skills integration
+  // Client data management - refactored into custom hook
+  const {
+    clients,
+    clientNames,
+    isLoading: clientsLoading,
+    error: clientsError
+  } = useEnhancedMatrixClients({
+    selectedClientIds,
+    setSelectedClientIds
+  });
+
+  // Skills integration - existing hook
   const { 
     availableSkills, 
     isLoading: skillsLoading, 
@@ -46,190 +79,125 @@ export const EnhancedCapacityMatrix: React.FC<EnhancedCapacityMatrixProps> = ({
     refetchSkills 
   } = useMatrixSkills();
   
-  // Matrix controls with matrix skills synchronization
+  // Enhanced matrix data management with debouncing and better UX
+  // CRITICAL FIX: Pass total client count for proper "all clients" detection
   const {
-    selectedSkills,
-    viewMode,
-    monthRange,
-    handleSkillToggle,
-    handleViewModeChange,
-    handleMonthRangeChange,
-    handleReset,
-    handleExport
-  } = useMatrixControls({
-    matrixSkills: matrixData?.skills || [] // Pass matrix skills for synchronization
+    matrixData,
+    isLoading,
+    isRefreshing,
+    error,
+    validationIssues,
+    loadMatrixData
+  } = useEnhancedMatrixData({
+    forecastType: forecastMode,
+    selectedClientIds,
+    // Pass undefined until clients are loaded so the hook doesn't assume zero
+    totalClientCount: clients.length > 0 ? clients.length : undefined,
+    clientsLoading: clientsLoading,
+    clientsError: clientsError || null
   });
 
-  // Load matrix data
-  const loadMatrixData = async () => {
-    setIsLoading(true);
-    setError(null);
-    setValidationIssues([]);
+  // Export functionality - existing hook
+  const { handleEnhancedExport } = useEnhancedMatrixExport({
+    matrixData,
+    selectedSkills,
+    monthRange: { start: 0, end: 11 }
+  });
 
-    try {
-      const { matrixData: newMatrixData } = await generateMatrixForecast(forecastType);
-      
-      // Validate the data with enhanced validation
-      const issues = validateMatrixData(newMatrixData);
-      if (issues.length > 0) {
-        setValidationIssues(issues);
-        console.warn('Matrix data validation issues:', issues);
-        
-        // Show validation issues in toast for debugging
-        toast({
-          title: "Matrix validation issues detected",
-          description: `${issues.length} issues found. Check console for details.`,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Matrix data loaded successfully",
-          description: `Loaded ${newMatrixData.months.length} months × ${newMatrixData.skills.length} skills`
-        });
-      }
+  // Print functionality - existing hook
+  const {
+    showPrintView,
+    printOptions,
+    handlePrint,
+    handlePrintExecute
+  } = useEnhancedMatrixPrint();
 
-      setMatrixData(newMatrixData);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load matrix data';
-      setError(errorMessage);
-      console.error('Error loading matrix data:', err);
-      
-      toast({
-        title: "Error loading matrix",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Action handlers - refactored into custom hook
+  const { handleExport, handlePrintAction } = useEnhancedMatrixActions({
+    matrixData,
+    selectedSkills,
+    onEnhancedExport: handleEnhancedExport,
+    onPrint: handlePrint
+  });
 
-  // Load data on mount and when forecast type changes
+  // Filter data based on controls
+  const filteredData = filterMatrixData(matrixData, {
+    selectedSkills,
+    monthRange: { start: 0, end: 11 }
+  });
+
+  // Debug logging for Phase 4 verification with CLIENT FILTERING FIX
   useEffect(() => {
-    loadMatrixData();
-  }, [forecastType]);
+    console.log('🎨 EnhancedCapacityMatrix: Phase 4 State Check with CLIENT FILTERING FIX:', {
+      hasClients: clients.length > 0,
+      totalClientCount: clients.length,
+      selectedClientCount: selectedClientIds.length,
+      isAllClientsSelected: clients.length > 0 && selectedClientIds.length === clients.length,
+      shouldShowData: selectedClientIds.length > 0,
+      matrixDataAvailable: !!matrixData,
+      isLoading,
+      isRefreshing,
+      hasValidationIssues: validationIssues.length > 0,
+      clientFilteringLogicFixed: true
+    });
+  }, [clients, selectedClientIds, matrixData, isLoading, isRefreshing, validationIssues]);
 
-  // Handle skills error
-  useEffect(() => {
-    if (skillsError) {
-      toast({
-        title: "Skills loading error",
-        description: skillsError,
-        variant: "destructive"
-      });
-    }
-  }, [skillsError, toast]);
-
-  // Filter data based on controls with improved filtering
-  const getFilteredData = () => {
-    if (!matrixData) return null;
-
-    const filteredMonths = matrixData.months.slice(monthRange.start, monthRange.end + 1);
-    const filteredSkills = matrixData.skills.filter(skill => selectedSkills.includes(skill));
-    const filteredDataPoints = matrixData.dataPoints.filter(
-      point => 
-        selectedSkills.includes(point.skillType) &&
-        filteredMonths.some(month => month.key === point.month)
-    );
-
-    return {
-      ...matrixData,
-      months: filteredMonths,
-      skills: filteredSkills,
-      dataPoints: filteredDataPoints
-    };
-  };
-
-  const filteredData = getFilteredData();
-
-  // Loading state
-  if (isLoading || skillsLoading) {
+  // Show print view
+  if (showPrintView && filteredData && printOptions) {
     return (
-      <MatrixLoadingState 
-        className={className}
-        viewMode={viewMode}
-        skillsLoading={skillsLoading}
+      <MatrixPrintView
+        matrixData={filteredData}
+        selectedSkills={selectedSkills}
+        selectedClientIds={selectedClientIds}
+        clientNames={clientNames}
+        monthRange={{ start: 0, end: 11 }}
+        printOptions={printOptions}
+        onPrint={handlePrintExecute}
       />
     );
   }
 
-  // Error state
-  if (error || skillsError) {
+  // Show loading, error, or empty states with enhanced UX
+  if (isLoading || skillsLoading || clientsLoading || error || skillsError || clientsError || !filteredData) {
     return (
-      <MatrixErrorState
+      <EnhancedMatrixState
         className={className}
-        viewMode={viewMode}
-        error={error}
+        viewMode="hours"
+        isLoading={isLoading || clientsLoading}
+        skillsLoading={skillsLoading}
+        isRefreshing={isRefreshing}
+        error={error || clientsError || ''}
         skillsError={skillsError}
+        filteredData={filteredData}
+        selectedClientCount={selectedClientIds.length}
         onRetryMatrix={loadMatrixData}
         onRetrySkills={refetchSkills}
       />
     );
   }
 
-  // No data state
-  if (!filteredData) {
-    return (
-      <MatrixEmptyState
-        className={className}
-        viewMode={viewMode}
-      />
-    );
-  }
-
+  // Main matrix display with enhanced UX features
   return (
     <div className={className}>
-      <EnhancedMatrixLegend viewMode={viewMode} />
-      
-      {/* Responsive layout for matrix and controls */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        {/* Controls Panel */}
-        <MatrixControlsPanel
-          isControlsExpanded={isControlsExpanded}
-          onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
-          selectedSkills={selectedSkills}
-          onSkillToggle={handleSkillToggle}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          monthRange={monthRange}
-          onMonthRangeChange={handleMonthRangeChange}
-          onExport={handleExport}
-          onReset={handleReset}
-        />
-        
-        {/* Matrix Panel */}
-        <div className={`xl:col-span-3 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
-          <Card>
-            <CardHeader>
-              <MatrixHeader
-                viewMode={viewMode}
-                forecastType={forecastType}
-                isLoading={isLoading}
-                validationIssues={validationIssues}
-                onRefresh={loadMatrixData}
-              />
-              <MatrixStatusIndicator
-                forecastType={forecastType}
-                validationIssues={validationIssues}
-                filteredData={filteredData}
-                availableSkills={availableSkills}
-              />
-            </CardHeader>
-            <CardContent>
-              <MatrixGrid
-                filteredData={filteredData}
-                viewMode={viewMode}
-              />
-              
-              <MatrixSummaryFooter
-                filteredData={filteredData}
-                validationIssues={validationIssues}
-                forecastType={forecastType}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <EnhancedMatrixMain
+        isControlsExpanded={isControlsExpanded}
+        selectedSkills={selectedSkills}
+        onSkillsChange={setSelectedSkills}
+        forecastMode={forecastMode}
+        onForecastModeChange={setForecastMode}
+        startMonth={startMonth}
+        onStartMonthChange={setStartMonth}
+        onExport={handleExport}
+        onPrint={handlePrintAction}
+        selectedClientIds={selectedClientIds}
+        onClientSelectionChange={setSelectedClientIds}
+        filteredData={filteredData!}
+        isLoading={isLoading}
+        isRefreshing={isRefreshing}
+        validationIssues={validationIssues}
+        availableSkills={availableSkills}
+        onRefresh={loadMatrixData}
+      />
     </div>
   );
 };

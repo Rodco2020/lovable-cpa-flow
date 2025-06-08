@@ -1,30 +1,17 @@
 
 /**
- * Skill Normalization Service - Legacy Compatibility Layer
+ * Skill Normalization Service - Main Entry Point
  * 
- * This file maintains backward compatibility while using the new modular structure.
- * All functionality has been moved to focused modules for better maintainability.
- * 
- * @deprecated Direct imports from this file are deprecated. 
- * Use imports from '@/services/skillNormalization' instead for better tree-shaking.
+ * This service provides the main interface for skill normalization throughout the application.
+ * It delegates to the modular skill normalization system for improved maintainability.
  */
 
-// Re-export everything from the new modular service to maintain backward compatibility
-export {
-  SkillNormalizationService,
+// Re-export the main service
+export { SkillNormalizationService } from './skillNormalization';
+
+// Re-export commonly used functions for backward compatibility
+export { 
+  SkillNormalizationService as default,
   normalizeSkills,
-  normalizeSkill
+  normalizeSkill 
 } from './skillNormalization';
-
-export type {
-  SkillMappingRule,
-  NormalizationResult,
-  ValidationResult
-} from './skillNormalization';
-
-// Legacy warning for developers (only in development)
-if (process.env.NODE_ENV === 'development') {
-  console.warn(
-    'skillNormalizationService.ts is deprecated. Please import from "@/services/skillNormalization" instead for better maintainability.'
-  );
-}
