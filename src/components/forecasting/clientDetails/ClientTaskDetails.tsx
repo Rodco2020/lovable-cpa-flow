@@ -67,7 +67,10 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
     error: clientDataError 
   } = useClientFiltering({
     forecastType: 'virtual',
-    dateRange: filters.dateRange || undefined
+    dateRange: filters.dateRange ? {
+      startDate: filters.dateRange.start,
+      endDate: filters.dateRange.end
+    } : undefined
   });
 
   const handleTaskSelect = (task: TaskData) => {
