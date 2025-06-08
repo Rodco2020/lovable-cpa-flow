@@ -134,7 +134,12 @@ const ClientTaskTable: React.FC<ClientTaskTableProps> = ({
         if (taskType === 'instances') {
           const { data: instancesData, error: instancesError } = await instancesQuery;
           if (instancesError) throw instancesError;
-          return instancesData || [];
+          // Add default values for missing properties in task instances
+          return (instancesData || []).map(task => ({
+            ...task,
+            is_active: undefined,
+            recurrence_type: undefined
+          }));
         }
       }
 
@@ -176,10 +181,15 @@ const ClientTaskTable: React.FC<ClientTaskTableProps> = ({
         if (recurringResult.error) throw recurringResult.error;
         if (instancesResult.error) throw instancesResult.error;
 
-        return [
-          ...(recurringResult.data || []),
-          ...(instancesResult.data || [])
-        ];
+        // Combine data and normalize missing properties
+        const recurringTasks = recurringResult.data || [];
+        const instanceTasks = (instancesResult.data || []).map(task => ({
+          ...task,
+          is_active: undefined,
+          recurrence_type: undefined
+        }));
+
+        return [...recurringTasks, ...instanceTasks];
       }
 
       return [];
