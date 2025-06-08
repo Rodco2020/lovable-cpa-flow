@@ -11,6 +11,49 @@ interface ClientDetailsHeaderProps {
   clientId: string;
 }
 
+// Type for the raw database response
+interface DatabaseClient {
+  id: string;
+  legal_name: string;
+  primary_contact: string;
+  email: string;
+  phone: string;
+  industry: string;
+  status: string;
+  expected_monthly_revenue: number;
+  billing_frequency: string;
+  payment_terms: string;
+  billing_address: string;
+  default_task_priority: string;
+  staff_liaison_id?: string | null;
+  notification_preferences: {
+    emailReminders: boolean;
+    taskNotifications: boolean;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+// Helper function to map database response to Client type
+const mapDatabaseClientToClient = (dbClient: DatabaseClient): Client => ({
+  id: dbClient.id,
+  legalName: dbClient.legal_name,
+  primaryContact: dbClient.primary_contact,
+  email: dbClient.email,
+  phone: dbClient.phone,
+  billingAddress: dbClient.billing_address,
+  industry: dbClient.industry as Client['industry'],
+  status: dbClient.status as Client['status'],
+  expectedMonthlyRevenue: dbClient.expected_monthly_revenue,
+  paymentTerms: dbClient.payment_terms as Client['paymentTerms'],
+  billingFrequency: dbClient.billing_frequency as Client['billingFrequency'],
+  defaultTaskPriority: dbClient.default_task_priority,
+  staffLiaisonId: dbClient.staff_liaison_id,
+  notificationPreferences: dbClient.notification_preferences,
+  createdAt: new Date(dbClient.created_at),
+  updatedAt: new Date(dbClient.updated_at)
+});
+
 /**
  * Client Details Header Component
  * Displays client information and basic controls
@@ -32,17 +75,23 @@ const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ clientId }) =
           primary_contact,
           email,
           phone,
+          billing_address,
           industry,
           status,
           expected_monthly_revenue,
           billing_frequency,
-          payment_terms
+          payment_terms,
+          default_task_priority,
+          staff_liaison_id,
+          notification_preferences,
+          created_at,
+          updated_at
         `)
         .eq('id', clientId)
         .single();
 
       if (error) throw error;
-      return data as Client;
+      return mapDatabaseClientToClient(data as DatabaseClient);
     },
     enabled: !!clientId
   });
@@ -78,7 +127,7 @@ const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ clientId }) =
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5" />
-            {client.legal_name}
+            {client.legalName}
           </CardTitle>
           <Badge variant={client.status === 'Active' ? 'default' : 'secondary'}>
             {client.status}
@@ -92,7 +141,7 @@ const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ clientId }) =
             <h4 className="text-sm font-medium text-muted-foreground">Contact Information</h4>
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium">{client.primary_contact}</span>
+                <span className="font-medium">{client.primaryContact}</span>
               </div>
               {client.email && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -117,10 +166,10 @@ const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ clientId }) =
                 <span className="font-medium">Industry:</span> {client.industry}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Billing:</span> {client.billing_frequency}
+                <span className="font-medium">Billing:</span> {client.billingFrequency}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Terms:</span> {client.payment_terms}
+                <span className="font-medium">Terms:</span> {client.paymentTerms}
               </div>
             </div>
           </div>
@@ -131,7 +180,7 @@ const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ clientId }) =
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-green-600" />
               <span className="text-lg font-semibold">
-                ${client.expected_monthly_revenue?.toLocaleString() || '0'}
+                ${client.expectedMonthlyRevenue?.toLocaleString() || '0'}
               </span>
               <span className="text-sm text-muted-foreground">/month</span>
             </div>

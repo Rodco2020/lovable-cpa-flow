@@ -5,11 +5,17 @@ import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import type { Client } from '@/types/client';
 
 interface ClientSelectorProps {
   selectedClientId: string | null;
   onClientSelect: (clientId: string | null) => void;
+}
+
+// Type for the simplified client data we need for the selector
+interface SelectableClient {
+  id: string;
+  legal_name: string;
+  status: string;
 }
 
 /**
@@ -35,7 +41,7 @@ const ClientSelector: React.FC<ClientSelectorProps> = ({
         .order('legal_name');
 
       if (error) throw error;
-      return data as Pick<Client, 'id' | 'legal_name' | 'status'>[];
+      return data as SelectableClient[];
     }
   });
 
@@ -62,12 +68,12 @@ const ClientSelector: React.FC<ClientSelectorProps> = ({
             <SelectItem value="loading" disabled>
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading clients...
+                <span>Loading clients...</span>
               </div>
             </SelectItem>
           ) : error ? (
             <SelectItem value="error" disabled>
-              Error loading clients
+              <span>Error loading clients</span>
             </SelectItem>
           ) : (
             <>
