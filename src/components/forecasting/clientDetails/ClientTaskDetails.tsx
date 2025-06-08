@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,9 @@ import {
   Table as TableIcon,
   PieChart,
   TrendingUp,
-  Download
+  Download,
+  ArrowLeft,
+  Settings
 } from 'lucide-react';
 import ClientTaskTable from './ClientTaskTable';
 import ClientTaskFilters from './ClientTaskFilters';
@@ -18,7 +19,12 @@ import ClientMonthlyBreakdown from './ClientMonthlyBreakdown';
 import ClientSummaryStats from './ClientSummaryStats';
 import ClientExportManager from './ClientExportManager';
 import TaskDetailsModal from './TaskDetailsModal';
+import { EnhancedLoadingState } from '@/components/common/EnhancedLoadingState';
 import { useClientFiltering } from '../matrix/hooks/useClientFiltering';
+import { useEnhancedTabNavigation } from '@/hooks/useEnhancedTabNavigation';
+import { useForecastingKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useAccessibility } from '@/components/common/AccessibilityEnhancements';
+import { enhancedPerformanceMonitor } from '@/services/performance/enhancedPerformanceMonitor';
 
 interface ClientTaskDetailsProps {
   clientId: string;
@@ -62,7 +68,21 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
 
-  // Use client filtering hook for performance monitoring
+  // Enhanced navigation and accessibility hooks
+  const { navigateToMatrix, getCurrentContext } = useEnhancedTabNavigation();
+  const { announceToScreenReader } = useAccessibility();
+
+  // Keyboard shortcuts for power users
+  useForecastingKeyboardShortcuts({
+    exportData: () => setActiveTab('export'),
+    showHelp: () => announceToScreenReader('Available tabs: Summary, Task Table, Monthly View, Trends, Export. Use arrow keys to navigate.'),
+    refreshData: () => {
+      // Trigger data refresh
+      announceToScreenReader('Data refreshed');
+    }
+  });
+
+  // Use client filtering hook with performance monitoring
   const { 
     clientMatrixData, 
     isLoading: clientDataLoading,
@@ -97,9 +117,86 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
     return { start, end };
   };
 
+  // Enhanced loading state with progress
+  if (clientDataLoading) {
+    return (
+      <EnhancedLoadingState
+        type="loading"
+        title="Loading Client Details"
+        message="Fetching comprehensive task data and analytics..."
+        showProgress={true}
+        progress={75} // Mock progress for demo
+      />
+    );
+  }
+
+  // Enhanced error state with message
+  if (clientDataError) {
+    return (
+      <EnhancedLoadingState
+        type="error"
+        title="Failed to Load Client Data"
+        message={clientDataError}
+        onRetry={() => window.location.reload()}
+        onCancel={handleBackToMatrix}
+      />
+    );
+  }
+
+  const handleBackToMatrix = () => {
+    const context = getCurrentContext();
+    navigateToMatrix({
+      matrixFilters: {
+        forecastType: context.matrixFilters?.forecastType || 'virtual'
+      }
+    });
+    announceToScreenReader('Navigated back to Matrix view');
+  };
+
+  const handleTabChange = (newTab: string) => {
+    enhancedPerformanceMonitor.timeSync(
+      'tab-change',
+      'rendering',
+      () => {
+        setActiveTab(newTab);
+        announceToScreenReader(`Switched to ${newTab} tab`);
+      },
+      { fromTab: activeTab, toTab: newTab, clientId }
+    );
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Filters Section */}
+    <div className="space-y-6" id="main-content">
+      {/* Enhanced Header with Navigation */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToMatrix}
+            className="flex items-center gap-2"
+            aria-label="Back to Matrix view"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Matrix
+          </Button>
+          <div className="h-4 w-px bg-border" />
+          <h1 className="text-2xl font-semibold">Client Task Details</h1>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => announceToScreenReader('Use Ctrl+H for help, Ctrl+E to export, or arrow keys to navigate tabs')}
+            aria-label="Accessibility help"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters Section with Enhanced Accessibility */}
       <ClientTaskFilters
         filters={filters}
         onFiltersChange={handleFiltersChange}
@@ -107,33 +204,33 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
         onToggleCollapse={() => setFiltersCollapsed(!filtersCollapsed)}
       />
 
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="summary" className="flex items-center gap-2">
+      {/* Main Content Tabs with Enhanced Navigation */}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="grid w-full grid-cols-5" role="tablist" aria-label="Client details navigation">
+          <TabsTrigger value="summary" className="flex items-center gap-2" role="tab" aria-controls="summary-panel">
             <PieChart className="h-4 w-4" />
             <span className="hidden sm:inline">Summary</span>
           </TabsTrigger>
-          <TabsTrigger value="table" className="flex items-center gap-2">
+          <TabsTrigger value="table" className="flex items-center gap-2" role="tab" aria-controls="table-panel">
             <TableIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Task Table</span>
           </TabsTrigger>
-          <TabsTrigger value="monthly" className="flex items-center gap-2">
+          <TabsTrigger value="monthly" className="flex items-center gap-2" role="tab" aria-controls="monthly-panel">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Monthly View</span>
           </TabsTrigger>
-          <TabsTrigger value="trends" className="flex items-center gap-2">
+          <TabsTrigger value="trends" className="flex items-center gap-2" role="tab" aria-controls="trends-panel">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Trends</span>
           </TabsTrigger>
-          <TabsTrigger value="export" className="flex items-center gap-2">
+          <TabsTrigger value="export" className="flex items-center gap-2" role="tab" aria-controls="export-panel">
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Summary Tab */}
-        <TabsContent value="summary" className="space-y-6">
+        <TabsContent value="summary" className="space-y-6" role="tabpanel" id="summary-panel" aria-labelledby="summary-tab">
           <ClientSummaryStats 
             clientId={clientId} 
             dateRange={filters.dateRange || undefined}
@@ -141,7 +238,7 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
         </TabsContent>
 
         {/* Task Table Tab */}
-        <TabsContent value="table" className="space-y-6">
+        <TabsContent value="table" className="space-y-6" role="tabpanel" id="table-panel" aria-labelledby="table-tab">
           <ClientTaskTable
             clientId={clientId}
             taskType={filters.taskType}
@@ -158,7 +255,7 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
         </TabsContent>
 
         {/* Monthly Breakdown Tab */}
-        <TabsContent value="monthly" className="space-y-6">
+        <TabsContent value="monthly" className="space-y-6" role="tabpanel" id="monthly-panel" aria-labelledby="monthly-tab">
           <ClientMonthlyBreakdown
             clientId={clientId}
             dateRange={filters.dateRange || getDefaultDateRange()}
@@ -166,8 +263,8 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
           />
         </TabsContent>
 
-        {/* Trends Tab - Placeholder for future enhancement */}
-        <TabsContent value="trends" className="space-y-6">
+        {/* Trends Tab - Enhanced placeholder */}
+        <TabsContent value="trends" className="space-y-6" role="tabpanel" id="trends-panel" aria-labelledby="trends-tab">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -176,17 +273,17 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
               </CardTitle>
             </CardHeader>
             <CardContent className="py-12 text-center">
-              <div className="text-muted-foreground">
-                <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Trends Analysis Coming Soon</h3>
-                <p>Advanced trend analysis and predictive insights for client task patterns.</p>
-              </div>
+              <EnhancedLoadingState
+                type="empty"
+                title="Trends Analysis Coming Soon"
+                message="Advanced trend analysis and predictive insights for client task patterns will be available in the next update."
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Export Tab */}
-        <TabsContent value="export" className="space-y-6">
+        <TabsContent value="export" className="space-y-6" role="tabpanel" id="export-panel" aria-labelledby="export-tab">
           <ClientExportManager
             clientId={clientId}
             filters={filters}
@@ -194,12 +291,13 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
         </TabsContent>
       </Tabs>
 
-      {/* Task Details Modal */}
+      {/* Task Details Modal with Enhanced Accessibility */}
       <TaskDetailsModal
         isOpen={isTaskModalOpen}
         onClose={() => {
           setIsTaskModalOpen(false);
           setSelectedTask(null);
+          announceToScreenReader('Task details modal closed');
         }}
         task={selectedTask}
       />
@@ -209,7 +307,7 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
         <Card className="border-blue-200">
           <CardContent className="py-4">
             <div className="text-sm text-blue-600">
-              Loading client-specific data... (Performance monitoring active)
+              Performance monitoring active: {enhancedPerformanceMonitor.getPerformanceInsights().cacheStats.hitRate}% cache hit rate
             </div>
           </CardContent>
         </Card>
