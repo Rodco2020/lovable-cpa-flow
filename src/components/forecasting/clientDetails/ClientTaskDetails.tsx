@@ -72,16 +72,6 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
   const { navigateToMatrix, getCurrentContext } = useEnhancedTabNavigation();
   const { announceToScreenReader } = useAccessibility();
 
-  // Keyboard shortcuts for power users
-  useForecastingKeyboardShortcuts({
-    exportData: () => setActiveTab('export'),
-    showHelp: () => announceToScreenReader('Available tabs: Summary, Task Table, Monthly View, Trends, Export. Use arrow keys to navigate.'),
-    refreshData: () => {
-      // Trigger data refresh
-      announceToScreenReader('Data refreshed');
-    }
-  });
-
   // Use client filtering hook with performance monitoring
   const { 
     clientMatrixData, 
@@ -93,6 +83,27 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
       startDate: filters.dateRange.start,
       endDate: filters.dateRange.end
     } : undefined
+  });
+
+  // Define handleBackToMatrix early so it can be used in error state
+  const handleBackToMatrix = () => {
+    const context = getCurrentContext();
+    navigateToMatrix({
+      matrixFilters: {
+        forecastType: context.matrixFilters?.forecastType || 'virtual'
+      }
+    });
+    announceToScreenReader('Navigated back to Matrix view');
+  };
+
+  // Keyboard shortcuts for power users
+  useForecastingKeyboardShortcuts({
+    exportData: () => setActiveTab('export'),
+    showHelp: () => announceToScreenReader('Available tabs: Summary, Task Table, Monthly View, Trends, Export. Use arrow keys to navigate.'),
+    refreshData: () => {
+      // Trigger data refresh
+      announceToScreenReader('Data refreshed');
+    }
   });
 
   const handleTaskSelect = (task: TaskData) => {
@@ -142,16 +153,6 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
       />
     );
   }
-
-  const handleBackToMatrix = () => {
-    const context = getCurrentContext();
-    navigateToMatrix({
-      matrixFilters: {
-        forecastType: context.matrixFilters?.forecastType || 'virtual'
-      }
-    });
-    announceToScreenReader('Navigated back to Matrix view');
-  };
 
   const handleTabChange = (newTab: string) => {
     enhancedPerformanceMonitor.timeSync(
