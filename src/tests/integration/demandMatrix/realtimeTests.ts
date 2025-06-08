@@ -30,7 +30,7 @@ export const runRealtimeUpdateTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
       triggerTaskEvent('task.scheduled', { taskId: 'task-1', clientId: 'client-1' });
@@ -48,13 +48,13 @@ export const runRealtimeUpdateTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
       triggerTaskEvent('availability.updated', { staffId: 'staff-1' });
 
       // Should maintain demand data (not affected by availability changes)
-      expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+      expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
     });
   });
 };

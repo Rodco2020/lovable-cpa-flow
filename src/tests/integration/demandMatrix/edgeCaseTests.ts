@@ -44,11 +44,11 @@ export const runEdgeCaseIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/No Demand Data Available/i)).toBeInTheDocument();
+        expect(screen.getByText('No Demand Data Available')).toBeInTheDocument();
       });
 
       // Should provide helpful guidance
-      expect(screen.getByText(/Manage Client Tasks/i)).toBeInTheDocument();
+      expect(screen.getByText('Manage Client Tasks')).toBeInTheDocument();
     });
 
     it('should handle invalid data with validation', async () => {
@@ -64,11 +64,11 @@ export const runEdgeCaseIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Data Quality Issues Detected/i)).toBeInTheDocument();
+        expect(screen.getByText('Data Quality Issues Detected')).toBeInTheDocument();
       });
 
       // Should display validation issues
-      expect(screen.getByText(/Invalid data format detected/i)).toBeInTheDocument();
+      expect(screen.getByText('Invalid data format detected')).toBeInTheDocument();
     });
 
     it('should handle network errors with retry capability', async () => {
@@ -82,16 +82,16 @@ export const runEdgeCaseIntegrationTests = () => {
 
       // Should show error initially
       await waitFor(() => {
-        expect(screen.getByText(/Error loading demand matrix/i)).toBeInTheDocument();
+        expect(screen.getByText('Error loading demand matrix')).toBeInTheDocument();
       });
 
       // Click retry
-      const retryButton = screen.getByText(/Try Again/i);
+      const retryButton = screen.getByText('Try Again');
       await user.click(retryButton);
 
       // Should succeed on retry
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
     });
   });

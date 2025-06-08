@@ -42,7 +42,7 @@ export const runPerformanceIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Skill 0/i)).toBeInTheDocument();
+        expect(screen.getByText('Skill 0')).toBeInTheDocument();
       }, { timeout: 5000 });
 
       const renderTime = performance.now() - startTime;
@@ -65,15 +65,15 @@ export const runPerformanceIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Skill 0/i)).toBeInTheDocument();
+        expect(screen.getByText('Skill 0')).toBeInTheDocument();
       });
 
       // Apply filters to reduce dataset
-      const skillFilter = screen.getByLabelText(/Skill 0/i);
+      const skillFilter = screen.getByLabelText('Skill 0');
       await user.click(skillFilter);
 
       // Should maintain performance with filtered data
-      expect(screen.getByText(/Skill 0/i)).toBeInTheDocument();
+      expect(screen.getByText('Skill 0')).toBeInTheDocument();
     });
   });
 };

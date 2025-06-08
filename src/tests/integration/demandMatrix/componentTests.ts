@@ -32,10 +32,10 @@ export const runComponentIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
-      expect(screen.getByText(/Demand Forecast Matrix/i)).toBeInTheDocument();
+      expect(screen.getByText('Demand Forecast Matrix')).toBeInTheDocument();
     });
 
     it('should handle grouping mode changes seamlessly', async () => {
@@ -46,7 +46,7 @@ export const runComponentIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
       rerender(
@@ -56,7 +56,7 @@ export const runComponentIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Test Client 1/i)).toBeInTheDocument();
+        expect(screen.getByText('Test Client 1')).toBeInTheDocument();
       });
     });
 
@@ -70,10 +70,10 @@ export const runComponentIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Error loading demand matrix/i)).toBeInTheDocument();
+        expect(screen.getByText('Error loading demand matrix')).toBeInTheDocument();
       });
 
-      const retryButton = screen.getByText(/Try Again/i);
+      const retryButton = screen.getByText('Try Again');
       expect(retryButton).toBeInTheDocument();
     });
   });
