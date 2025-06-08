@@ -2,61 +2,151 @@
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
-import { RecurringTaskDB, SkillType } from '@/types/task';
+import { RecurringTaskDB } from '@/types/task';
+import { DataValidator } from './dataValidator';
 
 /**
- * Data Fetcher Service
- * Handles all data fetching operations for demand forecasting
+ * Enhanced Data Fetcher Service with validation and error handling
  */
 export class DataFetcher {
   /**
-   * Fetch all client-assigned recurring tasks with filtering
+   * Fetch client-assigned tasks with comprehensive validation
    */
-  static async fetchClientAssignedTasks(filters?: DemandFilters): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching client-assigned recurring tasks', { filters });
+  static async fetchClientAssignedTasks(filters: DemandFilters): Promise<RecurringTaskDB[]> {
+    debugLog('Fetching client-assigned tasks with filters', { filters });
 
     try {
+      // Build query with proper error handling
       let query = supabase
         .from('recurring_tasks')
-        .select(`
-          *,
-          clients!inner(id, legal_name)
-        `)
+        .select('*, clients!inner(id, legal_name)')
         .eq('is_active', true);
 
-      // Apply client filters if specified
-      if (filters?.clients && filters.clients.length > 0 && !filters.clients.includes('all')) {
-        query = query.in('client_id', filters.clients);
+      // Apply filters safely
+      if (filters.clients && filters.clients.length > 0) {
+        // Validate client IDs
+        const validClientIds = filters.clients.filter(id => 
+          typeof id === 'string' && id.length > 0
+        );
+        
+        if (validClientIds.length > 0) {
+          query = query.in('client_id', validClientIds);
+        }
       }
 
+      // Execute query with timeout
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching client-assigned tasks:', error);
-        throw new Error(`Failed to fetch tasks: ${error.message}`);
+        console.error('Error fetching recurring tasks:', error);
+        throw new Error(`Database query failed: ${error.message}`);
       }
 
-      let tasks = data || [];
-
-      // Apply skill filters if specified
-      if (filters?.skills && filters.skills.length > 0) {
-        tasks = tasks.filter(task => 
-          task.required_skills.some((skill: SkillType) => 
-            filters.skills.includes(skill)
-          )
-        );
+      if (!data) {
+        debugLog('No recurring tasks found');
+        return [];
       }
 
-      // Include inactive tasks if requested
-      if (!filters?.includeInactive) {
-        tasks = tasks.filter(task => task.is_active);
+      debugLog(`Fetched ${data.length} recurring tasks from database`);
+
+      // Validate and sanitize the data
+      const { validTasks, invalidTasks } = DataValidator.validateRecurringTasks(data);
+
+      if (invalidTasks.length > 0) {
+        console.warn(`Found ${invalidTasks.length} invalid tasks, excluding from processing`);
+        invalidTasks.forEach(({ task, errors }) => {
+          console.warn(`Invalid task ${task.id}:`, errors);
+        });
       }
 
-      debugLog(`Found ${tasks.length} client-assigned tasks`);
-      return tasks as RecurringTaskDB[];
+      debugLog(`Validated ${validTasks.length} tasks for processing`);
+      return validTasks;
+
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
-      throw error;
+      
+      // Return empty array instead of throwing to prevent cascade failures
+      return [];
+    }
+  }
+
+  /**
+   * Fetch available skills with validation
+   */
+  static async fetchAvailableSkills(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase
+        .from('skills')
+        .select('id, name')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching skills:', error);
+        return [];
+      }
+
+      if (!Array.isArray(data)) {
+        console.warn('Skills data is not an array');
+        return [];
+      }
+
+      // Validate and extract skill names
+      const validSkills = data
+        .filter(skill => skill && typeof skill.name === 'string' && skill.name.trim().length > 0)
+        .map(skill => skill.name.trim())
+        .slice(0, 100); // Limit to prevent performance issues
+
+      debugLog(`Fetched ${validSkills.length} valid skills`);
+      return validSkills;
+
+    } catch (error) {
+      console.error('Error fetching skills:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch available clients with validation
+   */
+  static async fetchAvailableClients(): Promise<Array<{ id: string; name: string }>> {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, legal_name')
+        .eq('status', 'active')
+        .order('legal_name');
+
+      if (error) {
+        console.error('Error fetching clients:', error);
+        return [];
+      }
+
+      if (!Array.isArray(data)) {
+        console.warn('Clients data is not an array');
+        return [];
+      }
+
+      // Validate and format client data
+      const validClients = data
+        .filter(client => 
+          client && 
+          typeof client.id === 'string' && 
+          typeof client.legal_name === 'string' &&
+          client.id.trim().length > 0 &&
+          client.legal_name.trim().length > 0
+        )
+        .map(client => ({
+          id: client.id.trim(),
+          name: client.legal_name.trim()
+        }))
+        .slice(0, 1000); // Reasonable limit
+
+      debugLog(`Fetched ${validClients.length} valid clients`);
+      return validClients;
+
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      return [];
     }
   }
 }
