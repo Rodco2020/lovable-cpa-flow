@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { TestWrapper } from '../quality/testUtils/TestWrapper';
 import { DemandMatrix } from '@/components/forecasting/matrix/DemandMatrix';
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
-import { eventService } from '@/services/eventService';
+import eventService from '@/services/eventService';
 
 // Mock services
 vi.mock('@/services/forecasting/demandMatrixService');
@@ -141,7 +141,7 @@ describe('Demand Matrix Integration Tests', () => {
 
       // Simulate task modification event
       const eventHandler = (eventService.subscribe as any).mock.calls
-        .find(([type]) => type === 'task.scheduled')?.[1];
+        .find(([type]: [string]) => type === 'task.scheduled')?.[1];
 
       if (eventHandler) {
         eventHandler({
@@ -170,7 +170,7 @@ describe('Demand Matrix Integration Tests', () => {
 
       // Simulate client data change
       const eventHandler = (eventService.subscribe as any).mock.calls
-        .find(([type]) => type === 'availability.updated')?.[1];
+        .find(([type]: [string]) => type === 'availability.updated')?.[1];
 
       if (eventHandler) {
         eventHandler({

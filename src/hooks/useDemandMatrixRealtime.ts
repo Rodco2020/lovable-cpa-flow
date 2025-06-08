@@ -1,6 +1,6 @@
 
 import { useEffect, useCallback } from 'react';
-import { eventService } from '@/services/eventService';
+import eventService from '@/services/eventService';
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
 import { useToast } from '@/components/ui/use-toast';
 
