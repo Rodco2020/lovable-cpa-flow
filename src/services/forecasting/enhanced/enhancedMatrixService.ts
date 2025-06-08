@@ -1,4 +1,3 @@
-
 import { MatrixData } from '../matrixUtils';
 import { DemandMatrixData } from '@/types/demand';
 import { 
@@ -184,32 +183,69 @@ export class EnhancedMatrixService {
    * Generate CSV export for both capacity and demand matrices
    */
   static generateCSVExport(
-    result: EnhancedMatrixResult,
-    options: ExportOptions
+    matrixData: MatrixData | DemandMatrixData,
+    selectedSkills: string[],
+    monthRange: { start: number; end: number }
   ): string {
-    if (result.matrixType === 'demand' && result.demandMatrixData) {
-      return this.generateDemandCSVExport(result.demandMatrixData, options);
-    } else if (result.matrixData) {
-      return ExportManager.generateCSVExport(result.matrixData, options);
+    if ('totalDemand' in matrixData && !('totalCapacity' in matrixData)) {
+      // This is demand matrix data
+      return this.generateDemandCSVExport(matrixData as DemandMatrixData, {
+        selectedSkills,
+        monthRange
+      });
+    } else {
+      // This is capacity matrix data
+      return ExportManager.generateCSVExport(matrixData as MatrixData, {
+        selectedSkills,
+        monthRange
+      });
     }
-    
-    throw new Error('No matrix data available for export');
   }
 
   /**
    * Generate JSON export for both capacity and demand matrices
    */
   static generateJSONExport(
-    result: EnhancedMatrixResult,
-    options: ExportOptions
+    matrixData: MatrixData | DemandMatrixData,
+    selectedSkills: string[],
+    monthRange: { start: number; end: number }
   ): string {
-    if (result.matrixType === 'demand' && result.demandMatrixData) {
-      return this.generateDemandJSONExport(result.demandMatrixData, options);
-    } else if (result.matrixData) {
-      return ExportManager.generateJSONExport(result.matrixData, options);
+    if ('totalDemand' in matrixData && !('totalCapacity' in matrixData)) {
+      // This is demand matrix data
+      return this.generateDemandJSONExport(matrixData as DemandMatrixData, {
+        selectedSkills,
+        monthRange
+      });
+    } else {
+      // This is capacity matrix data
+      return ExportManager.generateJSONExport(matrixData as MatrixData, {
+        selectedSkills,
+        monthRange
+      });
     }
-    
-    throw new Error('No matrix data available for export');
+  }
+
+  /**
+   * Get drill-down data (delegated to DrillDownProvider)
+   */
+  static async getDrillDownData(
+    skill: string,
+    month: string,
+    matrixData?: MatrixData
+  ) {
+    return DrillDownProvider.getDrillDownData(skill, month, matrixData);
+  }
+
+  /**
+   * Generate capacity report (delegated to ReportGenerator)
+   */
+  static generateCapacityReport(
+    matrixData: MatrixData,
+    trends: TrendAnalysis[],
+    recommendations: CapacityRecommendation[],
+    alerts: ThresholdAlert[]
+  ) {
+    return ReportGenerator.generateCapacityReport(matrixData, trends, recommendations, alerts);
   }
 
   /**
@@ -327,10 +363,3 @@ export class EnhancedMatrixService {
     return JSON.stringify(exportData, null, 2);
   }
 }
-
-// Re-export types for backward compatibility
-export type {
-  EnhancedMatrixOptions,
-  EnhancedMatrixResult,
-  ExportOptions
-};

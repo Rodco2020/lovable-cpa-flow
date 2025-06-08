@@ -12,10 +12,16 @@ export class MatrixDataTests {
    */
   static async testMatrixDataGeneration(): Promise<TestResult> {
     return TestUtils.executeTest('Matrix Data Generation', async () => {
-      const { matrixData } = await EnhancedMatrixService.getEnhancedMatrixData('virtual', {
+      const result = await EnhancedMatrixService.getEnhancedMatrixData('virtual', {
         includeAnalytics: false,
         useCache: false
       });
+
+      const { matrixData } = result;
+      
+      if (!matrixData) {
+        throw new Error('No matrix data returned');
+      }
 
       const validationIssues = [];
       
@@ -54,9 +60,10 @@ export class MatrixDataTests {
    */
   static async testDrillDownData(): Promise<TestResult> {
     return TestUtils.executeTest('Drill-down Data', async () => {
-      const { matrixData } = await EnhancedMatrixService.getEnhancedMatrixData('virtual');
+      const result = await EnhancedMatrixService.getEnhancedMatrixData('virtual');
+      const { matrixData } = result;
       
-      if (matrixData.skills.length === 0 || matrixData.months.length === 0) {
+      if (!matrixData || matrixData.skills.length === 0 || matrixData.months.length === 0) {
         throw new Error('No skills or months available for testing');
       }
       

@@ -1,4 +1,3 @@
-
 import { TestResult, PerformanceTestResult, TestSize } from './types';
 import { TestUtils } from './testUtils';
 import { EnhancedMatrixService } from '../enhancedMatrixService';
@@ -44,16 +43,18 @@ export class PerformanceTests {
    */
   static async testExportFunctionality(): Promise<TestResult> {
     return TestUtils.executeTest('Export Functionality', async () => {
-      const { matrixData, trends, alerts } = await EnhancedMatrixService.getEnhancedMatrixData('virtual');
+      const result = await EnhancedMatrixService.getEnhancedMatrixData('virtual');
+      const { matrixData, trends, alerts } = result;
       
-      // Test CSV export
+      if (!matrixData) {
+        throw new Error('No matrix data available for testing');
+      }
+      
+      // Test CSV export with correct signature
       const csvData = EnhancedMatrixService.generateCSVExport(
         matrixData,
         matrixData.skills,
-        { start: 0, end: 11 },
-        true,
-        trends,
-        alerts
+        { start: 0, end: 11 }
       );
       
       const validationIssues = [];
@@ -69,7 +70,7 @@ export class PerformanceTests {
         validationIssues.push(`CSV has ${lines.length} lines, expected around ${expectedLines}`);
       }
       
-      // Test report generation
+      // Test report generation with correct signature
       const report = EnhancedMatrixService.generateCapacityReport(matrixData, trends, [], alerts);
       
       if (!report.title || !report.summary || !report.sections || report.sections.length === 0) {
