@@ -37,10 +37,8 @@ export class DemandPerformanceOptimizer {
       const chunkResult = processor(chunk);
       results.push(...chunkResult);
       
-      // Allow other tasks to run
-      if (i % (chunkSize * 5) === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
+      // Note: Removed async delay since this needs to be synchronous
+      // For large datasets, consider using a web worker or async processing
     }
     
     const processingTime = performance.now() - startTime;
