@@ -7,7 +7,7 @@ import { debugLog } from '../logger';
 
 /**
  * Skills Integration Validator
- * Handles validation and normalization of skills for matrix display
+ * Handles validation of skills against available skills and normalization
  */
 export class SkillsValidator {
   /**
@@ -15,32 +15,37 @@ export class SkillsValidator {
    */
   static async validateSkills(skills: SkillType[]): Promise<SkillValidationResult> {
     try {
-      // Ensure cache is fresh
-      if (!SkillsCacheManager.isCacheValid()) {
-        await SkillsCacheManager.updateCache();
-      }
-      
-      const availableSkills = SkillsCacheManager.getCachedSkills();
+      const availableSkills = await this.getAvailableSkills();
       const availableSkillsSet = new Set(availableSkills);
-      
-      const validSkills: SkillType[] = [];
-      const invalidSkills: SkillType[] = [];
-      
+
+      const valid: SkillType[] = [];
+      const invalid: SkillType[] = [];
+      const normalized: SkillType[] = [];
+
       skills.forEach(skill => {
         const normalizedSkill = SkillNormalizationService.normalizeSkill(skill);
         
         if (availableSkillsSet.has(normalizedSkill)) {
-          validSkills.push(normalizedSkill);
+          valid.push(normalizedSkill);
+          normalized.push(normalizedSkill);
+        } else if (availableSkillsSet.has(skill)) {
+          valid.push(skill);
+          normalized.push(skill);
         } else {
-          invalidSkills.push(skill);
-          debugLog(`Invalid skill detected: ${skill} -> ${normalizedSkill}`);
+          invalid.push(skill);
         }
       });
-      
-      return { valid: validSkills, invalid: invalidSkills };
+
+      debugLog(`Validated ${skills.length} skills: ${valid.length} valid, ${invalid.length} invalid`);
+
+      return { valid, invalid, normalized };
     } catch (error) {
-      debugLog('Error validating skills:', error);
-      return { valid: [], invalid: skills };
+      debugLog('Error validating skills', error);
+      return {
+        valid: [],
+        invalid: skills,
+        normalized: []
+      };
     }
   }
 
@@ -49,22 +54,36 @@ export class SkillsValidator {
    */
   static async normalizeMatrixSkills(matrixSkills: SkillType[]): Promise<SkillType[]> {
     try {
-      const normalizedSkills = matrixSkills.map(skill => 
-        SkillNormalizationService.normalizeSkill(skill)
-      );
+      const availableSkills = await this.getAvailableSkills();
+      const availableSkillsSet = new Set(availableSkills);
       
-      // Remove duplicates and sort
-      const uniqueSkills = Array.from(new Set(normalizedSkills)).sort();
+      // Filter and normalize matrix skills to match available skills
+      const normalizedSkills = matrixSkills
+        .map(skill => SkillNormalizationService.normalizeSkill(skill))
+        .filter(skill => availableSkillsSet.has(skill))
+        .filter((skill, index, array) => array.indexOf(skill) === index); // Remove duplicates
+
+      // If no matches found, return available skills instead of empty array
+      const result = normalizedSkills.length > 0 ? normalizedSkills : availableSkills;
       
-      debugLog('Matrix skills normalized:', {
-        original: matrixSkills,
-        normalized: uniqueSkills
-      });
+      debugLog(`Normalized ${matrixSkills.length} matrix skills to ${result.length} valid skills`);
       
-      return uniqueSkills;
+      return result;
     } catch (error) {
-      debugLog('Error normalizing matrix skills:', error);
+      debugLog('Error normalizing matrix skills', error);
       return matrixSkills;
     }
+  }
+
+  /**
+   * Get available skills (cached or fresh)
+   */
+  private static async getAvailableSkills(): Promise<SkillType[]> {
+    if (SkillsCacheManager.isCacheValid()) {
+      return SkillsCacheManager.getCachedSkills();
+    }
+    
+    await SkillsCacheManager.updateCache();
+    return SkillsCacheManager.getCachedSkills();
   }
 }

@@ -7,5 +7,3 @@ export { MatrixControlsPanel } from './MatrixControlsPanel';
 export { MatrixLoadingState } from './MatrixLoadingState';
 export { MatrixErrorState } from './MatrixErrorState';
 export { MatrixEmptyState } from './MatrixEmptyState';
-export { EnhancedMatrixContent } from './EnhancedMatrixContent';
-export { EnhancedMatrixState } from './EnhancedMatrixState';

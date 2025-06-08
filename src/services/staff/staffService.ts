@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { Staff } from "@/types/staff";
 import { mapStaffFromDbRecord, mapStaffToDbRecord } from "./staffMapper";
@@ -30,14 +29,9 @@ export const getAllStaff = async (): Promise<Staff[]> => {
     }
     
     console.log(`Debug - Raw staff data from database: ${data.length} staff members found`);
-    console.log("Staff status values found:", data.map(s => ({ id: s.id, status: s.status, full_name: s.full_name })));
     
     // Map the database fields to our Staff model
-    const mappedStaff = data.map(mapStaffFromDbRecord);
-    
-    console.log("Mapped staff data:", mappedStaff.map(s => ({ id: s.id, status: s.status, fullName: s.fullName })));
-    
-    return mappedStaff;
+    return data.map(mapStaffFromDbRecord);
   } catch (err) {
     console.error("Failed to fetch staff data:", err);
     throw new Error(`Database connection error: ${err instanceof Error ? err.message : 'Unknown error'}`);
