@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Download, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Download, FileDown, FileSpreadsheet, Printer, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,6 +18,11 @@ interface ExportButtonProps {
   isLoading?: boolean;
   disabled?: boolean;
   className?: string;
+  variant?: 'default' | 'outline' | 'ghost';
+  size?: 'default' | 'sm' | 'lg';
+  showPrintOptions?: boolean;
+  onPrintPreview?: () => void;
+  onQuickPrint?: () => void;
 }
 
 export const ExportButton: React.FC<ExportButtonProps> = ({
@@ -25,7 +30,12 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
   dataType,
   isLoading = false,
   disabled = false,
-  className = ''
+  className = '',
+  variant = 'outline',
+  size = 'default',
+  showPrintOptions = false,
+  onPrintPreview,
+  onQuickPrint
 }) => {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
@@ -52,7 +62,8 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
+            variant={variant}
+            size={size}
             disabled={disabled || isLoading}
             className={`flex items-center gap-2 ${className}`}
           >
@@ -60,22 +71,24 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
             {isLoading ? 'Exporting...' : 'Export'}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-56">
+          {/* Quick Export Options */}
           <DropdownMenuItem onClick={() => handleQuickExport('pdf')}>
             <FileDown className="h-4 w-4 mr-2" />
-            Export as PDF
+            Quick PDF Export
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleQuickExport('excel')}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Export as Excel
+            Quick Excel Export
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleQuickExport('csv')}>
             <FileDown className="h-4 w-4 mr-2" />
-            Export as CSV
+            Quick CSV Export
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
           
+          {/* Custom Export Options */}
           <DropdownMenuItem onClick={() => handleCustomExport('pdf')}>
             <FileDown className="h-4 w-4 mr-2" />
             Custom PDF Export...
@@ -84,6 +97,29 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Custom Excel Export...
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCustomExport('csv')}>
+            <FileDown className="h-4 w-4 mr-2" />
+            Custom CSV Export...
+          </DropdownMenuItem>
+
+          {/* Print Options */}
+          {showPrintOptions && (
+            <>
+              <DropdownMenuSeparator />
+              {onPrintPreview && (
+                <DropdownMenuItem onClick={onPrintPreview}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Print Preview
+                </DropdownMenuItem>
+              )}
+              {onQuickPrint && (
+                <DropdownMenuItem onClick={onQuickPrint}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Quick Print
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

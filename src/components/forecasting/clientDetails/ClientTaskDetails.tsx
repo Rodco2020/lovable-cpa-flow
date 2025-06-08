@@ -9,12 +9,14 @@ import {
   Filter, 
   Table as TableIcon,
   PieChart,
-  TrendingUp
+  TrendingUp,
+  Download
 } from 'lucide-react';
 import ClientTaskTable from './ClientTaskTable';
 import ClientTaskFilters from './ClientTaskFilters';
 import ClientMonthlyBreakdown from './ClientMonthlyBreakdown';
 import ClientSummaryStats from './ClientSummaryStats';
+import ClientExportManager from './ClientExportManager';
 import TaskDetailsModal from './TaskDetailsModal';
 import { useClientFiltering } from '../matrix/hooks/useClientFiltering';
 
@@ -107,7 +109,7 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="summary" className="flex items-center gap-2">
             <PieChart className="h-4 w-4" />
             <span className="hidden sm:inline">Summary</span>
@@ -123,6 +125,10 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
           <TabsTrigger value="trends" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Trends</span>
+          </TabsTrigger>
+          <TabsTrigger value="export" className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export</span>
           </TabsTrigger>
         </TabsList>
 
@@ -177,6 +183,14 @@ const ClientTaskDetails: React.FC<ClientTaskDetailsProps> = ({ clientId }) => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Export Tab */}
+        <TabsContent value="export" className="space-y-6">
+          <ClientExportManager
+            clientId={clientId}
+            filters={filters}
+          />
         </TabsContent>
       </Tabs>
 
