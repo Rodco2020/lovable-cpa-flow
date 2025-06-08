@@ -1,100 +1,61 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, Eye } from 'lucide-react';
-import { MatrixControlsCore } from './MatrixControlsCore';
-import { ClientFilterSection } from './ClientFilterSection';
-import { ClientFilterDebugger } from './ClientFilterDebugger';
-import { useMatrixControls } from '../hooks/useMatrixControls';
+import { Button } from '@/components/ui/button';
+import { MatrixControls } from '../MatrixControls';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { SkillType } from '@/types/task';
 
 interface MatrixControlsPanelProps {
-  // Matrix controls props
-  selectedSkills: string[];
-  onSkillsChange: (skills: string[]) => void;
-  forecastMode: 'virtual' | 'actual';
-  onForecastModeChange: (mode: 'virtual' | 'actual') => void;
-  startMonth: Date;
-  onStartMonthChange: (date: Date) => void;
-  onExport: (options?: any) => void;
-  onPrint: () => void;
-  isExporting: boolean;
-  
-  // Client filter props
-  selectedClientIds: string[];
-  onClientSelectionChange: (clientIds: string[]) => void;
+  isControlsExpanded: boolean;
+  onToggleControls: () => void;
+  selectedSkills: SkillType[];
+  onSkillToggle: (skill: SkillType) => void;
+  viewMode: 'hours' | 'percentage';
+  onViewModeChange: (viewMode: 'hours' | 'percentage') => void;
+  monthRange: { start: number; end: number };
+  onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
+  onExport: () => void;
+  onReset: () => void;
 }
 
 export const MatrixControlsPanel: React.FC<MatrixControlsPanelProps> = ({
+  isControlsExpanded,
+  onToggleControls,
   selectedSkills,
-  onSkillsChange,
-  forecastMode,
-  onForecastModeChange,
-  startMonth,
-  onStartMonthChange,
+  onSkillToggle,
+  viewMode,
+  onViewModeChange,
+  monthRange,
+  onMonthRangeChange,
   onExport,
-  onPrint,
-  isExporting,
-  selectedClientIds,
-  onClientSelectionChange
+  onReset
 }) => {
-  const {
-    isClientFilterCollapsed,
-    toggleClientFilter,
-    isDebugMode
-  } = useMatrixControls();
-
   return (
-    <div className="space-y-4">
-      {/* Debug section - visible during Phase 1 testing */}
-      {isDebugMode && (
-        <ClientFilterDebugger />
-      )}
-
-      {/* Matrix Controls */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Matrix Controls
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MatrixControlsCore
-            selectedSkills={selectedSkills}
-            onSkillsChange={onSkillsChange}
-            forecastMode={forecastMode}
-            onForecastModeChange={onForecastModeChange}
-            startMonth={startMonth}
-            onStartMonthChange={onStartMonthChange}
-            onExport={onExport}
-            onPrint={onPrint}
-            isExporting={isExporting}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Client Filter */}
-      <ClientFilterSection
-        selectedClientIds={selectedClientIds}
-        onClientSelectionChange={onClientSelectionChange}
-        isCollapsed={isClientFilterCollapsed}
-        onToggleCollapse={toggleClientFilter}
-      />
-
-      {/* View Controls */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            View Options
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
-            Additional view controls will be added here
-          </div>
-        </CardContent>
-      </Card>
+    <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
+      <div className="xl:hidden mb-4">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onToggleControls}
+          className="w-full"
+        >
+          {isControlsExpanded ? <Minimize2 className="h-4 w-4 mr-2" /> : <Maximize2 className="h-4 w-4 mr-2" />}
+          {isControlsExpanded ? 'Hide Controls' : 'Show Controls'}
+        </Button>
+      </div>
+      
+      <div className={`${isControlsExpanded ? 'block' : 'hidden xl:block'}`}>
+        <MatrixControls
+          selectedSkills={selectedSkills}
+          onSkillToggle={onSkillToggle}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          monthRange={monthRange}
+          onMonthRangeChange={onMonthRangeChange}
+          onExport={onExport}
+          onReset={onReset}
+        />
+      </div>
     </div>
   );
 };

@@ -8,6 +8,5 @@ export { MonthRangeSection } from './MonthRangeSection';
 export { SkillsFilterSection } from './SkillsFilterSection';
 export { ActionsSection } from './ActionsSection';
 export { MatrixControlsHeader } from './MatrixControlsHeader';
-export { MatrixControlsCore } from './MatrixControlsCore';
 export type { MatrixControlsProps, MonthRange } from './types';
 export { MONTH_RANGES } from './types';

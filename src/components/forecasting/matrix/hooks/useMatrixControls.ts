@@ -1,22 +1,28 @@
 
-import { useState } from 'react';
-
 /**
- * Hook for managing matrix controls state including client filters
+ * Matrix Controls Hook - Main Export
+ * 
+ * This is the main export file that maintains backward compatibility
+ * while leveraging the new modular architecture for improved maintainability.
+ * 
+ * The hook has been refactored into focused modules:
+ * - types.ts: Type definitions
+ * - skillsSync.ts: Skills synchronization logic
+ * - stateHandlers.ts: State update handlers
+ * - exportUtils.ts: Export functionality
+ * - useMatrixControls.ts: Main hook implementation
+ * 
+ * All existing functionality is preserved with no changes to the public API.
  */
-export const useMatrixControls = () => {
-  const [isClientFilterCollapsed, setIsClientFilterCollapsed] = useState(false);
-  
-  // Enable debug mode for Phase 1 testing
-  const isDebugMode = process.env.NODE_ENV === 'development';
 
-  const toggleClientFilter = () => {
-    setIsClientFilterCollapsed(prev => !prev);
-  };
+// Re-export the main hook and types for backward compatibility
+export { 
+  useMatrixControls,
+  useMatrixControls as default
+} from './useMatrixControls/useMatrixControls';
 
-  return {
-    isClientFilterCollapsed,
-    toggleClientFilter,
-    isDebugMode
-  };
-};
+export type {
+  MatrixControlsState,
+  UseMatrixControlsProps,
+  UseMatrixControlsResult
+} from './useMatrixControls/types';
