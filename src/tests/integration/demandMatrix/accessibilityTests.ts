@@ -33,8 +33,8 @@ export const runAccessibilityIntegrationTests = () => {
       });
 
       // Should have proper ARIA labels
-      const matrix = screen.getByRole('grid', { hidden: true });
-      expect(matrix).toBeInTheDocument();
+      const matrixElement = screen.getByRole('grid');
+      expect(matrixElement).toBeInTheDocument();
 
       // Should support keyboard navigation
       const firstCell = screen.getByText(/120/);
