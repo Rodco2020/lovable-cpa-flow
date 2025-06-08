@@ -1,10 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DemandMatrixData } from '@/types/demand';
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
+import { DemandDrillDownService } from '@/services/forecasting/demand/demandDrillDownService';
 import { useDemandMatrixControls } from './hooks/useDemandMatrixControls';
 import { useToast } from '@/components/ui/use-toast';
+import { SkillType } from '@/types/task';
+import { DemandDrillDownData } from '@/types/demandDrillDown';
 import {
   DemandMatrixHeader,
   DemandMatrixGrid,
@@ -12,7 +14,10 @@ import {
   DemandMatrixLoadingState,
   DemandMatrixErrorState,
   DemandMatrixEmptyState,
-  DemandMatrixSummaryFooter
+  DemandMatrixSummaryFooter,
+  DemandDrillDownDialog,
+  DemandMatrixTimeControls,
+  DemandMatrixExportDialog
 } from './components/demand';
 
 interface DemandMatrixProps {
@@ -21,10 +26,9 @@ interface DemandMatrixProps {
 }
 
 /**
- * Enhanced Demand Matrix Component
+ * Enhanced Demand Matrix Component (Phase 4)
  * 
- * Displays demand forecasting data in a matrix format with enhanced controls
- * and filtering capabilities. Supports both skill-based and client-based grouping.
+ * Now includes drill-down capabilities, export functionality, and time horizon controls
  */
 export const DemandMatrix: React.FC<DemandMatrixProps> = ({ 
   className,
@@ -35,6 +39,14 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
   const [isControlsExpanded, setIsControlsExpanded] = useState(false);
+  
+  // Phase 4: New state for advanced features
+  const [drillDownData, setDrillDownData] = useState<DemandDrillDownData | null>(null);
+  const [selectedDrillDown, setSelectedDrillDown] = useState<{skill: SkillType; month: string} | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [timeHorizon, setTimeHorizon] = useState<'quarter' | 'half-year' | 'year' | 'custom'>('year');
+  const [customDateRange, setCustomDateRange] = useState<{start: Date; end: Date}>();
+  
   const { toast } = useToast();
 
   // Demand-specific controls
@@ -97,6 +109,50 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Phase 4: Handle drill-down cell clicks
+  const handleCellClick = async (skill: SkillType, month: string) => {
+    if (!demandData) return;
+    
+    try {
+      setSelectedDrillDown({ skill, month });
+      const drillDown = DemandDrillDownService.generateDrillDownData(demandData, skill, month);
+      setDrillDownData(drillDown);
+    } catch (err) {
+      console.error('Error generating drill-down data:', err);
+      toast({
+        title: "Error loading details",
+        description: "Failed to load drill-down data for this cell",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Phase 4: Handle time horizon changes
+  const handleTimeHorizonChange = (horizon: 'quarter' | 'half-year' | 'year' | 'custom') => {
+    setTimeHorizon(horizon);
+    
+    // Adjust month range based on horizon
+    switch (horizon) {
+      case 'quarter':
+        handleMonthRangeChange({ start: 0, end: 2 });
+        break;
+      case 'half-year':
+        handleMonthRangeChange({ start: 0, end: 5 });
+        break;
+      case 'year':
+        handleMonthRangeChange({ start: 0, end: 11 });
+        break;
+      case 'custom':
+        // Keep current range until custom dates are set
+        break;
+    }
+  };
+
+  // Phase 4: Handle export dialog
+  const handleShowExport = () => {
+    setShowExportDialog(true);
   };
 
   // Load data on mount
@@ -200,26 +256,39 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   return (
     <div className={className}>
       {/* Responsive layout for matrix and controls */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        {/* Controls Panel */}
-        <DemandMatrixControlsPanel
-          isControlsExpanded={isControlsExpanded}
-          onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
-          selectedSkills={selectedSkills}
-          selectedClients={selectedClients}
-          onSkillToggle={handleSkillToggle}
-          onClientToggle={handleClientToggle}
-          monthRange={monthRange}
-          onMonthRangeChange={handleMonthRangeChange}
-          onExport={handleExport}
-          onReset={handleReset}
-          groupingMode={groupingMode}
-          availableSkills={availableSkills}
-          availableClients={availableClients}
-        />
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+        {/* Controls Panel - Enhanced with time controls */}
+        <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
+          <div className="space-y-4">
+            {/* Time Horizon Controls */}
+            <DemandMatrixTimeControls
+              timeHorizon={timeHorizon}
+              customDateRange={customDateRange}
+              onTimeHorizonChange={handleTimeHorizonChange}
+              onCustomDateRangeChange={setCustomDateRange}
+            />
+            
+            {/* Standard Controls Panel */}
+            <DemandMatrixControlsPanel
+              isControlsExpanded={isControlsExpanded}
+              onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
+              selectedSkills={selectedSkills}
+              selectedClients={selectedClients}
+              onSkillToggle={handleSkillToggle}
+              onClientToggle={handleClientToggle}
+              monthRange={monthRange}
+              onMonthRangeChange={handleMonthRangeChange}
+              onExport={handleShowExport} // Use new export dialog
+              onReset={handleReset}
+              groupingMode={groupingMode}
+              availableSkills={availableSkills}
+              availableClients={availableClients}
+            />
+          </div>
+        </div>
         
         {/* Matrix Panel */}
-        <div className={`xl:col-span-3 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
+        <div className={`xl:col-span-4 ${isControlsExpanded ? 'xl:col-span-3' : ''}`}>
           <Card>
             <CardHeader>
               <DemandMatrixHeader
@@ -230,10 +299,21 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
               />
             </CardHeader>
             <CardContent>
-              <DemandMatrixGrid
-                filteredData={filteredData}
-                groupingMode={groupingMode}
-              />
+              {/* Enhanced Grid with Click Handling */}
+              <div onClick={(e) => {
+                const target = e.target as HTMLElement;
+                const skillOrClient = target.getAttribute('data-skill');
+                const month = target.getAttribute('data-month');
+                
+                if (skillOrClient && month) {
+                  handleCellClick(skillOrClient as SkillType, month);
+                }
+              }}>
+                <DemandMatrixGrid
+                  filteredData={filteredData}
+                  groupingMode={groupingMode}
+                />
+              </div>
               
               <DemandMatrixSummaryFooter
                 filteredData={filteredData}
@@ -244,6 +324,32 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
           </Card>
         </div>
       </div>
+
+      {/* Phase 4: Advanced Feature Dialogs */}
+      
+      {/* Drill-Down Dialog */}
+      <DemandDrillDownDialog
+        isOpen={!!drillDownData}
+        onClose={() => {
+          setDrillDownData(null);
+          setSelectedDrillDown(null);
+        }}
+        skill={selectedDrillDown?.skill || null}
+        month={selectedDrillDown?.month || null}
+        data={drillDownData}
+      />
+
+      {/* Export Dialog */}
+      {demandData && (
+        <DemandMatrixExportDialog
+          isOpen={showExportDialog}
+          onClose={() => setShowExportDialog(false)}
+          demandData={demandData}
+          selectedSkills={selectedSkills}
+          selectedClients={selectedClients}
+          monthRange={monthRange}
+        />
+      )}
     </div>
   );
 };

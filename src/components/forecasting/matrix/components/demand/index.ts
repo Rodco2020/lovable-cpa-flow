@@ -14,3 +14,8 @@ export { DemandMatrixEmptyState } from './DemandMatrixEmptyState';
 export { DemandMatrixSummaryFooter } from './DemandMatrixSummaryFooter';
 export { DemandMatrixCell } from './DemandMatrixCell';
 export { DemandMatrixControls } from './DemandMatrixControls';
+
+// Phase 4: Advanced Features
+export { DemandDrillDownDialog } from './DemandDrillDownDialog';
+export { DemandMatrixTimeControls } from './DemandMatrixTimeControls';
+export { DemandMatrixExportDialog } from './DemandMatrixExportDialog';
