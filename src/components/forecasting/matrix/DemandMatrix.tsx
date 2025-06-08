@@ -1,9 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DemandMatrixData } from '@/types/demand';
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
 import { DemandDrillDownService } from '@/services/forecasting/demand/demandDrillDownService';
+import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { useDemandMatrixControls } from './hooks/useDemandMatrixControls';
+import { useDemandMatrixRealtime } from '@/hooks/useDemandMatrixRealtime';
 import { useToast } from '@/components/ui/use-toast';
 import { SkillType } from '@/types/task';
 import { DemandDrillDownData } from '@/types/demandDrillDown';
@@ -19,6 +22,7 @@ import {
   DemandMatrixTimeControls,
   DemandMatrixExportDialog
 } from './components/demand';
+import { DemandMatrixErrorBoundary } from './components/demand/DemandMatrixErrorBoundary';
 
 interface DemandMatrixProps {
   className?: string;
@@ -26,9 +30,10 @@ interface DemandMatrixProps {
 }
 
 /**
- * Enhanced Demand Matrix Component (Phase 4)
+ * Enhanced Demand Matrix Component (Phase 5: Integration & Polish)
  * 
- * Now includes drill-down capabilities, export functionality, and time horizon controls
+ * Now includes comprehensive integration, error handling, performance optimization,
+ * and real-time updates while maintaining all existing functionality
  */
 export const DemandMatrix: React.FC<DemandMatrixProps> = ({ 
   className,
@@ -39,8 +44,9 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
   const [isControlsExpanded, setIsControlsExpanded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
-  // Phase 4: New state for advanced features
+  // Phase 4: Advanced features state
   const [drillDownData, setDrillDownData] = useState<DemandDrillDownData | null>(null);
   const [selectedDrillDown, setSelectedDrillDown] = useState<{skill: SkillType; month: string} | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -48,6 +54,76 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   const [customDateRange, setCustomDateRange] = useState<{start: Date; end: Date}>();
   
   const { toast } = useToast();
+
+  // Load demand matrix data with performance optimization
+  const loadDemandData = async () => {
+    const startTime = performance.now();
+    setIsLoading(true);
+    setError(null);
+    setValidationIssues([]);
+
+    try {
+      console.log(`Loading demand data (attempt ${retryCount + 1})`);
+      
+      const { matrixData: newDemandData } = await DemandMatrixService.generateDemandMatrix('demand-only');
+      
+      // Validate the data
+      const issues = DemandMatrixService.validateDemandMatrixData(newDemandData);
+      if (issues.length > 0) {
+        setValidationIssues(issues);
+        console.warn('Demand matrix validation issues:', issues);
+        
+        toast({
+          title: "Data quality issues detected",
+          description: `${issues.length} validation issues found. Functionality may be limited.`,
+          variant: "destructive"
+        });
+      } else {
+        const loadTime = performance.now() - startTime;
+        console.log(`Demand matrix loaded successfully in ${loadTime.toFixed(2)}ms`);
+        
+        toast({
+          title: "Demand matrix loaded",
+          description: `${newDemandData.months.length} months × ${newDemandData.skills.length} ${groupingMode}s loaded`,
+        });
+      }
+
+      // Apply performance optimization
+      const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(newDemandData, {
+        skills: [],
+        clients: [],
+        timeHorizon: customDateRange ? {
+          start: customDateRange.start,
+          end: customDateRange.end
+        } : undefined
+      });
+
+      setDemandData(optimizedData);
+      setRetryCount(0); // Reset retry count on success
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load demand matrix data';
+      setError(errorMessage);
+      console.error('Error loading demand matrix data:', err);
+      
+      // Increment retry count for tracking
+      setRetryCount(prev => prev + 1);
+      
+      toast({
+        title: "Error loading demand matrix",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Phase 5: Real-time updates integration
+  const { refreshData } = useDemandMatrixRealtime({
+    onDataChange: loadDemandData,
+    isEnabled: !isLoading && !error
+  });
 
   // Demand-specific controls
   const {
@@ -68,50 +144,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     groupingMode
   });
 
-  // Load demand matrix data
-  const loadDemandData = async () => {
-    setIsLoading(true);
-    setError(null);
-    setValidationIssues([]);
-
-    try {
-      const { matrixData: newDemandData } = await DemandMatrixService.generateDemandMatrix('demand-only');
-      
-      // Validate the data
-      const issues = DemandMatrixService.validateDemandMatrixData(newDemandData);
-      if (issues.length > 0) {
-        setValidationIssues(issues);
-        console.warn('Demand matrix validation issues:', issues);
-        
-        toast({
-          title: "Demand matrix validation issues detected",
-          description: `${issues.length} issues found. Check console for details.`,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Demand matrix loaded successfully",
-          description: `Loaded ${newDemandData.months.length} months × ${newDemandData.skills.length} skills`
-        });
-      }
-
-      setDemandData(newDemandData);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load demand matrix data';
-      setError(errorMessage);
-      console.error('Error loading demand matrix data:', err);
-      
-      toast({
-        title: "Error loading demand matrix",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Phase 4: Handle drill-down cell clicks
+  // Phase 4: Handle drill-down cell clicks with error handling
   const handleCellClick = async (skill: SkillType, month: string) => {
     if (!demandData) return;
     
@@ -129,9 +162,12 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     }
   };
 
-  // Phase 4: Handle time horizon changes
+  // Phase 4: Handle time horizon changes with performance optimization
   const handleTimeHorizonChange = (horizon: 'quarter' | 'half-year' | 'year' | 'custom') => {
     setTimeHorizon(horizon);
+    
+    // Clear cache when changing time horizon
+    DemandMatrixService.clearCache();
     
     // Adjust month range based on horizon
     switch (horizon) {
@@ -155,55 +191,67 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     setShowExportDialog(true);
   };
 
+  // Enhanced retry with exponential backoff
+  const handleRetryWithBackoff = async () => {
+    const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+    
+    if (retryCount > 0) {
+      toast({
+        title: "Retrying...",
+        description: `Waiting ${backoffDelay / 1000}s before retry attempt ${retryCount + 1}`,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    }
+    
+    await loadDemandData();
+  };
+
   // Load data on mount
   useEffect(() => {
     loadDemandData();
   }, []);
 
-  // Filter data based on controls and grouping mode
+  // Filter data based on controls and grouping mode with optimization
   const getFilteredData = () => {
     if (!demandData) return null;
 
     const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
     
-    // Filter based on grouping mode
-    if (groupingMode === 'skill') {
-      const filteredSkills = demandData.skills.filter(skill => selectedSkills.includes(skill));
-      const filteredDataPoints = demandData.dataPoints.filter(
-        point => 
-          selectedSkills.includes(point.skillType) &&
-          filteredMonths.some(month => month.key === point.month)
-      );
+    // Use performance optimizer for filtering
+    const filters = {
+      skills: selectedSkills,
+      clients: selectedClients,
+      timeHorizon: {
+        start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
+        end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
+      }
+    };
 
-      return {
-        ...demandData,
-        months: filteredMonths,
-        skills: filteredSkills,
-        dataPoints: filteredDataPoints
-      };
-    } else {
-      // Client-based grouping - group data points by client
+    const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
+    
+    // Handle grouping mode transformation
+    if (groupingMode === 'client') {
+      // Transform data for client-based view
       const filteredClients = Array.from(new Set(
-        demandData.dataPoints
-          .flatMap(point => point.taskBreakdown.map(task => task.clientId))
+        optimizedData.dataPoints
+          .flatMap(point => point.taskBreakdown?.map(task => task.clientId) || [])
           .filter(clientId => selectedClients.includes(clientId))
       ));
 
-      // Transform data for client-based view
       const clientGroupedData = {
-        ...demandData,
-        months: filteredMonths,
-        skills: filteredClients, // Use clients as "skills" for display
+        ...optimizedData,
+        skills: filteredClients,
         dataPoints: filteredClients.flatMap(clientId => 
           filteredMonths.map(month => {
-            const clientTasks = demandData.dataPoints
+            const clientTasks = optimizedData.dataPoints
               .find(point => point.month === month.key)
-              ?.taskBreakdown.filter(task => task.clientId === clientId) || [];
+              ?.taskBreakdown?.filter(task => task.clientId === clientId) || [];
 
             const totalHours = clientTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
             
             return {
-              skillType: clientId, // Using clientId as skillType for consistency
+              skillType: clientId,
               month: month.key,
               monthLabel: month.label,
               demandHours: totalHours,
@@ -212,145 +260,156 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
               taskBreakdown: clientTasks
             };
           })
-        )
+        ).filter(point => point.demandHours > 0) // Only include clients with demand
       };
 
       return clientGroupedData;
     }
+
+    return optimizedData;
   };
 
   const filteredData = getFilteredData();
 
-  // Loading state
+  // Loading state with enhanced information
   if (isLoading || skillsLoading || clientsLoading) {
     return (
-      <DemandMatrixLoadingState 
-        className={className}
-        groupingMode={groupingMode}
-      />
+      <DemandMatrixErrorBoundary>
+        <DemandMatrixLoadingState 
+          className={className}
+          groupingMode={groupingMode}
+        />
+      </DemandMatrixErrorBoundary>
     );
   }
 
-  // Error state
+  // Error state with retry capability
   if (error) {
     return (
-      <DemandMatrixErrorState
-        className={className}
-        error={error}
-        onRetry={loadDemandData}
-        groupingMode={groupingMode}
-      />
+      <DemandMatrixErrorBoundary>
+        <DemandMatrixErrorState
+          className={className}
+          error={error}
+          onRetry={handleRetryWithBackoff}
+          groupingMode={groupingMode}
+        />
+      </DemandMatrixErrorBoundary>
     );
   }
 
-  // No data state
-  if (!filteredData) {
+  // No data state with enhanced guidance
+  if (!filteredData || filteredData.dataPoints.length === 0) {
     return (
-      <DemandMatrixEmptyState
-        className={className}
-        groupingMode={groupingMode}
-      />
+      <DemandMatrixErrorBoundary>
+        <DemandMatrixEmptyState
+          className={className}
+          groupingMode={groupingMode}
+          onRefresh={refreshData}
+        />
+      </DemandMatrixErrorBoundary>
     );
   }
 
   return (
-    <div className={className}>
-      {/* Responsive layout for matrix and controls */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        {/* Controls Panel - Enhanced with time controls */}
-        <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
-          <div className="space-y-4">
-            {/* Time Horizon Controls */}
-            <DemandMatrixTimeControls
-              timeHorizon={timeHorizon}
-              customDateRange={customDateRange}
-              onTimeHorizonChange={handleTimeHorizonChange}
-              onCustomDateRangeChange={setCustomDateRange}
-            />
-            
-            {/* Standard Controls Panel */}
-            <DemandMatrixControlsPanel
-              isControlsExpanded={isControlsExpanded}
-              onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
-              selectedSkills={selectedSkills}
-              selectedClients={selectedClients}
-              onSkillToggle={handleSkillToggle}
-              onClientToggle={handleClientToggle}
-              monthRange={monthRange}
-              onMonthRangeChange={handleMonthRangeChange}
-              onExport={handleShowExport} // Use new export dialog
-              onReset={handleReset}
-              groupingMode={groupingMode}
-              availableSkills={availableSkills}
-              availableClients={availableClients}
-            />
-          </div>
-        </div>
-        
-        {/* Matrix Panel */}
-        <div className={`xl:col-span-4 ${isControlsExpanded ? 'xl:col-span-3' : ''}`}>
-          <Card>
-            <CardHeader>
-              <DemandMatrixHeader
-                groupingMode={groupingMode}
-                isLoading={isLoading}
-                validationIssues={validationIssues}
-                onRefresh={loadDemandData}
+    <DemandMatrixErrorBoundary>
+      <div className={className}>
+        {/* Responsive layout for matrix and controls */}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          {/* Controls Panel - Enhanced with time controls */}
+          <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
+            <div className="space-y-4">
+              {/* Time Horizon Controls */}
+              <DemandMatrixTimeControls
+                timeHorizon={timeHorizon}
+                customDateRange={customDateRange}
+                onTimeHorizonChange={handleTimeHorizonChange}
+                onCustomDateRangeChange={setCustomDateRange}
               />
-            </CardHeader>
-            <CardContent>
-              {/* Enhanced Grid with Click Handling */}
-              <div onClick={(e) => {
-                const target = e.target as HTMLElement;
-                const skillOrClient = target.getAttribute('data-skill');
-                const month = target.getAttribute('data-month');
+              
+              {/* Standard Controls Panel */}
+              <DemandMatrixControlsPanel
+                isControlsExpanded={isControlsExpanded}
+                onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
+                selectedSkills={selectedSkills}
+                selectedClients={selectedClients}
+                onSkillToggle={handleSkillToggle}
+                onClientToggle={handleClientToggle}
+                monthRange={monthRange}
+                onMonthRangeChange={handleMonthRangeChange}
+                onExport={handleShowExport}
+                onReset={handleReset}
+                groupingMode={groupingMode}
+                availableSkills={availableSkills}
+                availableClients={availableClients}
+              />
+            </div>
+          </div>
+          
+          {/* Matrix Panel */}
+          <div className={`xl:col-span-4 ${isControlsExpanded ? 'xl:col-span-3' : ''}`}>
+            <Card>
+              <CardHeader>
+                <DemandMatrixHeader
+                  groupingMode={groupingMode}
+                  isLoading={isLoading}
+                  validationIssues={validationIssues}
+                  onRefresh={refreshData}
+                />
+              </CardHeader>
+              <CardContent>
+                {/* Enhanced Grid with Click Handling */}
+                <div onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const skillOrClient = target.getAttribute('data-skill');
+                  const month = target.getAttribute('data-month');
+                  
+                  if (skillOrClient && month) {
+                    handleCellClick(skillOrClient as SkillType, month);
+                  }
+                }}>
+                  <DemandMatrixGrid
+                    filteredData={filteredData}
+                    groupingMode={groupingMode}
+                  />
+                </div>
                 
-                if (skillOrClient && month) {
-                  handleCellClick(skillOrClient as SkillType, month);
-                }
-              }}>
-                <DemandMatrixGrid
+                <DemandMatrixSummaryFooter
                   filteredData={filteredData}
+                  validationIssues={validationIssues}
                   groupingMode={groupingMode}
                 />
-              </div>
-              
-              <DemandMatrixSummaryFooter
-                filteredData={filteredData}
-                validationIssues={validationIssues}
-                groupingMode={groupingMode}
-              />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
 
-      {/* Phase 4: Advanced Feature Dialogs */}
-      
-      {/* Drill-Down Dialog */}
-      <DemandDrillDownDialog
-        isOpen={!!drillDownData}
-        onClose={() => {
-          setDrillDownData(null);
-          setSelectedDrillDown(null);
-        }}
-        skill={selectedDrillDown?.skill || null}
-        month={selectedDrillDown?.month || null}
-        data={drillDownData}
-      />
-
-      {/* Export Dialog */}
-      {demandData && (
-        <DemandMatrixExportDialog
-          isOpen={showExportDialog}
-          onClose={() => setShowExportDialog(false)}
-          demandData={demandData}
-          selectedSkills={selectedSkills}
-          selectedClients={selectedClients}
-          monthRange={monthRange}
+        {/* Phase 4: Advanced Feature Dialogs */}
+        
+        {/* Drill-Down Dialog */}
+        <DemandDrillDownDialog
+          isOpen={!!drillDownData}
+          onClose={() => {
+            setDrillDownData(null);
+            setSelectedDrillDown(null);
+          }}
+          skill={selectedDrillDown?.skill || null}
+          month={selectedDrillDown?.month || null}
+          data={drillDownData}
         />
-      )}
-    </div>
+
+        {/* Export Dialog */}
+        {demandData && (
+          <DemandMatrixExportDialog
+            isOpen={showExportDialog}
+            onClose={() => setShowExportDialog(false)}
+            demandData={demandData}
+            selectedSkills={selectedSkills}
+            selectedClients={selectedClients}
+            monthRange={monthRange}
+          />
+        )}
+      </div>
+    </DemandMatrixErrorBoundary>
   );
 };
 

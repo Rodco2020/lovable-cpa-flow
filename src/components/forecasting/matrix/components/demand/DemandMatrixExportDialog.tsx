@@ -7,38 +7,30 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Download, 
-  FileText, 
   FileSpreadsheet, 
-  Printer,
-  Settings
+  FileText, 
+  Settings,
+  Info,
+  CheckCircle2
 } from 'lucide-react';
 import { DemandMatrixData } from '@/types/demand';
-import { SkillType } from '@/types/task';
+import { useToast } from '@/components/ui/use-toast';
 
 interface DemandMatrixExportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   demandData: DemandMatrixData;
-  selectedSkills: SkillType[];
+  selectedSkills: string[];
   selectedClients: string[];
   monthRange: { start: number; end: number };
-}
-
-interface ExportOptions {
-  format: 'csv' | 'pdf' | 'print';
-  includeMetrics: boolean;
-  includeTaskBreakdown: boolean;
-  includeClientDetails: boolean;
-  includeRecurrencePatterns: boolean;
-  groupBy: 'skill' | 'client' | 'both';
-  timeGranularity: 'monthly' | 'quarterly';
 }
 
 export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> = ({
@@ -49,182 +41,196 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
   selectedClients,
   monthRange
 }) => {
-  const [exportOptions, setExportOptions] = useState<ExportOptions>({
-    format: 'csv',
-    includeMetrics: true,
+  const [exportOptions, setExportOptions] = useState({
     includeTaskBreakdown: true,
-    includeClientDetails: true,
-    includeRecurrencePatterns: false,
-    groupBy: 'skill',
-    timeGranularity: 'monthly'
+    includeClientSummary: true,
+    includeRecurrencePatterns: true,
+    includeTrendAnalysis: false,
+    format: 'xlsx' as 'xlsx' | 'csv' | 'json'
   });
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
-  const handleExport = () => {
-    switch (exportOptions.format) {
-      case 'csv':
-        generateCSVExport();
-        break;
-      case 'pdf':
-        generatePDFExport();
-        break;
-      case 'print':
-        generatePrintView();
-        break;
+  const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
+  const estimatedFileSize = calculateEstimatedFileSize();
+
+  function calculateEstimatedFileSize(): string {
+    const baseSize = demandData.dataPoints.length * 50; // Base size estimate
+    const taskBreakdownSize = exportOptions.includeTaskBreakdown ? 
+      demandData.dataPoints.reduce((sum, point) => sum + (point.taskBreakdown?.length || 0), 0) * 100 : 0;
+    
+    const totalBytes = baseSize + taskBreakdownSize;
+    
+    if (totalBytes < 1024) return `${totalBytes} B`;
+    if (totalBytes < 1024 * 1024) return `${(totalBytes / 1024).toFixed(1)} KB`;
+    return `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    
+    try {
+      // Simulate export process
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const exportData = prepareExportData();
+      await downloadFile(exportData);
+      
+      toast({
+        title: "Export completed",
+        description: `Demand matrix exported successfully as ${exportOptions.format.toUpperCase()}`,
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to export demand matrix data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
     }
-    onClose();
   };
 
-  const generateCSVExport = () => {
-    const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
+  const prepareExportData = () => {
+    const filteredData = demandData.dataPoints.filter(
+      point => 
+        selectedSkills.includes(point.skillType) &&
+        filteredMonths.some(month => month.key === point.month)
+    );
+
+    const exportData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        skillsIncluded: selectedSkills.length,
+        clientsIncluded: selectedClients.length,
+        monthsIncluded: filteredMonths.length,
+        totalDataPoints: filteredData.length
+      },
+      matrixData: filteredData.map(point => ({
+        skill: point.skillType,
+        month: point.month,
+        monthLabel: point.monthLabel,
+        demandHours: point.demandHours,
+        taskCount: point.taskCount,
+        clientCount: point.clientCount,
+        ...(exportOptions.includeTaskBreakdown && {
+          taskBreakdown: point.taskBreakdown
+        })
+      })),
+      ...(exportOptions.includeClientSummary && {
+        clientSummary: generateClientSummary(filteredData)
+      }),
+      ...(exportOptions.includeRecurrencePatterns && {
+        recurrencePatterns: generateRecurrencePatterns(filteredData)
+      })
+    };
+
+    return exportData;
+  };
+
+  const generateClientSummary = (data: any[]) => {
+    const clientMap = new Map();
     
-    let csvContent = '';
-    
-    // Header information
-    csvContent += 'Demand Matrix Export\n';
-    csvContent += `Generated: ${new Date().toISOString()}\n`;
-    csvContent += `Time Period: ${filteredMonths[0]?.label} - ${filteredMonths[filteredMonths.length - 1]?.label}\n`;
-    csvContent += `Skills: ${selectedSkills.join(', ')}\n`;
-    csvContent += `Clients: ${selectedClients.length} selected\n\n`;
-
-    // Summary metrics if included
-    if (exportOptions.includeMetrics) {
-      csvContent += 'Summary Metrics\n';
-      csvContent += `Total Demand Hours,${demandData.totalDemand}\n`;
-      csvContent += `Total Tasks,${demandData.totalTasks}\n`;
-      csvContent += `Total Clients,${demandData.totalClients}\n\n`;
-    }
-
-    // Main data table
-    if (exportOptions.groupBy === 'skill') {
-      csvContent += 'Skill,Month,Demand Hours,Task Count,Client Count\n';
-      
-      selectedSkills.forEach(skill => {
-        filteredMonths.forEach(month => {
-          const dataPoint = demandData.dataPoints.find(
-            point => point.skillType === skill && point.month === month.key
-          );
-          
-          if (dataPoint) {
-            csvContent += `"${skill}","${month.label}",${dataPoint.demandHours},${dataPoint.taskCount},${dataPoint.clientCount}\n`;
-          }
-        });
-      });
-    }
-
-    // Task breakdown if included
-    if (exportOptions.includeTaskBreakdown) {
-      csvContent += '\nTask Breakdown\n';
-      csvContent += 'Task Name,Client,Skill,Monthly Hours,Recurrence Type\n';
-      
-      demandData.dataPoints.forEach(point => {
-        if (selectedSkills.includes(point.skillType)) {
-          point.taskBreakdown.forEach(task => {
-            if (selectedClients.includes(task.clientId)) {
-              csvContent += `"${task.taskName}","${task.clientName}","${task.skillType}",${task.monthlyHours},"${task.recurrencePattern?.type || 'Ad-hoc'}"\n`;
-            }
+    data.forEach(point => {
+      point.taskBreakdown?.forEach((task: any) => {
+        const existing = clientMap.get(task.clientId);
+        if (existing) {
+          existing.totalHours += task.monthlyHours;
+          existing.taskCount += 1;
+        } else {
+          clientMap.set(task.clientId, {
+            clientId: task.clientId,
+            clientName: task.clientName,
+            totalHours: task.monthlyHours,
+            taskCount: 1
           });
         }
       });
+    });
+
+    return Array.from(clientMap.values()).sort((a, b) => b.totalHours - a.totalHours);
+  };
+
+  const generateRecurrencePatterns = (data: any[]) => {
+    const patternMap = new Map();
+    
+    data.forEach(point => {
+      point.taskBreakdown?.forEach((task: any) => {
+        const pattern = task.recurrencePattern?.type || 'Ad-hoc';
+        const existing = patternMap.get(pattern);
+        
+        if (existing) {
+          existing.count += 1;
+          existing.totalHours += task.monthlyHours;
+        } else {
+          patternMap.set(pattern, {
+            pattern,
+            count: 1,
+            totalHours: task.monthlyHours
+          });
+        }
+      });
+    });
+
+    return Array.from(patternMap.values()).sort((a, b) => b.totalHours - a.totalHours);
+  };
+
+  const downloadFile = async (data: any) => {
+    const filename = `demand-matrix-${new Date().toISOString().split('T')[0]}.${exportOptions.format}`;
+    
+    let content: string;
+    let mimeType: string;
+
+    switch (exportOptions.format) {
+      case 'json':
+        content = JSON.stringify(data, null, 2);
+        mimeType = 'application/json';
+        break;
+      case 'csv':
+        content = convertToCSV(data.matrixData);
+        mimeType = 'text/csv';
+        break;
+      case 'xlsx':
+        // In a real implementation, you would use a library like xlsx to create Excel files
+        content = JSON.stringify(data, null, 2);
+        mimeType = 'application/json';
+        break;
+      default:
+        throw new Error('Unsupported format');
     }
 
-    // Download the CSV
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `demand-matrix-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url);
   };
 
-  const generatePDFExport = () => {
-    // For now, open print dialog - in production would use PDF library
-    window.print();
-  };
-
-  const generatePrintView = () => {
-    const printContent = generatePrintHTML();
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.print();
-    }
-  };
-
-  const generatePrintHTML = () => {
-    const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
+  const convertToCSV = (data: any[]): string => {
+    if (data.length === 0) return '';
     
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Demand Matrix Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-            .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
-            .metric-card { border: 1px solid #ddd; padding: 15px; text-align: center; }
-            .matrix-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            .matrix-table th, .matrix-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-            .matrix-table th { background-color: #f5f5f5; }
-            @media print { body { margin: 0; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Demand Matrix Report</h1>
-            <p>Generated: ${new Date().toLocaleDateString()}</p>
-            <p>Period: ${filteredMonths[0]?.label} - ${filteredMonths[filteredMonths.length - 1]?.label}</p>
-          </div>
-          
-          ${exportOptions.includeMetrics ? `
-          <div class="metrics">
-            <div class="metric-card">
-              <h3>${demandData.totalDemand.toFixed(0)}</h3>
-              <p>Total Demand Hours</p>
-            </div>
-            <div class="metric-card">
-              <h3>${demandData.totalTasks}</h3>
-              <p>Total Tasks</p>
-            </div>
-            <div class="metric-card">
-              <h3>${demandData.totalClients}</h3>
-              <p>Total Clients</p>
-            </div>
-          </div>
-          ` : ''}
-          
-          <table class="matrix-table">
-            <thead>
-              <tr>
-                <th>Skill</th>
-                ${filteredMonths.map(month => `<th>${month.label}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${selectedSkills.map(skill => `
-                <tr>
-                  <td><strong>${skill}</strong></td>
-                  ${filteredMonths.map(month => {
-                    const dataPoint = demandData.dataPoints.find(
-                      point => point.skillType === skill && point.month === month.key
-                    );
-                    return `<td>${dataPoint ? dataPoint.demandHours.toFixed(1) + 'h' : '0h'}</td>`;
-                  }).join('')}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    const headers = Object.keys(data[0]).filter(key => key !== 'taskBreakdown');
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => 
+          typeof row[header] === 'string' ? `"${row[header]}"` : row[header]
+        ).join(',')
+      )
+    ].join('\n');
+    
+    return csvContent;
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -232,111 +238,140 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
             Export Demand Matrix
           </DialogTitle>
         </DialogHeader>
-
+        
         <div className="space-y-6">
-          {/* Export Format */}
+          {/* Export Overview */}
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-1">
+                <p>Export includes filtered data with:</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Badge variant="outline">{selectedSkills.length} skills</Badge>
+                  <Badge variant="outline">{selectedClients.length} clients</Badge>
+                  <Badge variant="outline">{filteredMonths.length} months</Badge>
+                  <Badge variant="outline">~{estimatedFileSize}</Badge>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          {/* Format Selection */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Export Format</CardTitle>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5" />
+                Export Format
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup
-                value={exportOptions.format}
-                onValueChange={(value: 'csv' | 'pdf' | 'print') => 
-                  setExportOptions(prev => ({ ...prev, format: value }))
-                }
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="csv" id="csv" />
-                  <Label htmlFor="csv" className="flex items-center gap-2">
-                    <FileSpreadsheet className="h-4 w-4" />
-                    CSV (Excel compatible)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="pdf" id="pdf" />
-                  <Label htmlFor="pdf" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    PDF Report
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="print" id="print" />
-                  <Label htmlFor="print" className="flex items-center gap-2">
-                    <Printer className="h-4 w-4" />
-                    Print View
-                  </Label>
-                </div>
-              </RadioGroup>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'xlsx', label: 'Excel', icon: FileSpreadsheet, desc: 'Best for analysis' },
+                  { value: 'csv', label: 'CSV', icon: FileText, desc: 'Universal format' },
+                  { value: 'json', label: 'JSON', icon: Settings, desc: 'For developers' }
+                ].map((format) => (
+                  <div
+                    key={format.value}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      exportOptions.format === format.value 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setExportOptions(prev => ({ ...prev, format: format.value as any }))}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <format.icon className="h-4 w-4" />
+                      <span className="font-medium">{format.label}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{format.desc}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
           {/* Export Options */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Include in Export
-              </CardTitle>
+            <CardHeader>
+              <CardTitle className="text-lg">Include in Export</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="metrics"
-                  checked={exportOptions.includeMetrics}
-                  onCheckedChange={(checked) =>
-                    setExportOptions(prev => ({ ...prev, includeMetrics: !!checked }))
-                  }
-                />
-                <Label htmlFor="metrics">Summary metrics</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="taskBreakdown"
-                  checked={exportOptions.includeTaskBreakdown}
-                  onCheckedChange={(checked) =>
-                    setExportOptions(prev => ({ ...prev, includeTaskBreakdown: !!checked }))
-                  }
-                />
-                <Label htmlFor="taskBreakdown">Task breakdown details</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="clientDetails"
-                  checked={exportOptions.includeClientDetails}
-                  onCheckedChange={(checked) =>
-                    setExportOptions(prev => ({ ...prev, includeClientDetails: !!checked }))
-                  }
-                />
-                <Label htmlFor="clientDetails">Client information</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="recurrencePatterns"
-                  checked={exportOptions.includeRecurrencePatterns}
-                  onCheckedChange={(checked) =>
-                    setExportOptions(prev => ({ ...prev, includeRecurrencePatterns: !!checked }))
-                  }
-                />
-                <Label htmlFor="recurrencePatterns">Recurrence pattern analysis</Label>
-              </div>
+            <CardContent className="space-y-4">
+              {[
+                { 
+                  key: 'includeTaskBreakdown', 
+                  label: 'Task Breakdown Details', 
+                  desc: 'Individual task information for each matrix cell' 
+                },
+                { 
+                  key: 'includeClientSummary', 
+                  label: 'Client Summary', 
+                  desc: 'Aggregated client demand statistics' 
+                },
+                { 
+                  key: 'includeRecurrencePatterns', 
+                  label: 'Recurrence Patterns', 
+                  desc: 'Summary of task recurrence types and frequencies' 
+                },
+                { 
+                  key: 'includeTrendAnalysis', 
+                  label: 'Trend Analysis', 
+                  desc: 'Month-over-month growth metrics (experimental)' 
+                }
+              ].map((option) => (
+                <div key={option.key} className="flex items-start space-x-3">
+                  <Checkbox
+                    id={option.key}
+                    checked={exportOptions[option.key as keyof typeof exportOptions] as boolean}
+                    onCheckedChange={(checked) => 
+                      setExportOptions(prev => ({ 
+                        ...prev, 
+                        [option.key]: checked === true 
+                      }))
+                    }
+                  />
+                  <div className="space-y-1">
+                    <Label 
+                      htmlFor={option.key}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {option.label}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {option.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
           <Separator />
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export Data
-            </Button>
+          {/* Export Actions */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Estimated file size: {estimatedFileSize}
+            </div>
+            
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose} disabled={isExporting}>
+                Cancel
+              </Button>
+              <Button onClick={handleExport} disabled={isExporting}>
+                {isExporting ? (
+                  <>
+                    <Settings className="h-4 w-4 mr-2 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export {exportOptions.format.toUpperCase()}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

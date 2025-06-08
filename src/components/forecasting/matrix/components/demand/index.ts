@@ -19,3 +19,6 @@ export { DemandMatrixControls } from './DemandMatrixControls';
 export { DemandDrillDownDialog } from './DemandDrillDownDialog';
 export { DemandMatrixTimeControls } from './DemandMatrixTimeControls';
 export { DemandMatrixExportDialog } from './DemandMatrixExportDialog';
+
+// Phase 5: Integration & Polish
+export { DemandMatrixErrorBoundary, withDemandMatrixErrorBoundary } from './DemandMatrixErrorBoundary';
