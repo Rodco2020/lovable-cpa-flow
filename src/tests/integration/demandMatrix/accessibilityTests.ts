@@ -29,7 +29,7 @@ export const runAccessibilityIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
       // Should have proper ARIA labels
@@ -37,7 +37,7 @@ export const runAccessibilityIntegrationTests = () => {
       expect(matrixElement).toBeInTheDocument();
 
       // Should support keyboard navigation
-      const firstCell = screen.getByText(/120/);
+      const firstCell = screen.getByText('120');
       firstCell.focus();
       expect(document.activeElement).toBe(firstCell);
     });

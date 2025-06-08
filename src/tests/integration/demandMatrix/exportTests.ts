@@ -32,16 +32,16 @@ export const runExportIntegrationTests = () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Tax Preparation/i)).toBeInTheDocument();
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
       // Find and click export button
-      const exportButton = screen.getByText(/Export/i);
+      const exportButton = screen.getByText('Export');
       await user.click(exportButton);
 
       // Should open export dialog
       await waitFor(() => {
-        expect(screen.getByText(/Export Demand Matrix/i)).toBeInTheDocument();
+        expect(screen.getByText('Export Demand Matrix')).toBeInTheDocument();
       });
     });
   });
