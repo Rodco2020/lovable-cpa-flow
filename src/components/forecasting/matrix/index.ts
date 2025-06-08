@@ -14,6 +14,10 @@ export { DrillDownDialog } from './DrillDownDialog';
 export { MatrixErrorBoundary } from './MatrixErrorBoundary';
 export { useMatrixControls } from './hooks/useMatrixControls';
 
+// Export new demand matrix components
+export { DemandMatrixTab } from './DemandMatrixTab';
+export { DemandMatrix } from './DemandMatrix';
+
 // Export new advanced features
 export type { 
   TrendAnalysis, 
