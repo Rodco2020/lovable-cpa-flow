@@ -1,6 +1,6 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { getClients } from '@/services/clientService';
+import { getAllClients } from '@/services/clientService';
 
 /**
  * Hook to fetch all clients
@@ -8,6 +8,6 @@ import { getClients } from '@/services/clientService';
 export const useClients = () => {
   return useQuery({
     queryKey: ['clients'],
-    queryFn: getClients,
+    queryFn: getAllClients,
   });
 };

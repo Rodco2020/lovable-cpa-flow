@@ -1,6 +1,6 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { getSkills } from '@/services/skills/skillsService';
+import { getAllSkills } from '@/services/skills/skillsService';
 
 /**
  * Hook to fetch all skills
@@ -8,6 +8,6 @@ import { getSkills } from '@/services/skills/skillsService';
 export const useSkills = () => {
   return useQuery({
     queryKey: ['skills'],
-    queryFn: getSkills,
+    queryFn: getAllSkills,
   });
 };
