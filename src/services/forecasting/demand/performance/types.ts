@@ -20,11 +20,13 @@ export interface MemoryUsageMetric {
 }
 
 export interface PerformanceStats {
-  [operation: string]: {
-    average: string;
-    max: string;
-    min: string;
-    samples: number;
+  operations: {
+    [operation: string]: {
+      average: string;
+      max: string;
+      min: string;
+      samples: number;
+    };
   };
   memory: {
     totalDelta: string;

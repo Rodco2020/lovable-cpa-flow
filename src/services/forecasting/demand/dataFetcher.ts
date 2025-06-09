@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
-import { RecurringTaskDB } from '@/types/task';
+import { RecurringTaskDB, TaskPriority } from '@/types/task';
 import { DataValidator } from './dataValidator';
 
 /**
@@ -12,7 +12,7 @@ export class DataFetcher {
   /**
    * Fetch client-assigned tasks with comprehensive validation
    */
-  static async fetchClientAssignedTasks(filters: DemandFilters): Promise<RecurringTaskDB[]> {
+  static async fetchClientAssignedTasks(filters: DemandFilters = { skills: [], clients: [], timeHorizon: { start: new Date(), end: new Date() } }): Promise<RecurringTaskDB[]> {
     debugLog('Fetching client-assigned tasks with filters', { filters });
 
     try {
@@ -49,8 +49,14 @@ export class DataFetcher {
 
       debugLog(`Fetched ${data.length} recurring tasks from database`);
 
+      // Type-cast the raw data to ensure proper typing
+      const typedData: RecurringTaskDB[] = data.map(task => ({
+        ...task,
+        priority: task.priority as TaskPriority // Explicit cast to TaskPriority
+      }));
+
       // Validate and sanitize the data
-      const { validTasks, invalidTasks } = DataValidator.validateRecurringTasks(data);
+      const { validTasks, invalidTasks } = DataValidator.validateRecurringTasks(typedData);
 
       if (invalidTasks.length > 0) {
         console.warn(`Found ${invalidTasks.length} invalid tasks, excluding from processing`);
