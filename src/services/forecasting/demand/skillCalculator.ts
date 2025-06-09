@@ -12,11 +12,11 @@ export class SkillCalculator {
   /**
    * Calculate monthly demand by skill with comprehensive validation
    */
-  static calculateMonthlyDemandBySkill(
+  static async calculateMonthlyDemandBySkill(
     tasks: RecurringTaskDB[],
     monthStart: Date,
     monthEnd: Date
-  ): SkillHours[] {
+  ): Promise<SkillHours[]> {
     debugLog('Calculating monthly demand by skill', { 
       tasksCount: tasks.length, 
       monthStart: monthStart.toISOString(), 
@@ -35,8 +35,8 @@ export class SkillCalculator {
         return [];
       }
 
-      // Validate and filter tasks
-      const { validTasks } = DataValidator.validateRecurringTasks(tasks);
+      // Validate and filter tasks - await the Promise
+      const { validTasks } = await DataValidator.validateRecurringTasks(tasks);
       
       if (validTasks.length === 0) {
         debugLog('No valid tasks for skill calculation');

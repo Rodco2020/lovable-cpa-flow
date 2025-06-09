@@ -60,8 +60,8 @@ export class DemandMatrixService {
       
       const tasks = await DataFetcher.fetchClientAssignedTasks(filters);
       
-      // Transform to matrix format
-      const matrixData = MatrixTransformer.transformToMatrixData(forecastData, tasks);
+      // Transform to matrix format - await the Promise
+      const matrixData = await MatrixTransformer.transformToMatrixData(forecastData, tasks);
       
       // Validate the generated data
       const validationIssues = this.validateDemandMatrixData(matrixData);

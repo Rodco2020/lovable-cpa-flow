@@ -1,3 +1,4 @@
+
 import { debugLog } from './logger';
 import { 
   DemandForecastParameters, 
@@ -62,10 +63,10 @@ export class DemandDataService {
    * Transform demand forecast into matrix format
    * @deprecated Use MatrixTransformer.transformToMatrixData directly for new code
    */
-  static transformToMatrixData(
+  static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
-  ): DemandMatrixData {
+  ): Promise<DemandMatrixData> {
     return MatrixTransformer.transformToMatrixData(forecastData, tasks);
   }
 
