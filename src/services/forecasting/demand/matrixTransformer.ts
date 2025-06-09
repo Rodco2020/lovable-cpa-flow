@@ -75,13 +75,6 @@ export class MatrixTransformer {
         skillSummary
       };
 
-      // Validate the final matrix data
-      const validationErrors = DataValidator.validateMatrixData(matrixData);
-      if (validationErrors.length > 0) {
-        console.warn('Matrix data validation issues:', validationErrors.slice(0, 5)); // Limit error output
-        // Continue with potentially corrected data rather than failing completely
-      }
-
       const successMessage = `Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points`;
       if (resolvedTasks.length > 0) {
         debugLog(`${successMessage} (resolved skills for ${resolvedTasks.length} tasks)`);
@@ -141,9 +134,9 @@ export class MatrixTransformer {
 
       // Get all skills and convert to display names for consistency
       const allSkillRefs = Array.from(skillsSet);
-      const skillNames = await SkillResolutionService.getSkillNames(allSkillRefs);
+      const { validSkills } = await SkillResolutionService.resolveSkillReferences(allSkillRefs);
       
-      const uniqueSkillNames = Array.from(new Set(skillNames)).slice(0, 100); // Reasonable limit
+      const uniqueSkillNames = Array.from(new Set(validSkills)).slice(0, 100); // Reasonable limit
       debugLog(`Extracted ${uniqueSkillNames.length} unique skills after resolution`);
       
       return uniqueSkillNames;
@@ -216,13 +209,13 @@ export class MatrixTransformer {
             const taskBreakdown = await this.generateTaskBreakdownWithResolution(tasks, skill, period.period);
             
             // Calculate derived metrics safely
-            const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length);
+            const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length, 1000);
             const clientIds = new Set(
               taskBreakdown
                 .map(t => t.clientId)
                 .filter(id => typeof id === 'string' && id.length > 0)
             );
-            const clientCount = DataValidator.sanitizeArrayLength(clientIds.size);
+            const clientCount = DataValidator.sanitizeArrayLength(clientIds.size, 1000);
 
             const dataPoint: DemandDataPoint = {
               skillType: skill,
@@ -265,8 +258,8 @@ export class MatrixTransformer {
           if (!task || !Array.isArray(task.required_skills)) continue;
           
           // Check if this task requires the skill (by name or UUID)
-          const skillNames = await SkillResolutionService.getSkillNames(task.required_skills);
-          const hasSkill = skillNames.some(skillName => 
+          const { validSkills } = await SkillResolutionService.resolveSkillReferences(task.required_skills);
+          const hasSkill = validSkills.some(skillName => 
             skillName.toLowerCase() === skill.toLowerCase() ||
             task.required_skills.includes(skill)
           );
