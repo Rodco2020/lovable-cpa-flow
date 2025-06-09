@@ -1,8 +1,10 @@
+
 /**
  * Edge Case Integration Tests for Demand Matrix
  * Tests for handling unusual scenarios and edge cases
  */
 
+import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TestWrapper } from '../../quality/testUtils/TestWrapper';

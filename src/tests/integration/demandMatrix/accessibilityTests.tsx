@@ -4,6 +4,7 @@
  * Tests for ARIA compliance, keyboard navigation, and screen reader support
  */
 
+import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TestWrapper } from '../../quality/testUtils/TestWrapper';

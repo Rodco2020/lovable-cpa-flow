@@ -4,6 +4,7 @@
  * Tests for performance optimization and large dataset handling
  */
 
+import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TestWrapper } from '../../quality/testUtils/TestWrapper';

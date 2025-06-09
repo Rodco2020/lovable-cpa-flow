@@ -4,6 +4,7 @@
  * Tests for real-time data updates and synchronization
  */
 
+import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TestWrapper } from '../../quality/testUtils/TestWrapper';
