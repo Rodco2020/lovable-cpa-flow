@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
-import { RecurringTaskDB, TaskPriority } from '@/types/task';
+import { RecurringTaskDB, TaskPriority, TaskCategory } from '@/types/task';
 import { DataValidator } from './dataValidator';
 
 /**
@@ -52,7 +52,8 @@ export class DataFetcher {
       // Type-cast the raw data to ensure proper typing
       const typedData: RecurringTaskDB[] = data.map(task => ({
         ...task,
-        priority: task.priority as TaskPriority // Explicit cast to TaskPriority
+        priority: task.priority as TaskPriority, // Explicit cast to TaskPriority
+        category: task.category as TaskCategory // Explicit cast to TaskCategory
       }));
 
       // Validate and sanitize the data
