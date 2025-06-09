@@ -101,47 +101,60 @@ export class MatrixTransformer {
   }
 
   /**
-   * Extract unique skills with skill resolution for consistent UUIDs
+   * Extract unique skills with skill resolution for consistent display names
    */
   private static async extractUniqueSkillsWithResolution(
     forecastData: ForecastData[], 
     tasks: RecurringTaskDB[]
   ): Promise<SkillType[]> {
     try {
-      const skillsSet = new Set<SkillType>();
+      const skillRefsSet = new Set<string>();
+
+      console.log('🔍 [MATRIX TRANSFORMER] Extracting skills from forecast data and tasks...');
 
       // Extract from forecast data
       forecastData.forEach(period => {
         if (period && Array.isArray(period.demand)) {
           period.demand.forEach(demandItem => {
             if (demandItem && typeof demandItem.skill === 'string' && demandItem.skill.trim().length > 0) {
-              skillsSet.add(demandItem.skill.trim());
+              skillRefsSet.add(demandItem.skill.trim());
             }
           });
         }
       });
 
-      // Extract from validated tasks (these should already have resolved UUIDs)
+      // Extract from validated tasks (these may be UUIDs or names)
       tasks.forEach(task => {
         if (task && Array.isArray(task.required_skills)) {
           task.required_skills.forEach(skill => {
             if (typeof skill === 'string' && skill.trim().length > 0) {
-              skillsSet.add(skill.trim());
+              skillRefsSet.add(skill.trim());
             }
           });
         }
       });
 
-      // Get all skills and convert to display names for consistency
-      const allSkillRefs = Array.from(skillsSet);
-      const { validSkills } = await SkillResolutionService.resolveSkillReferences(allSkillRefs);
+      const allSkillRefs = Array.from(skillRefsSet);
+      console.log('🎯 [MATRIX TRANSFORMER] Collected skill references:', allSkillRefs);
+
+      if (allSkillRefs.length === 0) {
+        console.warn('⚠️ [MATRIX TRANSFORMER] No skill references found');
+        return [];
+      }
+
+      // Convert UUIDs to display names using skill resolution service
+      const displayNames = await SkillResolutionService.getSkillNames(allSkillRefs);
+      console.log('✅ [MATRIX TRANSFORMER] Resolved skill display names:', displayNames);
       
-      const uniqueSkillNames = Array.from(new Set(validSkills)).slice(0, 100); // Reasonable limit
-      debugLog(`Extracted ${uniqueSkillNames.length} unique skills after resolution`);
+      const uniqueSkillNames = Array.from(new Set(displayNames))
+        .filter(name => name && name.length > 0)
+        .slice(0, 100); // Reasonable limit
+      
+      console.log(`📊 [MATRIX TRANSFORMER] Final unique skill names (${uniqueSkillNames.length}):`, uniqueSkillNames);
       
       return uniqueSkillNames;
     } catch (error) {
-      console.error('Error extracting unique skills:', error);
+      console.error('❌ [MATRIX TRANSFORMER] Error extracting unique skills:', error);
       return [];
     }
   }
@@ -247,22 +260,30 @@ export class MatrixTransformer {
    */
   private static async generateTaskBreakdownWithResolution(
     tasks: RecurringTaskDB[],
-    skill: SkillType,
+    skillDisplayName: SkillType,
     period: string
   ): Promise<ClientTaskDemand[]> {
     try {
       const breakdown: ClientTaskDemand[] = [];
 
+      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" in period ${period}`);
+
       for (const task of tasks) {
         try {
           if (!task || !Array.isArray(task.required_skills)) continue;
           
-          // Check if this task requires the skill (by name or UUID)
-          const { validSkills } = await SkillResolutionService.resolveSkillReferences(task.required_skills);
-          const hasSkill = validSkills.some(skillName => 
-            skillName.toLowerCase() === skill.toLowerCase() ||
-            task.required_skills.includes(skill)
+          console.log(`📋 [TASK BREAKDOWN] Checking task ${task.id} with skills:`, task.required_skills);
+          
+          // Convert task's skill UUIDs to display names for comparison
+          const taskSkillDisplayNames = await SkillResolutionService.getSkillNames(task.required_skills);
+          console.log(`🎯 [TASK BREAKDOWN] Task ${task.id} skill display names:`, taskSkillDisplayNames);
+          
+          // Check if this task requires the skill by comparing display names
+          const hasSkill = taskSkillDisplayNames.some(taskSkillName => 
+            taskSkillName.toLowerCase().trim() === skillDisplayName.toLowerCase().trim()
           );
+
+          console.log(`✅ [TASK BREAKDOWN] Task ${task.id} has skill "${skillDisplayName}":`, hasSkill);
 
           if (hasSkill) {
             // Get client name safely
@@ -273,7 +294,7 @@ export class MatrixTransformer {
               clientName: clientName,
               recurringTaskId: task.id,
               taskName: task.name || 'Unnamed Task',
-              skillType: skill,
+              skillType: skillDisplayName, // Use the display name
               estimatedHours: Math.max(0, task.estimated_hours || 0),
               recurrencePattern: {
                 type: task.recurrence_type || 'Monthly',
@@ -284,6 +305,7 @@ export class MatrixTransformer {
             };
 
             breakdown.push(demandItem);
+            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} to breakdown for skill "${skillDisplayName}"`);
           }
         } catch (taskError) {
           console.warn(`Error processing task ${task.id} for breakdown:`, taskError);
@@ -291,9 +313,10 @@ export class MatrixTransformer {
         }
       }
 
+      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}"`);
       return breakdown.slice(0, 100); // Limit to prevent performance issues
     } catch (error) {
-      console.warn(`Error generating task breakdown for ${skill}:`, error);
+      console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);
       return [];
     }
   }
