@@ -38,26 +38,28 @@ export class ForecastGenerator {
     // Generate monthly periods
     const months = PeriodGenerator.generateMonthlyPeriods(dateRange.startDate, dateRange.endDate);
     
-    // Process each month
-    const forecastData: ForecastData[] = months.map(month => {
-      const monthStart = new Date(month.start);
-      const monthEnd = new Date(month.end);
-      
-      // Calculate demand for this month
-      const demandBySkill = SkillCalculator.calculateMonthlyDemandBySkill(
-        tasks,
-        monthStart,
-        monthEnd
-      );
+    // Process each month - make this async to handle the Promise from calculateMonthlyDemandBySkill
+    const forecastData: ForecastData[] = await Promise.all(
+      months.map(async (month) => {
+        const monthStart = new Date(month.start);
+        const monthEnd = new Date(month.end);
+        
+        // Calculate demand for this month - await the Promise
+        const demandBySkill = await SkillCalculator.calculateMonthlyDemandBySkill(
+          tasks,
+          monthStart,
+          monthEnd
+        );
 
-      return {
-        period: format(monthStart, 'yyyy-MM'),
-        demand: demandBySkill,
-        capacity: [], // Demand-only forecast
-        demandHours: demandBySkill.reduce((sum, skill) => sum + skill.hours, 0),
-        capacityHours: 0
-      };
-    });
+        return {
+          period: format(monthStart, 'yyyy-MM'),
+          demand: demandBySkill,
+          capacity: [], // Demand-only forecast
+          demandHours: demandBySkill.reduce((sum, skill) => sum + skill.hours, 0),
+          capacityHours: 0
+        };
+      })
+    );
 
     debugLog(`Generated demand forecast with ${forecastData.length} periods`);
     return forecastData;

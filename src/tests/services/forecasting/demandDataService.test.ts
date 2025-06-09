@@ -16,7 +16,7 @@ vi.mock('@/services/forecasting/demand', () => ({
     generateDemandForecast: vi.fn(() => Promise.resolve([]))
   },
   MatrixTransformer: {
-    transformToMatrixData: vi.fn(() => ({
+    transformToMatrixData: vi.fn(() => Promise.resolve({
       months: [{ key: '2025-01', label: 'Jan 2025' }],
       skills: ['Tax Preparation'],
       dataPoints: [],
@@ -111,7 +111,7 @@ describe('DemandDataService (Refactored)', () => {
   });
 
   describe('transformToMatrixData', () => {
-    it('should delegate to MatrixTransformer', () => {
+    it('should delegate to MatrixTransformer', async () => {
       const forecastData = [
         {
           period: '2025-01',
@@ -151,7 +151,7 @@ describe('DemandDataService (Refactored)', () => {
       }];
 
       const { MatrixTransformer } = require('@/services/forecasting/demand');
-      MatrixTransformer.transformToMatrixData.mockReturnValue({
+      MatrixTransformer.transformToMatrixData.mockResolvedValue({
         months: [{ key: '2025-01', label: 'Jan 2025' }],
         skills: ['Tax Preparation'],
         dataPoints: [],
@@ -161,7 +161,7 @@ describe('DemandDataService (Refactored)', () => {
         skillSummary: {}
       });
 
-      const result = DemandDataService.transformToMatrixData(forecastData, tasks);
+      const result = await DemandDataService.transformToMatrixData(forecastData, tasks);
 
       expect(MatrixTransformer.transformToMatrixData).toHaveBeenCalledWith(forecastData, tasks);
       expect(result.totalDemand).toBe(100);
