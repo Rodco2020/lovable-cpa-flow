@@ -2,7 +2,7 @@
 import { DemandMatrixData } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
-import { MatrixTransformerCore } from './matrixTransformer';
+import { MatrixTransformerCore } from './matrixTransformer/index';
 
 /**
  * Matrix Transformer - Backward Compatible API

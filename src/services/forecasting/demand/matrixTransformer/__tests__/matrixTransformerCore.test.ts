@@ -6,6 +6,8 @@ import { SkillMappingService } from '../skillMappingService';
 import { DataPointGenerationService } from '../dataPointGenerationService';
 import { PeriodProcessingService } from '../periodProcessingService';
 import { CalculationUtils } from '../calculationUtils';
+import { RecurringTaskDB } from '@/types/task';
+import { ForecastData } from '@/types/forecasting';
 
 // Mock dependencies
 vi.mock('../../dataValidator');
@@ -21,9 +23,39 @@ describe('MatrixTransformerCore', () => {
 
   describe('transformToMatrixData', () => {
     it('should transform forecast data to matrix format successfully', async () => {
-      // Arrange
-      const forecastData = [{ period: '2024-01', demand: [] }];
-      const tasks = [{ id: 'task1', name: 'Test Task' }];
+      // Arrange - Complete forecast data with all required properties
+      const forecastData: ForecastData[] = [{ 
+        period: '2024-01', 
+        demand: [{ skill: 'Tax Preparation', hours: 120 }],
+        capacity: [{ skill: 'Tax Preparation', hours: 100 }]
+      }];
+
+      // Complete task data with all required RecurringTaskDB properties
+      const tasks: RecurringTaskDB[] = [{
+        id: 'task1',
+        template_id: 'template1',
+        client_id: 'client1',
+        name: 'Test Task',
+        description: 'Test description',
+        estimated_hours: 8,
+        required_skills: ['Tax Preparation'],
+        priority: 'Medium',
+        category: 'Tax',
+        status: 'Unscheduled',
+        due_date: '2024-01-15',
+        recurrence_type: 'Monthly',
+        recurrence_interval: 1,
+        weekdays: null,
+        day_of_month: 15,
+        month_of_year: null,
+        end_date: null,
+        custom_offset_days: null,
+        last_generated_date: null,
+        is_active: true,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        notes: null
+      }];
 
       const mockValidationResult = {
         validTasks: tasks,
