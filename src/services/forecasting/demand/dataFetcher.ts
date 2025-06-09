@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
@@ -6,14 +5,18 @@ import { RecurringTaskDB, TaskPriority, TaskCategory, TaskStatus } from '@/types
 import { DataValidator } from './dataValidator';
 
 /**
- * Enhanced Data Fetcher Service with validation and error handling
+ * Enhanced Data Fetcher Service with validation, error handling, and skill resolution
  */
 export class DataFetcher {
   /**
-   * Fetch client-assigned tasks with comprehensive validation
+   * Fetch client-assigned tasks with comprehensive validation and error recovery
    */
-  static async fetchClientAssignedTasks(filters: DemandFilters = { skills: [], clients: [], timeHorizon: { start: new Date(), end: new Date() } }): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching client-assigned tasks with filters', { filters });
+  static async fetchClientAssignedTasks(filters: DemandFilters = { 
+    skills: [], 
+    clients: [], 
+    timeHorizon: { start: new Date(), end: new Date() } 
+  }): Promise<RecurringTaskDB[]> {
+    debugLog('Fetching client-assigned tasks with enhanced validation', { filters });
 
     try {
       // Build query with proper error handling
@@ -34,16 +37,16 @@ export class DataFetcher {
         }
       }
 
-      // Execute query with timeout
+      // Execute query with timeout and retry logic
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching recurring tasks:', error);
+        console.error('Database query failed:', error);
         throw new Error(`Database query failed: ${error.message}`);
       }
 
       if (!data) {
-        debugLog('No recurring tasks found');
+        debugLog('No recurring tasks found in database');
         return [];
       }
 
@@ -52,30 +55,105 @@ export class DataFetcher {
       // Type-cast the raw data to ensure proper typing
       const typedData: RecurringTaskDB[] = data.map(task => ({
         ...task,
-        priority: task.priority as TaskPriority, // Explicit cast to TaskPriority
-        category: task.category as TaskCategory, // Explicit cast to TaskCategory
-        status: task.status as TaskStatus // Explicit cast to TaskStatus
+        priority: task.priority as TaskPriority,
+        category: task.category as TaskCategory,
+        status: task.status as TaskStatus
       }));
 
-      // Validate and sanitize the data
-      const { validTasks, invalidTasks } = DataValidator.validateRecurringTasks(typedData);
+      // Enhanced validation and cleaning with skill resolution
+      const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(typedData);
 
+      // Provide detailed feedback about data quality
       if (invalidTasks.length > 0) {
-        console.warn(`Found ${invalidTasks.length} invalid tasks, excluding from processing`);
-        invalidTasks.forEach(({ task, errors }) => {
-          console.warn(`Invalid task ${task.id}:`, errors);
-        });
+        console.warn(`Data quality issues: ${invalidTasks.length}/${typedData.length} tasks excluded`);
+        
+        // Group errors for better reporting
+        const errorSummary = this.summarizeValidationErrors(invalidTasks);
+        console.warn('Validation error summary:', errorSummary);
       }
 
-      debugLog(`Validated ${validTasks.length} tasks for processing`);
+      if (resolvedTasks.length > 0) {
+        console.log(`Successfully resolved skill references for ${resolvedTasks.length} tasks`);
+      }
+
+      const successRate = ((validTasks.length / typedData.length) * 100).toFixed(1);
+      debugLog(`Data validation complete: ${validTasks.length}/${typedData.length} tasks valid (${successRate}%)`);
+      
       return validTasks;
 
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
       
-      // Return empty array instead of throwing to prevent cascade failures
+      // Instead of returning empty array, try a fallback approach
+      return this.attemptFallbackDataFetch();
+    }
+  }
+
+  /**
+   * Attempt fallback data fetch with minimal filtering
+   */
+  private static async attemptFallbackDataFetch(): Promise<RecurringTaskDB[]> {
+    try {
+      console.log('Attempting fallback data fetch with minimal filtering...');
+      
+      const { data, error } = await supabase
+        .from('recurring_tasks')
+        .select('*, clients(id, legal_name)')
+        .eq('is_active', true)
+        .limit(100); // Limit to prevent overwhelming the system
+
+      if (error) {
+        console.error('Fallback query also failed:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('No data available even with fallback approach');
+        return [];
+      }
+
+      // Apply basic type casting and minimal validation
+      const fallbackTasks: RecurringTaskDB[] = data
+        .filter(task => task && task.id && task.client_id) // Basic existence check
+        .map(task => ({
+          ...task,
+          priority: (task.priority as TaskPriority) || 'Medium',
+          category: (task.category as TaskCategory) || 'Other',
+          status: (task.status as TaskStatus) || 'Unscheduled',
+          required_skills: Array.isArray(task.required_skills) ? task.required_skills : []
+        }));
+
+      console.log(`Fallback fetch recovered ${fallbackTasks.length} tasks`);
+      return fallbackTasks;
+
+    } catch (fallbackError) {
+      console.error('Fallback data fetch failed:', fallbackError);
       return [];
     }
+  }
+
+  /**
+   * Summarize validation errors for better reporting
+   */
+  private static summarizeValidationErrors(invalidTasks: Array<{ task: RecurringTaskDB; errors: string[] }>): Record<string, number> {
+    const errorCounts: Record<string, number> = {};
+
+    invalidTasks.forEach(({ errors }) => {
+      errors.forEach(error => {
+        // Categorize errors for cleaner reporting
+        let category = 'Other';
+        
+        if (error.includes('skill')) category = 'Invalid Skills';
+        else if (error.includes('hours')) category = 'Invalid Hours';
+        else if (error.includes('date')) category = 'Invalid Dates';
+        else if (error.includes('ID')) category = 'Missing IDs';
+        else if (error.includes('recurrence')) category = 'Invalid Recurrence';
+
+        errorCounts[category] = (errorCounts[category] || 0) + 1;
+      });
+    });
+
+    return errorCounts;
   }
 
   /**

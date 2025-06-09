@@ -1,23 +1,23 @@
-
 import { format } from 'date-fns';
 import { debugLog } from '../logger';
 import { DemandMatrixData, DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB, SkillType } from '@/types/task';
 import { DataValidator } from './dataValidator';
+import { SkillResolutionService } from './skillResolutionService';
 
 /**
- * Enhanced Matrix Transformer with validation and error handling
+ * Enhanced Matrix Transformer with skill resolution and robust error handling
  */
 export class MatrixTransformer {
   /**
-   * Transform forecast data to matrix format with comprehensive validation
+   * Transform forecast data to matrix format with comprehensive validation and skill resolution
    */
-  static transformToMatrixData(
+  static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
-  ): DemandMatrixData {
-    debugLog('Transforming forecast data to matrix', { 
+  ): Promise<DemandMatrixData> {
+    debugLog('Transforming forecast data to matrix with skill resolution', { 
       periodsCount: forecastData.length, 
       tasksCount: tasks.length 
     });
@@ -34,17 +34,30 @@ export class MatrixTransformer {
         tasks = [];
       }
 
-      // Validate and filter tasks
-      const { validTasks } = DataValidator.validateRecurringTasks(tasks);
+      // Enhanced validation and cleaning with skill resolution
+      const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(tasks);
+
+      // Log resolution results
+      if (resolvedTasks.length > 0) {
+        console.log(`Resolved skills for ${resolvedTasks.length} tasks`);
+        debugLog('Skill resolution results', { resolvedTasks });
+      }
+
+      if (invalidTasks.length > 0) {
+        console.warn(`Excluded ${invalidTasks.length} invalid tasks from matrix generation`);
+        invalidTasks.slice(0, 3).forEach(({ task, errors }) => {
+          console.warn(`Task ${task.id}:`, errors.slice(0, 2)); // Limit error spam
+        });
+      }
 
       // Generate months from forecast data
       const months = this.generateMonthsFromForecast(forecastData);
       
-      // Extract unique skills from forecast data and tasks
-      const skills = this.extractUniqueSkills(forecastData, validTasks);
+      // Extract unique skills from forecast data and validated tasks
+      const skills = await this.extractUniqueSkillsWithResolution(forecastData, validTasks);
       
-      // Generate data points
-      const dataPoints = this.generateDataPoints(forecastData, validTasks, skills);
+      // Generate data points with error resilience
+      const dataPoints = await this.generateDataPointsRobust(forecastData, validTasks, skills);
       
       // Calculate totals safely
       const totals = this.calculateTotals(dataPoints);
@@ -65,11 +78,17 @@ export class MatrixTransformer {
       // Validate the final matrix data
       const validationErrors = DataValidator.validateMatrixData(matrixData);
       if (validationErrors.length > 0) {
-        console.warn('Matrix data validation issues:', validationErrors);
+        console.warn('Matrix data validation issues:', validationErrors.slice(0, 5)); // Limit error output
         // Continue with potentially corrected data rather than failing completely
       }
 
-      debugLog(`Generated matrix with ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points`);
+      const successMessage = `Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points`;
+      if (resolvedTasks.length > 0) {
+        debugLog(`${successMessage} (resolved skills for ${resolvedTasks.length} tasks)`);
+      } else {
+        debugLog(successMessage);
+      }
+
       return matrixData;
 
     } catch (error) {
@@ -85,6 +104,52 @@ export class MatrixTransformer {
         totalClients: 0,
         skillSummary: {}
       };
+    }
+  }
+
+  /**
+   * Extract unique skills with skill resolution for consistent UUIDs
+   */
+  private static async extractUniqueSkillsWithResolution(
+    forecastData: ForecastData[], 
+    tasks: RecurringTaskDB[]
+  ): Promise<SkillType[]> {
+    try {
+      const skillsSet = new Set<SkillType>();
+
+      // Extract from forecast data
+      forecastData.forEach(period => {
+        if (period && Array.isArray(period.demand)) {
+          period.demand.forEach(demandItem => {
+            if (demandItem && typeof demandItem.skill === 'string' && demandItem.skill.trim().length > 0) {
+              skillsSet.add(demandItem.skill.trim());
+            }
+          });
+        }
+      });
+
+      // Extract from validated tasks (these should already have resolved UUIDs)
+      tasks.forEach(task => {
+        if (task && Array.isArray(task.required_skills)) {
+          task.required_skills.forEach(skill => {
+            if (typeof skill === 'string' && skill.trim().length > 0) {
+              skillsSet.add(skill.trim());
+            }
+          });
+        }
+      });
+
+      // Get all skills and convert to display names for consistency
+      const allSkillRefs = Array.from(skillsSet);
+      const skillNames = await SkillResolutionService.getSkillNames(allSkillRefs);
+      
+      const uniqueSkillNames = Array.from(new Set(skillNames)).slice(0, 100); // Reasonable limit
+      debugLog(`Extracted ${uniqueSkillNames.length} unique skills after resolution`);
+      
+      return uniqueSkillNames;
+    } catch (error) {
+      console.error('Error extracting unique skills:', error);
+      return [];
     }
   }
 
@@ -132,50 +197,13 @@ export class MatrixTransformer {
   }
 
   /**
-   * Extract unique skills with validation
+   * Generate data points with enhanced error handling and skill resolution
    */
-  private static extractUniqueSkills(forecastData: ForecastData[], tasks: RecurringTaskDB[]): SkillType[] {
-    try {
-      const skillsSet = new Set<SkillType>();
-
-      // Extract from forecast data
-      forecastData.forEach(period => {
-        if (period && Array.isArray(period.demand)) {
-          period.demand.forEach(demandItem => {
-            if (demandItem && typeof demandItem.skill === 'string' && demandItem.skill.trim().length > 0) {
-              skillsSet.add(demandItem.skill.trim());
-            }
-          });
-        }
-      });
-
-      // Extract from tasks
-      tasks.forEach(task => {
-        if (task && Array.isArray(task.required_skills)) {
-          task.required_skills.forEach(skill => {
-            if (typeof skill === 'string' && skill.trim().length > 0) {
-              skillsSet.add(skill.trim());
-            }
-          });
-        }
-      });
-
-      const skills = Array.from(skillsSet).slice(0, 100); // Reasonable limit
-      return skills;
-    } catch (error) {
-      console.error('Error extracting unique skills:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Generate data points with comprehensive error handling
-   */
-  private static generateDataPoints(
+  private static async generateDataPointsRobust(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[],
     skills: SkillType[]
-  ): DemandDataPoint[] {
+  ): Promise<DemandDataPoint[]> {
     try {
       const dataPoints: DemandDataPoint[] = [];
 
@@ -185,11 +213,15 @@ export class MatrixTransformer {
             if (!period || !period.period) continue;
 
             const demandHours = this.calculateDemandForSkillPeriod(period, skill);
-            const taskBreakdown = this.generateTaskBreakdown(tasks, skill, period.period);
+            const taskBreakdown = await this.generateTaskBreakdownWithResolution(tasks, skill, period.period);
             
             // Calculate derived metrics safely
             const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length);
-            const clientIds = new Set(taskBreakdown.map(t => t.clientId).filter(id => typeof id === 'string'));
+            const clientIds = new Set(
+              taskBreakdown
+                .map(t => t.clientId)
+                .filter(id => typeof id === 'string' && id.length > 0)
+            );
             const clientCount = DataValidator.sanitizeArrayLength(clientIds.size);
 
             const dataPoint: DemandDataPoint = {
@@ -205,7 +237,7 @@ export class MatrixTransformer {
             dataPoints.push(dataPoint);
           } catch (pointError) {
             console.warn(`Error generating data point for ${skill} in ${period.period}:`, pointError);
-            // Continue with other data points
+            // Continue with other data points - don't let one error break everything
           }
         }
       }
@@ -213,6 +245,62 @@ export class MatrixTransformer {
       return dataPoints;
     } catch (error) {
       console.error('Error generating data points:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Generate task breakdown with skill resolution for consistent matching
+   */
+  private static async generateTaskBreakdownWithResolution(
+    tasks: RecurringTaskDB[],
+    skill: SkillType,
+    period: string
+  ): Promise<ClientTaskDemand[]> {
+    try {
+      const breakdown: ClientTaskDemand[] = [];
+
+      for (const task of tasks) {
+        try {
+          if (!task || !Array.isArray(task.required_skills)) continue;
+          
+          // Check if this task requires the skill (by name or UUID)
+          const skillNames = await SkillResolutionService.getSkillNames(task.required_skills);
+          const hasSkill = skillNames.some(skillName => 
+            skillName.toLowerCase() === skill.toLowerCase() ||
+            task.required_skills.includes(skill)
+          );
+
+          if (hasSkill) {
+            // Get client name safely
+            const clientName = task.clients?.legal_name || 'Unknown Client';
+            
+            const demandItem: ClientTaskDemand = {
+              clientId: task.client_id || 'unknown',
+              clientName: clientName,
+              recurringTaskId: task.id,
+              taskName: task.name || 'Unnamed Task',
+              skillType: skill,
+              estimatedHours: Math.max(0, task.estimated_hours || 0),
+              recurrencePattern: {
+                type: task.recurrence_type || 'Monthly',
+                interval: task.recurrence_interval || 1,
+                frequency: 1 // Simplified for now
+              },
+              monthlyHours: Math.max(0, task.estimated_hours || 0) // Simplified calculation
+            };
+
+            breakdown.push(demandItem);
+          }
+        } catch (taskError) {
+          console.warn(`Error processing task ${task.id} for breakdown:`, taskError);
+          // Continue with other tasks
+        }
+      }
+
+      return breakdown.slice(0, 100); // Limit to prevent performance issues
+    } catch (error) {
+      console.warn(`Error generating task breakdown for ${skill}:`, error);
       return [];
     }
   }
@@ -235,53 +323,6 @@ export class MatrixTransformer {
     } catch (error) {
       console.warn(`Error calculating demand for skill ${skill}:`, error);
       return 0;
-    }
-  }
-
-  /**
-   * Generate task breakdown for drill-down functionality
-   */
-  private static generateTaskBreakdown(
-    tasks: RecurringTaskDB[],
-    skill: SkillType,
-    period: string
-  ): ClientTaskDemand[] {
-    try {
-      const breakdown: ClientTaskDemand[] = [];
-
-      for (const task of tasks) {
-        try {
-          if (!task || !Array.isArray(task.required_skills)) continue;
-          
-          if (task.required_skills.includes(skill)) {
-            // Get client name safely
-            const clientName = task.clients?.legal_name || 'Unknown Client';
-            
-            breakdown.push({
-              clientId: task.client_id || 'unknown',
-              clientName: clientName,
-              recurringTaskId: task.id,
-              taskName: task.name || 'Unnamed Task',
-              skillType: skill,
-              estimatedHours: Math.max(0, task.estimated_hours || 0),
-              recurrencePattern: {
-                type: task.recurrence_type || 'Monthly',
-                interval: task.recurrence_interval || 1,
-                frequency: 1 // Simplified for now
-              },
-              monthlyHours: Math.max(0, task.estimated_hours || 0) // Simplified calculation
-            });
-          }
-        } catch (taskError) {
-          console.warn(`Error processing task ${task.id} for breakdown:`, taskError);
-          // Continue with other tasks
-        }
-      }
-
-      return breakdown.slice(0, 100); // Limit to prevent performance issues
-    } catch (error) {
-      console.warn(`Error generating task breakdown for ${skill}:`, error);
-      return [];
     }
   }
 

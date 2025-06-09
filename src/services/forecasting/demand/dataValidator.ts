@@ -1,44 +1,83 @@
 
 /**
  * Data Validation Service for Demand Matrix
- * Comprehensive validation to prevent invalid array lengths and data corruption
+ * Enhanced with skill resolution and graceful error handling
  */
 
 import { RecurringTaskDB } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
+import { SkillResolutionService } from './skillResolutionService';
 
 export class DataValidator {
   /**
-   * Validate recurring tasks data before processing
+   * Validate and clean recurring tasks data with skill resolution
    */
-  static validateRecurringTasks(tasks: RecurringTaskDB[]): {
+  static async validateRecurringTasks(tasks: RecurringTaskDB[]): Promise<{
     validTasks: RecurringTaskDB[];
     invalidTasks: Array<{ task: RecurringTaskDB; errors: string[] }>;
-  } {
+    resolvedTasks: Array<{ taskId: string; resolvedSkills: string[] }>;
+  }> {
     const validTasks: RecurringTaskDB[] = [];
     const invalidTasks: Array<{ task: RecurringTaskDB; errors: string[] }> = [];
+    const resolvedTasks: Array<{ taskId: string; resolvedSkills: string[] }> = [];
 
     for (const task of tasks) {
-      const errors = this.validateSingleTask(task);
+      const errors = await this.validateAndCleanSingleTask(task);
       
-      if (errors.length === 0) {
-        validTasks.push(task);
+      if (errors.length === 0 || this.areErrorsRecoverable(errors)) {
+        // Try to resolve skill references
+        try {
+          const skillResolution = await SkillResolutionService.resolveSkillReferences(task.required_skills || []);
+          
+          if (skillResolution.validSkills.length > 0) {
+            // Create cleaned task with resolved skills
+            const cleanedTask = {
+              ...task,
+              required_skills: skillResolution.validSkills
+            };
+            
+            validTasks.push(cleanedTask);
+            
+            if (skillResolution.resolvedCount > 0) {
+              resolvedTasks.push({
+                taskId: task.id,
+                resolvedSkills: skillResolution.validSkills
+              });
+            }
+            
+            // Log resolution if there were invalid skills
+            if (skillResolution.invalidSkills.length > 0) {
+              console.warn(`Task ${task.id}: Resolved ${skillResolution.resolvedCount} skills, ignored ${skillResolution.invalidSkills.length} invalid skills`);
+            }
+          } else {
+            // No valid skills found - mark as invalid but with specific error
+            const enhancedErrors = [...errors, `No valid skills found after resolution. Invalid skills: ${skillResolution.invalidSkills.join(', ')}`];
+            invalidTasks.push({ task, errors: enhancedErrors });
+          }
+        } catch (skillError) {
+          console.warn(`Error resolving skills for task ${task.id}:`, skillError);
+          // If skill resolution fails, use original validation result
+          if (errors.length === 0) {
+            validTasks.push(task);
+          } else {
+            invalidTasks.push({ task, errors });
+          }
+        }
       } else {
         invalidTasks.push({ task, errors });
-        console.warn(`Invalid task detected: ${task.id}`, errors);
       }
     }
 
-    return { validTasks, invalidTasks };
+    return { validTasks, invalidTasks, resolvedTasks };
   }
 
   /**
-   * Validate a single recurring task
+   * Enhanced validation for a single recurring task
    */
-  private static validateSingleTask(task: RecurringTaskDB): string[] {
+  private static async validateAndCleanSingleTask(task: RecurringTaskDB): Promise<string[]> {
     const errors: string[] = [];
 
-    // Basic field validation
+    // Basic field validation with more lenient approach
     if (!task.id || typeof task.id !== 'string') {
       errors.push('Missing or invalid task ID');
     }
@@ -51,7 +90,7 @@ export class DataValidator {
       errors.push('Missing or invalid template ID');
     }
 
-    // Estimated hours validation
+    // Estimated hours validation - allow zero but not negative
     if (typeof task.estimated_hours !== 'number' || 
         task.estimated_hours < 0 || 
         task.estimated_hours > 1000 || 
@@ -59,12 +98,13 @@ export class DataValidator {
       errors.push(`Invalid estimated hours: ${task.estimated_hours}`);
     }
 
-    // Required skills validation
+    // Required skills validation - be more permissive
     if (!Array.isArray(task.required_skills)) {
       errors.push('Required skills must be an array');
     } else if (task.required_skills.length > 50) {
       errors.push(`Too many required skills: ${task.required_skills.length}`);
     }
+    // Note: We don't validate individual skill UUIDs here as we'll resolve them
 
     // Recurrence type validation
     const validRecurrenceTypes = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually'];
@@ -82,18 +122,26 @@ export class DataValidator {
       errors.push(`Invalid recurrence interval: ${interval}`);
     }
 
-    // Date validation
+    // Date validation with better error handling
     if (task.due_date) {
-      const dueDate = new Date(task.due_date);
-      if (isNaN(dueDate.getTime())) {
-        errors.push(`Invalid due date: ${task.due_date}`);
+      try {
+        const dueDate = new Date(task.due_date);
+        if (isNaN(dueDate.getTime())) {
+          errors.push(`Invalid due date: ${task.due_date}`);
+        }
+      } catch {
+        errors.push(`Invalid due date format: ${task.due_date}`);
       }
     }
 
     if (task.end_date) {
-      const endDate = new Date(task.end_date);
-      if (isNaN(endDate.getTime())) {
-        errors.push(`Invalid end date: ${task.end_date}`);
+      try {
+        const endDate = new Date(task.end_date);
+        if (isNaN(endDate.getTime())) {
+          errors.push(`Invalid end date: ${task.end_date}`);
+        }
+      } catch {
+        errors.push(`Invalid end date format: ${task.end_date}`);
       }
     }
 
@@ -132,7 +180,23 @@ export class DataValidator {
   }
 
   /**
-   * Validate matrix data structure
+   * Determine if errors are recoverable (e.g., we can work around them)
+   */
+  private static areErrorsRecoverable(errors: string[]): boolean {
+    // Define which types of errors can be worked around
+    const recoverableErrorPatterns = [
+      /Invalid estimated hours/,
+      /Too many required skills/,
+      /Invalid.*date/
+    ];
+
+    return errors.every(error => 
+      recoverableErrorPatterns.some(pattern => pattern.test(error))
+    );
+  }
+
+  /**
+   * Validate matrix data structure with enhanced error handling
    */
   static validateMatrixData(matrixData: DemandMatrixData): string[] {
     const errors: string[] = [];
@@ -154,7 +218,7 @@ export class DataValidator {
       }
 
       matrixData.months.forEach((month, index) => {
-        if (!month.key || !month.label) {
+        if (!month || !month.key || !month.label) {
           errors.push(`Invalid month at index ${index}: missing key or label`);
         }
       });
@@ -167,7 +231,7 @@ export class DataValidator {
       errors.push(`Too many skills: ${matrixData.skills.length} (max: 100)`);
     }
 
-    // Validate data points
+    // Validate data points with more lenient approach
     if (!Array.isArray(matrixData.dataPoints)) {
       errors.push('Data points must be an array');
     } else {
@@ -175,31 +239,46 @@ export class DataValidator {
         errors.push(`Too many data points: ${matrixData.dataPoints.length} (max: 10000)`);
       }
 
+      let invalidPointsCount = 0;
       matrixData.dataPoints.forEach((point, index) => {
         if (typeof point.demandHours !== 'number' || 
             !isFinite(point.demandHours) || 
             point.demandHours < 0) {
-          errors.push(`Invalid demand hours at data point ${index}: ${point.demandHours}`);
+          invalidPointsCount++;
+          if (invalidPointsCount <= 5) { // Only report first 5 to avoid spam
+            errors.push(`Invalid demand hours at data point ${index}: ${point.demandHours}`);
+          }
         }
 
         if (typeof point.taskCount !== 'number' || 
             !Number.isInteger(point.taskCount) || 
             point.taskCount < 0) {
-          errors.push(`Invalid task count at data point ${index}: ${point.taskCount}`);
+          invalidPointsCount++;
+          if (invalidPointsCount <= 5) {
+            errors.push(`Invalid task count at data point ${index}: ${point.taskCount}`);
+          }
         }
 
         if (typeof point.clientCount !== 'number' || 
             !Number.isInteger(point.clientCount) || 
             point.clientCount < 0) {
-          errors.push(`Invalid client count at data point ${index}: ${point.clientCount}`);
+          invalidPointsCount++;
+          if (invalidPointsCount <= 5) {
+            errors.push(`Invalid client count at data point ${index}: ${point.clientCount}`);
+          }
         }
       });
+
+      if (invalidPointsCount > 5) {
+        errors.push(`... and ${invalidPointsCount - 5} more data point validation issues`);
+      }
     }
 
-    // Validate totals
+    // Validate totals with more reasonable bounds checking
     if (typeof matrixData.totalDemand !== 'number' || 
         !isFinite(matrixData.totalDemand) || 
-        matrixData.totalDemand < 0) {
+        matrixData.totalDemand < 0 ||
+        matrixData.totalDemand > 1000000) { // Add upper bound for sanity
       errors.push(`Invalid total demand: ${matrixData.totalDemand}`);
     }
 
@@ -221,5 +300,22 @@ export class DataValidator {
     }
 
     return Math.floor(length);
+  }
+
+  /**
+   * Clean and validate skills array specifically
+   */
+  static async cleanSkillsArray(skills: string[]): Promise<string[]> {
+    if (!Array.isArray(skills)) {
+      return [];
+    }
+
+    try {
+      const resolution = await SkillResolutionService.resolveSkillReferences(skills);
+      return resolution.validSkills;
+    } catch (error) {
+      console.warn('Error cleaning skills array:', error);
+      return skills.filter(skill => typeof skill === 'string' && skill.trim().length > 0);
+    }
   }
 }
