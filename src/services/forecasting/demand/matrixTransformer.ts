@@ -7,17 +7,17 @@ import { DataValidator } from './dataValidator';
 import { SkillResolutionService } from './skillResolutionService';
 
 /**
- * Enhanced Matrix Transformer with skill resolution and robust error handling
+ * Enhanced Matrix Transformer with fixed skill resolution and demand calculation
  */
 export class MatrixTransformer {
   /**
-   * Transform forecast data to matrix format with comprehensive validation and skill resolution
+   * Transform forecast data to matrix format with fixed skill matching
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
   ): Promise<DemandMatrixData> {
-    debugLog('Transforming forecast data to matrix with skill resolution', { 
+    debugLog('Transforming forecast data to matrix with fixed skill resolution', { 
       periodsCount: forecastData.length, 
       tasksCount: tasks.length 
     });
@@ -53,11 +53,11 @@ export class MatrixTransformer {
       // Generate months from forecast data
       const months = this.generateMonthsFromForecast(forecastData);
       
-      // Extract unique skills from forecast data and validated tasks
-      const skills = await this.extractUniqueSkillsWithResolution(forecastData, validTasks);
+      // Extract unique skills with proper resolution mapping
+      const { skills, skillMapping } = await this.extractUniqueSkillsWithMapping(forecastData, validTasks);
       
-      // Generate data points with error resilience
-      const dataPoints = await this.generateDataPointsRobust(forecastData, validTasks, skills);
+      // Generate data points with corrected skill matching
+      const dataPoints = await this.generateDataPointsWithSkillMapping(forecastData, validTasks, skills, skillMapping);
       
       // Calculate totals safely
       const totals = this.calculateTotals(dataPoints);
@@ -75,12 +75,8 @@ export class MatrixTransformer {
         skillSummary
       };
 
-      const successMessage = `Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points`;
-      if (resolvedTasks.length > 0) {
-        debugLog(`${successMessage} (resolved skills for ${resolvedTasks.length} tasks)`);
-      } else {
-        debugLog(successMessage);
-      }
+      const successMessage = `Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h`;
+      debugLog(successMessage);
 
       return matrixData;
 
@@ -101,18 +97,19 @@ export class MatrixTransformer {
   }
 
   /**
-   * Extract unique skills with skill resolution for consistent display names
+   * Extract unique skills with bidirectional mapping for consistent matching
    */
-  private static async extractUniqueSkillsWithResolution(
+  private static async extractUniqueSkillsWithMapping(
     forecastData: ForecastData[], 
     tasks: RecurringTaskDB[]
-  ): Promise<SkillType[]> {
+  ): Promise<{ skills: SkillType[]; skillMapping: Map<string, string> }> {
     try {
       const skillRefsSet = new Set<string>();
+      const skillMapping = new Map<string, string>(); // UUID -> Display Name
 
-      console.log('🔍 [MATRIX TRANSFORMER] Extracting skills from forecast data and tasks...');
+      console.log('🔍 [MATRIX TRANSFORMER] Extracting skills with mapping...');
 
-      // Extract from forecast data
+      // Extract from forecast data (these should be display names already)
       forecastData.forEach(period => {
         if (period && Array.isArray(period.demand)) {
           period.demand.forEach(demandItem => {
@@ -123,40 +120,237 @@ export class MatrixTransformer {
         }
       });
 
-      // Extract from validated tasks (these may be UUIDs or names)
-      tasks.forEach(task => {
+      // Extract from validated tasks and build mapping
+      for (const task of tasks) {
         if (task && Array.isArray(task.required_skills)) {
-          task.required_skills.forEach(skill => {
-            if (typeof skill === 'string' && skill.trim().length > 0) {
-              skillRefsSet.add(skill.trim());
+          for (const skillRef of task.required_skills) {
+            if (typeof skillRef === 'string' && skillRef.trim().length > 0) {
+              skillRefsSet.add(skillRef.trim());
             }
-          });
+          }
         }
-      });
+      }
 
       const allSkillRefs = Array.from(skillRefsSet);
       console.log('🎯 [MATRIX TRANSFORMER] Collected skill references:', allSkillRefs);
 
       if (allSkillRefs.length === 0) {
         console.warn('⚠️ [MATRIX TRANSFORMER] No skill references found');
-        return [];
+        return { skills: [], skillMapping: new Map() };
       }
 
-      // Convert UUIDs to display names using skill resolution service
-      const displayNames = await SkillResolutionService.getSkillNames(allSkillRefs);
-      console.log('✅ [MATRIX TRANSFORMER] Resolved skill display names:', displayNames);
-      
-      const uniqueSkillNames = Array.from(new Set(displayNames))
+      // Build comprehensive skill mapping
+      for (const skillRef of allSkillRefs) {
+        if (this.isUUID(skillRef)) {
+          // It's a UUID - resolve to display name
+          const displayNames = await SkillResolutionService.getSkillNames([skillRef]);
+          const displayName = displayNames[0] || skillRef;
+          skillMapping.set(skillRef, displayName);
+          skillMapping.set(displayName, displayName); // Self-mapping for consistency
+        } else {
+          // It's already a display name
+          skillMapping.set(skillRef, skillRef);
+        }
+      }
+
+      // Get unique display names
+      const uniqueSkillNames = Array.from(new Set(Array.from(skillMapping.values())))
         .filter(name => name && name.length > 0)
         .slice(0, 100); // Reasonable limit
       
-      console.log(`📊 [MATRIX TRANSFORMER] Final unique skill names (${uniqueSkillNames.length}):`, uniqueSkillNames);
+      console.log(`📊 [MATRIX TRANSFORMER] Final skills with mapping:`, {
+        uniqueSkills: uniqueSkillNames,
+        mappingSize: skillMapping.size,
+        sampleMapping: Array.from(skillMapping.entries()).slice(0, 5)
+      });
       
-      return uniqueSkillNames;
+      return { skills: uniqueSkillNames, skillMapping };
     } catch (error) {
-      console.error('❌ [MATRIX TRANSFORMER] Error extracting unique skills:', error);
+      console.error('❌ [MATRIX TRANSFORMER] Error extracting skills with mapping:', error);
+      return { skills: [], skillMapping: new Map() };
+    }
+  }
+
+  /**
+   * Generate data points with correct skill mapping for demand calculation
+   */
+  private static async generateDataPointsWithSkillMapping(
+    forecastData: ForecastData[],
+    tasks: RecurringTaskDB[],
+    skills: SkillType[],
+    skillMapping: Map<string, string>
+  ): Promise<DemandDataPoint[]> {
+    try {
+      const dataPoints: DemandDataPoint[] = [];
+
+      console.log('🔄 [MATRIX TRANSFORMER] Generating data points with skill mapping...');
+
+      for (const skill of skills) {
+        for (const period of forecastData) {
+          try {
+            if (!period || !period.period) continue;
+
+            // Calculate demand using both direct match and mapping
+            const demandHours = this.calculateDemandForSkillPeriodWithMapping(period, skill, skillMapping);
+            const taskBreakdown = await this.generateTaskBreakdownWithMapping(tasks, skill, period.period, skillMapping);
+            
+            // Calculate derived metrics safely
+            const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length, 1000);
+            const clientIds = new Set(
+              taskBreakdown
+                .map(t => t.clientId)
+                .filter(id => typeof id === 'string' && id.length > 0)
+            );
+            const clientCount = DataValidator.sanitizeArrayLength(clientIds.size, 1000);
+
+            const dataPoint: DemandDataPoint = {
+              skillType: skill,
+              month: period.period,
+              monthLabel: this.getMonthLabel(period.period),
+              demandHours: Math.max(0, demandHours),
+              taskCount,
+              clientCount,
+              taskBreakdown
+            };
+
+            dataPoints.push(dataPoint);
+
+            console.log(`✅ [MATRIX TRANSFORMER] Generated data point for ${skill} in ${period.period}:`, {
+              demandHours,
+              taskCount,
+              clientCount
+            });
+
+          } catch (pointError) {
+            console.warn(`Error generating data point for ${skill} in ${period.period}:`, pointError);
+          }
+        }
+      }
+
+      console.log(`📊 [MATRIX TRANSFORMER] Generated ${dataPoints.length} total data points`);
+      return dataPoints;
+    } catch (error) {
+      console.error('Error generating data points with skill mapping:', error);
       return [];
     }
+  }
+
+  /**
+   * Calculate demand for skill period with mapping support
+   */
+  private static calculateDemandForSkillPeriodWithMapping(
+    period: ForecastData, 
+    skill: SkillType, 
+    skillMapping: Map<string, string>
+  ): number {
+    try {
+      if (!period || !Array.isArray(period.demand)) {
+        return 0;
+      }
+
+      console.log(`🔍 [DEMAND CALC] Calculating demand for skill "${skill}" in period ${period.period}`);
+      console.log(`📋 [DEMAND CALC] Available demand items:`, period.demand.map(d => ({ skill: d.skill, hours: d.hours })));
+
+      // Try direct match first
+      let skillDemand = period.demand.find(d => d && d.skill === skill);
+      
+      // If no direct match, try mapping-based match
+      if (!skillDemand) {
+        for (const demandItem of period.demand) {
+          if (demandItem && demandItem.skill) {
+            const mappedSkill = skillMapping.get(demandItem.skill);
+            if (mappedSkill === skill) {
+              skillDemand = demandItem;
+              console.log(`🎯 [DEMAND CALC] Found skill via mapping: ${demandItem.skill} -> ${mappedSkill}`);
+              break;
+            }
+          }
+        }
+      }
+
+      if (!skillDemand || typeof skillDemand.hours !== 'number') {
+        console.log(`⚠️ [DEMAND CALC] No demand found for skill "${skill}"`);
+        return 0;
+      }
+
+      const hours = Math.max(0, skillDemand.hours);
+      console.log(`✅ [DEMAND CALC] Found ${hours}h demand for skill "${skill}"`);
+      return hours;
+    } catch (error) {
+      console.warn(`Error calculating demand for skill ${skill}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Generate task breakdown with skill mapping
+   */
+  private static async generateTaskBreakdownWithMapping(
+    tasks: RecurringTaskDB[],
+    skillDisplayName: SkillType,
+    period: string,
+    skillMapping: Map<string, string>
+  ): Promise<ClientTaskDemand[]> {
+    try {
+      const breakdown: ClientTaskDemand[] = [];
+
+      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with mapping support`);
+
+      for (const task of tasks) {
+        try {
+          if (!task || !Array.isArray(task.required_skills)) continue;
+          
+          // Check if task requires this skill using mapping
+          let hasSkill = false;
+          
+          for (const taskSkillRef of task.required_skills) {
+            const mappedSkillName = skillMapping.get(taskSkillRef);
+            if (mappedSkillName === skillDisplayName) {
+              hasSkill = true;
+              break;
+            }
+          }
+
+          if (hasSkill) {
+            const clientName = task.clients?.legal_name || 'Unknown Client';
+            
+            const demandItem: ClientTaskDemand = {
+              clientId: task.client_id || 'unknown',
+              clientName: clientName,
+              recurringTaskId: task.id,
+              taskName: task.name || 'Unnamed Task',
+              skillType: skillDisplayName,
+              estimatedHours: Math.max(0, task.estimated_hours || 0),
+              recurrencePattern: {
+                type: task.recurrence_type || 'Monthly',
+                interval: task.recurrence_interval || 1,
+                frequency: 1
+              },
+              monthlyHours: Math.max(0, task.estimated_hours || 0)
+            };
+
+            breakdown.push(demandItem);
+            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} to breakdown for skill "${skillDisplayName}"`);
+          }
+        } catch (taskError) {
+          console.warn(`Error processing task ${task.id} for breakdown:`, taskError);
+        }
+      }
+
+      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}"`);
+      return breakdown.slice(0, 100);
+    } catch (error) {
+      console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if a string is a UUID
+   */
+  private static isUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
   }
 
   /**
@@ -199,146 +393,6 @@ export class MatrixTransformer {
     } catch (error) {
       console.error('Error generating months from forecast:', error);
       return [];
-    }
-  }
-
-  /**
-   * Generate data points with enhanced error handling and skill resolution
-   */
-  private static async generateDataPointsRobust(
-    forecastData: ForecastData[],
-    tasks: RecurringTaskDB[],
-    skills: SkillType[]
-  ): Promise<DemandDataPoint[]> {
-    try {
-      const dataPoints: DemandDataPoint[] = [];
-
-      for (const skill of skills) {
-        for (const period of forecastData) {
-          try {
-            if (!period || !period.period) continue;
-
-            const demandHours = this.calculateDemandForSkillPeriod(period, skill);
-            const taskBreakdown = await this.generateTaskBreakdownWithResolution(tasks, skill, period.period);
-            
-            // Calculate derived metrics safely
-            const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length, 1000);
-            const clientIds = new Set(
-              taskBreakdown
-                .map(t => t.clientId)
-                .filter(id => typeof id === 'string' && id.length > 0)
-            );
-            const clientCount = DataValidator.sanitizeArrayLength(clientIds.size, 1000);
-
-            const dataPoint: DemandDataPoint = {
-              skillType: skill,
-              month: period.period,
-              monthLabel: this.getMonthLabel(period.period),
-              demandHours: Math.max(0, demandHours), // Ensure non-negative
-              taskCount,
-              clientCount,
-              taskBreakdown
-            };
-
-            dataPoints.push(dataPoint);
-          } catch (pointError) {
-            console.warn(`Error generating data point for ${skill} in ${period.period}:`, pointError);
-            // Continue with other data points - don't let one error break everything
-          }
-        }
-      }
-
-      return dataPoints;
-    } catch (error) {
-      console.error('Error generating data points:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Generate task breakdown with skill resolution for consistent matching
-   */
-  private static async generateTaskBreakdownWithResolution(
-    tasks: RecurringTaskDB[],
-    skillDisplayName: SkillType,
-    period: string
-  ): Promise<ClientTaskDemand[]> {
-    try {
-      const breakdown: ClientTaskDemand[] = [];
-
-      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" in period ${period}`);
-
-      for (const task of tasks) {
-        try {
-          if (!task || !Array.isArray(task.required_skills)) continue;
-          
-          console.log(`📋 [TASK BREAKDOWN] Checking task ${task.id} with skills:`, task.required_skills);
-          
-          // Convert task's skill UUIDs to display names for comparison
-          const taskSkillDisplayNames = await SkillResolutionService.getSkillNames(task.required_skills);
-          console.log(`🎯 [TASK BREAKDOWN] Task ${task.id} skill display names:`, taskSkillDisplayNames);
-          
-          // Check if this task requires the skill by comparing display names
-          const hasSkill = taskSkillDisplayNames.some(taskSkillName => 
-            taskSkillName.toLowerCase().trim() === skillDisplayName.toLowerCase().trim()
-          );
-
-          console.log(`✅ [TASK BREAKDOWN] Task ${task.id} has skill "${skillDisplayName}":`, hasSkill);
-
-          if (hasSkill) {
-            // Get client name safely
-            const clientName = task.clients?.legal_name || 'Unknown Client';
-            
-            const demandItem: ClientTaskDemand = {
-              clientId: task.client_id || 'unknown',
-              clientName: clientName,
-              recurringTaskId: task.id,
-              taskName: task.name || 'Unnamed Task',
-              skillType: skillDisplayName, // Use the display name
-              estimatedHours: Math.max(0, task.estimated_hours || 0),
-              recurrencePattern: {
-                type: task.recurrence_type || 'Monthly',
-                interval: task.recurrence_interval || 1,
-                frequency: 1 // Simplified for now
-              },
-              monthlyHours: Math.max(0, task.estimated_hours || 0) // Simplified calculation
-            };
-
-            breakdown.push(demandItem);
-            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} to breakdown for skill "${skillDisplayName}"`);
-          }
-        } catch (taskError) {
-          console.warn(`Error processing task ${task.id} for breakdown:`, taskError);
-          // Continue with other tasks
-        }
-      }
-
-      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}"`);
-      return breakdown.slice(0, 100); // Limit to prevent performance issues
-    } catch (error) {
-      console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Calculate demand for specific skill in specific period
-   */
-  private static calculateDemandForSkillPeriod(period: ForecastData, skill: SkillType): number {
-    try {
-      if (!period || !Array.isArray(period.demand)) {
-        return 0;
-      }
-
-      const skillDemand = period.demand.find(d => d && d.skill === skill);
-      if (!skillDemand || typeof skillDemand.hours !== 'number') {
-        return 0;
-      }
-
-      return Math.max(0, skillDemand.hours);
-    } catch (error) {
-      console.warn(`Error calculating demand for skill ${skill}:`, error);
-      return 0;
     }
   }
 
