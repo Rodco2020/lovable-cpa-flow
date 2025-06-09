@@ -1,55 +1,82 @@
 
 /**
- * Mock Helpers for Demand Matrix Integration Tests
- * Utility functions for setting up mocks and test scenarios
+ * Mock Helper Functions for Demand Matrix Integration Tests
+ * Centralized mock setup and configuration
  */
 
 import { vi } from 'vitest';
-import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
-import eventService from '@/services/eventService';
-import { mockDemandData } from './testData';
 
+/**
+ * Setup successful mock responses for demand matrix tests
+ */
 export const setupSuccessfulMocks = () => {
-  (DemandMatrixService.generateDemandMatrix as any).mockResolvedValue({
-    matrixData: mockDemandData
-  });
-  
-  (DemandMatrixService.validateDemandMatrixData as any).mockReturnValue([]);
-};
-
-export const setupErrorMocks = (error: string) => {
-  (DemandMatrixService.generateDemandMatrix as any).mockRejectedValue(
-    new Error(error)
-  );
-};
-
-export const setupValidationErrorMocks = (errors: string[]) => {
-  (DemandMatrixService.validateDemandMatrixData as any).mockReturnValue(errors);
-};
-
-export const setupNetworkRetryMocks = () => {
-  let callCount = 0;
-  (DemandMatrixService.generateDemandMatrix as any).mockImplementation(() => {
-    callCount++;
-    if (callCount === 1) {
-      return Promise.reject(new Error('Network error'));
+  // Mock successful data fetching
+  vi.doMock('@/services/forecasting/demandMatrixService', () => ({
+    DemandMatrixService: {
+      generateDemandMatrix: vi.fn().mockResolvedValue({
+        months: [
+          { key: '2024-01', label: 'Jan 2024' },
+          { key: '2024-02', label: 'Feb 2024' },
+        ],
+        skills: ['Tax Preparation', 'Audit'],
+        dataPoints: [
+          {
+            skillType: 'Tax Preparation',
+            month: '2024-01',
+            monthLabel: 'Jan 2024',
+            demandHours: 120,
+            taskCount: 8,
+            clientCount: 3,
+            taskBreakdown: []
+          }
+        ],
+        totalDemand: 240,
+        totalTasks: 16,
+        totalClients: 5,
+        skillSummary: {}
+      }),
+      fetchDemandData: vi.fn().mockResolvedValue([]),
     }
-    return Promise.resolve({ matrixData: mockDemandData });
-  });
+  }));
+
+  // Mock event service
+  vi.doMock('@/services/eventService', () => ({
+    EventService: {
+      emit: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    }
+  }));
 };
 
-export const getEventHandler = (eventType: string) => {
-  const mockCalls = (eventService.subscribe as any).mock.calls;
-  return mockCalls.find((call: any[]) => call[0] === eventType)?.[1];
+/**
+ * Setup error mock responses for testing error scenarios
+ */
+export const setupErrorMocks = (errorMessage: string) => {
+  vi.doMock('@/services/forecasting/demandMatrixService', () => ({
+    DemandMatrixService: {
+      generateDemandMatrix: vi.fn().mockRejectedValue(new Error(errorMessage)),
+      fetchDemandData: vi.fn().mockRejectedValue(new Error(errorMessage)),
+    }
+  }));
 };
 
-export const triggerTaskEvent = (eventType: string, payload: any) => {
-  const eventHandler = getEventHandler(eventType);
-  if (eventHandler) {
-    eventHandler({
-      type: eventType,
-      payload,
-      timestamp: Date.now()
-    });
-  }
+/**
+ * Setup empty data mock responses
+ */
+export const setupEmptyDataMocks = () => {
+  vi.doMock('@/services/forecasting/demandMatrixService', () => ({
+    DemandMatrixService: {
+      generateDemandMatrix: vi.fn().mockResolvedValue({
+        months: [],
+        skills: [],
+        dataPoints: [],
+        totalDemand: 0,
+        totalTasks: 0,
+        totalClients: 0,
+        skillSummary: {}
+      }),
+      fetchDemandData: vi.fn().mockResolvedValue([]),
+    }
+  }));
 };
