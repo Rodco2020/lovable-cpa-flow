@@ -41,10 +41,11 @@ export class PeriodGenerator {
       let currentDate = startOfMonth(startDate);
       let iterationCount = 0;
 
-      while (currentDate < endDate && iterationCount < this.MAX_PERIODS) {
+      // Fixed: Use <= comparison to be inclusive of the end month
+      while (currentDate <= endDate && iterationCount < this.MAX_PERIODS) {
         const monthStart = new Date(currentDate);
-        const monthEnd = new Date(addMonths(currentDate, 1));
-        monthEnd.setMilliseconds(monthEnd.getMilliseconds() - 1); // End of month
+        const nextMonth = addMonths(currentDate, 1);
+        const monthEnd = new Date(nextMonth.getTime() - 1); // End of current month
 
         // Validate generated dates
         if (isNaN(monthStart.getTime()) || isNaN(monthEnd.getTime())) {
@@ -57,7 +58,7 @@ export class PeriodGenerator {
           end: monthEnd
         });
 
-        currentDate = addMonths(currentDate, 1);
+        currentDate = nextMonth;
         iterationCount++;
 
         // Additional safety check

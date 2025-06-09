@@ -30,20 +30,29 @@ export class DemandMatrixService {
         return { matrixData: cached };
       }
 
-      // Generate 12-month forecast range
-      const endDate = addMonths(startOfMonth(startDate), 12);
+      // Generate exactly 12-month forecast range
+      // Fix: Use 11 months addition to get exactly 12 months total
+      const monthStart = startOfMonth(startDate);
+      const endDate = addMonths(monthStart, 11); // Changed from 12 to 11
+      const monthEnd = endOfMonth(endDate);
       
       // Create demand forecast parameters
       const parameters = {
         timeHorizon: 'year' as const,
         dateRange: {
-          startDate: startOfMonth(startDate),
-          endDate: endOfMonth(endDate)
+          startDate: monthStart,
+          endDate: monthEnd
         },
         includeSkills: 'all' as const,
         includeClients: 'all' as const,
         granularity: 'monthly' as const
       };
+
+      debugLog('Date range for 12-month matrix', { 
+        startDate: monthStart.toISOString(), 
+        endDate: monthEnd.toISOString(),
+        monthsDifference: (monthEnd.getFullYear() - monthStart.getFullYear()) * 12 + (monthEnd.getMonth() - monthStart.getMonth()) + 1
+      });
 
       // Generate forecast data using existing demand services
       const forecastData = await ForecastGenerator.generateDemandForecast(parameters);
@@ -72,7 +81,7 @@ export class DemandMatrixService {
       // Cache the result
       this.setCachedData(cacheKey, matrixData);
       
-      debugLog(`Generated demand matrix with ${matrixData.dataPoints.length} data points`);
+      debugLog(`Generated demand matrix with ${matrixData.dataPoints.length} data points and ${matrixData.months.length} months`);
       return { matrixData };
 
     } catch (error) {
