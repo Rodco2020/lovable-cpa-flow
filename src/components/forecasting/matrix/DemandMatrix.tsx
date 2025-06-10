@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DemandMatrixData } from '@/types/demand';
@@ -30,10 +29,7 @@ interface DemandMatrixProps {
 }
 
 /**
- * Enhanced Demand Matrix Component (Phase 5: Integration & Polish)
- * 
- * Now includes comprehensive integration, error handling, performance optimization,
- * and real-time updates while maintaining all existing functionality
+ * Enhanced Demand Matrix Component with Fixed Skill Filtering
  */
 export const DemandMatrix: React.FC<DemandMatrixProps> = ({ 
   className,
@@ -138,7 +134,9 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     availableSkills,
     availableClients,
     skillsLoading,
-    clientsLoading
+    clientsLoading,
+    isAllSkillsSelected,
+    isAllClientsSelected
   } = useDemandMatrixControls({
     demandData,
     groupingMode
@@ -212,56 +210,69 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     loadDemandData();
   }, []);
 
-  // Filter data based on controls and grouping mode with optimization
+  // FIXED: Filter data based on controls and grouping mode with corrected logic
   const getFilteredData = () => {
     if (!demandData) return null;
 
+    console.log(`🔧 [DEMAND MATRIX] Starting filter operation:`, {
+      groupingMode,
+      selectedSkillsCount: selectedSkills.length,
+      availableSkillsCount: availableSkills.length,
+      selectedClientsCount: selectedClients.length,
+      availableClientsCount: availableClients.length,
+      isAllSkillsSelected,
+      isAllClientsSelected,
+      monthRange
+    });
+
     const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
     
-    // Use performance optimizer for filtering
+    // FIXED: Create filters with correct "no active filtering" logic
     const filters = {
-      skills: selectedSkills,
-      clients: selectedClients,
+      // Only include skills filter if we're NOT selecting all skills
+      skills: isAllSkillsSelected ? [] : selectedSkills,
+      // Only include clients filter if we're NOT selecting all clients  
+      clients: isAllClientsSelected ? [] : selectedClients,
       timeHorizon: {
         start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
         end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
       }
     };
 
+    console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
+      skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
+      clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
+      timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
+    });
+
+    // Use the corrected performance optimizer
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
     
+    console.log(`📊 [DEMAND MATRIX] Filter results:`, {
+      originalDataPoints: demandData.dataPoints.length,
+      filteredDataPoints: optimizedData.dataPoints.length,
+      originalSkills: demandData.skills.length,
+      filteredSkills: optimizedData.skills.length,
+      totalDemandHours: optimizedData.totalDemand || 0
+    });
+
     // Handle grouping mode transformation
     if (groupingMode === 'client') {
-      // Transform data for client-based view
-      const filteredClients = Array.from(new Set(
-        optimizedData.dataPoints
-          .flatMap(point => point.taskBreakdown?.map(task => task.clientId) || [])
-          .filter(clientId => selectedClients.includes(clientId))
-      ));
-
+      // Transform data for client-based view - use the optimized data
       const clientGroupedData = {
         ...optimizedData,
-        skills: filteredClients,
-        dataPoints: filteredClients.flatMap(clientId => 
-          filteredMonths.map(month => {
-            const clientTasks = optimizedData.dataPoints
-              .find(point => point.month === month.key)
-              ?.taskBreakdown?.filter(task => task.clientId === clientId) || [];
-
-            const totalHours = clientTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
-            
-            return {
-              skillType: clientId,
-              month: month.key,
-              monthLabel: month.label,
-              demandHours: totalHours,
-              taskCount: clientTasks.length,
-              clientCount: 1,
-              taskBreakdown: clientTasks
-            };
-          })
-        ).filter(point => point.demandHours > 0) // Only include clients with demand
+        skills: Array.from(new Set(
+          optimizedData.dataPoints
+            .flatMap(point => point.taskBreakdown?.map(task => task.clientName) || [])
+            .filter(name => name && !name.includes('...'))
+        )),
+        dataPoints: optimizedData.dataPoints // Use the already filtered data points
       };
+
+      console.log(`👥 [DEMAND MATRIX] Client grouping applied:`, {
+        uniqueClients: clientGroupedData.skills.length,
+        dataPointsAfterGrouping: clientGroupedData.dataPoints.length
+      });
 
       return clientGroupedData;
     }
