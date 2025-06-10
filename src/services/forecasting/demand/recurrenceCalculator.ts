@@ -1,14 +1,13 @@
-
 import { debugLog } from '../logger';
 import { RecurrenceCalculation } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
 
 /**
- * Enhanced Recurrence Calculator with Comprehensive Annual Task Support
+ * Enhanced Recurrence Calculator with Fixed Annual Task Month-Specific Logic
  */
 export class RecurrenceCalculator {
   /**
-   * Calculate monthly demand from recurrence patterns with robust annual task handling
+   * FIXED: Calculate monthly demand with proper annual task month-specific logic
    */
   static calculateMonthlyDemand(
     task: RecurringTaskDB,
@@ -43,7 +42,7 @@ export class RecurrenceCalculator {
 
       console.log(`📅 [RECURRENCE CALC] Processing ${recurrenceType} task for period month ${periodMonth} (${this.getMonthName(periodMonth)})`);
 
-      // ENHANCED: Handle annual tasks with comprehensive logic
+      // FIXED: Handle annual tasks with month-specific logic
       if (recurrenceType === 'annually' || recurrenceType === 'annual') {
         return this.calculateAnnualTaskDemand(task, periodMonth, interval);
       }
@@ -94,7 +93,8 @@ export class RecurrenceCalculator {
   }
 
   /**
-   * ENHANCED: Calculate demand for annual tasks with comprehensive data validation
+   * FIXED: Calculate demand for annual tasks with month-specific logic
+   * Returns full hours only for the target month, zero for all other months
    */
   private static calculateAnnualTaskDemand(
     task: RecurringTaskDB,
@@ -112,72 +112,39 @@ export class RecurrenceCalculator {
       dayOfMonth: task.day_of_month
     });
 
+    let targetMonth: number | null = null;
+    let dataSource = '';
+
     // Strategy 1: Use month_of_year if available (most reliable)
     if (task.month_of_year !== null && task.month_of_year !== undefined) {
-      const taskMonth = task.month_of_year - 1; // Convert 1-12 to 0-11
-      console.log(`📅 [ANNUAL CALC] Using month_of_year: ${task.month_of_year} (${this.getMonthName(taskMonth)})`);
-      
-      if (taskMonth === periodMonth) {
-        const occurrences = 1 / interval;
-        const hours = Number(task.estimated_hours) * occurrences;
-        
-        console.log(`✅ [ANNUAL CALC] Task included - matches month_of_year:`, {
-          taskMonth: taskMonth,
-          periodMonth: periodMonth,
-          occurrences,
-          hours,
-          calculation: `${task.estimated_hours} × ${occurrences} = ${hours}`
-        });
-        
-        return {
-          monthlyOccurrences: occurrences,
-          monthlyHours: hours,
-          taskId: task.id,
-          nextDueDates: []
-        };
-      } else {
-        console.log(`❌ [ANNUAL CALC] Task excluded - month mismatch:`, {
-          taskMonth: taskMonth,
-          taskMonthName: this.getMonthName(taskMonth),
-          periodMonth: periodMonth,
-          periodMonthName: this.getMonthName(periodMonth)
-        });
-        
-        return this.createEmptyResult(task.id);
-      }
+      targetMonth = task.month_of_year - 1; // Convert 1-12 to 0-11
+      dataSource = `month_of_year (${task.month_of_year})`;
+      console.log(`📅 [ANNUAL CALC] Using month_of_year: ${task.month_of_year} (${this.getMonthName(targetMonth)})`);
+    }
+    // Strategy 2: Use due_date if month_of_year is not available
+    else if (task.due_date) {
+      const dueDate = new Date(task.due_date);
+      targetMonth = dueDate.getMonth(); // 0-11
+      dataSource = `due_date (${task.due_date})`;
+      console.log(`📅 [ANNUAL CALC] Using due_date fallback: ${task.due_date} (month ${targetMonth} - ${this.getMonthName(targetMonth)})`);
     }
 
-    // Strategy 2: Use due_date if month_of_year is not available
-    if (task.due_date) {
-      const dueDate = new Date(task.due_date);
-      const dueDateMonth = dueDate.getMonth(); // 0-11
-      
-      console.log(`📅 [ANNUAL CALC] Using due_date fallback: ${task.due_date} (month ${dueDateMonth} - ${this.getMonthName(dueDateMonth)})`);
-      
-      // Check for data inconsistency
-      if (task.month_of_year !== null && task.month_of_year !== undefined) {
-        const configuredMonth = task.month_of_year - 1;
-        if (configuredMonth !== dueDateMonth) {
-          console.warn(`⚠️ [ANNUAL CALC] DATA INCONSISTENCY DETECTED for task ${task.id}:`, {
-            dueDate: task.due_date,
-            dueDateMonth: dueDateMonth,
-            dueDateMonthName: this.getMonthName(dueDateMonth),
-            configuredMonth: task.month_of_year,
-            configuredMonthName: this.getMonthName(task.month_of_year - 1),
-            recommendation: 'Use month_of_year as primary source'
-          });
-        }
-      }
-      
-      if (dueDateMonth === periodMonth) {
+    // FIXED: Return hours only for the target month, zero for all others
+    if (targetMonth !== null) {
+      if (targetMonth === periodMonth) {
+        // This is the target month - return full hours adjusted for interval
         const occurrences = 1 / interval;
         const hours = Number(task.estimated_hours) * occurrences;
         
-        console.log(`✅ [ANNUAL CALC] Task included - matches due_date month:`, {
-          dueDateMonth,
+        console.log(`✅ [ANNUAL CALC] Task included - matches target month:`, {
+          targetMonth,
+          targetMonthName: this.getMonthName(targetMonth),
           periodMonth,
+          periodMonthName: this.getMonthName(periodMonth),
           occurrences,
-          hours
+          hours,
+          calculation: `${task.estimated_hours} × ${occurrences} = ${hours}`,
+          dataSource
         });
         
         return {
@@ -187,7 +154,16 @@ export class RecurrenceCalculator {
           nextDueDates: []
         };
       } else {
-        console.log(`❌ [ANNUAL CALC] Task excluded - due_date month mismatch`);
+        // This is NOT the target month - return zero
+        console.log(`❌ [ANNUAL CALC] Task excluded - month mismatch:`, {
+          targetMonth,
+          targetMonthName: this.getMonthName(targetMonth),
+          periodMonth,
+          periodMonthName: this.getMonthName(periodMonth),
+          dataSource,
+          result: 'Zero hours returned'
+        });
+        
         return this.createEmptyResult(task.id);
       }
     }
