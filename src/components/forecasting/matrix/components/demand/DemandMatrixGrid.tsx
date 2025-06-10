@@ -67,7 +67,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
     };
   };
 
-  // Extract unique client names from task breakdowns for client grouping
+  // Extract unique client names from task breakdowns for client grouping - NO LIMITS
   const getUniqueClients = () => {
     if (groupingMode !== 'client') return [];
     
@@ -81,11 +81,16 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
       });
     });
     
-    return Array.from(clientNames).sort();
+    // REMOVED: Array.from(clientNames).sort().slice(0, 50) - Now returns ALL clients
+    const allClients = Array.from(clientNames).sort();
+    console.log(`📊 [MATRIX GRID] Found ${allClients.length} unique clients for display`);
+    return allClients;
   };
 
   // Determine the skills/clients list based on grouping mode
   const rowItems = groupingMode === 'client' ? getUniqueClients() : filteredData.skills;
+
+  console.log(`📊 [MATRIX GRID] Rendering matrix with ${rowItems.length} ${groupingMode}s and ${filteredData.months.length} months`);
 
   return (
     <div className="overflow-x-auto">

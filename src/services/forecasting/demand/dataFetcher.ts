@@ -37,7 +37,7 @@ export class DataFetcher {
         }
       }
 
-      // Execute query with timeout and retry logic
+      // Execute query with timeout and retry logic - REMOVED LIMIT
       const { data, error } = await query;
 
       if (error) {
@@ -90,7 +90,7 @@ export class DataFetcher {
   }
 
   /**
-   * Attempt fallback data fetch with minimal filtering
+   * Attempt fallback data fetch with minimal filtering - REMOVED LIMIT
    */
   private static async attemptFallbackDataFetch(): Promise<RecurringTaskDB[]> {
     try {
@@ -99,8 +99,8 @@ export class DataFetcher {
       const { data, error } = await supabase
         .from('recurring_tasks')
         .select('*, clients(id, legal_name)')
-        .eq('is_active', true)
-        .limit(100); // Limit to prevent overwhelming the system
+        .eq('is_active', true);
+        // REMOVED: .limit(100) - Now fetches all records
 
       if (error) {
         console.error('Fallback query also failed:', error);
@@ -157,7 +157,7 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch available skills with validation
+   * Fetch available skills with validation - REMOVED LIMIT
    */
   static async fetchAvailableSkills(): Promise<string[]> {
     try {
@@ -165,6 +165,7 @@ export class DataFetcher {
         .from('skills')
         .select('id, name')
         .order('name');
+        // REMOVED: .limit(100) - Now fetches all skills
 
       if (error) {
         console.error('Error fetching skills:', error);
@@ -179,8 +180,7 @@ export class DataFetcher {
       // Validate and extract skill names
       const validSkills = data
         .filter(skill => skill && typeof skill.name === 'string' && skill.name.trim().length > 0)
-        .map(skill => skill.name.trim())
-        .slice(0, 100); // Limit to prevent performance issues
+        .map(skill => skill.name.trim());
 
       debugLog(`Fetched ${validSkills.length} valid skills`);
       return validSkills;
@@ -192,7 +192,7 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch available clients with validation
+   * Fetch available clients with validation - INCREASED LIMIT
    */
   static async fetchAvailableClients(): Promise<Array<{ id: string; name: string }>> {
     try {
@@ -201,6 +201,7 @@ export class DataFetcher {
         .select('id, legal_name')
         .eq('status', 'active')
         .order('legal_name');
+        // REMOVED: .limit(1000) - Now fetches all active clients
 
       if (error) {
         console.error('Error fetching clients:', error);
@@ -224,8 +225,7 @@ export class DataFetcher {
         .map(client => ({
           id: client.id.trim(),
           name: client.legal_name.trim()
-        }))
-        .slice(0, 1000); // Reasonable limit
+        }));
 
       debugLog(`Fetched ${validClients.length} valid clients`);
       return validClients;

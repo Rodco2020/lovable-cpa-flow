@@ -31,18 +31,24 @@ export const useDemandMatrixControls = ({
   const { data: skillsData, isLoading: skillsLoading } = useSkills();
   const { data: clientsData, isLoading: clientsLoading } = useClients();
 
-  // Extract available options from demand data and external sources
+  // Extract available options from demand data and external sources - NO LIMITS
   const availableSkills = demandData?.skills || [];
+  
+  // Extract ALL unique clients from task breakdowns without any limits
   const availableClients = Array.from(new Set(
     demandData?.dataPoints.flatMap(point => 
-      point.taskBreakdown.map(task => ({
-        id: task.clientId,
-        name: task.clientName
-      }))
+      point.taskBreakdown
+        .filter(task => task.clientName && !task.clientName.includes('...')) // Exclude fallback names
+        .map(task => ({
+          id: task.clientId,
+          name: task.clientName
+        }))
     ) || []
   ));
 
-  // Initialize selections when data becomes available
+  console.log(`🎛️ [MATRIX CONTROLS] Available clients: ${availableClients.length}, Skills: ${availableSkills.length}`);
+
+  // Initialize selections when data becomes available - SELECT ALL by default
   useEffect(() => {
     if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0) {
       setState(prev => ({
@@ -50,6 +56,8 @@ export const useDemandMatrixControls = ({
         selectedSkills: availableSkills,
         selectedClients: availableClients.map(client => client.id)
       }));
+      
+      console.log(`🎛️ [MATRIX CONTROLS] Initialized with ${availableSkills.length} skills and ${availableClients.length} clients selected`);
     }
   }, [demandData, availableSkills, availableClients]);
 
@@ -81,20 +89,22 @@ export const useDemandMatrixControls = ({
     }));
   }, []);
 
-  // Handle reset
+  // Handle reset - SELECT ALL clients and skills
   const handleReset = useCallback(() => {
     setState({
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
       monthRange: { start: 0, end: 11 }
     });
+    
+    console.log(`🎛️ [MATRIX CONTROLS] Reset to all ${availableSkills.length} skills and ${availableClients.length} clients`);
   }, [availableSkills, availableClients]);
 
   // Handle export
   const handleExport = useCallback(() => {
     if (!demandData) return;
 
-    // Generate CSV export for demand data
+    // Generate CSV export for demand data - INCLUDE ALL selected data
     const headers = ['Skill/Client', 'Month', 'Demand (Hours)', 'Task Count', 'Client Count'];
     let csvData = headers.join(',') + '\n';
     
@@ -123,7 +133,7 @@ export const useDemandMatrixControls = ({
         });
       });
     } else {
-      // Client-based export
+      // Client-based export - INCLUDE ALL selected clients
       const filteredClients = availableClients.filter(client => state.selectedClients.includes(client.id));
       
       filteredClients.forEach(client => {
@@ -155,6 +165,8 @@ export const useDemandMatrixControls = ({
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+    
+    console.log(`📁 [MATRIX CONTROLS] Exported ${filteredClients?.length || filteredSkills?.length} ${groupingMode}s across ${filteredMonths.length} months`);
   }, [demandData, state, groupingMode, availableSkills, availableClients]);
 
   return {
