@@ -59,14 +59,16 @@ describe('RecurrenceCalculator', () => {
       expect(result.monthlyHours).toBeCloseTo(10, 2);
     });
 
-    it('should calculate annual demand correctly when due date matches period month', () => {
+    it('should calculate annual demand using month_of_year when available', () => {
       const annualTask: RecurringTaskDB = {
         ...mockTask,
         id: '3',
         name: 'Tax 1120 S - Sr',
         recurrence_type: 'Annually',
         estimated_hours: 8,
-        due_date: '2025-01-15T00:00:00Z' // Due in January
+        month_of_year: 1, // January
+        day_of_month: 15,
+        due_date: null // Test month_of_year priority
       };
 
       // Test January period - should include the task
@@ -78,17 +80,6 @@ describe('RecurrenceCalculator', () => {
       expect(resultJan.monthlyOccurrences).toBe(1);
       expect(resultJan.monthlyHours).toBe(8);
       expect(resultJan.taskId).toBe('3');
-    });
-
-    it('should NOT include annual task when due date does not match period month', () => {
-      const annualTask: RecurringTaskDB = {
-        ...mockTask,
-        id: '4',
-        name: 'Tax 1120 S - Sr',
-        recurrence_type: 'Annually',
-        estimated_hours: 8,
-        due_date: '2025-01-15T00:00:00Z' // Due in January
-      };
 
       // Test February period - should NOT include the task
       const startDateFeb = new Date('2025-02-01');
@@ -98,7 +89,36 @@ describe('RecurrenceCalculator', () => {
 
       expect(resultFeb.monthlyOccurrences).toBe(0);
       expect(resultFeb.monthlyHours).toBe(0);
-      expect(resultFeb.taskId).toBe('4');
+    });
+
+    it('should detect data inconsistency between month_of_year and due_date', () => {
+      const inconsistentTask: RecurringTaskDB = {
+        ...mockTask,
+        id: '4',
+        name: 'Inconsistent Annual Task',
+        recurrence_type: 'Annually',
+        estimated_hours: 6,
+        month_of_year: 1, // January
+        due_date: '2025-03-15T00:00:00Z' // March - inconsistent!
+      };
+
+      // Should use month_of_year (January) as primary source
+      const startDateJan = new Date('2025-01-01');
+      const endDateJan = new Date('2025-01-31');
+
+      const resultJan = RecurrenceCalculator.calculateMonthlyDemand(inconsistentTask, startDateJan, endDateJan);
+
+      expect(resultJan.monthlyOccurrences).toBe(1);
+      expect(resultJan.monthlyHours).toBe(6);
+
+      // March should be excluded despite due_date
+      const startDateMar = new Date('2025-03-01');
+      const endDateMar = new Date('2025-03-31');
+
+      const resultMar = RecurrenceCalculator.calculateMonthlyDemand(inconsistentTask, startDateMar, endDateMar);
+
+      expect(resultMar.monthlyOccurrences).toBe(0);
+      expect(resultMar.monthlyHours).toBe(0);
     });
 
     it('should handle annual task with 2-year interval correctly', () => {
@@ -109,7 +129,8 @@ describe('RecurrenceCalculator', () => {
         recurrence_type: 'Annually',
         recurrence_interval: 2, // Every 2 years
         estimated_hours: 12,
-        due_date: '2025-03-15T00:00:00Z' // Due in March
+        month_of_year: 3, // March
+        day_of_month: 15
       };
 
       // Test March period - should include the task with 0.5 occurrences
@@ -123,24 +144,43 @@ describe('RecurrenceCalculator', () => {
       expect(resultMar.taskId).toBe('5');
     });
 
-    it('should handle annual task without due date using fallback calculation', () => {
-      const annualTaskNoDue: RecurringTaskDB = {
+    it('should exclude annual task with no month information', () => {
+      const annualTaskNoInfo: RecurringTaskDB = {
         ...mockTask,
         id: '6',
-        name: 'Annual Task No Due',
+        name: 'Annual Task No Info',
         recurrence_type: 'Annually',
         estimated_hours: 24,
-        due_date: null // No due date
+        month_of_year: null,
+        due_date: null // No month information
       };
 
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-31');
 
-      const result = RecurrenceCalculator.calculateMonthlyDemand(annualTaskNoDue, startDate, endDate);
+      const result = RecurrenceCalculator.calculateMonthlyDemand(annualTaskNoInfo, startDate, endDate);
 
-      expect(result.monthlyOccurrences).toBeCloseTo(1/12, 3); // Fallback: 1/12 of annual
-      expect(result.monthlyHours).toBeCloseTo(2, 1); // 24 * (1/12) = 2
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
       expect(result.taskId).toBe('6');
+    });
+
+    it('should handle invalid task inputs gracefully', () => {
+      const invalidTask: RecurringTaskDB = {
+        ...mockTask,
+        id: '7',
+        estimated_hours: -5, // Invalid
+        recurrence_type: '', // Invalid
+        month_of_year: 15 // Invalid (> 12)
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(invalidTask, startDate, endDate);
+
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
     });
   });
 

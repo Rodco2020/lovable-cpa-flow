@@ -4,11 +4,11 @@ import { RecurrenceCalculation } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
 
 /**
- * Enhanced Recurrence Calculator with date-specific annual task support
+ * Enhanced Recurrence Calculator with Comprehensive Annual Task Support
  */
 export class RecurrenceCalculator {
   /**
-   * Calculate monthly demand from recurrence patterns with date-specific logic for annual tasks
+   * Calculate monthly demand from recurrence patterns with robust annual task handling
    */
   static calculateMonthlyDemand(
     task: RecurringTaskDB,
@@ -21,6 +21,8 @@ export class RecurrenceCalculator {
       recurrenceType: task.recurrence_type,
       recurrenceInterval: task.recurrence_interval,
       dueDate: task.due_date,
+      monthOfYear: task.month_of_year,
+      dayOfMonth: task.day_of_month,
       dateRange: {
         start: startDate.toISOString(),
         end: endDate.toISOString()
@@ -28,140 +30,239 @@ export class RecurrenceCalculator {
     });
 
     try {
-      // Validate inputs
-      if (!task || typeof task.estimated_hours !== 'number' || task.estimated_hours <= 0) {
-        console.warn(`⚠️ [RECURRENCE CALC] Invalid task hours for ${task.id}:`, {
-          estimated_hours: task.estimated_hours,
-          type: typeof task.estimated_hours
-        });
-        return {
-          monthlyOccurrences: 0,
-          monthlyHours: 0,
-          taskId: task.id,
-          nextDueDates: []
-        };
+      // Enhanced input validation
+      const validationResult = this.validateTaskInputs(task);
+      if (!validationResult.isValid) {
+        console.warn(`⚠️ [RECURRENCE CALC] Validation failed for task ${task.id}:`, validationResult.errors);
+        return this.createEmptyResult(task.id);
       }
-
-      if (!task.recurrence_type) {
-        console.warn(`⚠️ [RECURRENCE CALC] No recurrence type for task ${task.id}`);
-        return {
-          monthlyOccurrences: 0,
-          monthlyHours: 0,
-          taskId: task.id,
-          nextDueDates: []
-        };
-      }
-
-      // Calculate frequency based on recurrence type
-      const interval = Math.max(1, task.recurrence_interval || 1);
-      let monthlyOccurrences = 0;
-      let monthlyHours = 0;
-
-      console.log(`📅 [RECURRENCE CALC] Processing recurrence for task ${task.id}:`, {
-        type: task.recurrence_type,
-        interval: interval
-      });
 
       const recurrenceType = task.recurrence_type.toLowerCase();
+      const interval = Math.max(1, task.recurrence_interval || 1);
+      const periodMonth = startDate.getMonth(); // 0-11
 
-      // FIXED: Handle annual tasks with date-specific logic
+      console.log(`📅 [RECURRENCE CALC] Processing ${recurrenceType} task for period month ${periodMonth} (${this.getMonthName(periodMonth)})`);
+
+      // ENHANCED: Handle annual tasks with comprehensive logic
       if (recurrenceType === 'annually' || recurrenceType === 'annual') {
-        console.log(`📆 [RECURRENCE CALC] Annual task detected - checking if due in current period`);
-        
-        if (task.due_date) {
-          const taskDueDate = new Date(task.due_date);
-          const taskMonth = taskDueDate.getMonth(); // 0-11
-          const periodMonth = startDate.getMonth(); // 0-11
-          
-          console.log(`📅 [RECURRENCE CALC] Annual task date comparison:`, {
-            taskDueDate: taskDueDate.toISOString(),
-            taskMonth: taskMonth,
-            periodMonth: periodMonth,
-            monthsMatch: taskMonth === periodMonth
-          });
-          
-          // Only include hours if the task's due month matches the current period month
-          if (taskMonth === periodMonth) {
-            monthlyOccurrences = 1 / interval; // Account for interval (e.g., every 2 years = 0.5)
-            monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
-            console.log(`✅ [RECURRENCE CALC] Annual task included in month ${periodMonth}: ${monthlyHours}h`);
-          } else {
-            monthlyOccurrences = 0;
-            monthlyHours = 0;
-            console.log(`❌ [RECURRENCE CALC] Annual task NOT included - due in month ${taskMonth}, current month ${periodMonth}`);
-          }
-        } else {
-          // Fallback to old calculation if no due date
-          console.warn(`⚠️ [RECURRENCE CALC] Annual task ${task.id} has no due_date, using fallback calculation`);
-          monthlyOccurrences = (1 / interval) / 12;
-          monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
-        }
-      } else {
-        // Handle other recurrence types with existing logic
-        switch (recurrenceType) {
-          case 'daily':
-            // Approximate days in month: 30
-            monthlyOccurrences = 30 / interval;
-            console.log(`📆 [RECURRENCE CALC] Daily calculation: 30 days ÷ ${interval} = ${monthlyOccurrences}`);
-            break;
-            
-          case 'weekly':
-            // Approximate weeks in month: 4.33
-            monthlyOccurrences = 4.33 / interval;
-            console.log(`📆 [RECURRENCE CALC] Weekly calculation: 4.33 weeks ÷ ${interval} = ${monthlyOccurrences}`);
-            break;
-            
-          case 'monthly':
-            monthlyOccurrences = 1 / interval;
-            console.log(`📆 [RECURRENCE CALC] Monthly calculation: 1 month ÷ ${interval} = ${monthlyOccurrences}`);
-            break;
-            
-          case 'quarterly':
-            // Quarterly = every 3 months
-            monthlyOccurrences = (1 / interval) / 3;
-            console.log(`📆 [RECURRENCE CALC] Quarterly calculation: (1 ÷ ${interval}) ÷ 3 = ${monthlyOccurrences}`);
-            break;
-            
-          default:
-            console.warn(`⚠️ [RECURRENCE CALC] Unknown recurrence type for task ${task.id}: ${task.recurrence_type}`);
-            monthlyOccurrences = 1; // Default fallback
-            break;
-        }
-        
-        // Calculate monthly hours for non-annual tasks
-        monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
+        return this.calculateAnnualTaskDemand(task, periodMonth, interval);
       }
 
-      console.log(`✅ [RECURRENCE CALC] Final calculation for task ${task.id}:`, {
-        estimatedHours: task.estimated_hours,
-        monthlyOccurrences: monthlyOccurrences,
-        monthlyHours: monthlyHours,
-        calculation: `${task.estimated_hours} × ${monthlyOccurrences} = ${monthlyHours}`,
-        recurrenceType: task.recurrence_type
+      // Handle other recurrence types with existing logic
+      let monthlyOccurrences = 0;
+
+      switch (recurrenceType) {
+        case 'daily':
+          monthlyOccurrences = 30 / interval;
+          break;
+        case 'weekly':
+          monthlyOccurrences = 4.33 / interval;
+          break;
+        case 'monthly':
+          monthlyOccurrences = 1 / interval;
+          break;
+        case 'quarterly':
+          monthlyOccurrences = (1 / interval) / 3;
+          break;
+        default:
+          console.warn(`⚠️ [RECURRENCE CALC] Unknown recurrence type: ${task.recurrence_type}`);
+          monthlyOccurrences = 0;
+          break;
+      }
+
+      const monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
+
+      console.log(`✅ [RECURRENCE CALC] Non-annual calculation complete:`, {
+        taskId: task.id,
+        recurrenceType: task.recurrence_type,
+        monthlyOccurrences,
+        monthlyHours,
+        calculation: `${task.estimated_hours} × ${monthlyOccurrences} = ${monthlyHours}`
       });
 
-      const result: RecurrenceCalculation = {
+      return {
         monthlyOccurrences: Math.max(0, monthlyOccurrences),
         monthlyHours: Math.max(0, monthlyHours),
         taskId: task.id,
-        nextDueDates: [] // Simplified for now
+        nextDueDates: []
       };
-
-      if (result.monthlyHours === 0 && recurrenceType !== 'annually') {
-        console.warn(`⚠️ [RECURRENCE CALC] Zero hours calculated for non-annual task ${task.id}!`, result);
-      }
-
-      return result;
 
     } catch (error) {
       console.error(`❌ [RECURRENCE CALC] Error calculating recurrence for task ${task.id}:`, error);
-      return {
-        monthlyOccurrences: 0,
-        monthlyHours: 0,
-        taskId: task.id,
-        nextDueDates: []
-      };
+      return this.createEmptyResult(task.id);
     }
+  }
+
+  /**
+   * ENHANCED: Calculate demand for annual tasks with comprehensive data validation
+   */
+  private static calculateAnnualTaskDemand(
+    task: RecurringTaskDB,
+    periodMonth: number,
+    interval: number
+  ): RecurrenceCalculation {
+    console.log(`📆 [ANNUAL CALC] Processing annual task ${task.id}:`, {
+      taskName: task.name,
+      estimatedHours: task.estimated_hours,
+      interval,
+      periodMonth: periodMonth,
+      periodMonthName: this.getMonthName(periodMonth),
+      dueDate: task.due_date,
+      monthOfYear: task.month_of_year,
+      dayOfMonth: task.day_of_month
+    });
+
+    // Strategy 1: Use month_of_year if available (most reliable)
+    if (task.month_of_year !== null && task.month_of_year !== undefined) {
+      const taskMonth = task.month_of_year - 1; // Convert 1-12 to 0-11
+      console.log(`📅 [ANNUAL CALC] Using month_of_year: ${task.month_of_year} (${this.getMonthName(taskMonth)})`);
+      
+      if (taskMonth === periodMonth) {
+        const occurrences = 1 / interval;
+        const hours = Number(task.estimated_hours) * occurrences;
+        
+        console.log(`✅ [ANNUAL CALC] Task included - matches month_of_year:`, {
+          taskMonth: taskMonth,
+          periodMonth: periodMonth,
+          occurrences,
+          hours,
+          calculation: `${task.estimated_hours} × ${occurrences} = ${hours}`
+        });
+        
+        return {
+          monthlyOccurrences: occurrences,
+          monthlyHours: hours,
+          taskId: task.id,
+          nextDueDates: []
+        };
+      } else {
+        console.log(`❌ [ANNUAL CALC] Task excluded - month mismatch:`, {
+          taskMonth: taskMonth,
+          taskMonthName: this.getMonthName(taskMonth),
+          periodMonth: periodMonth,
+          periodMonthName: this.getMonthName(periodMonth)
+        });
+        
+        return this.createEmptyResult(task.id);
+      }
+    }
+
+    // Strategy 2: Use due_date if month_of_year is not available
+    if (task.due_date) {
+      const dueDate = new Date(task.due_date);
+      const dueDateMonth = dueDate.getMonth(); // 0-11
+      
+      console.log(`📅 [ANNUAL CALC] Using due_date fallback: ${task.due_date} (month ${dueDateMonth} - ${this.getMonthName(dueDateMonth)})`);
+      
+      // Check for data inconsistency
+      if (task.month_of_year !== null && task.month_of_year !== undefined) {
+        const configuredMonth = task.month_of_year - 1;
+        if (configuredMonth !== dueDateMonth) {
+          console.warn(`⚠️ [ANNUAL CALC] DATA INCONSISTENCY DETECTED for task ${task.id}:`, {
+            dueDate: task.due_date,
+            dueDateMonth: dueDateMonth,
+            dueDateMonthName: this.getMonthName(dueDateMonth),
+            configuredMonth: task.month_of_year,
+            configuredMonthName: this.getMonthName(task.month_of_year - 1),
+            recommendation: 'Use month_of_year as primary source'
+          });
+        }
+      }
+      
+      if (dueDateMonth === periodMonth) {
+        const occurrences = 1 / interval;
+        const hours = Number(task.estimated_hours) * occurrences;
+        
+        console.log(`✅ [ANNUAL CALC] Task included - matches due_date month:`, {
+          dueDateMonth,
+          periodMonth,
+          occurrences,
+          hours
+        });
+        
+        return {
+          monthlyOccurrences: occurrences,
+          monthlyHours: hours,
+          taskId: task.id,
+          nextDueDates: []
+        };
+      } else {
+        console.log(`❌ [ANNUAL CALC] Task excluded - due_date month mismatch`);
+        return this.createEmptyResult(task.id);
+      }
+    }
+
+    // Strategy 3: No month information available - exclude from all months
+    console.warn(`⚠️ [ANNUAL CALC] Annual task ${task.id} has no month information (month_of_year: ${task.month_of_year}, due_date: ${task.due_date}). Excluding from all periods.`);
+    
+    return this.createEmptyResult(task.id);
+  }
+
+  /**
+   * Enhanced input validation for tasks
+   */
+  private static validateTaskInputs(task: RecurringTaskDB): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Validate basic required fields
+    if (!task || !task.id) {
+      errors.push('Task ID is missing');
+    }
+
+    if (typeof task.estimated_hours !== 'number' || task.estimated_hours <= 0) {
+      errors.push(`Invalid estimated_hours: ${task.estimated_hours}`);
+    }
+
+    if (!task.recurrence_type || typeof task.recurrence_type !== 'string') {
+      errors.push(`Invalid recurrence_type: ${task.recurrence_type}`);
+    }
+
+    // Annual task specific validation
+    if (task.recurrence_type && task.recurrence_type.toLowerCase().includes('annual')) {
+      if (!task.month_of_year && !task.due_date) {
+        errors.push('Annual task missing both month_of_year and due_date');
+      }
+
+      if (task.month_of_year !== null && task.month_of_year !== undefined) {
+        if (task.month_of_year < 1 || task.month_of_year > 12) {
+          errors.push(`Invalid month_of_year: ${task.month_of_year} (must be 1-12)`);
+        }
+      }
+
+      if (task.day_of_month !== null && task.day_of_month !== undefined) {
+        if (task.day_of_month < 1 || task.day_of_month > 31) {
+          errors.push(`Invalid day_of_month: ${task.day_of_month} (must be 1-31)`);
+        }
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Create an empty result for failed calculations
+   */
+  private static createEmptyResult(taskId: string): RecurrenceCalculation {
+    return {
+      monthlyOccurrences: 0,
+      monthlyHours: 0,
+      taskId,
+      nextDueDates: []
+    };
+  }
+
+  /**
+   * Get month name for logging (0-11 index)
+   */
+  private static getMonthName(monthIndex: number): string {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[monthIndex] || `Invalid(${monthIndex})`;
   }
 
   /**

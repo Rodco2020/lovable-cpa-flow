@@ -6,26 +6,55 @@ import { RecurrenceCalculator } from './recurrenceCalculator';
 import { DataValidator } from './dataValidator';
 
 /**
- * Enhanced Skill Calculator with comprehensive diagnostic logging and annual task fix
+ * Enhanced Skill Calculator with comprehensive annual task debugging
  */
 export class SkillCalculator {
   /**
-   * Calculate monthly demand by skill with detailed tracing and annual task support
+   * Calculate monthly demand by skill with enhanced annual task debugging
    */
   static async calculateMonthlyDemandBySkill(
     tasks: RecurringTaskDB[],
     monthStart: Date,
     monthEnd: Date
   ): Promise<SkillHours[]> {
-    console.log('🔍 [SKILL CALCULATOR DEBUG] Starting calculation with:', {
+    const periodMonth = monthStart.getMonth();
+    const periodMonthName = monthStart.toLocaleString('default', { month: 'long' });
+
+    console.log('🔍 [SKILL CALCULATOR] Starting calculation with enhanced annual task debugging:', {
       tasksCount: tasks.length,
       monthStart: monthStart.toISOString(),
       monthEnd: monthEnd.toISOString(),
-      monthNumber: monthStart.getMonth() // For annual task debugging
+      periodMonth,
+      periodMonthName
     });
 
     try {
-      // Validate inputs with detailed logging
+      // Enhanced validation and debugging for annual tasks
+      const annualTasks = tasks.filter(task => 
+        task.recurrence_type && task.recurrence_type.toLowerCase().includes('annual')
+      );
+
+      if (annualTasks.length > 0) {
+        console.log('🎯 [SKILL CALCULATOR] ANNUAL TASKS ANALYSIS:', {
+          totalAnnualTasks: annualTasks.length,
+          currentPeriod: `${periodMonthName} (${periodMonth})`,
+          annualTasksDetails: annualTasks.map(task => ({
+            id: task.id,
+            name: task.name,
+            clientId: task.client_id,
+            estimatedHours: task.estimated_hours,
+            dueDate: task.due_date,
+            dueDateMonth: task.due_date ? new Date(task.due_date).getMonth() : null,
+            dueDateMonthName: task.due_date ? new Date(task.due_date).toLocaleString('default', { month: 'long' }) : null,
+            monthOfYear: task.month_of_year,
+            monthOfYearName: task.month_of_year ? new Date(2025, task.month_of_year - 1).toLocaleString('default', { month: 'long' }) : null,
+            dayOfMonth: task.day_of_month,
+            shouldIncludePrediction: this.predictAnnualTaskInclusion(task, periodMonth)
+          }))
+        });
+      }
+
+      // Validate inputs
       if (!Array.isArray(tasks)) {
         console.error('❌ [SKILL CALCULATOR] Tasks parameter is not an array:', typeof tasks);
         return [];
@@ -36,79 +65,33 @@ export class SkillCalculator {
         return [];
       }
 
-      // Log annual tasks for debugging
-      const annualTasks = tasks.filter(task => 
-        task.recurrence_type && task.recurrence_type.toLowerCase() === 'annually'
-      );
-      
-      if (annualTasks.length > 0) {
-        console.log('📅 [SKILL CALCULATOR] Annual tasks found:', 
-          annualTasks.map(task => ({
-            id: task.id,
-            name: task.name,
-            dueDate: task.due_date,
-            dueDateMonth: task.due_date ? new Date(task.due_date).getMonth() : null,
-            currentPeriodMonth: monthStart.getMonth(),
-            shouldInclude: task.due_date ? new Date(task.due_date).getMonth() === monthStart.getMonth() : false
-          }))
-        );
-      }
-
-      console.log('📋 [SKILL CALCULATOR] Sample task data:', {
-        firstTask: tasks[0] ? {
-          id: tasks[0].id,
-          name: tasks[0].name,
-          estimated_hours: tasks[0].estimated_hours,
-          required_skills: tasks[0].required_skills,
-          recurrence_type: tasks[0].recurrence_type,
-          due_date: tasks[0].due_date,
-          is_active: tasks[0].is_active
-        } : 'No tasks',
-        totalTasks: tasks.length,
-        annualTasksCount: annualTasks.length
-      });
-
-      // Enhanced validation and skill resolution tracking
-      const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(tasks);
+      const { validTasks, invalidTasks } = await DataValidator.validateRecurringTasks(tasks);
       
       console.log('✅ [SKILL CALCULATOR] Task validation results:', {
         totalInput: tasks.length,
         validTasks: validTasks.length,
         invalidTasks: invalidTasks.length,
-        resolvedTasks: resolvedTasks.length,
         validationRate: ((validTasks.length / tasks.length) * 100).toFixed(1) + '%'
       });
-
-      if (invalidTasks.length > 0) {
-        console.warn('⚠️ [SKILL CALCULATOR] Invalid tasks sample:', 
-          invalidTasks.slice(0, 3).map(({ task, errors }) => ({
-            taskId: task.id,
-            taskName: task.name,
-            errors: errors
-          }))
-        );
-      }
 
       if (validTasks.length === 0) {
         console.warn('❌ [SKILL CALCULATOR] No valid tasks after validation');
         return [];
       }
 
-      // Group by skill and calculate demand with detailed tracking
+      // Group by skill and calculate demand with enhanced annual task tracking
       const skillDemandMap = new Map<SkillType, number>();
-      const skillMetadata = new Map<SkillType, {
-        taskCount: number;
-        clientCount: number;
-        taskIds: string[];
-        clientIds: string[];
-        totalEstimatedHours: number;
-        totalCalculatedHours: number;
-        annualTasksIncluded: number;
-        annualTasksSkipped: number;
+      const annualTaskTracker = new Map<string, {
+        taskId: string;
+        taskName: string;
+        clientId: string;
+        estimatedHours: number;
+        calculatedHours: number;
+        wasIncluded: boolean;
+        reason: string;
       }>();
 
       let processedTaskCount = 0;
-      let totalHoursFromTasks = 0;
       let totalCalculatedHours = 0;
       let annualTasksProcessed = 0;
       let annualTasksIncluded = 0;
@@ -118,9 +101,8 @@ export class SkillCalculator {
       for (const task of validTasks) {
         try {
           processedTaskCount++;
-          totalHoursFromTasks += Number(task.estimated_hours) || 0;
+          const isAnnualTask = task.recurrence_type && task.recurrence_type.toLowerCase().includes('annual');
           
-          const isAnnualTask = task.recurrence_type && task.recurrence_type.toLowerCase() === 'annually';
           if (isAnnualTask) {
             annualTasksProcessed++;
           }
@@ -128,12 +110,11 @@ export class SkillCalculator {
           console.log(`📝 [SKILL CALCULATOR] Processing task ${processedTaskCount}/${validTasks.length}:`, {
             taskId: task.id,
             taskName: task.name,
+            clientId: task.client_id,
             estimatedHours: task.estimated_hours,
             requiredSkills: task.required_skills,
             recurrenceType: task.recurrence_type,
-            recurrenceInterval: task.recurrence_interval,
-            dueDate: task.due_date,
-            isAnnualTask: isAnnualTask
+            isAnnualTask
           });
 
           // Calculate recurrence for this task within the month
@@ -143,29 +124,62 @@ export class SkillCalculator {
             monthEnd
           );
 
+          // Track annual tasks specifically
+          if (isAnnualTask) {
+            const wasIncluded = recurrenceCalc.monthlyHours > 0;
+            let reason = 'Unknown';
+
+            if (task.month_of_year !== null && task.month_of_year !== undefined) {
+              const taskMonth = task.month_of_year - 1;
+              reason = taskMonth === periodMonth ? 
+                `Included: month_of_year (${task.month_of_year}) matches period month` :
+                `Excluded: month_of_year (${task.month_of_year}) doesn't match period month (${periodMonth + 1})`;
+            } else if (task.due_date) {
+              const dueDateMonth = new Date(task.due_date).getMonth();
+              reason = dueDateMonth === periodMonth ?
+                `Included: due_date month matches period month` :
+                `Excluded: due_date month doesn't match period month`;
+            } else {
+              reason = 'Excluded: no month information available';
+            }
+
+            annualTaskTracker.set(task.id, {
+              taskId: task.id,
+              taskName: task.name,
+              clientId: task.client_id,
+              estimatedHours: Number(task.estimated_hours),
+              calculatedHours: recurrenceCalc.monthlyHours,
+              wasIncluded,
+              reason
+            });
+
+            if (wasIncluded) {
+              annualTasksIncluded++;
+            }
+
+            console.log(`📊 [ANNUAL TASK TRACKING] ${task.name} (${task.id}):`, {
+              estimatedHours: task.estimated_hours,
+              calculatedHours: recurrenceCalc.monthlyHours,
+              wasIncluded,
+              reason,
+              monthOfYear: task.month_of_year,
+              dueDate: task.due_date
+            });
+          }
+
           console.log(`⏰ [SKILL CALCULATOR] Recurrence calculation for task ${task.id}:`, {
             monthlyOccurrences: recurrenceCalc.monthlyOccurrences,
             monthlyHours: recurrenceCalc.monthlyHours,
             taskEstimatedHours: task.estimated_hours,
             calculationMethod: `${task.estimated_hours} × ${recurrenceCalc.monthlyOccurrences} = ${recurrenceCalc.monthlyHours}`,
             wasIncluded: recurrenceCalc.monthlyHours > 0,
-            isAnnualTask: isAnnualTask
+            isAnnualTask
           });
-
-          // Track annual task inclusion
-          if (isAnnualTask && recurrenceCalc.monthlyHours > 0) {
-            annualTasksIncluded++;
-            console.log(`✅ [SKILL CALCULATOR] Annual task included: ${task.name} (${task.id})`);
-          } else if (isAnnualTask) {
-            console.log(`❌ [SKILL CALCULATOR] Annual task skipped: ${task.name} (${task.id})`);
-          }
 
           totalCalculatedHours += recurrenceCalc.monthlyHours;
 
-          // Process each required skill with validation
+          // Process each required skill
           if (Array.isArray(task.required_skills)) {
-            console.log(`🎯 [SKILL CALCULATOR] Processing ${task.required_skills.length} skills for task ${task.id}:`, task.required_skills);
-
             for (const skillId of task.required_skills) {
               if (typeof skillId === 'string' && skillId.trim().length > 0) {
                 const skill = skillId.trim();
@@ -174,145 +188,117 @@ export class SkillCalculator {
                   currentHours: skillDemandMap.get(skill) || 0,
                   additionalHours: recurrenceCalc.monthlyHours,
                   taskId: task.id,
-                  isAnnualTask: isAnnualTask
+                  taskName: task.name,
+                  isAnnualTask
                 });
 
-                // Add hours to skill total
                 const currentHours = skillDemandMap.get(skill) || 0;
-                const additionalHours = DataValidator.sanitizeArrayLength(recurrenceCalc.monthlyHours, 10000);
-                const newTotal = currentHours + additionalHours;
+                const newTotal = currentHours + recurrenceCalc.monthlyHours;
                 skillDemandMap.set(skill, newTotal);
 
                 console.log(`✨ [SKILL CALCULATOR] Skill "${skill}" updated:`, {
                   previousTotal: currentHours,
-                  added: additionalHours,
+                  added: recurrenceCalc.monthlyHours,
                   newTotal: newTotal,
-                  fromAnnualTask: isAnnualTask
-                });
-
-                // Update metadata
-                const metadata = skillMetadata.get(skill) || {
-                  taskCount: 0,
-                  clientCount: 0,
-                  taskIds: [],
-                  clientIds: [],
-                  totalEstimatedHours: 0,
-                  totalCalculatedHours: 0,
-                  annualTasksIncluded: 0,
-                  annualTasksSkipped: 0
-                };
-
-                metadata.taskCount++;
-                metadata.totalEstimatedHours += Number(task.estimated_hours) || 0;
-                metadata.totalCalculatedHours += additionalHours;
-
-                if (isAnnualTask) {
-                  if (additionalHours > 0) {
-                    metadata.annualTasksIncluded++;
-                  } else {
-                    metadata.annualTasksSkipped++;
-                  }
-                }
-
-                if (!metadata.taskIds.includes(task.id)) {
-                  metadata.taskIds.push(task.id);
-                }
-                if (!metadata.clientIds.includes(task.client_id)) {
-                  metadata.clientIds.push(task.client_id);
-                  metadata.clientCount++;
-                }
-
-                skillMetadata.set(skill, metadata);
-              } else {
-                console.warn(`⚠️ [SKILL CALCULATOR] Invalid skill ID for task ${task.id}:`, {
-                  skillId,
-                  type: typeof skillId,
-                  length: skillId?.length
+                  fromAnnualTask: isAnnualTask,
+                  taskName: task.name
                 });
               }
             }
-          } else {
-            console.warn(`⚠️ [SKILL CALCULATOR] Task ${task.id} has invalid required_skills:`, {
-              required_skills: task.required_skills,
-              type: typeof task.required_skills
-            });
           }
         } catch (taskError) {
           console.error(`❌ [SKILL CALCULATOR] Error processing task ${task.id}:`, taskError);
-          // Continue with other tasks
         }
+      }
+
+      // Enhanced annual task summary
+      if (annualTasksProcessed > 0) {
+        console.log('📈 [ANNUAL TASK SUMMARY]:', {
+          totalAnnualTasks: annualTasksProcessed,
+          includedAnnualTasks: annualTasksIncluded,
+          excludedAnnualTasks: annualTasksProcessed - annualTasksIncluded,
+          periodMonth: periodMonthName,
+          detailedBreakdown: Array.from(annualTaskTracker.values())
+        });
       }
 
       console.log('📊 [SKILL CALCULATOR] Processing summary:', {
         processedTasks: processedTaskCount,
-        totalTaskEstimatedHours: totalHoursFromTasks,
         totalCalculatedHours: totalCalculatedHours,
         uniqueSkills: skillDemandMap.size,
-        annualTasksProcessed: annualTasksProcessed,
-        annualTasksIncluded: annualTasksIncluded,
+        annualTasksProcessed,
+        annualTasksIncluded,
         annualTasksSkipped: annualTasksProcessed - annualTasksIncluded,
         skillTotals: Object.fromEntries(skillDemandMap.entries())
       });
 
-      // Convert to SkillHours array with enhanced metadata
+      // Convert to SkillHours array
       const skillHours: SkillHours[] = Array.from(skillDemandMap.entries())
-        .map(([skill, hours]) => {
-          const metadata = skillMetadata.get(skill);
-          
-          console.log(`📈 [SKILL CALCULATOR] Creating skill hours entry for "${skill}":`, {
-            totalHours: hours,
-            taskCount: metadata?.taskCount || 0,
-            clientCount: metadata?.clientCount || 0,
-            avgHoursPerTask: metadata?.taskCount ? (hours / metadata.taskCount).toFixed(2) : 0,
-            annualTasksIncluded: metadata?.annualTasksIncluded || 0,
-            annualTasksSkipped: metadata?.annualTasksSkipped || 0
-          });
-
-          return {
-            skill,
-            hours: Math.max(0, hours), // Ensure non-negative
-            metadata: {
-              staffCount: 0, // Not applicable for demand
-              staffIds: [],
-              hoursBreakdown: {},
-              calculationNotes: `Demand from ${metadata?.taskCount || 0} tasks across ${metadata?.clientCount || 0} clients (${metadata?.totalEstimatedHours || 0}h estimated × recurrence = ${hours}h calculated). Annual tasks: ${metadata?.annualTasksIncluded || 0} included, ${metadata?.annualTasksSkipped || 0} skipped.`
-            }
-          };
-        })
-        .filter(sh => {
-          const includeSkill = sh.hours > 0;
-          if (!includeSkill) {
-            console.log(`🚫 [SKILL CALCULATOR] Filtering out skill "${sh.skill}" with 0 hours`);
+        .map(([skill, hours]) => ({
+          skill,
+          hours: Math.max(0, hours),
+          metadata: {
+            staffCount: 0,
+            staffIds: [],
+            hoursBreakdown: {},
+            calculationNotes: `Demand calculated for ${periodMonthName}. Total hours: ${hours}`
           }
-          return includeSkill;
-        })
-        .sort((a, b) => b.hours - a.hours); // Sort by hours descending
+        }))
+        .filter(sh => sh.hours > 0)
+        .sort((a, b) => b.hours - a.hours);
 
-      console.log('🎯 [SKILL CALCULATOR] Final results with annual task fix:', {
+      console.log('🎯 [SKILL CALCULATOR] Final results with enhanced annual task handling:', {
         skillsWithDemand: skillHours.length,
         totalDemandHours: skillHours.reduce((sum, sh) => sum + sh.hours, 0),
-        annualTasksProcessed: annualTasksProcessed,
-        annualTasksIncluded: annualTasksIncluded,
+        periodMonth: periodMonthName,
+        annualTasksProcessed,
+        annualTasksIncluded,
         topSkills: skillHours.slice(0, 5).map(sh => ({ skill: sh.skill, hours: sh.hours }))
       });
 
-      if (skillHours.length === 0) {
-        console.error('❌ [SKILL CALCULATOR] CRITICAL: No skills with demand hours found!');
-        console.error('🔍 [SKILL CALCULATOR] Debugging info:', {
-          inputTasks: tasks.length,
-          validTasks: validTasks.length,
-          skillMapSize: skillDemandMap.size,
-          skillMapEntries: Array.from(skillDemandMap.entries())
-        });
-      }
-
-      debugLog(`Calculated demand for ${skillHours.length} skills with annual task fix`);
+      debugLog(`Calculated demand for ${skillHours.length} skills with enhanced annual task handling`);
       return skillHours;
 
     } catch (error) {
       console.error('❌ [SKILL CALCULATOR] Critical error in calculateMonthlyDemandBySkill:', error);
       return [];
     }
+  }
+
+  /**
+   * Predict if an annual task should be included in the current period
+   */
+  private static predictAnnualTaskInclusion(task: RecurringTaskDB, periodMonth: number): {
+    shouldInclude: boolean;
+    reason: string;
+    confidence: 'High' | 'Medium' | 'Low';
+  } {
+    // Strategy 1: month_of_year (highest confidence)
+    if (task.month_of_year !== null && task.month_of_year !== undefined) {
+      const taskMonth = task.month_of_year - 1; // Convert 1-12 to 0-11
+      return {
+        shouldInclude: taskMonth === periodMonth,
+        reason: `month_of_year=${task.month_of_year} (${taskMonth === periodMonth ? 'matches' : 'doesn\'t match'} period month ${periodMonth})`,
+        confidence: 'High'
+      };
+    }
+
+    // Strategy 2: due_date (medium confidence)
+    if (task.due_date) {
+      const dueDateMonth = new Date(task.due_date).getMonth();
+      return {
+        shouldInclude: dueDateMonth === periodMonth,
+        reason: `due_date month=${dueDateMonth} (${dueDateMonth === periodMonth ? 'matches' : 'doesn\'t match'} period month ${periodMonth})`,
+        confidence: 'Medium'
+      };
+    }
+
+    // Strategy 3: no information (low confidence, exclude)
+    return {
+      shouldInclude: false,
+      reason: 'No month information available',
+      confidence: 'Low'
+    };
   }
 
   /**
