@@ -13,17 +13,13 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
   groupingMode
 }) => {
   const getRowLabel = (skillOrClient: string) => {
-    if (groupingMode === 'client') {
-      // For client mode, the skillOrClient is already the resolved client name
-      // from the data transformation process
-      return skillOrClient;
-    }
+    // For both skill and client modes, the value is already the display name
     return skillOrClient;
   };
 
   const getDataPoint = (skillOrClient: string, monthKey: string) => {
     if (groupingMode === 'client') {
-      // For client grouping, find data points by client name in task breakdown
+      // For client grouping, find data points by matching client names in task breakdown
       return filteredData.dataPoints.find(point => {
         if (point.month !== monthKey) return false;
         
@@ -39,7 +35,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
   };
 
   const getAggregatedDataForClient = (clientName: string, monthKey: string) => {
-    // Aggregate all data points for this client in this month
+    // Aggregate all data points for this client in this month using resolved client names
     const relevantPoints = filteredData.dataPoints.filter(point => 
       point.month === monthKey && 
       point.taskBreakdown?.some(task => task.clientName === clientName)
@@ -50,19 +46,46 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
     const allTaskBreakdown = [];
 
     for (const point of relevantPoints) {
+      // Filter tasks by exact client name match (not UUID)
       const clientTasks = point.taskBreakdown?.filter(task => task.clientName === clientName) || [];
       totalHours += clientTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
       totalTasks += clientTasks.length;
       allTaskBreakdown.push(...clientTasks);
     }
 
+    console.log(`📊 [MATRIX GRID] Aggregated for client "${clientName}" in ${monthKey}:`, {
+      totalHours,
+      totalTasks,
+      tasksFound: allTaskBreakdown.length
+    });
+
     return {
       demandHours: totalHours,
       taskCount: totalTasks,
-      clientCount: 1,
+      clientCount: totalHours > 0 ? 1 : 0, // Only count if there's actual demand
       taskBreakdown: allTaskBreakdown
     };
   };
+
+  // Extract unique client names from task breakdowns for client grouping
+  const getUniqueClients = () => {
+    if (groupingMode !== 'client') return [];
+    
+    const clientNames = new Set<string>();
+    
+    filteredData.dataPoints.forEach(point => {
+      point.taskBreakdown?.forEach(task => {
+        if (task.clientName && !task.clientName.includes('...')) { // Exclude fallback names
+          clientNames.add(task.clientName);
+        }
+      });
+    });
+    
+    return Array.from(clientNames).sort();
+  };
+
+  // Determine the skills/clients list based on grouping mode
+  const rowItems = groupingMode === 'client' ? getUniqueClients() : filteredData.skills;
 
   return (
     <div className="overflow-x-auto">
@@ -70,7 +93,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
         className="grid gap-1 min-w-fit"
         style={{
           gridTemplateColumns: `180px repeat(${filteredData.months.length}, minmax(120px, 1fr))`,
-          gridTemplateRows: `auto repeat(${filteredData.skills.length}, auto)`
+          gridTemplateRows: `auto repeat(${rowItems.length}, auto)`
         }}
       >
         {/* Top-left corner cell */}
@@ -89,7 +112,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
         ))}
         
         {/* Skill/Client rows */}
-        {filteredData.skills.map((skillOrClient) => (
+        {rowItems.map((skillOrClient) => (
           <React.Fragment key={skillOrClient}>
             {/* Row label */}
             <div className="p-3 bg-slate-100 border font-medium text-sm flex items-center sticky left-0 z-10">

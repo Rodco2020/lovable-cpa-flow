@@ -56,23 +56,33 @@ export class DemandCalculationService {
   }
 
   /**
-   * Generate task breakdown with consistent client resolution
+   * Generate task breakdown with consistent client resolution using pre-resolved client map
    */
   static async generateTaskBreakdownWithMapping(
     tasks: RecurringTaskDB[],
     skillDisplayName: SkillType,
     period: string,
-    skillMapping: Map<string, string>
+    skillMapping: Map<string, string>,
+    clientResolutionMap?: Map<string, string>  // Pre-resolved client map for consistency
   ): Promise<ClientTaskDemand[]> {
     try {
       const breakdown: ClientTaskDemand[] = [];
 
-      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with client resolution`);
+      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with pre-resolved clients`);
 
-      // Collect all unique client IDs first
-      const clientIds = new Set<string>();
-      const tasksForSkill: RecurringTaskDB[] = [];
+      // If no pre-resolved map provided, create one
+      let resolvedClientMap = clientResolutionMap;
+      if (!resolvedClientMap) {
+        const clientIds = new Set<string>();
+        tasks.forEach(task => {
+          if (task.client_id) {
+            clientIds.add(task.client_id);
+          }
+        });
+        resolvedClientMap = await ClientResolutionService.resolveClientIds(Array.from(clientIds));
+      }
 
+      // Build breakdown with pre-resolved client names
       for (const task of tasks) {
         try {
           if (!task || !Array.isArray(task.required_skills)) continue;
@@ -89,51 +99,33 @@ export class DemandCalculationService {
           }
 
           if (hasSkill) {
-            tasksForSkill.push(task);
-            if (task.client_id) {
-              clientIds.add(task.client_id);
-            }
+            const clientId = task.client_id || 'unknown';
+            const clientName = resolvedClientMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
+            
+            const demandItem: ClientTaskDemand = {
+              clientId: clientId,
+              clientName: clientName,
+              recurringTaskId: task.id,
+              taskName: task.name || 'Unnamed Task',
+              skillType: skillDisplayName,
+              estimatedHours: Math.max(0, task.estimated_hours || 0),
+              recurrencePattern: {
+                type: task.recurrence_type || 'Monthly',
+                interval: task.recurrence_interval || 1,
+                frequency: 1
+              },
+              monthlyHours: Math.max(0, task.estimated_hours || 0)
+            };
+
+            breakdown.push(demandItem);
+            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} (${clientName}) to breakdown for skill "${skillDisplayName}"`);
           }
-        } catch (taskError) {
-          console.warn(`Error processing task ${task.id} for skill matching:`, taskError);
-        }
-      }
-
-      // Resolve all client IDs to names in one batch
-      const clientIdArray = Array.from(clientIds);
-      const clientResolutionMap = await ClientResolutionService.resolveClientIds(clientIdArray);
-
-      console.log(`🏢 [TASK BREAKDOWN] Resolved ${clientResolutionMap.size} client names for skill "${skillDisplayName}"`);
-
-      // Build breakdown with resolved client names
-      for (const task of tasksForSkill) {
-        try {
-          const clientId = task.client_id || 'unknown';
-          const clientName = clientResolutionMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
-          
-          const demandItem: ClientTaskDemand = {
-            clientId: clientId,
-            clientName: clientName,
-            recurringTaskId: task.id,
-            taskName: task.name || 'Unnamed Task',
-            skillType: skillDisplayName,
-            estimatedHours: Math.max(0, task.estimated_hours || 0),
-            recurrencePattern: {
-              type: task.recurrence_type || 'Monthly',
-              interval: task.recurrence_interval || 1,
-              frequency: 1
-            },
-            monthlyHours: Math.max(0, task.estimated_hours || 0)
-          };
-
-          breakdown.push(demandItem);
-          console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} (${clientName}) to breakdown for skill "${skillDisplayName}"`);
         } catch (itemError) {
           console.warn(`Error creating demand item for task ${task.id}:`, itemError);
         }
       }
 
-      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}"`);
+      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with consistent client names`);
       return breakdown.slice(0, 100);
     } catch (error) {
       console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);

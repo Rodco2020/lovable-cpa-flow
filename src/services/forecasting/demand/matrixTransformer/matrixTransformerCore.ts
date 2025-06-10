@@ -22,7 +22,7 @@ export class MatrixTransformerCore {
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
   ): Promise<DemandMatrixData> {
-    debugLog('Transforming forecast data to matrix with client resolution', { 
+    debugLog('Transforming forecast data to matrix with enhanced client resolution', { 
       periodsCount: forecastData.length, 
       tasksCount: tasks.length 
     });
@@ -39,7 +39,7 @@ export class MatrixTransformerCore {
         tasks = [];
       }
 
-      // Initialize client resolution cache early
+      // Initialize client resolution cache early and ensure it's populated
       await ClientResolutionService.initializeClientCache();
       const cacheStats = ClientResolutionService.getCacheStats();
       console.log('📊 [MATRIX TRANSFORM] Client cache initialized:', cacheStats);
@@ -69,7 +69,7 @@ export class MatrixTransformerCore {
         validTasks
       );
       
-      // Generate data points with corrected skill matching and client resolution
+      // Generate data points with enhanced skill matching and consistent client resolution
       const dataPoints = await DataPointGenerationService.generateDataPointsWithSkillMapping({
         forecastData,
         tasks: validTasks,
@@ -77,7 +77,7 @@ export class MatrixTransformerCore {
         skillMapping
       });
       
-      // Calculate totals and summaries
+      // Calculate totals and summaries using the enhanced data points
       const totals = CalculationUtils.calculateTotals(dataPoints);
       const skillSummary = CalculationUtils.generateSkillSummary(dataPoints);
 
@@ -91,7 +91,8 @@ export class MatrixTransformerCore {
         skillSummary
       };
 
-      const successMessage = `✅ [MATRIX TRANSFORM] Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, client resolution: ${cacheStats.clientsCount} clients cached`;
+      const successMessage = `✅ [MATRIX TRANSFORM] Enhanced matrix generated: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, clients: ${totals.totalClients} (${cacheStats.clientsCount} cached)`;
+      console.log(successMessage);
       debugLog(successMessage);
 
       return matrixData;

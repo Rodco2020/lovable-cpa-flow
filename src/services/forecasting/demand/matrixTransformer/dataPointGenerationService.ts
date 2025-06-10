@@ -27,6 +27,12 @@ export class DataPointGenerationService {
       // Pre-warm the client resolution cache
       await ClientResolutionService.initializeClientCache();
 
+      // Pre-resolve all client IDs to names for consistent aggregation
+      const allClientIds = [...new Set(tasks.map(task => task.client_id).filter(Boolean))];
+      const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
+      
+      console.log(`🏢 [DATA POINT GEN] Pre-resolved ${clientResolutionMap.size} clients for consistent aggregation`);
+
       for (const skill of skills) {
         for (const period of forecastData) {
           try {
@@ -43,17 +49,18 @@ export class DataPointGenerationService {
               tasks, 
               skill, 
               period.period, 
-              skillMapping
+              skillMapping,
+              clientResolutionMap  // Pass pre-resolved client map
             );
             
-            // Calculate derived metrics safely with consistent client counting
+            // Calculate derived metrics safely with consistent client counting using resolved names
             const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length, 1000);
             
-            // Use resolved client names for counting, not UUIDs
+            // Count unique clients by resolved names (not UUIDs)
             const uniqueClientNames = new Set(
               taskBreakdown
                 .map(t => t.clientName)
-                .filter(name => typeof name === 'string' && name.length > 0)
+                .filter(name => typeof name === 'string' && name.length > 0 && !name.includes('...')) // Exclude fallback names
             );
             const clientCount = DataValidator.sanitizeArrayLength(uniqueClientNames.size, 1000);
 
@@ -82,7 +89,7 @@ export class DataPointGenerationService {
         }
       }
 
-      console.log(`📊 [DATA POINT GEN] Generated ${dataPoints.length} total data points with client resolution`);
+      console.log(`📊 [DATA POINT GEN] Generated ${dataPoints.length} total data points with consistent client resolution`);
       return dataPoints;
     } catch (error) {
       console.error('Error generating data points with skill mapping and client resolution:', error);
