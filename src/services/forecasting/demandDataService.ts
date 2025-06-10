@@ -2,14 +2,14 @@
 import { debugLog } from './logger';
 import { 
   DemandForecastParameters, 
-  DemandMatrixData, 
-  DemandFilters,
-  RecurrenceCalculation,
-  ClientTaskDemand
+  DemandMatrixData,
+  DemandForecastResult
 } from '@/types/demand';
-import { RecurringTaskDB } from '@/types/task';
 import { ForecastData } from '@/types/forecasting';
-import { 
+import { RecurringTaskDB } from '@/types/task';
+
+// Import from the refactored demand module
+import {
   DataFetcher,
   RecurrenceCalculator,
   ForecastGenerator,
@@ -17,91 +17,92 @@ import {
 } from './demand';
 
 /**
- * Demand Data Service (Refactored)
- * 
- * This service now acts as a facade that delegates to specialized services
- * for better maintainability and testability. All public methods maintain
- * exactly the same interface and behavior as before.
- * 
- * Responsibilities:
- * - Provides backwards-compatible API
- * - Delegates to specialized services
- * - Maintains existing functionality without changes
+ * Demand Data Service
+ * Handles demand forecasting and matrix data transformation
  */
 export class DemandDataService {
   /**
-   * Fetch all client-assigned recurring tasks with filtering
-   * @deprecated Use DataFetcher.fetchClientAssignedTasks directly for new code
-   */
-  static async fetchClientAssignedTasks(filters?: DemandFilters): Promise<RecurringTaskDB[]> {
-    return DataFetcher.fetchClientAssignedTasks(filters);
-  }
-
-  /**
-   * Calculate monthly demand from recurrence patterns
-   * @deprecated Use RecurrenceCalculator.calculateMonthlyDemand directly for new code
+   * Calculate monthly demand for a recurring task
    */
   static calculateMonthlyDemand(
     task: RecurringTaskDB,
     startDate: Date,
     endDate: Date
-  ): RecurrenceCalculation {
+  ) {
     return RecurrenceCalculator.calculateMonthlyDemand(task, startDate, endDate);
   }
 
   /**
-   * Generate demand forecast data for 12-month matrix display
-   * @deprecated Use ForecastGenerator.generateDemandForecast directly for new code
+   * Generate demand forecast data
    */
   static async generateDemandForecast(
     parameters: DemandForecastParameters
   ): Promise<ForecastData[]> {
-    return ForecastGenerator.generateDemandForecast(parameters);
+    debugLog('DemandDataService: Generating demand forecast', { parameters });
+    return await ForecastGenerator.generateDemandForecast(parameters);
   }
 
   /**
-   * Transform demand forecast into matrix format
-   * @deprecated Use MatrixTransformer.transformToMatrixData directly for new code
+   * Transform forecast data to matrix format
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
   ): Promise<DemandMatrixData> {
-    return MatrixTransformer.transformToMatrixData(forecastData, tasks);
+    debugLog('DemandDataService: Transforming to matrix data', { 
+      periodsCount: forecastData.length, 
+      tasksCount: tasks.length 
+    });
+    return await MatrixTransformer.transformToMatrixData(forecastData, tasks);
   }
 
-  // Legacy private methods - keeping for backwards compatibility but marking as deprecated
-  
   /**
-   * @deprecated This method is now handled by RecurrenceCalculator
+   * Generate complete demand forecast with matrix
    */
-  private static calculateRecurrenceFrequency(task: RecurringTaskDB): number {
-    const { recurrence_type, recurrence_interval = 1 } = task;
+  static async generateDemandForecastWithMatrix(
+    parameters: DemandForecastParameters
+  ): Promise<DemandForecastResult> {
+    debugLog('DemandDataService: Generating complete demand forecast with matrix', { parameters });
 
-    switch (recurrence_type) {
-      case 'Daily':
-        return 30 / recurrence_interval;
-      case 'Weekly':
-        return 4 / recurrence_interval;
-      case 'Monthly':
-        return 1 / recurrence_interval;
-      case 'Quarterly':
-        return (1 / recurrence_interval) / 3;
-      case 'Annually':
-        return (1 / recurrence_interval) / 12;
-      default:
-        return 1;
+    try {
+      // Generate forecast data
+      const forecastData = await this.generateDemandForecast(parameters);
+      
+      // Fetch related tasks for matrix generation
+      const tasks = await DataFetcher.fetchClientAssignedTasks({
+        skills: parameters.includeSkills === 'all' ? [] : parameters.includeSkills,
+        clients: parameters.includeClients === 'all' ? [] : parameters.includeClients,
+        timeHorizon: {
+          start: parameters.dateRange.startDate,
+          end: parameters.dateRange.endDate
+        }
+      });
+      
+      // Transform to matrix
+      const demandMatrix = await this.transformToMatrixData(forecastData, tasks);
+      
+      // Calculate summary
+      const summary = {
+        totalDemand: demandMatrix.totalDemand,
+        totalTasks: demandMatrix.totalTasks,
+        totalClients: demandMatrix.totalClients,
+        averageMonthlyDemand: demandMatrix.months.length > 0 
+          ? demandMatrix.totalDemand / demandMatrix.months.length 
+          : 0
+      };
+
+      return {
+        parameters,
+        data: forecastData,
+        demandMatrix,
+        summary,
+        generatedAt: new Date()
+      };
+    } catch (error) {
+      console.error('Error generating demand forecast with matrix:', error);
+      throw error;
     }
   }
-
-  /**
-   * @deprecated This method is now handled by specialized services
-   */
-  private static createTaskBreakdown(
-    tasks: RecurringTaskDB[],
-    skillType: any,
-    month: string
-  ): ClientTaskDemand[] {
-    return MatrixTransformer['createTaskBreakdown'](tasks, skillType, month);
-  }
 }
+
+export default DemandDataService;

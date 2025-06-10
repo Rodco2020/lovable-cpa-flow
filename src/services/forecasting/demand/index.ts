@@ -16,17 +16,16 @@
  * - Performance optimization for large datasets
  * 
  * Architecture:
- * - Core orchestration layer (DemandForecastGenerator)
+ * - Core orchestration layer (ForecastGenerator)
  * - Data fetching layer (DataFetcher)
- * - Calculation engines (DemandCalculationEngine, etc.)
+ * - Calculation engines (DemandCalculationService, etc.)
  * - Matrix transformation services
  * - Validation and optimization utilities
  */
 
 // Core demand forecasting services
-export { DemandForecastGenerator as ForecastGenerator } from './demandForecastGenerator';
+export { ForecastGenerator } from './forecastGenerator';
 export { DataFetcher } from './dataFetcher';
-export { DemandCalculationEngine } from './demandCalculationEngine';
 
 // Matrix transformation services - New modular structure
 export { MatrixTransformer } from './matrixTransformer';
@@ -40,13 +39,23 @@ export { DemandDrillDownService } from './demandDrillDownService';
 export { ClientResolutionService } from './clientResolutionService';
 export { SkillResolutionService } from './skillResolutionService';
 
-// Utility services
-export { TaskGenerationSimulator } from './taskGenerationSimulator';
+// Calculation and recurrence services
+export { RecurrenceCalculator } from './recurrenceCalculator';
+export { SkillCalculator } from './skillCalculator';
+export { PeriodGenerator } from './periodGenerator';
+
+// Re-export calculation service from matrix transformer
+export { DemandCalculationService } from './matrixTransformer/demandCalculationService';
 
 // Export types for external consumption
 export type { 
   DemandForecastParameters,
-  DemandCalculationResult,
-  DemandValidationResult,
-  TaskSimulationResult 
-} from './types';
+  DemandFilters,
+  RecurrenceCalculation
+} from '@/types/demand';
+
+export type {
+  ForecastData,
+  ForecastParameters,
+  SkillType
+} from '@/types/forecasting';
