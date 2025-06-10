@@ -3,6 +3,8 @@ import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB, SkillType } from '@/types/task';
 import { ClientTaskDemand } from '@/types/demand';
 import { ClientResolutionService } from '../clientResolutionService';
+import { RecurrenceCalculator } from '../recurrenceCalculator';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 /**
  * Service responsible for calculating demand for skills and periods
@@ -70,6 +72,11 @@ export class DemandCalculationService {
 
       console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with pre-resolved clients`);
 
+      // Derive month boundaries from period string for recurrence calculation
+      const periodDate = new Date(`${period}-01`);
+      const monthStart = startOfMonth(periodDate);
+      const monthEnd = endOfMonth(periodDate);
+
       // If no pre-resolved map provided, create one
       let resolvedClientMap = clientResolutionMap;
       if (!resolvedClientMap) {
@@ -101,7 +108,14 @@ export class DemandCalculationService {
           if (hasSkill) {
             const clientId = task.client_id || 'unknown';
             const clientName = resolvedClientMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
-            
+
+            // Calculate monthly recurrence for this task within the period
+            const recurrence = RecurrenceCalculator.calculateMonthlyDemand(
+              task,
+              monthStart,
+              monthEnd
+            );
+
             const demandItem: ClientTaskDemand = {
               clientId: clientId,
               clientName: clientName,
@@ -112,9 +126,9 @@ export class DemandCalculationService {
               recurrencePattern: {
                 type: task.recurrence_type || 'Monthly',
                 interval: task.recurrence_interval || 1,
-                frequency: 1
+                frequency: recurrence.monthlyOccurrences
               },
-              monthlyHours: Math.max(0, task.estimated_hours || 0)
+              monthlyHours: recurrence.monthlyHours
             };
 
             breakdown.push(demandItem);
