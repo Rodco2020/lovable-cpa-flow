@@ -23,7 +23,9 @@ export class DataFetcher {
       let query = supabase
         .from('recurring_tasks')
         .select('*, clients!inner(id, legal_name)')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        // Explicit range to avoid default 10 row limit in some environments
+        .range(0, 999);
 
       // Apply filters safely
       if (filters.clients && filters.clients.length > 0) {
@@ -99,8 +101,8 @@ export class DataFetcher {
       const { data, error } = await supabase
         .from('recurring_tasks')
         .select('*, clients(id, legal_name)')
-        .eq('is_active', true);
-        // REMOVED: .limit(100) - Now fetches all records
+        .eq('is_active', true)
+        .range(0, 999); // explicitly fetch up to 1000 rows
 
       if (error) {
         console.error('Fallback query also failed:', error);
@@ -164,7 +166,8 @@ export class DataFetcher {
       const { data, error } = await supabase
         .from('skills')
         .select('id, name')
-        .order('name');
+        .order('name')
+        .range(0, 999); // ensure all skills retrieved
         // REMOVED: .limit(100) - Now fetches all skills
 
       if (error) {
@@ -200,7 +203,8 @@ export class DataFetcher {
         .from('clients')
         .select('id, legal_name')
         .eq('status', 'active')
-        .order('legal_name');
+        .order('legal_name')
+        .range(0, 999); // ensure all active clients fetched
         // REMOVED: .limit(1000) - Now fetches all active clients
 
       if (error) {
