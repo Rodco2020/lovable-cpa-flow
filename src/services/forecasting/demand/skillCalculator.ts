@@ -2,7 +2,7 @@
 import { debugLog } from '../logger';
 import { SkillHours } from '@/types/forecasting';
 import { RecurringTaskDB, SkillType } from '@/types/task';
-import { RecurrenceCalculator } from './recurrenceCalculator';
+import { RecurrenceCalculator } from './recurrenceCalculator/recurrenceCalculator';
 import { DataValidator } from './dataValidator';
 
 /**

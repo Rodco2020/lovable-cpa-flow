@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { RecurrenceCalculator } from '@/services/forecasting/demand/recurrenceCalculator';
+import { RecurrenceCalculator } from '@/services/forecasting/demand/recurrenceCalculator/recurrenceCalculator';
 import { RecurringTaskDB } from '@/types/task';
 
 describe('RecurrenceCalculator', () => {
