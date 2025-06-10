@@ -126,7 +126,8 @@ export class DemandCalculationService {
       }
 
       console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with consistent client names`);
-      return breakdown.slice(0, 100);
+      // Return the full breakdown without truncation so all clients are included
+      return breakdown;
     } catch (error) {
       console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);
       return [];
