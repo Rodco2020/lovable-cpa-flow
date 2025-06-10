@@ -5,6 +5,7 @@ import { RecurringTaskDB, SkillType } from '@/types/task';
 import { DataValidator } from '../dataValidator';
 import { DemandCalculationService } from './demandCalculationService';
 import { DataPointGenerationContext } from './types';
+import { ClientResolutionService } from '../clientResolutionService';
 import { format } from 'date-fns';
 
 /**
@@ -12,7 +13,7 @@ import { format } from 'date-fns';
  */
 export class DataPointGenerationService {
   /**
-   * Generate data points with correct skill mapping for demand calculation
+   * Generate data points with correct skill mapping and client resolution
    */
   static async generateDataPointsWithSkillMapping(
     context: DataPointGenerationContext
@@ -21,7 +22,10 @@ export class DataPointGenerationService {
       const { forecastData, tasks, skills, skillMapping } = context;
       const dataPoints: DemandDataPoint[] = [];
 
-      console.log('🔄 [DATA POINT GEN] Generating data points with skill mapping...');
+      console.log('🔄 [DATA POINT GEN] Generating data points with skill mapping and client resolution...');
+
+      // Pre-warm the client resolution cache
+      await ClientResolutionService.initializeClientCache();
 
       for (const skill of skills) {
         for (const period of forecastData) {
@@ -42,14 +46,16 @@ export class DataPointGenerationService {
               skillMapping
             );
             
-            // Calculate derived metrics safely
+            // Calculate derived metrics safely with consistent client counting
             const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length, 1000);
-            const clientIds = new Set(
+            
+            // Use resolved client names for counting, not UUIDs
+            const uniqueClientNames = new Set(
               taskBreakdown
-                .map(t => t.clientId)
-                .filter(id => typeof id === 'string' && id.length > 0)
+                .map(t => t.clientName)
+                .filter(name => typeof name === 'string' && name.length > 0)
             );
-            const clientCount = DataValidator.sanitizeArrayLength(clientIds.size, 1000);
+            const clientCount = DataValidator.sanitizeArrayLength(uniqueClientNames.size, 1000);
 
             const dataPoint: DemandDataPoint = {
               skillType: skill,
@@ -66,7 +72,8 @@ export class DataPointGenerationService {
             console.log(`✅ [DATA POINT GEN] Generated data point for ${skill} in ${period.period}:`, {
               demandHours,
               taskCount,
-              clientCount
+              clientCount,
+              uniqueClients: Array.from(uniqueClientNames).slice(0, 3)
             });
 
           } catch (pointError) {
@@ -75,10 +82,10 @@ export class DataPointGenerationService {
         }
       }
 
-      console.log(`📊 [DATA POINT GEN] Generated ${dataPoints.length} total data points`);
+      console.log(`📊 [DATA POINT GEN] Generated ${dataPoints.length} total data points with client resolution`);
       return dataPoints;
     } catch (error) {
-      console.error('Error generating data points with skill mapping:', error);
+      console.error('Error generating data points with skill mapping and client resolution:', error);
       return [];
     }
   }

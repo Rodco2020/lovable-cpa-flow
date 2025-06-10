@@ -8,6 +8,7 @@ import { SkillMappingService } from './skillMappingService';
 import { DataPointGenerationService } from './dataPointGenerationService';
 import { PeriodProcessingService } from './periodProcessingService';
 import { CalculationUtils } from './calculationUtils';
+import { ClientResolutionService } from '../clientResolutionService';
 
 /**
  * Core matrix transformation orchestrator
@@ -15,13 +16,13 @@ import { CalculationUtils } from './calculationUtils';
  */
 export class MatrixTransformerCore {
   /**
-   * Transform forecast data to matrix format with fixed skill resolution
+   * Transform forecast data to matrix format with client resolution
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
   ): Promise<DemandMatrixData> {
-    debugLog('Transforming forecast data to matrix with fixed skill resolution', { 
+    debugLog('Transforming forecast data to matrix with client resolution', { 
       periodsCount: forecastData.length, 
       tasksCount: tasks.length 
     });
@@ -38,17 +39,22 @@ export class MatrixTransformerCore {
         tasks = [];
       }
 
+      // Initialize client resolution cache early
+      await ClientResolutionService.initializeClientCache();
+      const cacheStats = ClientResolutionService.getCacheStats();
+      console.log('📊 [MATRIX TRANSFORM] Client cache initialized:', cacheStats);
+
       // Enhanced validation and cleaning with skill resolution
       const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(tasks);
 
       // Log resolution results
       if (resolvedTasks.length > 0) {
-        console.log(`Resolved skills for ${resolvedTasks.length} tasks`);
+        console.log(`✅ [MATRIX TRANSFORM] Resolved skills for ${resolvedTasks.length} tasks`);
         debugLog('Skill resolution results', { resolvedTasks });
       }
 
       if (invalidTasks.length > 0) {
-        console.warn(`Excluded ${invalidTasks.length} invalid tasks from matrix generation`);
+        console.warn(`⚠️ [MATRIX TRANSFORM] Excluded ${invalidTasks.length} invalid tasks from matrix generation`);
         invalidTasks.slice(0, 3).forEach(({ task, errors }) => {
           console.warn(`Task ${task.id}:`, errors.slice(0, 2)); // Limit error spam
         });
@@ -63,7 +69,7 @@ export class MatrixTransformerCore {
         validTasks
       );
       
-      // Generate data points with corrected skill matching
+      // Generate data points with corrected skill matching and client resolution
       const dataPoints = await DataPointGenerationService.generateDataPointsWithSkillMapping({
         forecastData,
         tasks: validTasks,
@@ -85,13 +91,13 @@ export class MatrixTransformerCore {
         skillSummary
       };
 
-      const successMessage = `Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h`;
+      const successMessage = `✅ [MATRIX TRANSFORM] Generated matrix: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, client resolution: ${cacheStats.clientsCount} clients cached`;
       debugLog(successMessage);
 
       return matrixData;
 
     } catch (error) {
-      console.error('Error transforming to matrix data:', error);
+      console.error('❌ [MATRIX TRANSFORM] Error transforming to matrix data:', error);
       
       // Return a minimal valid structure to prevent cascade failures
       return {

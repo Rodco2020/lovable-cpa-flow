@@ -14,19 +14,54 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
 }) => {
   const getRowLabel = (skillOrClient: string) => {
     if (groupingMode === 'client') {
-      // Find client name from data
-      const clientTask = filteredData.dataPoints
-        .flatMap(point => point.taskBreakdown)
-        .find(task => task.clientId === skillOrClient);
-      return clientTask?.clientName || skillOrClient;
+      // For client mode, the skillOrClient is already the resolved client name
+      // from the data transformation process
+      return skillOrClient;
     }
     return skillOrClient;
   };
 
   const getDataPoint = (skillOrClient: string, monthKey: string) => {
-    return filteredData.dataPoints.find(
-      point => point.skillType === skillOrClient && point.month === monthKey
+    if (groupingMode === 'client') {
+      // For client grouping, find data points by client name in task breakdown
+      return filteredData.dataPoints.find(point => {
+        if (point.month !== monthKey) return false;
+        
+        // Check if any task in the breakdown matches this client name
+        return point.taskBreakdown?.some(task => task.clientName === skillOrClient);
+      });
+    } else {
+      // For skill grouping, match by skill type
+      return filteredData.dataPoints.find(
+        point => point.skillType === skillOrClient && point.month === monthKey
+      );
+    }
+  };
+
+  const getAggregatedDataForClient = (clientName: string, monthKey: string) => {
+    // Aggregate all data points for this client in this month
+    const relevantPoints = filteredData.dataPoints.filter(point => 
+      point.month === monthKey && 
+      point.taskBreakdown?.some(task => task.clientName === clientName)
     );
+
+    let totalHours = 0;
+    let totalTasks = 0;
+    const allTaskBreakdown = [];
+
+    for (const point of relevantPoints) {
+      const clientTasks = point.taskBreakdown?.filter(task => task.clientName === clientName) || [];
+      totalHours += clientTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
+      totalTasks += clientTasks.length;
+      allTaskBreakdown.push(...clientTasks);
+    }
+
+    return {
+      demandHours: totalHours,
+      taskCount: totalTasks,
+      clientCount: 1,
+      taskBreakdown: allTaskBreakdown
+    };
   };
 
   return (
@@ -65,7 +100,21 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
             
             {/* Demand cells for each month */}
             {filteredData.months.map((month) => {
-              const dataPoint = getDataPoint(skillOrClient, month.key);
+              let cellData;
+              
+              if (groupingMode === 'client') {
+                // For client mode, aggregate data across all skills for this client
+                cellData = getAggregatedDataForClient(skillOrClient, month.key);
+              } else {
+                // For skill mode, use the existing data point logic
+                const dataPoint = getDataPoint(skillOrClient, month.key);
+                cellData = {
+                  demandHours: dataPoint?.demandHours || 0,
+                  taskCount: dataPoint?.taskCount || 0,
+                  clientCount: dataPoint?.clientCount || 0,
+                  taskBreakdown: dataPoint?.taskBreakdown || []
+                };
+              }
               
               return (
                 <DemandMatrixCell
@@ -73,10 +122,10 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
                   skillOrClient={skillOrClient}
                   month={month.key}
                   monthLabel={month.label}
-                  demandHours={dataPoint?.demandHours || 0}
-                  taskCount={dataPoint?.taskCount || 0}
-                  clientCount={dataPoint?.clientCount || 0}
-                  taskBreakdown={dataPoint?.taskBreakdown || []}
+                  demandHours={cellData.demandHours}
+                  taskCount={cellData.taskCount}
+                  clientCount={cellData.clientCount}
+                  taskBreakdown={cellData.taskBreakdown}
                   groupingMode={groupingMode}
                 />
               );
