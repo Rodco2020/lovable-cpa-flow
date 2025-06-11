@@ -61,8 +61,22 @@ export class RecurrenceCalculator {
         return AnnualTaskCalculator.calculateAnnualTaskDemand(task, periodMonth, interval);
       }
 
+      // Determine start month for quarterly and other patterns that rely on a base month
+      let startMonth = 0;
+      if (task.month_of_year !== null && task.month_of_year !== undefined) {
+        startMonth = task.month_of_year - 1; // convert 1-12 to 0-11
+      } else if (task.due_date) {
+        startMonth = MonthUtils.getMonthFromDate(task.due_date);
+      }
+
       // Handle other recurrence types
-      return this.calculateNonAnnualTaskDemand(task, recurrenceType, interval);
+      return this.calculateNonAnnualTaskDemand(
+        task,
+        recurrenceType,
+        interval,
+        periodMonth,
+        startMonth
+      );
 
     } catch (error) {
       console.error(`❌ [RECURRENCE CALC] Error calculating recurrence for task ${task.id}:`, error);
@@ -76,9 +90,16 @@ export class RecurrenceCalculator {
   private static calculateNonAnnualTaskDemand(
     task: RecurringTaskDB,
     recurrenceType: string,
-    interval: number
+    interval: number,
+    periodMonth: number,
+    startMonth: number
   ): RecurrenceCalculation {
-    const monthlyOccurrences = RecurrenceTypeCalculator.calculateMonthlyOccurrences(recurrenceType, interval);
+    const monthlyOccurrences = RecurrenceTypeCalculator.calculateMonthlyOccurrences(
+      recurrenceType,
+      interval,
+      periodMonth,
+      startMonth
+    );
     const monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
 
     console.log(`✅ [RECURRENCE CALC] Non-annual calculation complete:`, {
