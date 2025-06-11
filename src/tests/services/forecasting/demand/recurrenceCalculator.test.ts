@@ -50,13 +50,23 @@ describe('RecurrenceCalculator', () => {
         estimated_hours: 30
       };
 
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
+      const janStart = new Date('2025-01-01');
+      const janEnd = new Date('2025-01-31');
+      const febStart = new Date('2025-02-01');
+      const febEnd = new Date('2025-02-28');
+      const aprStart = new Date('2025-04-01');
+      const aprEnd = new Date('2025-04-30');
 
-      const result = RecurrenceCalculator.calculateMonthlyDemand(quarterlyTask, startDate, endDate);
+      const resultJan = RecurrenceCalculator.calculateMonthlyDemand(quarterlyTask, janStart, janEnd);
+      const resultFeb = RecurrenceCalculator.calculateMonthlyDemand(quarterlyTask, febStart, febEnd);
+      const resultApr = RecurrenceCalculator.calculateMonthlyDemand(quarterlyTask, aprStart, aprEnd);
 
-      expect(result.monthlyOccurrences).toBeCloseTo(0.33, 2);
-      expect(result.monthlyHours).toBeCloseTo(10, 2);
+      expect(resultJan.monthlyOccurrences).toBe(1);
+      expect(resultJan.monthlyHours).toBe(30);
+      expect(resultFeb.monthlyOccurrences).toBe(1);
+      expect(resultFeb.monthlyHours).toBe(30);
+      expect(resultApr.monthlyOccurrences).toBe(0);
+      expect(resultApr.monthlyHours).toBe(0);
     });
 
     describe('FIXED: Annual tasks with month-specific logic', () => {
