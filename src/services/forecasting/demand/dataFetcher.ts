@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
@@ -22,7 +23,7 @@ export class DataFetcher {
       // Build query with proper error handling
       let query = supabase
         .from('recurring_tasks')
-        .select('*, clients!inner(id, legal_name)')
+        .select('*, clients!inner(id, legal_name, expected_monthly_revenue)')
         .eq('is_active', true)
         // Explicit range to avoid default 10 row limit in some environments
         .range(0, 999);
@@ -100,7 +101,7 @@ export class DataFetcher {
       
       const { data, error } = await supabase
         .from('recurring_tasks')
-        .select('*, clients(id, legal_name)')
+        .select('*, clients(id, legal_name, expected_monthly_revenue)')
         .eq('is_active', true)
         .range(0, 999); // explicitly fetch up to 1000 rows
 
@@ -236,6 +237,53 @@ export class DataFetcher {
 
     } catch (error) {
       console.error('Error fetching clients:', error);
+      return [];
+    }
+  }
+
+  /**
+   * NEW: Fetch clients with revenue data for matrix calculations
+   */
+  static async fetchClientsWithRevenue(): Promise<Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>> {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, legal_name, expected_monthly_revenue')
+        .eq('status', 'active')
+        .order('legal_name')
+        .range(0, 999);
+
+      if (error) {
+        console.error('Error fetching clients with revenue:', error);
+        return [];
+      }
+
+      if (!Array.isArray(data)) {
+        console.warn('Clients revenue data is not an array');
+        return [];
+      }
+
+      // Validate and format client revenue data
+      const validClients = data
+        .filter(client => 
+          client && 
+          typeof client.id === 'string' && 
+          typeof client.legal_name === 'string' &&
+          client.id.trim().length > 0 &&
+          client.legal_name.trim().length > 0 &&
+          typeof client.expected_monthly_revenue === 'number'
+        )
+        .map(client => ({
+          id: client.id.trim(),
+          legal_name: client.legal_name.trim(),
+          expected_monthly_revenue: Number(client.expected_monthly_revenue) || 0
+        }));
+
+      debugLog(`Fetched ${validClients.length} clients with revenue data`);
+      return validClients;
+
+    } catch (error) {
+      console.error('Error fetching clients with revenue:', error);
       return [];
     }
   }

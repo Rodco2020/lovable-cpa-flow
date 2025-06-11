@@ -10,6 +10,8 @@ import { PeriodProcessingService } from './periodProcessingService';
 import { CalculationUtils } from './calculationUtils';
 import { ClientResolutionService } from '../clientResolutionService';
 import { ClientTotalsCalculator } from './clientTotalsCalculator';
+import { ClientRevenueCalculator } from './clientRevenueCalculator';
+import { DataFetcher } from '../dataFetcher';
 
 /**
  * Core matrix transformation orchestrator
@@ -17,13 +19,13 @@ import { ClientTotalsCalculator } from './clientTotalsCalculator';
  */
 export class MatrixTransformerCore {
   /**
-   * Transform forecast data to matrix format with client resolution and totals
+   * Transform forecast data to matrix format with client resolution, totals, and revenue calculations
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
   ): Promise<DemandMatrixData> {
-    debugLog('Transforming forecast data to matrix with enhanced client resolution and totals', { 
+    debugLog('Transforming forecast data to matrix with enhanced client resolution, totals, and revenue calculations', { 
       periodsCount: forecastData.length, 
       tasksCount: tasks.length 
     });
@@ -82,8 +84,43 @@ export class MatrixTransformerCore {
       const totals = CalculationUtils.calculateTotals(dataPoints);
       const skillSummary = CalculationUtils.generateSkillSummary(dataPoints);
 
-      // NEW: Calculate client totals
+      // Calculate client totals
       const clientTotals = ClientTotalsCalculator.calculateClientTotals(dataPoints);
+
+      // NEW: Fetch client revenue data and calculate revenue metrics
+      let clientRevenue = new Map<string, number>();
+      let clientHourlyRates = new Map<string, number>();
+
+      try {
+        console.log('💰 [MATRIX TRANSFORM] Fetching client revenue data...');
+        const clientsWithRevenue = await DataFetcher.fetchClientsWithRevenue();
+        
+        if (clientsWithRevenue.length > 0) {
+          // Build client revenue map
+          const clientRevenueMap = ClientRevenueCalculator.buildClientRevenueMap(clientsWithRevenue);
+          
+          // Calculate total expected revenue per client (monthly revenue × number of months)
+          const monthCount = months.length;
+          clientRevenue = ClientRevenueCalculator.calculateClientRevenue(
+            clientTotals,
+            clientRevenueMap,
+            monthCount
+          );
+          
+          // Calculate expected hourly rates per client
+          clientHourlyRates = ClientRevenueCalculator.calculateClientHourlyRates(
+            clientTotals,
+            clientRevenue
+          );
+          
+          console.log(`💰 [MATRIX TRANSFORM] Revenue calculations complete: ${clientRevenue.size} clients processed`);
+        } else {
+          console.warn('⚠️ [MATRIX TRANSFORM] No client revenue data available');
+        }
+      } catch (revenueError) {
+        console.error('❌ [MATRIX TRANSFORM] Error calculating client revenue:', revenueError);
+        // Continue without revenue data rather than failing the entire operation
+      }
 
       const matrixData: DemandMatrixData = {
         months,
@@ -93,10 +130,12 @@ export class MatrixTransformerCore {
         totalTasks: totals.totalTasks,
         totalClients: totals.totalClients,
         skillSummary,
-        clientTotals // NEW: Include client totals
+        clientTotals,
+        clientRevenue, // NEW: Include client revenue data
+        clientHourlyRates // NEW: Include client hourly rates
       };
 
-      const successMessage = `✅ [MATRIX TRANSFORM] Enhanced matrix generated: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, clients: ${totals.totalClients} (${cacheStats.clientsCount} cached), client totals: ${clientTotals.size}`;
+      const successMessage = `✅ [MATRIX TRANSFORM] Enhanced matrix generated: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, clients: ${totals.totalClients} (${cacheStats.clientsCount} cached), client totals: ${clientTotals.size}, revenue data: ${clientRevenue.size}`;
       console.log(successMessage);
       debugLog(successMessage);
 
@@ -114,7 +153,9 @@ export class MatrixTransformerCore {
         totalTasks: 0,
         totalClients: 0,
         skillSummary: {},
-        clientTotals: new Map() // NEW: Include empty client totals
+        clientTotals: new Map(),
+        clientRevenue: new Map(), // NEW: Include empty client revenue
+        clientHourlyRates: new Map() // NEW: Include empty client hourly rates
       };
     }
   }

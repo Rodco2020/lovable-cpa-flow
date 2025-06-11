@@ -43,6 +43,8 @@ export interface DemandMatrixData {
     };
   };
   clientTotals?: Map<string, number>;
+  clientRevenue?: Map<string, number>; // NEW: Total expected revenue per client
+  clientHourlyRates?: Map<string, number>; // NEW: Expected hourly rate per client
 }
 
 export interface DemandFilters {
@@ -128,4 +130,14 @@ export interface DemandForecastResult {
     averageMonthlyDemand: number;
   };
   generatedAt: Date;
+}
+
+// NEW: Client revenue data structure
+export interface ClientRevenueData {
+  clientId: string;
+  clientName: string;
+  expectedMonthlyRevenue: number;
+  totalHours: number;
+  totalRevenue: number;
+  hourlyRate: number;
 }
