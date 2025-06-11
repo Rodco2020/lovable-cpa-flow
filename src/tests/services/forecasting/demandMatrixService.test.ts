@@ -113,7 +113,7 @@ describe('DemandMatrixService', () => {
             taskName: 'Test Task',
             skillType: 'Tax Preparation',
             estimatedHours: 10,
-            recurrencePattern: { type: 'Monthly', frequency: 1 },
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
             monthlyHours: 10
           }]
         }],

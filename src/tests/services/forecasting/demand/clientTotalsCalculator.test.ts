@@ -8,6 +8,7 @@ describe('ClientTotalsCalculator', () => {
     {
       skillType: 'Junior',
       month: '2025-01',
+      monthLabel: 'January 2025',
       demandHours: 20,
       taskCount: 2,
       clientCount: 1,
@@ -37,6 +38,7 @@ describe('ClientTotalsCalculator', () => {
     {
       skillType: 'Senior',
       month: '2025-01',
+      monthLabel: 'January 2025',
       demandHours: 15,
       taskCount: 1,
       clientCount: 1,
