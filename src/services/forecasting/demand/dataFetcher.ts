@@ -203,7 +203,7 @@ export class DataFetcher {
       const { data, error } = await supabase
         .from('clients')
         .select('id, legal_name')
-        .eq('status', 'active')
+        .eq('status', 'Active')
         .order('legal_name')
         .range(0, 999); // ensure all active clients fetched
         // REMOVED: .limit(1000) - Now fetches all active clients
@@ -249,7 +249,7 @@ export class DataFetcher {
       const { data, error } = await supabase
         .from('clients')
         .select('id, legal_name, expected_monthly_revenue')
-        .eq('status', 'active')
+        .eq('status', 'Active')
         .order('legal_name')
         .range(0, 999);
 
