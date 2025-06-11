@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -112,7 +111,7 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
       matrixData: filteredData.map(point => ({
         skill: point.skillType,
         month: point.month,
-        monthLabel: point.monthLabel,
+        monthLabel: point.monthLabel || point.month, // Fixed: Handle missing monthLabel safely
         demandHours: point.demandHours,
         taskCount: point.taskCount,
         clientCount: point.clientCount,

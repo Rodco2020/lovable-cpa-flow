@@ -1,8 +1,10 @@
+
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
   skillType: string;
   month: string;
+  monthLabel: string; // Added missing monthLabel property
   demandHours: number;
   taskCount: number;
   clientCount: number;
@@ -22,7 +24,7 @@ export interface ClientTaskDemand {
 
 export interface RecurrencePattern {
   type: string;
-  interval: number;
+  interval: number; // Added missing interval property
   frequency: number;
 }
 
@@ -40,7 +42,7 @@ export interface DemandMatrixData {
       clientCount: number;
     };
   };
-  clientTotals?: Map<string, number>; // New field for client totals
+  clientTotals?: Map<string, number>;
 }
 
 export interface DemandFilters {
@@ -50,6 +52,7 @@ export interface DemandFilters {
     start: Date;
     end: Date;
   };
+  includeInactive?: boolean; // Added missing includeInactive property
 }
 
 export type DemandMatrixMode = 'demand-only' | 'capacity-vs-demand';
@@ -99,4 +102,30 @@ export interface TaskFilter {
 export interface TaskBreakdownItem {
   task: RecurringTaskDB;
   monthlyHours: number;
+}
+
+// Added missing forecast parameter types
+export interface DemandForecastParameters {
+  timeHorizon: 'quarter' | 'half-year' | 'year' | 'custom';
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+  includeSkills: string[] | 'all';
+  includeClients: string[] | 'all';
+  granularity: 'daily' | 'weekly' | 'monthly';
+}
+
+// Added missing forecast result type
+export interface DemandForecastResult {
+  parameters: DemandForecastParameters;
+  data: any[]; // Using any[] to match existing usage
+  demandMatrix: DemandMatrixData;
+  summary: {
+    totalDemand: number;
+    totalTasks: number;
+    totalClients: number;
+    averageMonthlyDemand: number;
+  };
+  generatedAt: Date;
 }
