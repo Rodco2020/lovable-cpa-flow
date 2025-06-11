@@ -1,18 +1,12 @@
+import { RecurringTaskDB } from './task';
 
-import { SkillType, RecurringTask } from './task';
-import { ForecastData, DateRange, SkillHours } from './forecasting';
-
-/**
- * Demand-specific types for the new Demand Matrix module
- * These types mirror capacity structures but focus on task templates and client assignments
- */
-
-export interface DemandForecastParameters {
-  timeHorizon: 'month' | 'quarter' | 'year' | 'custom';
-  dateRange: DateRange;
-  includeSkills: SkillType[] | 'all';
-  includeClients: string[] | 'all';
-  granularity: 'monthly' | 'weekly' | 'daily';
+export interface DemandDataPoint {
+  skillType: string;
+  month: string;
+  demandHours: number;
+  taskCount: number;
+  clientCount: number;
+  taskBreakdown?: ClientTaskDemand[];
 }
 
 export interface ClientTaskDemand {
@@ -20,72 +14,89 @@ export interface ClientTaskDemand {
   clientName: string;
   recurringTaskId: string;
   taskName: string;
-  skillType: SkillType;
+  skillType: string;
   estimatedHours: number;
-  recurrencePattern: {
-    type: string;
-    interval?: number;
-    frequency: number; // occurrences per period
-  };
-  monthlyHours: number; // calculated based on recurrence
+  recurrencePattern: RecurrencePattern;
+  monthlyHours: number;
 }
 
-export interface DemandDataPoint {
-  skillType: SkillType;
-  month: string;
-  monthLabel: string;
-  demandHours: number;
-  taskCount: number;
-  clientCount: number;
-  // Task breakdown for drill-down functionality
-  taskBreakdown: ClientTaskDemand[];
+export interface RecurrencePattern {
+  type: string;
+  interval: number;
+  frequency: number;
 }
 
 export interface DemandMatrixData {
   months: Array<{ key: string; label: string }>;
-  skills: SkillType[];
+  skills: string[];
   dataPoints: DemandDataPoint[];
   totalDemand: number;
   totalTasks: number;
   totalClients: number;
-  // Summary by skill
-  skillSummary: Record<SkillType, {
-    totalHours: number;
-    taskCount: number;
-    clientCount: number;
-  }>;
-}
-
-export interface DemandForecastResult {
-  parameters: DemandForecastParameters;
-  data: ForecastData[];
-  demandMatrix: DemandMatrixData;
-  summary: {
-    totalDemand: number;
-    totalTasks: number;
-    totalClients: number;
-    averageMonthlyDemand: number;
+  skillSummary: {
+    [key: string]: {
+      totalHours: number;
+      taskCount: number;
+      clientCount: number;
+    };
   };
-  generatedAt: Date;
+  clientTotals?: Map<string, number>; // New field for client totals
 }
 
-// Filter types for demand analysis
 export interface DemandFilters {
-  skills: SkillType[];
+  skills: string[];
   clients: string[];
   timeHorizon: {
     start: Date;
     end: Date;
   };
-  includeInactive?: boolean;
 }
 
-// Recurrence calculation helpers
+export type DemandMatrixMode = 'demand-only' | 'capacity-vs-demand';
+
+export interface DemandDrillDownData {
+  skillType: string;
+  month: string;
+  totalDemandHours: number;
+  totalTasks: number;
+  totalClients: number;
+  taskBreakdown: ClientTaskDemand[];
+}
+
 export interface RecurrenceCalculation {
-  taskId: string;
   monthlyOccurrences: number;
   monthlyHours: number;
+  taskId: string;
   nextDueDates: Date[];
 }
 
-export type DemandMatrixMode = 'demand-only' | 'demand-vs-capacity';
+export interface DemandTrend {
+  month: string;
+  demandHours: number;
+  trendValue: number;
+}
+
+export interface DemandRecommendation {
+  skill: string;
+  recommendation: string;
+}
+
+export interface DemandAlert {
+  skill: string;
+  alertMessage: string;
+}
+
+export interface TaskFilter {
+  skill?: string;
+  client?: string;
+  taskName?: string;
+  dueDate?: Date;
+  priority?: string;
+  category?: string;
+  status?: string;
+}
+
+export interface TaskBreakdownItem {
+  task: RecurringTaskDB;
+  monthlyHours: number;
+}

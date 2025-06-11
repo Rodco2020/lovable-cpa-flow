@@ -2,6 +2,7 @@
 import React from 'react';
 import { DemandMatrixData } from '@/types/demand';
 import { DemandMatrixCell } from './DemandMatrixCell';
+import { DemandMatrixClientTotalsColumn } from './DemandMatrixClientTotalsColumn';
 
 interface DemandMatrixGridProps {
   filteredData: DemandMatrixData;
@@ -92,12 +93,16 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
 
   console.log(`📊 [MATRIX GRID] Rendering matrix with ${rowItems.length} ${groupingMode}s and ${filteredData.months.length} months`);
 
+  // Calculate grid columns - add totals column for client mode
+  const totalColumns = filteredData.months.length + (groupingMode === 'client' ? 1 : 0);
+  const gridTemplateColumns = `180px repeat(${filteredData.months.length}, minmax(120px, 1fr))${groupingMode === 'client' ? ' minmax(120px, 1fr)' : ''}`;
+
   return (
     <div className="overflow-x-auto">
       <div 
         className="grid gap-1 min-w-fit"
         style={{
-          gridTemplateColumns: `180px repeat(${filteredData.months.length}, minmax(120px, 1fr))`,
+          gridTemplateColumns,
           gridTemplateRows: `auto repeat(${rowItems.length}, auto)`
         }}
       >
@@ -115,6 +120,13 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
             {month.label}
           </div>
         ))}
+        
+        {/* Client Totals Column Header */}
+        <DemandMatrixClientTotalsColumn
+          filteredData={filteredData}
+          groupingMode={groupingMode}
+          rowItems={rowItems}
+        />
         
         {/* Skill/Client rows */}
         {rowItems.map((skillOrClient) => (

@@ -9,6 +9,7 @@ import { DataPointGenerationService } from './dataPointGenerationService';
 import { PeriodProcessingService } from './periodProcessingService';
 import { CalculationUtils } from './calculationUtils';
 import { ClientResolutionService } from '../clientResolutionService';
+import { ClientTotalsCalculator } from './clientTotalsCalculator';
 
 /**
  * Core matrix transformation orchestrator
@@ -16,13 +17,13 @@ import { ClientResolutionService } from '../clientResolutionService';
  */
 export class MatrixTransformerCore {
   /**
-   * Transform forecast data to matrix format with client resolution
+   * Transform forecast data to matrix format with client resolution and totals
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[]
   ): Promise<DemandMatrixData> {
-    debugLog('Transforming forecast data to matrix with enhanced client resolution', { 
+    debugLog('Transforming forecast data to matrix with enhanced client resolution and totals', { 
       periodsCount: forecastData.length, 
       tasksCount: tasks.length 
     });
@@ -81,6 +82,9 @@ export class MatrixTransformerCore {
       const totals = CalculationUtils.calculateTotals(dataPoints);
       const skillSummary = CalculationUtils.generateSkillSummary(dataPoints);
 
+      // NEW: Calculate client totals
+      const clientTotals = ClientTotalsCalculator.calculateClientTotals(dataPoints);
+
       const matrixData: DemandMatrixData = {
         months,
         skills,
@@ -88,10 +92,11 @@ export class MatrixTransformerCore {
         totalDemand: totals.totalDemand,
         totalTasks: totals.totalTasks,
         totalClients: totals.totalClients,
-        skillSummary
+        skillSummary,
+        clientTotals // NEW: Include client totals
       };
 
-      const successMessage = `✅ [MATRIX TRANSFORM] Enhanced matrix generated: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, clients: ${totals.totalClients} (${cacheStats.clientsCount} cached)`;
+      const successMessage = `✅ [MATRIX TRANSFORM] Enhanced matrix generated: ${months.length} months, ${skills.length} skills, ${dataPoints.length} data points, total demand: ${totals.totalDemand}h, clients: ${totals.totalClients} (${cacheStats.clientsCount} cached), client totals: ${clientTotals.size}`;
       console.log(successMessage);
       debugLog(successMessage);
 
@@ -108,7 +113,8 @@ export class MatrixTransformerCore {
         totalDemand: 0,
         totalTasks: 0,
         totalClients: 0,
-        skillSummary: {}
+        skillSummary: {},
+        clientTotals: new Map() // NEW: Include empty client totals
       };
     }
   }
