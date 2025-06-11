@@ -22,6 +22,7 @@ import {
   DemandMatrixExportDialog
 } from './components/demand';
 import { DemandMatrixErrorBoundary } from './components/demand/DemandMatrixErrorBoundary';
+import { DemandMatrixPrintExportDialog } from './components/demand/DemandMatrixPrintExportDialog';
 
 interface DemandMatrixProps {
   className?: string;
@@ -29,7 +30,7 @@ interface DemandMatrixProps {
 }
 
 /**
- * Enhanced Demand Matrix Component with Fixed Skill Filtering
+ * Enhanced Demand Matrix Component with Print/Export Functionality
  */
 export const DemandMatrix: React.FC<DemandMatrixProps> = ({ 
   className,
@@ -46,6 +47,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   const [drillDownData, setDrillDownData] = useState<DemandDrillDownData | null>(null);
   const [selectedDrillDown, setSelectedDrillDown] = useState<{skill: SkillType; month: string} | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showPrintExportDialog, setShowPrintExportDialog] = useState(false); // NEW: Print/Export dialog state
   const [timeHorizon, setTimeHorizon] = useState<'quarter' | 'half-year' | 'year' | 'custom'>('year');
   const [customDateRange, setCustomDateRange] = useState<{start: Date; end: Date}>();
   
@@ -187,6 +189,11 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   // Phase 4: Handle export dialog
   const handleShowExport = () => {
     setShowExportDialog(true);
+  };
+
+  // NEW: Handle print/export dialog
+  const handleShowPrintExport = () => {
+    setShowPrintExportDialog(true);
   };
 
   // Enhanced retry with exponential backoff
@@ -352,6 +359,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
                 groupingMode={groupingMode}
                 availableSkills={availableSkills}
                 availableClients={availableClients}
+                onPrintExport={handleShowPrintExport} // NEW: Pass print/export handler
               />
             </div>
           </div>
@@ -414,6 +422,18 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
             isOpen={showExportDialog}
             onClose={() => setShowExportDialog(false)}
             demandData={demandData}
+            selectedSkills={selectedSkills}
+            selectedClients={selectedClients}
+            monthRange={monthRange}
+          />
+        )}
+
+        {/* NEW: Print/Export Dialog */}
+        {demandData && (
+          <DemandMatrixPrintExportDialog
+            isOpen={showPrintExportDialog}
+            onClose={() => setShowPrintExportDialog(false)}
+            demandData={filteredData}
             selectedSkills={selectedSkills}
             selectedClients={selectedClients}
             monthRange={monthRange}

@@ -1,24 +1,27 @@
 
-/**
- * Demand Matrix Components
- * 
- * Component library for demand matrix display and interaction
- */
-
+// Core matrix components
 export { DemandMatrixHeader } from './DemandMatrixHeader';
 export { DemandMatrixGrid } from './DemandMatrixGrid';
+export { DemandMatrixCell } from './DemandMatrixCell';
+export { DemandMatrixClientTotalsColumn } from './DemandMatrixClientTotalsColumn';
+
+// Control components
+export { DemandMatrixControls } from './DemandMatrixControls';
 export { DemandMatrixControlsPanel } from './DemandMatrixControlsPanel';
+export { DemandMatrixTimeControls } from './DemandMatrixTimeControls';
+
+// State components
 export { DemandMatrixLoadingState } from './DemandMatrixLoadingState';
 export { DemandMatrixErrorState } from './DemandMatrixErrorState';
 export { DemandMatrixEmptyState } from './DemandMatrixEmptyState';
+
+// Summary and footer components
 export { DemandMatrixSummaryFooter } from './DemandMatrixSummaryFooter';
-export { DemandMatrixCell } from './DemandMatrixCell';
-export { DemandMatrixControls } from './DemandMatrixControls';
 
-// Phase 4: Advanced Features
+// Dialog components
 export { DemandDrillDownDialog } from './DemandDrillDownDialog';
-export { DemandMatrixTimeControls } from './DemandMatrixTimeControls';
 export { DemandMatrixExportDialog } from './DemandMatrixExportDialog';
+export { DemandMatrixPrintExportDialog } from './DemandMatrixPrintExportDialog'; // NEW
 
-// Phase 5: Integration & Polish
-export { DemandMatrixErrorBoundary, withDemandMatrixErrorBoundary } from './DemandMatrixErrorBoundary';
+// Error boundary
+export { DemandMatrixErrorBoundary } from './DemandMatrixErrorBoundary';
