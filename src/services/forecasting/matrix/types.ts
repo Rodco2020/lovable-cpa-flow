@@ -57,3 +57,10 @@ export interface MatrixErrorContext {
   endDate?: Date;
   additionalInfo?: Record<string, any>;
 }
+
+// Add the missing MatrixErrorCode type
+export type MatrixErrorCode = 
+  | 'MATRIX_VALIDATION_FAILED'
+  | 'MATRIX_DATA_FETCH_FAILED' 
+  | 'MATRIX_CACHE_ERROR'
+  | 'MATRIX_PROCESSING_TIMEOUT';

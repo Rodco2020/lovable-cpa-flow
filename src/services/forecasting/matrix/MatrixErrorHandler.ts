@@ -1,5 +1,5 @@
 
-import { MatrixErrorContext, MatrixErrorCode } from './types';
+import type { MatrixErrorContext, MatrixErrorCode } from './types';
 import { MATRIX_CONSTANTS } from './constants';
 import { debugLog } from '../logger';
 
