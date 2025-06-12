@@ -1,5 +1,4 @@
 
-
 import { MatrixData } from '../matrixUtils';
 import { DemandMatrixData } from '@/types/demand';
 import { 
@@ -270,11 +269,7 @@ export class EnhancedMatrixService {
    */
   private static adaptDemandMatrixForAnalytics(demandData: DemandMatrixData): MatrixData {
     return {
-      months: demandData.months.map((month, index) => ({
-        key: month.key,
-        label: month.label,
-        index: index
-      })),
+      months: demandData.months,
       skills: demandData.skills,
       dataPoints: demandData.dataPoints.map(point => ({
         skillType: point.skillType,
@@ -298,13 +293,7 @@ export class EnhancedMatrixService {
     demandData: DemandMatrixData,
     options: ExportOptions
   ): string {
-    // Create months with index for proper handling
-    const monthsWithIndex = demandData.months.map((month, index) => ({
-      ...month,
-      index: index
-    }));
-    
-    const filteredMonths = monthsWithIndex.slice(options.monthRange.start, options.monthRange.end + 1);
+    const filteredMonths = demandData.months.slice(options.monthRange.start, options.monthRange.end + 1);
     const filteredSkills = demandData.skills.filter(skill => options.selectedSkills.includes(skill));
     
     const headers = ['Skill', 'Month', 'Demand (Hours)', 'Task Count', 'Client Count'];
@@ -340,13 +329,7 @@ export class EnhancedMatrixService {
     demandData: DemandMatrixData,
     options: ExportOptions
   ): string {
-    // Create months with index for proper handling
-    const monthsWithIndex = demandData.months.map((month, index) => ({
-      ...month,
-      index: index
-    }));
-    
-    const filteredMonths = monthsWithIndex.slice(options.monthRange.start, options.monthRange.end + 1);
+    const filteredMonths = demandData.months.slice(options.monthRange.start, options.monthRange.end + 1);
     const filteredSkills = demandData.skills.filter(skill => options.selectedSkills.includes(skill));
     
     const exportData = {
@@ -354,10 +337,10 @@ export class EnhancedMatrixService {
         exportDate: new Date().toISOString(),
         matrixType: 'demand',
         skills: filteredSkills,
-        months: filteredMonths.map(m => ({
+        months: filteredMonths.map((m, index) => ({
           key: m.key,
           label: m.label,
-          index: m.index
+          index: m.index || index
         })),
         totalDemand: demandData.totalDemand,
         totalTasks: demandData.totalTasks,
@@ -373,7 +356,7 @@ export class EnhancedMatrixService {
           return {
             month: month.label,
             monthKey: month.key,
-            monthIndex: month.index,
+            monthIndex: month.index || index,
             demandHours: dataPoint?.demandHours || 0,
             taskCount: dataPoint?.taskCount || 0,
             clientCount: dataPoint?.clientCount || 0,
@@ -386,4 +369,3 @@ export class EnhancedMatrixService {
     return JSON.stringify(exportData, null, 2);
   }
 }
-
