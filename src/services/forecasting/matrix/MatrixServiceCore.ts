@@ -167,35 +167,41 @@ export class MatrixServiceCore {
       index: (m as any).index ?? index
     }));
 
-    const skillSet = new Set<SkillType>();
-    demandMatrix.skills.forEach(s => skillSet.add(s as SkillType));
+    // Build the union of all skills from demand and capacity data.
+    // Use trimmed string keys to avoid mismatches caused by whitespace
+    const skillSet = new Set<string>();
+    demandMatrix.skills.forEach(s => skillSet.add(String(s).trim()));
     capacityForecast.forEach(period => {
-      period.capacity.forEach((c: any) => skillSet.add(c.skill));
+      period.capacity.forEach((c: any) => skillSet.add(String(c.skill).trim()));
     });
     const skills = Array.from(skillSet).sort() as SkillType[];
 
-    const demandMap = new Map<string, Map<SkillType, DemandDataPoint>>();
+    // Map month -> skill -> demand data using sanitized skill keys
+    const demandMap = new Map<string, Map<string, DemandDataPoint>>();
     demandMatrix.dataPoints.forEach(dp => {
-      const monthMap = demandMap.get(dp.month) || new Map<SkillType, DemandDataPoint>();
-      monthMap.set(dp.skillType as SkillType, dp);
+      const monthMap = demandMap.get(dp.month) || new Map<string, DemandDataPoint>();
+      const skillKey = String(dp.skillType).trim();
+      monthMap.set(skillKey, dp);
       demandMap.set(dp.month, monthMap);
     });
 
-    const capacityMap = new Map<string, Map<SkillType, number>>();
+    const capacityMap = new Map<string, Map<string, number>>();
     capacityForecast.forEach(period => {
-      const monthMap = new Map<SkillType, number>();
+      const monthMap = capacityMap.get(period.period) || new Map<string, number>();
       period.capacity.forEach((c: any) => {
-        monthMap.set(c.skill, (monthMap.get(c.skill) || 0) + c.hours);
+        const skillKey = String(c.skill).trim();
+        monthMap.set(skillKey, (monthMap.get(skillKey) || 0) + c.hours);
       });
       capacityMap.set(period.period, monthMap);
     });
 
     const dataPoints: MatrixDataPoint[] = [];
     for (const skill of skills) {
+      const skillKey = String(skill).trim();
       for (const month of months) {
-        const demandPoint = demandMap.get(month.key)?.get(skill);
+        const demandPoint = demandMap.get(month.key)?.get(skillKey);
         const demandHours = demandPoint?.demandHours || 0;
-        const capacityHours = capacityMap.get(month.key)?.get(skill) || 0;
+        const capacityHours = capacityMap.get(month.key)?.get(skillKey) || 0;
         const gap = demandHours - capacityHours;
         const utilizationPercent = capacityHours > 0 ? Math.round((demandHours / capacityHours) * 100) : 0;
 
