@@ -1,7 +1,8 @@
 
 import { MatrixData, MonthInfo } from './matrixUtils';
 import { SkillAwareForecastingService } from './skillAwareForecastingService';
-import { startOfYear, addMonths, format } from 'date-fns';
+import { DemandMatrixService } from './demandMatrixService';
+import { startOfYear } from 'date-fns';
 import { SkillType } from '@/types/task';
 import { debugLog } from './logger';
 
@@ -31,65 +32,46 @@ export async function generateMatrixForecast(forecastType: 'virtual' | 'actual')
     const currentYear = new Date().getFullYear();
     const startDate = startOfYear(new Date(currentYear, 0, 1));
     const endDate = new Date(currentYear, 11, 31);
-    
-    // Generate demand and capacity forecasts with FIXED logic
-    const [demandForecast, capacityForecast] = await Promise.all([
-      SkillAwareForecastingService.generateDemandForecast(startDate, endDate),
-      SkillAwareForecastingService.generateCapacityForecast(startDate, endDate)
-    ]);
-    
-    debugLog('FIXED Forecasts generated:', {
-      demandPeriods: demandForecast.length,
-      capacityPeriods: capacityForecast.length,
-      sampleDemand: demandForecast[0]?.demand || [],
-      sampleCapacity: capacityForecast[0]?.capacity || []
-    });
-    
-    // Generate months
-    const months: MonthInfo[] = [];
-    for (let i = 0; i < 12; i++) {
-      const monthDate = addMonths(startDate, i);
-      months.push({
-        key: format(monthDate, 'yyyy-MM'),
-        label: format(monthDate, 'MMM yyyy')
-      });
-    }
-    
-    // Extract all unique skills from both forecasts
+
+    // Use demand matrix service to obtain demand data via MatrixTransformerCore
+    const { matrixData: demandMatrix } = await DemandMatrixService.generateDemandMatrix(
+      'demand-only',
+      startDate
+    );
+
+    // Generate capacity forecast using skill-aware service
+    const capacityForecast = await SkillAwareForecastingService.generateCapacityForecast(
+      startDate,
+      endDate
+    );
+
+    const months: MonthInfo[] = demandMatrix.months;
+
+    // Combine skills from demand matrix and capacity forecast
     const allSkills = new Set<SkillType>();
-    
-    demandForecast.forEach(period => {
-      period.demand.forEach(skillHour => {
-        allSkills.add(skillHour.skill);
-      });
-    });
-    
+    demandMatrix.skills.forEach(s => allSkills.add(s as SkillType));
     capacityForecast.forEach(period => {
-      period.capacity.forEach(skillHour => {
-        allSkills.add(skillHour.skill);
-      });
+      period.capacity.forEach(skillHour => allSkills.add(skillHour.skill));
     });
-    
+
     const skills = Array.from(allSkills);
     debugLog('FIXED Skills extracted:', skills);
-    
-    // Generate data points with FIXED calculations
+
     const dataPoints: MatrixDataPoint[] = [];
     let totalDemand = 0;
     let totalCapacity = 0;
-    
+
     months.forEach(month => {
-      const demandPeriod = demandForecast.find(p => p.period === month.key);
       const capacityPeriod = capacityForecast.find(p => p.period === month.key);
-      
+
       skills.forEach(skill => {
-        // FIXED: Get demand hours for this skill (full hours allocation)
-        const demandHours = demandPeriod?.demand.find(d => d.skill === skill)?.hours || 0;
+        const demandHours =
+          demandMatrix.dataPoints.find(dp => dp.skillType === skill && dp.month === month.key)?.demandHours || 0;
         const capacityHours = capacityPeriod?.capacity.find(c => c.skill === skill)?.hours || 0;
-        
+
         const gap = capacityHours - demandHours;
         const utilizationPercent = capacityHours > 0 ? (demandHours / capacityHours) * 100 : 0;
-        
+
         dataPoints.push({
           skillType: skill,
           month: month.key,
@@ -99,7 +81,7 @@ export async function generateMatrixForecast(forecastType: 'virtual' | 'actual')
           gap,
           utilizationPercent
         });
-        
+
         totalDemand += demandHours;
         totalCapacity += capacityHours;
       });
