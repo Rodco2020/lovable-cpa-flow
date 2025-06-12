@@ -84,7 +84,7 @@ export class MatrixServiceCore {
       );
       
       // Combine demand and capacity data
-      const combinedForecast = this.combineDemandAndCapacity(demandMatrix, capacityForecast);
+      const combinedForecast = await this.combineDemandAndCapacity(demandMatrix, capacityForecast);
       
       // Transform combined forecast into matrix data structure
       const matrixData = MatrixDataProcessor.transformForecastDataToMatrix(combinedForecast);
@@ -119,29 +119,33 @@ export class MatrixServiceCore {
   /**
    * Combine demand matrix data with capacity forecast data
    */
-  private static combineDemandAndCapacity(demandMatrix: any, capacityForecast: any[]) {
-    const months = demandMatrix.months;
-    
-    // Build demand map by month and skill from unified demand matrix
-    const demandByMonth = new Map();
-    demandMatrix.dataPoints.forEach((dp: any) => {
-      const monthMap = demandByMonth.get(dp.month) || new Map();
-      monthMap.set(dp.skillType, (monthMap.get(dp.skillType) || 0) + dp.demandHours);
-      demandByMonth.set(dp.month, monthMap);
-    });
-    
-    // Construct combined forecast array
-    return months.map((month: any) => {
-      const demandMap = demandByMonth.get(month.key) || new Map();
-      const demand = Array.from(demandMap.entries()).map(([skill, hours]) => ({ skill, hours }));
-      const capacityPeriod = capacityForecast.find(p => p.period === month.key);
-      const capacity = capacityPeriod?.capacity || [];
-      
+  private static async combineDemandAndCapacity(
+    _demandMatrix: any,
+    capacityForecast: any[]
+  ) {
+    // fetch correct demand-only data
+    const startDate = startOfYear(new Date());
+    const { matrixData: freshDemand } = await DemandMatrixService.generateDemandMatrix(
+      'demand-only',
+      startDate
+    );
+
+    // merge each month/skill entry with capacityForecast
+    return freshDemand.dataPoints.map((dm: any) => {
+      const capPeriod = capacityForecast.find(cf => cf.period === dm.month);
+      const capSkill = capPeriod?.capacity.find((c: any) => c.skill === dm.skillType);
+      const capacityHours = capSkill?.hours || 0;
+
       return {
-        period: month.key,
-        demand,
-        capacity
-      };
+        skillId: dm.skillType,
+        month: dm.month,
+        demandHours: dm.demandHours,
+        capacityHours,
+        gap: capacityHours - dm.demandHours,
+        utilizationPercent: capacityHours > 0 ? (dm.demandHours / capacityHours) * 100 : 0,
+        taskCount: dm.taskCount,
+        clientCount: dm.clientCount
+      } as MatrixData;
     });
   }
   
