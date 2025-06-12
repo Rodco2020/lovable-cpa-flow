@@ -26,8 +26,8 @@ export class ExtendedMatrixService {
 
     try {
       if (matrixType === 'capacity') {
-        // Use existing capacity matrix service
-        const { matrixData } = await generateMatrixForecast(forecastType, startDate);
+        // FIXED: Use correct function signature - only pass forecastType
+        const { matrixData } = await generateMatrixForecast(forecastType);
         
         return {
           matrixData,

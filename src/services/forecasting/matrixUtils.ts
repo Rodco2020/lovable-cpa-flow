@@ -22,6 +22,12 @@ export interface MatrixData {
   totalGap: number;
 }
 
+// ADDED: Missing MonthInfo interface that was being imported
+export interface MonthInfo {
+  key: string;
+  label: string;
+}
+
 /**
  * Transform forecast data into matrix format for 12-month display
  */

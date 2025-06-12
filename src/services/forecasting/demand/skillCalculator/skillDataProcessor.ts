@@ -84,4 +84,31 @@ export class SkillDataProcessor {
 
     return skillHours;
   }
+
+  /**
+   * Aggregate skill hours across multiple periods
+   * ADDED: Missing method that was being called from SkillCalculator
+   */
+  static aggregateSkillHours(skillHoursArray: SkillHours[][]): SkillHours[] {
+    const aggregatedMap = new Map<SkillType, number>();
+
+    // Process each array of skill hours
+    skillHoursArray.forEach(skillHoursSet => {
+      skillHoursSet.forEach(skillHour => {
+        const currentHours = aggregatedMap.get(skillHour.skill) || 0;
+        aggregatedMap.set(skillHour.skill, currentHours + skillHour.hours);
+      });
+    });
+
+    // Convert back to SkillHours array
+    const result: SkillHours[] = [];
+    aggregatedMap.forEach((hours, skill) => {
+      result.push({ skill, hours });
+    });
+
+    // Sort by hours descending
+    result.sort((a, b) => b.hours - a.hours);
+
+    return result;
+  }
 }
