@@ -1,5 +1,5 @@
 
-import { MatrixData, ForecastType, MatrixErrorContext } from './types';
+import { MatrixData, ForecastType, MatrixErrorContext, MonthInfo, MatrixDataPoint } from './types';
 import { MATRIX_CONSTANTS } from './constants';
 import { MatrixValidator } from './MatrixValidator';
 import { MatrixCacheManager } from './MatrixCacheManager';
@@ -9,6 +9,8 @@ import { DemandMatrixService } from '../demandMatrixService';
 import { SkillAwareForecastingService } from '../skillAwareForecastingService';
 import { startOfYear } from 'date-fns';
 import { debugLog } from '../logger';
+import { DemandMatrixData, DemandDataPoint } from '@/types/demand';
+import { SkillType } from '@/types/task';
 
 /**
  * Matrix Service Core
@@ -83,11 +85,18 @@ export class MatrixServiceCore {
         endDate
       );
       
-      // Combine demand and capacity data
-      const combinedForecast = this.combineDemandAndCapacity(demandMatrix, capacityForecast);
-      
-      // Transform combined forecast into matrix data structure
-      const matrixData = MatrixDataProcessor.transformForecastDataToMatrix(combinedForecast);
+      debugLog('VALIDATION: Demand data before transformation', {
+        sampleJune2025: demandMatrix.dataPoints.filter(dp => dp.month.includes('2025-06')),
+        totalDemand: demandMatrix.totalDemand
+      });
+
+      // Transform demand and capacity into matrix data without corruption
+      const matrixData = this.preservingTransformDemandToMatrix(demandMatrix, capacityForecast);
+
+      debugLog('VALIDATION: Matrix data after transformation', {
+        sampleJune2025: matrixData.dataPoints.filter(dp => dp.month.includes('2025-06')),
+        totalDemand: matrixData.totalDemand
+      });
       
       // Validate the generated data
       const validation = MatrixValidator.validateMatrixData(matrixData);
@@ -144,12 +153,84 @@ export class MatrixServiceCore {
       };
     });
   }
+
+  /**
+   * Transform demand matrix and capacity forecast into MatrixData without altering demand values
+   */
+  private static preservingTransformDemandToMatrix(
+    demandMatrix: DemandMatrixData,
+    capacityForecast: any[]
+  ): MatrixData {
+    const months: MonthInfo[] = demandMatrix.months.map((m, index) => ({
+      key: m.key,
+      label: m.label,
+      index: (m as any).index ?? index
+    }));
+
+    const skillSet = new Set<SkillType>();
+    demandMatrix.skills.forEach(s => skillSet.add(s as SkillType));
+    capacityForecast.forEach(period => {
+      period.capacity.forEach((c: any) => skillSet.add(c.skill));
+    });
+    const skills = Array.from(skillSet).sort() as SkillType[];
+
+    const demandMap = new Map<string, Map<SkillType, DemandDataPoint>>();
+    demandMatrix.dataPoints.forEach(dp => {
+      const monthMap = demandMap.get(dp.month) || new Map<SkillType, DemandDataPoint>();
+      monthMap.set(dp.skillType as SkillType, dp);
+      demandMap.set(dp.month, monthMap);
+    });
+
+    const capacityMap = new Map<string, Map<SkillType, number>>();
+    capacityForecast.forEach(period => {
+      const monthMap = new Map<SkillType, number>();
+      period.capacity.forEach((c: any) => {
+        monthMap.set(c.skill, (monthMap.get(c.skill) || 0) + c.hours);
+      });
+      capacityMap.set(period.period, monthMap);
+    });
+
+    const dataPoints: MatrixDataPoint[] = [];
+    for (const skill of skills) {
+      for (const month of months) {
+        const demandPoint = demandMap.get(month.key)?.get(skill);
+        const demandHours = demandPoint?.demandHours || 0;
+        const capacityHours = capacityMap.get(month.key)?.get(skill) || 0;
+        const gap = demandHours - capacityHours;
+        const utilizationPercent = capacityHours > 0 ? Math.round((demandHours / capacityHours) * 100) : 0;
+
+        dataPoints.push({
+          skillType: skill,
+          month: month.key,
+          monthLabel: month.label,
+          demandHours,
+          capacityHours,
+          gap,
+          utilizationPercent
+        });
+      }
+    }
+
+    const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+    const totalCapacity = dataPoints.reduce((sum, dp) => sum + dp.capacityHours, 0);
+    const totalGap = totalDemand - totalCapacity;
+
+    return {
+      months,
+      skills,
+      dataPoints,
+      totalDemand,
+      totalCapacity,
+      totalGap
+    };
+  }
   
   /**
    * Clear all cached data
    */
   static clearCache(): void {
     MatrixCacheManager.clearCache();
+    DemandMatrixService.clearCache();
   }
   
   /**
