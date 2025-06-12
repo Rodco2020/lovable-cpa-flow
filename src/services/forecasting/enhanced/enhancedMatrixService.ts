@@ -269,7 +269,11 @@ export class EnhancedMatrixService {
    */
   private static adaptDemandMatrixForAnalytics(demandData: DemandMatrixData): MatrixData {
     return {
-      months: demandData.months,
+      months: demandData.months.map((m, index) => ({
+        key: m.key,
+        label: m.label,
+        index: (m as any).index ?? index
+      })),
       skills: demandData.skills,
       dataPoints: demandData.dataPoints.map(point => ({
         skillType: point.skillType,
