@@ -12,7 +12,7 @@ import { debugLog } from './logger';
 
 /**
  * Matrix Service - Core matrix data generation
- * FIXED: Now uses corrected demand calculation logic
+ * UNIFIED: Now uses same demand pipeline as Demand Forecast Matrix
  */
 
 export interface MatrixDataPoint {
@@ -27,23 +27,23 @@ export interface MatrixDataPoint {
 
 /**
  * Generate matrix forecast data
- * FIXED: Now properly combines demand and capacity with corrected calculations
+ * UNIFIED: Now uses DemandMatrixService for consistent demand data
  */
 export async function generateMatrixForecast(forecastType: 'virtual' | 'actual'): Promise<{ matrixData: MatrixData }> {
-  debugLog(`Generating matrix forecast (${forecastType}) with FIXED demand calculation`);
+  debugLog(`Generating UNIFIED matrix forecast (${forecastType}) using DemandMatrixService`);
   
   try {
     const currentYear = new Date().getFullYear();
     const startDate = startOfYear(new Date(currentYear, 0, 1));
     const endDate = new Date(currentYear, 11, 31);
 
-    // Use demand matrix service to obtain demand data via MatrixTransformerCore
+    // UNIFIED: Use DemandMatrixService for demand data (same as Demand Forecast Matrix)
     const { matrixData: demandMatrix } = await DemandMatrixService.generateDemandMatrix(
       'demand-only',
       startDate
     );
 
-    // Generate capacity forecast using skill-aware service
+    // Generate capacity forecast using existing skill-aware service
     const capacityForecast = await SkillAwareForecastingService.generateCapacityForecast(
       startDate,
       endDate
@@ -51,7 +51,7 @@ export async function generateMatrixForecast(forecastType: 'virtual' | 'actual')
 
     const months: MonthInfo[] = demandMatrix.months;
 
-    // Build demand map by month and skill for quick lookup
+    // Build demand map by month and skill from unified demand matrix
     const demandByMonth = new Map<string, Map<SkillType, number>>();
     demandMatrix.dataPoints.forEach(dp => {
       const monthMap = demandByMonth.get(dp.month) || new Map<SkillType, number>();
@@ -59,7 +59,7 @@ export async function generateMatrixForecast(forecastType: 'virtual' | 'actual')
       demandByMonth.set(dp.month, monthMap);
     });
 
-    // Construct ForecastData array combining demand from demand matrix and capacity forecast
+    // Construct ForecastData array combining unified demand and capacity
     const combinedForecast = months.map(month => {
       const demandMap = demandByMonth.get(month.key) || new Map<SkillType, number>();
       const demand = Array.from(demandMap.entries()).map(([skill, hours]) => ({ skill, hours }));
@@ -76,26 +76,28 @@ export async function generateMatrixForecast(forecastType: 'virtual' | 'actual')
     // Transform combined forecast into matrix data structure
     const matrixData: MatrixData = transformForecastDataToMatrix(combinedForecast);
     
-    debugLog('FIXED Matrix data generated:', {
+    debugLog('UNIFIED Matrix data generated:', {
       months: matrixData.months.length,
       skills: matrixData.skills.length,
       dataPoints: matrixData.dataPoints.length,
       totalDemand: matrixData.totalDemand,
       totalCapacity: matrixData.totalCapacity,
       totalGap: matrixData.totalGap,
+      demandSource: 'DemandMatrixService (UNIFIED)',
+      capacitySource: 'SkillAwareForecastingService',
       sampleDataPoints: matrixData.dataPoints.slice(0, 5)
     });
     
     // Validate the generated data
     const validationIssues = validateMatrixData(matrixData);
     if (validationIssues.length > 0) {
-      console.warn('Matrix validation issues (after FIX):', validationIssues);
+      console.warn('UNIFIED Matrix validation issues:', validationIssues);
     }
     
     return { matrixData };
     
   } catch (error) {
-    console.error('Error generating matrix forecast (FIXED):', error);
+    console.error('Error generating UNIFIED matrix forecast:', error);
     throw error;
   }
 }
@@ -131,4 +133,13 @@ export function validateMatrixData(matrixData: MatrixData): string[] {
   }
   
   return issues;
+}
+
+/**
+ * Get matrix cache key for caching
+ */
+export function getMatrixCacheKey(forecastType: 'virtual' | 'actual', startDate: Date): string {
+  const year = startDate.getFullYear();
+  const month = startDate.getMonth() + 1;
+  return `unified_matrix_${forecastType}_${year}_${month.toString().padStart(2, '0')}`;
 }
