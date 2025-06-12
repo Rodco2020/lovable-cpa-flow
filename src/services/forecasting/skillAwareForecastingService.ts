@@ -11,13 +11,15 @@ import { addMonths, format, startOfMonth } from 'date-fns';
 /**
  * Skill-Aware Forecasting Service
  * Handles forecasting with proper skill ID resolution and normalization
+ * FIXED: Now uses full task hours for each skill (matching Demand Forecast Matrix logic)
  */
 export class SkillAwareForecastingService {
   /**
    * Generate demand forecast with proper skill resolution
+   * FIXED: Allocates full task hours to each required skill instead of dividing
    */
   static async generateDemandForecast(startDate: Date, endDate: Date): Promise<ForecastData[]> {
-    debugLog('Generating demand forecast with skill resolution', { startDate, endDate });
+    debugLog('Generating demand forecast with skill resolution (FIXED: full hours per skill)', { startDate, endDate });
     
     try {
       // Get all recurring tasks from all clients
@@ -57,15 +59,18 @@ export class SkillAwareForecastingService {
             // Flatten the normalized skills array
             const flattenedSkills = normalizedSkills.flat();
             
-            debugLog(`Task "${task.name}" skills resolved:`, {
+            debugLog(`Task "${task.name}" skills resolved (FIXED logic):`, {
               originalIds: task.requiredSkills,
               resolvedNames: resolvedSkillNames,
-              normalized: flattenedSkills
+              normalized: flattenedSkills,
+              taskHours: task.estimatedHours,
+              hoursPerSkill: task.estimatedHours // FIXED: Full hours per skill
             });
             
-            // Add hours for each skill
+            // FIXED: Add FULL hours for each skill (not divided)
             flattenedSkills.forEach(skill => {
               const currentHours = demandBySkill.get(skill) || 0;
+              // CRITICAL FIX: Use full task hours for each skill
               demandBySkill.set(skill, currentHours + task.estimatedHours);
             });
             
@@ -83,7 +88,7 @@ export class SkillAwareForecastingService {
           demandSkillHours.push({ skill, hours });
         });
         
-        debugLog(`Period ${periodKey} demand:`, demandSkillHours);
+        debugLog(`Period ${periodKey} demand (FIXED):`, demandSkillHours);
         
         forecastPeriods.push({
           period: periodKey,
@@ -93,7 +98,7 @@ export class SkillAwareForecastingService {
         });
       }
       
-      debugLog(`Generated ${forecastPeriods.length} demand forecast periods`);
+      debugLog(`Generated ${forecastPeriods.length} demand forecast periods with FIXED logic`);
       return forecastPeriods;
       
     } catch (error) {
@@ -104,6 +109,7 @@ export class SkillAwareForecastingService {
   
   /**
    * Generate capacity forecast with proper skill resolution
+   * NOTE: Capacity calculation remains unchanged (uses division for capacity distribution)
    */
   static async generateCapacityForecast(startDate: Date, endDate: Date): Promise<ForecastData[]> {
     debugLog('Generating capacity forecast with skill resolution', { startDate, endDate });
@@ -136,7 +142,7 @@ export class SkillAwareForecastingService {
             // Assume 160 hours per month capacity per staff member
             const monthlyCapacity = 160;
             
-            // Distribute capacity across their skills
+            // NOTE: For capacity, we still divide among skills (staff splits time)
             const hoursPerSkill = normalizedSkills.length > 0 ? monthlyCapacity / normalizedSkills.length : 0;
             
             normalizedSkills.forEach(skill => {

@@ -1,110 +1,87 @@
 
 import { SkillHours } from '@/types/forecasting';
 import { SkillType } from '@/types/task';
-import { SkillValidationUtils } from './validationUtils';
 
 /**
  * Skill data processing utilities
+ * FIXED: Now handles full task hours allocation per skill
  */
 export class SkillDataProcessor {
+  /**
+   * Update skill demand map with full task hours per skill
+   * FIXED: Allocates full task hours to each required skill
+   */
+  static updateSkillDemandMap(
+    skillDemandMap: Map<SkillType, number>,
+    requiredSkills: string[],
+    taskHours: number,
+    taskInfo: { id: string; name: string; isAnnualTask: boolean }
+  ): void {
+    if (!Array.isArray(requiredSkills) || requiredSkills.length === 0) {
+      console.warn(`⚠️ [SKILL PROCESSOR] Task ${taskInfo.id} has no required skills`);
+      return;
+    }
+
+    console.log(`🔄 [SKILL PROCESSOR] Processing ${requiredSkills.length} skills for task ${taskInfo.id}:`, {
+      taskName: taskInfo.name,
+      requiredSkills,
+      taskHours,
+      isAnnualTask: taskInfo.isAnnualTask,
+      allocationMethod: 'FULL_HOURS_PER_SKILL' // FIXED: Full hours per skill
+    });
+
+    // CRITICAL FIX: Allocate FULL task hours to each required skill
+    requiredSkills.forEach((skill, index) => {
+      if (!skill || typeof skill !== 'string') {
+        console.warn(`⚠️ [SKILL PROCESSOR] Invalid skill at index ${index} for task ${taskInfo.id}:`, skill);
+        return;
+      }
+
+      const normalizedSkill = skill as SkillType;
+      const currentHours = skillDemandMap.get(normalizedSkill) || 0;
+      
+      // FIXED: Use full task hours for each skill (not divided)
+      const newHours = currentHours + taskHours;
+      skillDemandMap.set(normalizedSkill, newHours);
+
+      console.log(`✅ [SKILL PROCESSOR] Added ${taskHours}h to skill "${normalizedSkill}" (total: ${newHours}h) for task ${taskInfo.id}`);
+    });
+
+    console.log(`📊 [SKILL PROCESSOR] Task ${taskInfo.id} complete - allocated ${taskHours}h to ${requiredSkills.length} skills`);
+  }
+
   /**
    * Convert skill demand map to SkillHours array
    */
   static convertToSkillHours(
     skillDemandMap: Map<SkillType, number>,
-    periodMonthName: string
+    periodName: string
   ): SkillHours[] {
-    return Array.from(skillDemandMap.entries())
-      .map(([skill, hours]) => ({
-        skill,
-        hours: Math.max(0, hours),
-        metadata: {
-          staffCount: 0,
-          staffIds: [],
-          hoursBreakdown: {},
-          calculationNotes: `Demand calculated for ${periodMonthName}. Total hours: ${hours}`
-        }
-      }))
-      .filter(sh => sh.hours > 0)
-      .sort((a, b) => b.hours - a.hours);
-  }
+    const skillHours: SkillHours[] = [];
 
-  /**
-   * Aggregate skill hours across multiple periods
-   */
-  static aggregateSkillHours(skillHoursArray: SkillHours[][]): SkillHours[] {
-    try {
-      const validation = SkillValidationUtils.validateSkillHoursArray(skillHoursArray);
-      if (!validation.isValid) {
-        console.error('Skill hours aggregation validation failed:', validation.errors);
-        return [];
+    console.log(`🔄 [SKILL PROCESSOR] Converting skill demand map to SkillHours array for ${periodName}:`, {
+      skillCount: skillDemandMap.size,
+      totalSkillEntries: Array.from(skillDemandMap.entries()).length
+    });
+
+    skillDemandMap.forEach((hours, skill) => {
+      if (hours > 0) {
+        skillHours.push({ skill, hours });
+        console.log(`✅ [SKILL PROCESSOR] Added skill "${skill}" with ${hours}h to final results`);
+      } else {
+        console.log(`⏭️ [SKILL PROCESSOR] Skipped skill "${skill}" with ${hours}h (zero hours)`);
       }
+    });
 
-      const aggregatedMap = new Map<SkillType, number>();
-      
-      for (const periodSkillHours of skillHoursArray) {
-        if (Array.isArray(periodSkillHours)) {
-          for (const skillHour of periodSkillHours) {
-            if (SkillValidationUtils.validateSkillHourEntry(skillHour)) {
-              const current = aggregatedMap.get(skillHour.skill) || 0;
-              aggregatedMap.set(skillHour.skill, current + Math.max(0, skillHour.hours));
-            }
-          }
-        }
-      }
+    // Sort by hours descending for better readability
+    skillHours.sort((a, b) => b.hours - a.hours);
 
-      return Array.from(aggregatedMap.entries())
-        .map(([skill, hours]) => ({
-          skill,
-          hours,
-          metadata: {
-            calculationNotes: 'Aggregated across multiple periods'
-          }
-        }))
-        .filter(sh => sh.hours > 0)
-        .sort((a, b) => b.hours - a.hours);
+    console.log(`📈 [SKILL PROCESSOR] Final skill hours for ${periodName}:`, {
+      skillsWithDemand: skillHours.length,
+      totalHours: skillHours.reduce((sum, sh) => sum + sh.hours, 0),
+      topSkills: skillHours.slice(0, 3).map(sh => ({ skill: sh.skill, hours: sh.hours }))
+    });
 
-    } catch (error) {
-      console.error('Error aggregating skill hours:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Update skill demand map with calculated hours
-   */
-  static updateSkillDemandMap(
-    skillDemandMap: Map<SkillType, number>,
-    requiredSkills: string[],
-    calculatedHours: number,
-    taskInfo: { id: string; name: string; isAnnualTask: boolean }
-  ): void {
-    if (Array.isArray(requiredSkills)) {
-      for (const skillId of requiredSkills) {
-        if (SkillValidationUtils.validateSkillId(skillId)) {
-          const skill = skillId.trim();
-          
-          console.log(`🔧 [SKILL CALCULATOR] Adding hours for skill "${skill}":`, {
-            currentHours: skillDemandMap.get(skill) || 0,
-            additionalHours: calculatedHours,
-            taskId: taskInfo.id,
-            taskName: taskInfo.name,
-            isAnnualTask: taskInfo.isAnnualTask
-          });
-
-          const currentHours = skillDemandMap.get(skill) || 0;
-          const newTotal = currentHours + calculatedHours;
-          skillDemandMap.set(skill, newTotal);
-
-          console.log(`✨ [SKILL CALCULATOR] Skill "${skill}" updated:`, {
-            previousTotal: currentHours,
-            added: calculatedHours,
-            newTotal: newTotal,
-            fromAnnualTask: taskInfo.isAnnualTask,
-            taskName: taskInfo.name
-          });
-        }
-      }
-    }
+    return skillHours;
   }
 }

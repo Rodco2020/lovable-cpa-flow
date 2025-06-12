@@ -8,10 +8,12 @@ import { startOfMonth, endOfMonth } from 'date-fns';
 
 /**
  * Service responsible for calculating demand for skills and periods
+ * FIXED: Now uses consistent full-hours-per-skill logic
  */
 export class DemandCalculationService {
   /**
    * Calculate demand for skill period with mapping support
+   * FIXED: Uses consistent logic for skill demand calculation
    */
   static calculateDemandForSkillPeriodWithMapping(
     period: ForecastData, 
@@ -23,7 +25,7 @@ export class DemandCalculationService {
         return 0;
       }
 
-      console.log(`🔍 [DEMAND CALC] Calculating demand for skill "${skill}" in period ${period.period}`);
+      console.log(`🔍 [DEMAND CALC] Calculating demand for skill "${skill}" in period ${period.period} (FIXED logic)`);
       console.log(`📋 [DEMAND CALC] Available demand items:`, period.demand.map(d => ({ skill: d.skill, hours: d.hours })));
 
       // Try direct match first
@@ -49,7 +51,7 @@ export class DemandCalculationService {
       }
 
       const hours = Math.max(0, skillDemand.hours);
-      console.log(`✅ [DEMAND CALC] Found ${hours}h demand for skill "${skill}"`);
+      console.log(`✅ [DEMAND CALC] Found ${hours}h demand for skill "${skill}" (FIXED: using full hours per skill)`);
       return hours;
     } catch (error) {
       console.warn(`Error calculating demand for skill ${skill}:`, error);
@@ -59,18 +61,19 @@ export class DemandCalculationService {
 
   /**
    * Generate task breakdown with consistent client resolution using pre-resolved client map
+   * FIXED: Now uses full task hours per skill in breakdown generation
    */
   static async generateTaskBreakdownWithMapping(
     tasks: RecurringTaskDB[],
     skillDisplayName: SkillType,
     period: string,
     skillMapping: Map<string, string>,
-    clientResolutionMap?: Map<string, string>  // Pre-resolved client map for consistency
+    clientResolutionMap?: Map<string, string>
   ): Promise<ClientTaskDemand[]> {
     try {
       const breakdown: ClientTaskDemand[] = [];
 
-      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with pre-resolved clients`);
+      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with FIXED logic`);
 
       // Derive month boundaries from period string for recurrence calculation
       const periodDate = new Date(`${period}-01`);
@@ -116,31 +119,34 @@ export class DemandCalculationService {
               monthEnd
             );
 
+            // FIXED: Use full task hours for each skill (not divided)
+            const fullTaskHours = Math.max(0, task.estimated_hours || 0);
+            const monthlyTaskHours = recurrence.monthlyOccurrences * fullTaskHours;
+
             const demandItem: ClientTaskDemand = {
               clientId: clientId,
               clientName: clientName,
               recurringTaskId: task.id,
               taskName: task.name || 'Unnamed Task',
               skillType: skillDisplayName,
-              estimatedHours: Math.max(0, task.estimated_hours || 0),
+              estimatedHours: fullTaskHours, // FIXED: Full task hours
               recurrencePattern: {
                 type: task.recurrence_type || 'Monthly',
                 interval: task.recurrence_interval || 1,
                 frequency: recurrence.monthlyOccurrences
               },
-              monthlyHours: recurrence.monthlyHours
+              monthlyHours: monthlyTaskHours // FIXED: Full monthly hours
             };
 
             breakdown.push(demandItem);
-            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} (${clientName}) to breakdown for skill "${skillDisplayName}"`);
+            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} (${clientName}) to breakdown for skill "${skillDisplayName}" with ${monthlyTaskHours}h (FIXED)`);
           }
         } catch (itemError) {
           console.warn(`Error creating demand item for task ${task.id}:`, itemError);
         }
       }
 
-      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with consistent client names`);
-      // Return the full breakdown without truncation so all clients are included
+      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with FIXED logic`);
       return breakdown;
     } catch (error) {
       console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);
