@@ -1,3 +1,4 @@
+
 import { MatrixData } from '../matrixUtils';
 import { DemandMatrixData } from '@/types/demand';
 import { 
@@ -336,14 +337,18 @@ export class EnhancedMatrixService {
         exportDate: new Date().toISOString(),
         matrixType: 'demand',
         skills: filteredSkills,
-        months: filteredMonths.map(m => m.label),
+        months: filteredMonths.map((m, index) => ({
+          key: m.key,
+          label: m.label,
+          index: m.index || index
+        })),
         totalDemand: demandData.totalDemand,
         totalTasks: demandData.totalTasks,
         totalClients: demandData.totalClients
       },
       data: filteredSkills.map(skill => ({
         skill,
-        months: filteredMonths.map(month => {
+        months: filteredMonths.map((month, index) => {
           const dataPoint = demandData.dataPoints.find(
             point => point.skillType === skill && point.month === month.key
           );
@@ -351,6 +356,7 @@ export class EnhancedMatrixService {
           return {
             month: month.label,
             monthKey: month.key,
+            monthIndex: month.index || index,
             demandHours: dataPoint?.demandHours || 0,
             taskCount: dataPoint?.taskCount || 0,
             clientCount: dataPoint?.clientCount || 0,

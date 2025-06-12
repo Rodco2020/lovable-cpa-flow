@@ -12,6 +12,7 @@ export { MatrixDataProcessor } from './matrix/MatrixDataProcessor';
 
 // Provide backward compatible function
 export function transformForecastDataToMatrix(forecastData: any[]): any {
+  const { MatrixDataProcessor } = require('./matrix/MatrixDataProcessor');
   return MatrixDataProcessor.transformForecastDataToMatrix(forecastData);
 }
 
