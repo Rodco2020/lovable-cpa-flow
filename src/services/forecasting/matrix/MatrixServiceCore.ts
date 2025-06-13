@@ -95,8 +95,8 @@ export class MatrixServiceCore {
         totalDemand: demandMatrix.totalDemand
       });
 
-      // Transform demand and capacity into matrix data WITH ENHANCED DEBUGGING
-      const matrixData = this.preservingTransformDemandToMatrix(demandMatrix, capacityForecast);
+      // Transform demand and capacity into matrix data WITH FIXED SKILL MAPPING
+      const matrixData = this.skillPreservingTransformDemandToMatrix(demandMatrix, capacityForecast);
 
       debugLog('VALIDATION: Matrix data after transformation', {
         sampleJune2025: matrixData.dataPoints.filter(dp => dp.month.includes('2025-06')),
@@ -181,38 +181,56 @@ export class MatrixServiceCore {
   }
 
   /**
-   * Transform demand matrix and capacity forecast into MatrixData WITH ENHANCED DEBUGGING
+   * PHASE 2: FIXED - Transform demand matrix and capacity forecast into MatrixData with PRESERVED SKILL KEYS
+   * This method fixes the skill key mapping corruption by preserving original skill identifiers
    */
-  private static preservingTransformDemandToMatrix(
+  private static skillPreservingTransformDemandToMatrix(
     demandMatrix: DemandMatrixData,
     capacityForecast: any[]
   ): MatrixData {
-    // PHASE 1: Enhanced debugging - Log transformation start
+    // PHASE 2: Enhanced debugging - Log transformation start
     MatrixDebugLogger.logTransformationStart(demandMatrix, capacityForecast);
 
     const months: MonthInfo[] = demandMatrix.months.map((m, index) => ({
       key: m.key,
       label: m.label,
-      index: (m as any).index ?? index
+      index: index
     }));
 
-    // PHASE 1: Enhanced debugging - Log skill set creation
-    const demandSkills = demandMatrix.skills;
-    const capacitySkills: string[] = [];
+    // PHASE 2 FIX: PRESERVE ORIGINAL SKILL KEYS - No trimming or string conversion
+    // Extract skills directly from demand matrix WITHOUT modification
+    const demandSkills = [...demandMatrix.skills]; // Direct copy without transformation
+    
+    // Extract capacity skills and preserve their original form
+    const capacitySkills: SkillType[] = [];
     capacityForecast.forEach(period => {
-      period.capacity.forEach((c: any) => capacitySkills.push(String(c.skill).trim()));
+      if (period.capacity && Array.isArray(period.capacity)) {
+        period.capacity.forEach((c: any) => {
+          if (c.skill && !capacitySkills.includes(c.skill)) {
+            capacitySkills.push(c.skill); // Preserve original skill key format
+          }
+        });
+      }
     });
 
-    // Build the union of all skills from demand and capacity data.
-    // Use trimmed string keys to avoid mismatches caused by whitespace
-    const skillSet = new Set<string>();
-    demandMatrix.skills.forEach(s => skillSet.add(String(s).trim()));
-    capacityForecast.forEach(period => {
-      period.capacity.forEach((c: any) => skillSet.add(String(c.skill).trim()));
+    // PHASE 2 FIX: Build skill union while preserving original identifiers
+    // Use Set to ensure uniqueness but maintain original skill key format
+    const skillSet = new Set<SkillType>();
+    
+    // Add demand skills first (they have priority)
+    demandMatrix.skills.forEach(skill => skillSet.add(skill));
+    
+    // Add capacity skills that don't already exist
+    capacitySkills.forEach(skill => {
+      // Only add if not already present (preserve demand skill priority)
+      if (!demandMatrix.skills.includes(skill)) {
+        skillSet.add(skill);
+      }
     });
+    
     const skills = Array.from(skillSet).sort() as SkillType[];
 
-    // PHASE 1: Enhanced debugging - Log skill set creation results
+    // PHASE 2: Enhanced debugging - Log skill set creation results
     MatrixDebugLogger.logSkillSetCreation(demandSkills, capacitySkills, skills);
 
     // VALIDATION CHECKPOINT: Skill set creation
@@ -222,32 +240,38 @@ export class MatrixServiceCore {
       skills.length >= demandSkills.length
     );
 
-    // Map month -> skill -> demand data using sanitized skill keys
-    const demandMap = new Map<string, Map<string, DemandDataPoint>>();
+    // PHASE 2 FIX: Create demand map using EXACT ORIGINAL skill keys - no trimming
+    const demandMap = new Map<string, Map<SkillType, DemandDataPoint>>();
     demandMatrix.dataPoints.forEach(dp => {
-      const monthMap = demandMap.get(dp.month) || new Map<string, DemandDataPoint>();
-      const skillKey = String(dp.skillType).trim();
-      monthMap.set(skillKey, dp);
+      const monthMap = demandMap.get(dp.month) || new Map<SkillType, DemandDataPoint>();
+      // Use original skill type directly - NO string conversion or trimming
+      monthMap.set(dp.skillType as SkillType, dp);
       demandMap.set(dp.month, monthMap);
     });
 
-    // PHASE 1: Enhanced debugging - Log demand map creation
-    MatrixDebugLogger.logDemandMapCreation(demandMatrix.dataPoints, demandMap);
+    // PHASE 2: Enhanced debugging - Log demand map creation
+    MatrixDebugLogger.logDemandMapCreation(demandMatrix.dataPoints, demandMap as any);
 
-    const capacityMap = new Map<string, Map<string, number>>();
+    // PHASE 2 FIX: Create capacity map preserving original skill keys
+    const capacityMap = new Map<string, Map<SkillType, number>>();
     capacityForecast.forEach(period => {
-      const monthMap = capacityMap.get(period.period) || new Map<string, number>();
-      period.capacity.forEach((c: any) => {
-        const skillKey = String(c.skill).trim();
-        monthMap.set(skillKey, (monthMap.get(skillKey) || 0) + c.hours);
-      });
+      const monthMap = capacityMap.get(period.period) || new Map<SkillType, number>();
+      if (period.capacity && Array.isArray(period.capacity)) {
+        period.capacity.forEach((c: any) => {
+          if (c.skill && typeof c.hours === 'number') {
+            // Preserve original skill key format - no trimming
+            const existingHours = monthMap.get(c.skill as SkillType) || 0;
+            monthMap.set(c.skill as SkillType, existingHours + c.hours);
+          }
+        });
+      }
       capacityMap.set(period.period, monthMap);
     });
 
-    // PHASE 1: Enhanced debugging - Log capacity map creation
-    MatrixDebugLogger.logCapacityMapCreation(capacityForecast, capacityMap);
+    // PHASE 2: Enhanced debugging - Log capacity map creation
+    MatrixDebugLogger.logCapacityMapCreation(capacityForecast, capacityMap as any);
 
-    // VALIDATION CHECKPOINT: Map creation
+    // VALIDATION CHECKPOINT: Map creation with preserved skill keys
     const expectedDemandSum = demandMatrix.dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
     const actualDemandInMap = Array.from(demandMap.values()).reduce((sum, monthMap) => {
       return sum + Array.from(monthMap.values()).reduce((monthSum, dp) => monthSum + dp.demandHours, 0);
@@ -259,18 +283,19 @@ export class MatrixServiceCore {
       expectedDemandSum === actualDemandInMap
     );
 
+    // PHASE 2 FIX: Generate data points using preserved skill keys
     const dataPoints: MatrixDataPoint[] = [];
     for (const skill of skills) {
-      const skillKey = String(skill).trim();
       for (const month of months) {
-        const demandPoint = demandMap.get(month.key)?.get(skillKey);
+        // Use skill directly - no conversion or trimming
+        const demandPoint = demandMap.get(month.key)?.get(skill);
         const demandHours = demandPoint?.demandHours || 0;
-        const capacityHours = capacityMap.get(month.key)?.get(skillKey) || 0;
+        const capacityHours = capacityMap.get(month.key)?.get(skill) || 0;
         const gap = demandHours - capacityHours;
         const utilizationPercent = capacityHours > 0 ? Math.round((demandHours / capacityHours) * 100) : 0;
 
         dataPoints.push({
-          skillType: skill,
+          skillType: skill, // Use original skill key directly
           month: month.key,
           monthLabel: month.label,
           demandHours,
@@ -281,8 +306,8 @@ export class MatrixServiceCore {
       }
     }
 
-    // PHASE 1: Enhanced debugging - Log data point generation
-    MatrixDebugLogger.logDataPointGeneration(skills, months, demandMap, capacityMap, dataPoints);
+    // PHASE 2: Enhanced debugging - Log data point generation
+    MatrixDebugLogger.logDataPointGeneration(skills, months, demandMap as any, capacityMap as any, dataPoints);
 
     const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
     const totalCapacity = dataPoints.reduce((sum, dp) => sum + dp.capacityHours, 0);
@@ -308,7 +333,7 @@ export class MatrixServiceCore {
       demandMatrix.totalDemand === totalDemand
     );
 
-    // PHASE 1: Enhanced debugging - Log transformation completion
+    // PHASE 2: Enhanced debugging - Log transformation completion
     MatrixDebugLogger.logTransformationComplete(demandMatrix, matrixData);
 
     return matrixData;
