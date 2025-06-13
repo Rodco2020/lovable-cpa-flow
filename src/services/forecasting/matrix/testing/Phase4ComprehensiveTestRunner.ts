@@ -115,9 +115,10 @@ export class Phase4ComprehensiveTestRunner {
    */
   private static generateNextSteps(testingReport: Phase4TestReport): string[] {
     const nextSteps: string[] = [];
-    const { overallStatus, criticalIssues, performanceWarnings, recommendations } = testingReport.summary;
+    const { criticalIssues, performanceWarnings, recommendations } = testingReport.summary;
     
-    if (overallStatus === 'PASS') {
+    // Fix: Access overallStatus from testingReport, not testingReport.summary
+    if (testingReport.overallStatus === 'PASS') {
       nextSteps.push(
         '✅ Phase 4 completed successfully - system is ready for deployment',
         '📋 Review and approve documentation updates',
@@ -125,7 +126,7 @@ export class Phase4ComprehensiveTestRunner {
         '📊 Set up monitoring for production environment',
         '📝 Schedule regular testing cycles for maintenance'
       );
-    } else if (overallStatus === 'WARNING') {
+    } else if (testingReport.overallStatus === 'WARNING') {
       nextSteps.push(
         '⚠️ Address performance warnings before deployment',
         '📊 Monitor identified performance areas in production',
@@ -167,12 +168,12 @@ export class Phase4ComprehensiveTestRunner {
     blockers: string[];
     requirements: string[];
   } {
-    const { overallStatus, criticalIssues, performanceWarnings } = testingReport.summary;
+    const { criticalIssues, performanceWarnings } = testingReport.summary;
     const blockers: string[] = [];
     const requirements: string[] = [];
     
-    // Check for deployment blockers
-    if (overallStatus === 'FAIL') {
+    // Fix: Access overallStatus from testingReport, not testingReport.summary
+    if (testingReport.overallStatus === 'FAIL') {
       blockers.push('Critical test failures must be resolved');
     }
     
@@ -207,7 +208,7 @@ export class Phase4ComprehensiveTestRunner {
       requirements.push('No regressions in existing functionality');
     }
     
-    const ready = blockers.length === 0 && overallStatus !== 'FAIL';
+    const ready = blockers.length === 0 && testingReport.overallStatus !== 'FAIL';
     
     return {
       ready,
