@@ -1,283 +1,272 @@
 
 /**
- * Weekday utility helper for consistent weekday calculations and validation
- * Provides centralized weekday handling across the forecasting system
+ * Weekday Utilities for Enhanced Weekly Recurring Task Calculations
+ * 
+ * WEEKDAY CALCULATION DOCUMENTATION:
+ * 
+ * This utility provides accurate weekday-based calculations for weekly recurring
+ * tasks, replacing the previous fixed 4.33 weeks/month approximation with precise
+ * mathematical calculations based on selected weekdays.
+ * 
+ * CORE CALCULATION METHODOLOGY:
+ * 
+ * 1. MATHEMATICAL FOUNDATION:
+ *    - Average days per month: 30.44 (365.25 days/year ÷ 12 months)
+ *    - Average weeks per month: 4.35 (30.44 ÷ 7)
+ *    - This accounts for leap years and varying month lengths
+ * 
+ * 2. WEEKDAY-SPECIFIC CALCULATION:
+ *    - Monthly occurrences = numberOfWeekdays × averageWeeksPerMonth ÷ recurrenceInterval
+ *    - Example: 3 weekdays × 4.35 weeks ÷ 1 interval = 13.05 occurrences/month
+ * 
+ * 3. PRACTICAL EXAMPLES:
+ *    - Task every Monday (weekdays: [1]): 1 × 4.35 = 4.35 occurrences/month
+ *    - Task Mon/Wed/Fri (weekdays: [1,3,5]): 3 × 4.35 = 13.05 occurrences/month
+ *    - Task Tue/Thu bi-weekly (weekdays: [2,4], interval: 2): 2 × 4.35 ÷ 2 = 4.35 occurrences/month
+ * 
+ * VALIDATION AND ERROR HANDLING:
+ * - Validates weekday values (0-6, where 0=Sunday, 6=Saturday)
+ * - Removes duplicates and sorts weekdays
+ * - Provides descriptive error messages for invalid inputs
+ * - Falls back gracefully when validation fails
  */
+
+export interface WeekdayValidationResult {
+  isValid: boolean;
+  validWeekdays: number[];
+  errors: string[];
+  warnings: string[];
+}
+
+export interface WeekdayCalculationResult {
+  occurrences: number;
+  calculation: string;
+  details: {
+    weekdayCount: number;
+    averageWeeksPerMonth: number;
+    recurrenceInterval: number;
+    weekdayNames: string[];
+  };
+}
+
 export class WeekdayUtils {
-  /**
-   * Standard weekday names (0 = Sunday, 6 = Saturday)
-   */
-  static readonly WEEKDAY_NAMES = [
-    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 
-    'Thursday', 'Friday', 'Saturday'
-  ] as const;
+  // Standard weekday names for logging and display purposes
+  private static readonly WEEKDAY_NAMES = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+  ];
+
+  // Mathematical constant: average weeks per month (365.25 days/year ÷ 12 months ÷ 7 days/week)
+  private static readonly AVERAGE_WEEKS_PER_MONTH = 30.44 / 7; // ≈ 4.35
 
   /**
-   * Valid weekday range
+   * Validate and normalize weekdays array with comprehensive error reporting
+   * 
+   * This method ensures weekday data integrity by validating values,
+   * removing duplicates, and providing detailed error feedback for
+   * troubleshooting purposes.
+   * 
+   * VALIDATION RULES:
+   * - Weekday values must be integers between 0-6
+   * - Duplicates are automatically removed with warnings
+   * - Invalid values are filtered out with error reporting
+   * - Empty results after filtering are flagged as invalid
+   * 
+   * @param weekdays Array of weekday integers (0=Sunday, 6=Saturday)
+   * @returns WeekdayValidationResult with validation status and clean data
    */
-  static readonly MIN_WEEKDAY = 0;
-  static readonly MAX_WEEKDAY = 6;
-
-  /**
-   * Average weeks per month for calculations
-   */
-  static readonly AVERAGE_WEEKS_PER_MONTH = 30.44 / 7; // ~4.35 weeks
-
-  /**
-   * Validate and normalize weekdays array
-   */
-  static validateAndNormalizeWeekdays(weekdays: any): {
-    isValid: boolean;
-    errors: string[];
-    validWeekdays: number[];
-    warnings: string[];
-  } {
+  static validateAndNormalizeWeekdays(weekdays: any[]): WeekdayValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const validWeekdays: number[] = [];
-
-    console.log(`📅 [WEEKDAY UTILS] Validating weekdays input:`, {
-      input: weekdays,
-      type: typeof weekdays,
-      isArray: Array.isArray(weekdays),
-      length: Array.isArray(weekdays) ? weekdays.length : 'N/A'
+    
+    // Type validation and filtering
+    const numericWeekdays = weekdays.filter(day => {
+      if (typeof day === 'number' && Number.isInteger(day)) {
+        return true;
+      }
+      // Track invalid types for error reporting
+      return false;
     });
 
-    // Check if weekdays is an array
-    if (!Array.isArray(weekdays)) {
-      const error = `Weekdays must be an array, received: ${typeof weekdays}`;
-      errors.push(error);
-      console.error(`❌ [WEEKDAY UTILS] ${error}`);
-      return { isValid: false, errors, validWeekdays: [], warnings };
+    // Check for invalid types
+    if (numericWeekdays.length < weekdays.length) {
+      const invalidCount = weekdays.length - numericWeekdays.length;
+      errors.push(`Invalid weekday values detected (${invalidCount} non-numeric values removed)`);
     }
 
-    // Handle empty array (valid - falls back to legacy calculation)
-    if (weekdays.length === 0) {
-      const warning = 'Empty weekdays array provided, will use legacy calculation';
-      warnings.push(warning);
-      console.warn(`⚠️ [WEEKDAY UTILS] ${warning}`);
-      return { isValid: true, errors: [], validWeekdays: [], warnings };
+    // Range validation (0-6 for Sunday-Saturday)
+    const validWeekdays = numericWeekdays.filter(day => day >= 0 && day <= 6);
+    
+    if (validWeekdays.length < numericWeekdays.length) {
+      const outOfRangeCount = numericWeekdays.length - validWeekdays.length;
+      errors.push(`Weekday values out of range (${outOfRangeCount} values must be 0-6)`);
     }
 
-    // Validate each weekday value
-    const invalidEntries: { value: any; index: number; reason: string }[] = [];
-    const duplicates: number[] = [];
-    const seenWeekdays = new Set<number>();
-
-    weekdays.forEach((day, index) => {
-      // Check if it's a number
-      if (typeof day !== 'number') {
-        invalidEntries.push({
-          value: day,
-          index,
-          reason: `Expected number, got ${typeof day}`
-        });
-        return;
-      }
-
-      // Check if it's an integer
-      if (!Number.isInteger(day)) {
-        invalidEntries.push({
-          value: day,
-          index,
-          reason: 'Must be an integer'
-        });
-        return;
-      }
-
-      // Check if it's in valid range
-      if (day < this.MIN_WEEKDAY || day > this.MAX_WEEKDAY) {
-        invalidEntries.push({
-          value: day,
-          index,
-          reason: `Out of range (must be ${this.MIN_WEEKDAY}-${this.MAX_WEEKDAY})`
-        });
-        return;
-      }
-
-      // Check for duplicates
-      if (seenWeekdays.has(day)) {
-        duplicates.push(day);
-      } else {
-        seenWeekdays.add(day);
-        validWeekdays.push(day);
-      }
-    });
-
-    // Report invalid entries
-    if (invalidEntries.length > 0) {
-      const errorDetails = invalidEntries.map(entry => 
-        `${entry.value} at index ${entry.index} (${entry.reason})`
-      ).join(', ');
-      errors.push(`Invalid weekday values: ${errorDetails}`);
+    // Remove duplicates and track them
+    const originalLength = validWeekdays.length;
+    const uniqueWeekdays = [...new Set(validWeekdays)].sort();
+    
+    if (uniqueWeekdays.length < originalLength) {
+      const duplicateCount = originalLength - uniqueWeekdays.length;
+      warnings.push(`Duplicate weekdays removed (${duplicateCount} duplicates found)`);
     }
 
-    // Report duplicates as warnings
-    if (duplicates.length > 0) {
-      const uniqueDuplicates = [...new Set(duplicates)];
-      warnings.push(`Duplicate weekdays removed: ${uniqueDuplicates.map(d => this.getWeekdayName(d)).join(', ')}`);
+    // Special case warnings
+    if (uniqueWeekdays.length === 7) {
+      warnings.push('All 7 weekdays selected - consider using Daily recurrence instead');
     }
 
-    // Sort valid weekdays
-    validWeekdays.sort();
+    // Final validation
+    const isValid = uniqueWeekdays.length > 0 && errors.length === 0;
 
-    // Final validation - ensure we have at least one valid weekday if input wasn't empty
-    if (weekdays.length > 0 && validWeekdays.length === 0) {
-      errors.push('No valid weekdays found after validation');
-    }
-
-    const result = {
-      isValid: errors.length === 0,
+    return {
+      isValid,
+      validWeekdays: uniqueWeekdays,
       errors,
-      validWeekdays,
       warnings
     };
-
-    console.log(`✅ [WEEKDAY UTILS] Validation complete:`, {
-      originalCount: weekdays.length,
-      validCount: validWeekdays.length,
-      duplicatesRemoved: duplicates.length,
-      invalidCount: invalidEntries.length,
-      isValid: result.isValid,
-      validWeekdays: validWeekdays.map(d => `${d}(${this.getWeekdayName(d)})`).join(', ')
-    });
-
-    return result;
   }
 
   /**
-   * Get weekday name by number
-   */
-  static getWeekdayName(weekday: number): string {
-    if (weekday < this.MIN_WEEKDAY || weekday > this.MAX_WEEKDAY) {
-      return `Invalid(${weekday})`;
-    }
-    return this.WEEKDAY_NAMES[weekday];
-  }
-
-  /**
-   * Calculate monthly occurrences for specific weekdays
+   * Calculate weekly occurrences with enhanced weekday-based mathematics
+   * 
+   * This method implements the core weekday calculation algorithm that
+   * provides accurate monthly occurrence estimates based on selected
+   * weekdays and recurrence intervals.
+   * 
+   * CALCULATION FORMULA:
+   * occurrences = numberOfWeekdays × averageWeeksPerMonth ÷ recurrenceInterval
+   * 
+   * MATHEMATICAL EXPLANATION:
+   * - Each selected weekday occurs ~4.35 times per month on average
+   * - Multiple weekdays multiply this base frequency
+   * - Recurrence intervals (bi-weekly, tri-weekly) divide the frequency
+   * 
+   * @param weekdays Array of validated weekday integers
+   * @param recurrenceInterval Interval between recurrences (1=weekly, 2=bi-weekly, etc.)
+   * @returns WeekdayCalculationResult with occurrences and detailed breakdown
    */
   static calculateWeeklyOccurrences(
-    validWeekdays: number[],
-    interval: number = 1
-  ): {
-    occurrences: number;
-    calculation: string;
-    details: {
-      weekdayCount: number;
-      averageWeeksPerMonth: number;
-      interval: number;
-      weekdayNames: string[];
-    };
-  } {
-    if (validWeekdays.length === 0) {
+    weekdays: number[],
+    recurrenceInterval: number
+  ): WeekdayCalculationResult {
+    // Input validation with descriptive errors
+    if (!weekdays || weekdays.length === 0) {
       throw new Error('Cannot calculate occurrences for empty weekdays array');
     }
 
-    if (interval <= 0) {
-      throw new Error(`Invalid interval: ${interval}. Must be greater than 0.`);
+    if (recurrenceInterval <= 0) {
+      throw new Error(`Invalid interval: ${recurrenceInterval}. Must be positive integer.`);
     }
 
-    const weekdayCount = validWeekdays.length;
-    const occurrencesPerWeek = weekdayCount;
-    const monthlyOccurrences = (this.AVERAGE_WEEKS_PER_MONTH * occurrencesPerWeek) / interval;
-
-    const calculation = `(${this.AVERAGE_WEEKS_PER_MONTH.toFixed(2)} weeks/month × ${weekdayCount} days/week) ÷ ${interval} interval = ${monthlyOccurrences.toFixed(2)}`;
+    // Core weekday-based calculation
+    const weekdayCount = weekdays.length;
+    const occurrences = weekdayCount * this.AVERAGE_WEEKS_PER_MONTH / recurrenceInterval;
     
-    const weekdayNames = validWeekdays.map(d => this.getWeekdayName(d));
-
-    console.log(`📊 [WEEKDAY UTILS] Calculated weekly occurrences:`, {
-      validWeekdays,
-      weekdayNames,
-      weekdayCount,
-      interval,
-      monthlyOccurrences: monthlyOccurrences.toFixed(4),
-      calculation
-    });
-
+    // Generate human-readable calculation explanation
+    const calculation = `${weekdayCount} weekdays × ${this.AVERAGE_WEEKS_PER_MONTH.toFixed(2)} weeks/month ÷ ${recurrenceInterval} interval = ${occurrences.toFixed(2)} occurrences/month`;
+    
+    // Create detailed breakdown for logging and debugging
+    const weekdayNames = weekdays.map(day => this.WEEKDAY_NAMES[day] || `Invalid(${day})`);
+    
     return {
-      occurrences: monthlyOccurrences,
+      occurrences,
       calculation,
       details: {
         weekdayCount,
         averageWeeksPerMonth: this.AVERAGE_WEEKS_PER_MONTH,
-        interval,
+        recurrenceInterval,
         weekdayNames
       }
     };
   }
 
   /**
-   * Get human-readable description of weekdays
+   * Generate human-readable description of selected weekdays
+   * 
+   * This utility method creates user-friendly descriptions of weekday
+   * selections for logging, debugging, and user interface purposes.
+   * 
+   * SPECIAL PATTERNS RECOGNIZED:
+   * - Weekdays (Mon-Fri): "Weekdays (Mon-Fri)"
+   * - Weekends (Sat-Sun): "Weekends (Sat-Sun)"
+   * - Individual days: "Monday, Wednesday, Friday"
+   * - Empty selection: "No specific days"
+   * 
+   * @param weekdays Array of weekday integers
+   * @returns Human-readable description string
    */
   static getWeekdaysDescription(weekdays: number[]): string {
-    if (weekdays.length === 0) {
+    if (!weekdays || weekdays.length === 0) {
       return 'No specific days';
     }
 
-    if (weekdays.length === 7) {
-      return 'Every day';
-    }
-
+    const sortedWeekdays = [...weekdays].sort();
+    
     // Check for common patterns
-    const weekdaySet = new Set(weekdays);
-    const weekdays_only = [1, 2, 3, 4, 5];
-    const weekend_only = [0, 6];
-
-    if (weekdays_only.every(day => weekdaySet.has(day)) && weekdays.length === 5) {
+    const isWeekdays = JSON.stringify(sortedWeekdays) === JSON.stringify([1, 2, 3, 4, 5]);
+    const isWeekends = JSON.stringify(sortedWeekdays) === JSON.stringify([0, 6]);
+    
+    if (isWeekdays) {
       return 'Weekdays (Mon-Fri)';
     }
-
-    if (weekend_only.every(day => weekdaySet.has(day)) && weekdays.length === 2) {
+    
+    if (isWeekends) {
       return 'Weekends (Sat-Sun)';
     }
-
-    // Default to listing all days
-    const dayNames = weekdays.map(d => this.getWeekdayName(d));
     
-    if (dayNames.length <= 3) {
-      return dayNames.join(', ');
-    } else {
-      return `${dayNames.slice(0, 2).join(', ')} and ${dayNames.length - 2} more days`;
-    }
+    // Generate individual day names
+    const dayNames = sortedWeekdays.map(day => this.WEEKDAY_NAMES[day] || `Invalid(${day})`);
+    return dayNames.join(', ');
   }
 
   /**
-   * Create detailed error context for debugging
+   * Get weekday name for display purposes
+   * 
+   * @param weekdayIndex Integer representing weekday (0=Sunday, 6=Saturday)
+   * @returns String name of the weekday
    */
-  static createErrorContext(
-    taskId: string,
-    weekdays: any,
-    validationResult?: ReturnType<typeof WeekdayUtils.validateAndNormalizeWeekdays>
-  ): {
-    taskId: string;
-    originalWeekdays: any;
-    weekdaysType: string;
-    isArray: boolean;
-    validationErrors?: string[];
-    validationWarnings?: string[];
-    suggestedFix: string;
-  } {
-    const context = {
-      taskId,
-      originalWeekdays: weekdays,
-      weekdaysType: typeof weekdays,
-      isArray: Array.isArray(weekdays),
-      suggestedFix: 'Ensure weekdays is an array of integers between 0-6'
-    };
+  static getWeekdayName(weekdayIndex: number): string {
+    return this.WEEKDAY_NAMES[weekdayIndex] || `Invalid(${weekdayIndex})`;
+  }
 
-    if (validationResult) {
+  /**
+   * Check if weekdays array represents a common pattern
+   * 
+   * This utility helps identify common scheduling patterns for
+   * optimization and user experience improvements.
+   * 
+   * @param weekdays Array of weekday integers
+   * @returns Object describing the pattern type
+   */
+  static analyzeWeekdayPattern(weekdays: number[]): {
+    isWeekdays: boolean;
+    isWeekends: boolean;
+    isDaily: boolean;
+    isCustom: boolean;
+    description: string;
+  } {
+    if (!weekdays || weekdays.length === 0) {
       return {
-        ...context,
-        validationErrors: validationResult.errors,
-        validationWarnings: validationResult.warnings,
-        suggestedFix: validationResult.errors.length > 0 
-          ? `Fix validation errors: ${validationResult.errors.join('; ')}`
-          : 'Weekdays validation passed'
+        isWeekdays: false,
+        isWeekends: false,
+        isDaily: false,
+        isCustom: false,
+        description: 'No days selected'
       };
     }
 
-    return context;
+    const sortedWeekdays = [...weekdays].sort();
+    const isWeekdays = JSON.stringify(sortedWeekdays) === JSON.stringify([1, 2, 3, 4, 5]);
+    const isWeekends = JSON.stringify(sortedWeekdays) === JSON.stringify([0, 6]);
+    const isDaily = sortedWeekdays.length === 7;
+    const isCustom = !isWeekdays && !isWeekends && !isDaily;
+
+    return {
+      isWeekdays,
+      isWeekends,
+      isDaily,
+      isCustom,
+      description: this.getWeekdaysDescription(weekdays)
+    };
   }
 }
