@@ -37,6 +37,18 @@ export function formatNumber(value: number, decimals: number = 2): string {
 }
 
 /**
+ * Format a number as currency (USD)
+ */
+export function formatCurrency(amount: number, currency: string = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/**
  * Format capacity values specifically (hours with 1 decimal place)
  */
 export function formatCapacity(hours: number): string {
