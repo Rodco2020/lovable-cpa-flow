@@ -2,11 +2,11 @@
 import { RecurringTaskDB } from '@/types/task';
 
 /**
- * Validation utilities for recurring task inputs
+ * Validation utilities for recurring task inputs with enhanced weekdays support
  */
 export class ValidationUtils {
   /**
-   * Validate recurring task inputs with comprehensive checks
+   * Validate recurring task inputs with comprehensive checks including weekdays
    */
   static validateTaskInputs(task: RecurringTaskDB): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -24,6 +24,11 @@ export class ValidationUtils {
       errors.push(`Invalid recurrence_type: ${task.recurrence_type}`);
     }
 
+    // Weekly task specific validation
+    if (task.recurrence_type && task.recurrence_type.toLowerCase() === 'weekly') {
+      this.validateWeeklyTaskFields(task, errors);
+    }
+
     // Annual task specific validation
     if (task.recurrence_type && task.recurrence_type.toLowerCase().includes('annual')) {
       this.validateAnnualTaskFields(task, errors);
@@ -32,6 +37,88 @@ export class ValidationUtils {
     return {
       isValid: errors.length === 0,
       errors
+    };
+  }
+
+  /**
+   * Validate weekly task specific fields including weekdays
+   */
+  private static validateWeeklyTaskFields(task: RecurringTaskDB, errors: string[]): void {
+    if (task.weekdays !== null && task.weekdays !== undefined) {
+      const weekdaysValidation = this.validateWeekdaysArray(task.weekdays);
+      if (!weekdaysValidation.isValid) {
+        errors.push(...weekdaysValidation.errors);
+      }
+    }
+  }
+
+  /**
+   * Validate weekdays array with detailed error reporting
+   */
+  static validateWeekdaysArray(weekdays: any): { 
+    isValid: boolean; 
+    errors: string[]; 
+    validWeekdays?: number[] 
+  } {
+    const errors: string[] = [];
+
+    // Check if weekdays is an array
+    if (!Array.isArray(weekdays)) {
+      errors.push(`Weekdays must be an array, got: ${typeof weekdays}`);
+      return { isValid: false, errors };
+    }
+
+    // Check if array is empty
+    if (weekdays.length === 0) {
+      // Empty array is valid - will fall back to legacy calculation
+      return { 
+        isValid: true, 
+        errors: [], 
+        validWeekdays: [] 
+      };
+    }
+
+    // Validate each weekday value
+    const validWeekdays: number[] = [];
+    const invalidWeekdays: any[] = [];
+
+    weekdays.forEach((day, index) => {
+      if (!Number.isInteger(day) || day < 0 || day > 6) {
+        invalidWeekdays.push({ value: day, index });
+      } else {
+        validWeekdays.push(day);
+      }
+    });
+
+    // Report invalid weekdays
+    if (invalidWeekdays.length > 0) {
+      errors.push(`Invalid weekday values found: ${invalidWeekdays.map(item => 
+        `${item.value} at index ${item.index}`
+      ).join(', ')} (weekdays must be integers 0-6)`);
+    }
+
+    // Remove duplicates from valid weekdays
+    const uniqueValidWeekdays = [...new Set(validWeekdays)].sort();
+
+    // If all weekdays were invalid, return error
+    if (uniqueValidWeekdays.length === 0 && weekdays.length > 0) {
+      errors.push('No valid weekdays found (all values were invalid)');
+      return { isValid: false, errors };
+    }
+
+    // Log validation results
+    console.log(`📋 [WEEKDAYS VALIDATION] Validation complete:`, {
+      originalWeekdays: weekdays,
+      validWeekdays: uniqueValidWeekdays,
+      invalidCount: invalidWeekdays.length,
+      duplicatesRemoved: validWeekdays.length !== uniqueValidWeekdays.length,
+      isValid: errors.length === 0
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      validWeekdays: uniqueValidWeekdays
     };
   }
 

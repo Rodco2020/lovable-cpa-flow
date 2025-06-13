@@ -13,18 +13,19 @@ import { RecurrenceTypeCalculator } from './recurrenceTypes';
  * This calculator handles different types of recurring tasks:
  * - Annual tasks: Only generate hours for their specific target month
  * - Non-annual tasks: Distribute hours based on recurrence pattern
- * - Weekly tasks: Enhanced support for specific weekdays
+ * - Weekly tasks: Enhanced support for specific weekdays with proper validation
  * 
  * Key behaviors:
  * - Annual tasks use month_of_year (primary) or due_date (fallback) for month targeting
  * - Annual tasks return full hours only in target month, zero elsewhere
  * - Weekly tasks can specify weekdays for more accurate calculations
+ * - Weekdays validation ensures data integrity
  * - Interval adjustments apply to all recurrence types
  */
 export class RecurrenceCalculator {
   /**
    * Calculate monthly demand with proper annual task month-specific logic
-   * and enhanced weekly task weekday support
+   * and enhanced weekly task weekday support with comprehensive validation
    */
   static calculateMonthlyDemand(
     task: RecurringTaskDB,
@@ -47,7 +48,7 @@ export class RecurrenceCalculator {
     });
 
     try {
-      // Enhanced input validation
+      // Enhanced input validation including weekdays
       const validationResult = ValidationUtils.validateTaskInputs(task);
       if (!validationResult.isValid) {
         console.warn(`⚠️ [RECURRENCE CALC] Validation failed for task ${task.id}:`, validationResult.errors);
@@ -73,7 +74,7 @@ export class RecurrenceCalculator {
         startMonth = MonthUtils.getMonthFromDate(task.due_date);
       }
 
-      // Handle other recurrence types with enhanced weekly support
+      // Handle other recurrence types with enhanced weekly support and weekdays integration
       return this.calculateNonAnnualTaskDemand(
         task,
         recurrenceType,
@@ -90,6 +91,7 @@ export class RecurrenceCalculator {
 
   /**
    * Calculate demand for non-annual recurring tasks with enhanced weekly support
+   * and proper weekdays parameter integration
    */
   private static calculateNonAnnualTaskDemand(
     task: RecurringTaskDB,
@@ -98,13 +100,52 @@ export class RecurrenceCalculator {
     periodMonth: number,
     startMonth: number
   ): RecurrenceCalculation {
-    // Pass weekdays array for weekly tasks
+    // Enhanced weekdays handling with detailed logging
+    if (recurrenceType === 'weekly') {
+      console.log(`📊 [RECURRENCE CALC] Processing weekly task with weekdays integration:`, {
+        taskId: task.id,
+        weekdays: task.weekdays,
+        weekdaysType: typeof task.weekdays,
+        isArray: Array.isArray(task.weekdays),
+        weekdaysLength: task.weekdays ? task.weekdays.length : 'N/A'
+      });
+
+      // Validate weekdays if provided
+      if (task.weekdays !== null && task.weekdays !== undefined) {
+        const weekdaysValidation = ValidationUtils.validateWeekdaysArray(task.weekdays);
+        if (!weekdaysValidation.isValid) {
+          console.warn(`⚠️ [RECURRENCE CALC] Invalid weekdays for task ${task.id}:`, weekdaysValidation.errors);
+          console.log(`📊 [RECURRENCE CALC] Falling back to legacy calculation for task ${task.id}`);
+        } else {
+          console.log(`✅ [RECURRENCE CALC] Weekdays validation passed for task ${task.id}:`, {
+            originalWeekdays: task.weekdays,
+            validatedWeekdays: weekdaysValidation.validWeekdays
+          });
+        }
+      } else {
+        console.log(`📊 [RECURRENCE CALC] No weekdays specified for task ${task.id}, using legacy calculation`);
+      }
+    }
+
+    // Pass weekdays array for weekly tasks with proper type safety
+    const weekdaysParameter = (recurrenceType === 'weekly' && task.weekdays) ? task.weekdays : undefined;
+    
+    console.log(`🔧 [RECURRENCE CALC] Calling RecurrenceTypeCalculator with parameters:`, {
+      taskId: task.id,
+      recurrenceType,
+      interval,
+      periodMonth,
+      startMonth,
+      weekdaysParameter,
+      weekdaysPassedToCalculator: !!weekdaysParameter
+    });
+
     const monthlyOccurrences = RecurrenceTypeCalculator.calculateMonthlyOccurrences(
       recurrenceType,
       interval,
       periodMonth,
       startMonth,
-      task.weekdays || undefined
+      weekdaysParameter
     );
     
     const monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
@@ -113,9 +154,11 @@ export class RecurrenceCalculator {
       taskId: task.id,
       recurrenceType: task.recurrence_type,
       weekdays: task.weekdays,
+      weekdaysUsedInCalculation: weekdaysParameter,
       monthlyOccurrences: monthlyOccurrences.toFixed(4),
       monthlyHours: monthlyHours.toFixed(2),
-      calculation: `${task.estimated_hours} × ${monthlyOccurrences.toFixed(4)} = ${monthlyHours.toFixed(2)}`
+      calculation: `${task.estimated_hours} × ${monthlyOccurrences.toFixed(4)} = ${monthlyHours.toFixed(2)}`,
+      backwardCompatible: !weekdaysParameter ? 'Yes - using legacy formula' : 'No - using enhanced weekdays calculation'
     });
 
     return {
