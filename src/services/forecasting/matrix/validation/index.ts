@@ -1,15 +1,24 @@
 
 /**
- * Matrix Validation Services
- * Exports validation utilities including skill consistency validation
+ * Matrix Validation and Debugging Infrastructure
+ * Exports all validation and debugging utilities
  */
 export { DataIntegrityValidator } from './DataIntegrityValidator';
 export { SkillMappingVerifier } from './SkillMappingVerifier';
-export { SkillMappingConsistencyValidator } from './SkillMappingConsistencyValidator';
-
-export type { ValidationResult } from './DataIntegrityValidator';
-export type { SkillMappingReport } from './SkillMappingVerifier';
 export type { 
-  SkillConsistencyResult, 
-  SkillInconsistency 
-} from './SkillMappingConsistencyValidator';
+  ValidationResult,
+  SkillMappingReport,
+  SkillConsistencyIssue,
+  SkillMappingCorrection,
+  SkillMappingRecommendation,
+  SkillMappingTrace,
+  SkillMapping
+} from './DataIntegrityValidator';
+export type { 
+  SkillMappingReport as SMReport,
+  SkillConsistencyIssue as SCIssue,
+  SkillMappingCorrection as SMCorrection,
+  SkillMappingRecommendation as SMRecommendation,
+  SkillMappingTrace as SMTrace,
+  SkillMapping as SMapping
+} from './SkillMappingVerifier';

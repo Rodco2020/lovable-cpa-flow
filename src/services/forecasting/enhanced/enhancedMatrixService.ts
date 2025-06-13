@@ -272,7 +272,7 @@ export class EnhancedMatrixService {
       months: demandData.months.map((m, index) => ({
         key: m.key,
         label: m.label,
-        index: index
+        index: (m as any).index ?? index
       })),
       skills: demandData.skills,
       dataPoints: demandData.dataPoints.map(point => ({
@@ -344,7 +344,7 @@ export class EnhancedMatrixService {
         months: filteredMonths.map((m, index) => ({
           key: m.key,
           label: m.label,
-          index: index
+          index: m.index || index
         })),
         totalDemand: demandData.totalDemand,
         totalTasks: demandData.totalTasks,
@@ -360,7 +360,7 @@ export class EnhancedMatrixService {
           return {
             month: month.label,
             monthKey: month.key,
-            monthIndex: index,
+            monthIndex: month.index || index,
             demandHours: dataPoint?.demandHours || 0,
             taskCount: dataPoint?.taskCount || 0,
             clientCount: dataPoint?.clientCount || 0,

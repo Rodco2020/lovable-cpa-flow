@@ -37,7 +37,7 @@ export interface ForecastDataItem {
   capacity: Array<{ skill: SkillType; hours: number }>;
 }
 
-export type ForecastType = 'virtual' | 'actual' | 'demand-only';
+export type ForecastType = 'virtual' | 'actual';
 
 export interface MatrixValidationResult {
   isValid: boolean;
