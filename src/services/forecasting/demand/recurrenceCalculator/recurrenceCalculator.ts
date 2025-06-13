@@ -292,13 +292,7 @@ export class RecurrenceCalculator {
       monthlyOccurrences: 0,
       monthlyHours: 0,
       taskId,
-      nextDueDates: [],
-      // Add error context for debugging (non-breaking addition)
-      __errorContext: {
-        errorType,
-        errors,
-        timestamp: new Date().toISOString()
-      }
+      nextDueDates: []
     };
   }
 
