@@ -276,7 +276,7 @@ export class PerformanceOptimizer {
       totalDemand: capacityData.totalDemand,
       totalTasks: 0,
       totalClients: 0,
-      skillSummary: [] // Add missing required property
+      skillSummary: {} // Fix: Use empty object instead of empty array
     };
   }
 }
