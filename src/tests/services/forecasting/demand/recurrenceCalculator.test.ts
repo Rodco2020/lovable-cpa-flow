@@ -1,9 +1,179 @@
-
 import { describe, it, expect } from 'vitest';
 import { RecurrenceCalculator } from '@/services/forecasting/demand/recurrenceCalculator/recurrenceCalculator';
 import { RecurringTaskDB } from '@/types/task';
 
-describe('RecurrenceCalculator', () => {
+describe('RecurrenceCalculator - Enhanced Weekly Support', () => {
+  const baseTask: RecurringTaskDB = {
+    id: '1',
+    name: 'Test Task',
+    template_id: 'template-1',
+    client_id: 'client-1',
+    estimated_hours: 10,
+    required_skills: ['Tax Preparation'],
+    priority: 'Medium',
+    category: 'Tax',
+    status: 'Unscheduled',
+    recurrence_type: 'Weekly',
+    recurrence_interval: 1,
+    is_active: true,
+    due_date: '2025-01-15T00:00:00Z',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+    description: 'Test weekly task',
+    notes: null,
+    weekdays: null,
+    day_of_month: null,
+    month_of_year: null,
+    end_date: null,
+    custom_offset_days: null,
+    last_generated_date: null
+  };
+
+  describe('calculateMonthlyDemand - Enhanced Weekly Tasks', () => {
+    it('should maintain legacy behavior for weekly task without weekdays', () => {
+      const weeklyTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: null
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(weeklyTask, startDate, endDate);
+
+      // Legacy formula: 4.33 occurrences * 10 hours = 43.3 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
+      expect(result.monthlyHours).toBeCloseTo(43.3, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should calculate correctly for weekly task with specific weekdays', () => {
+      const weeklyTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [1, 3, 5] // Monday, Wednesday, Friday
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(weeklyTask, startDate, endDate);
+
+      // 3 days per week * ~4.35 weeks per month = ~13.05 occurrences
+      // 13.05 occurrences * 10 hours = ~130.5 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(13.05, 1);
+      expect(result.monthlyHours).toBeCloseTo(130.5, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should handle biweekly task with weekdays', () => {
+      const biweeklyTask: RecurringTaskDB = {
+        ...baseTask,
+        recurrence_interval: 2,
+        weekdays: [1, 3, 5] // Monday, Wednesday, Friday every 2 weeks
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(biweeklyTask, startDate, endDate);
+
+      // 3 days per week * ~4.35 weeks per month / 2 interval = ~6.525 occurrences
+      // 6.525 occurrences * 10 hours = ~65.25 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(6.525, 2);
+      expect(result.monthlyHours).toBeCloseTo(65.25, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should handle daily working days (Mon-Fri)', () => {
+      const workdaysTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [1, 2, 3, 4, 5] // Monday through Friday
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(workdaysTask, startDate, endDate);
+
+      // 5 days per week * ~4.35 weeks per month = ~21.75 occurrences
+      // 21.75 occurrences * 10 hours = ~217.5 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(21.75, 1);
+      expect(result.monthlyHours).toBeCloseTo(217.5, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should handle weekend-only tasks', () => {
+      const weekendTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [0, 6] // Sunday and Saturday
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(weekendTask, startDate, endDate);
+
+      // 2 days per week * ~4.35 weeks per month = ~8.7 occurrences
+      // 8.7 occurrences * 10 hours = ~87 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(8.7, 1);
+      expect(result.monthlyHours).toBeCloseTo(87, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should handle single weekday tasks', () => {
+      const mondayTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [1] // Monday only
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(mondayTask, startDate, endDate);
+
+      // 1 day per week * ~4.35 weeks per month = ~4.35 occurrences
+      // 4.35 occurrences * 10 hours = ~43.5 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(4.35, 1);
+      expect(result.monthlyHours).toBeCloseTo(43.5, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should handle invalid weekdays gracefully', () => {
+      const invalidWeekdaysTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [1, 7, 3, -1, 5] // Mix of valid (1,3,5) and invalid (7,-1) weekdays
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(invalidWeekdaysTask, startDate, endDate);
+
+      // Should filter to [1, 3, 5] = 3 days per week * ~4.35 weeks per month = ~13.05 occurrences
+      // 13.05 occurrences * 10 hours = ~130.5 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(13.05, 1);
+      expect(result.monthlyHours).toBeCloseTo(130.5, 1);
+      expect(result.taskId).toBe('1');
+    });
+
+    it('should fallback to legacy when all weekdays are invalid', () => {
+      const allInvalidWeekdaysTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [7, 8, -1, -2] // All invalid weekdays
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(allInvalidWeekdaysTask, startDate, endDate);
+
+      // Should fallback to legacy formula: 4.33 occurrences * 10 hours = 43.3 hours
+      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
+      expect(result.monthlyHours).toBeCloseTo(43.3, 1);
+      expect(result.taskId).toBe('1');
+    });
+  });
+
   const mockTask: RecurringTaskDB = {
     id: '1',
     name: 'Monthly Task',

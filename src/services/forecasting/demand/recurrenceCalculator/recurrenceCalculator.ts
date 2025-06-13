@@ -13,15 +13,18 @@ import { RecurrenceTypeCalculator } from './recurrenceTypes';
  * This calculator handles different types of recurring tasks:
  * - Annual tasks: Only generate hours for their specific target month
  * - Non-annual tasks: Distribute hours based on recurrence pattern
+ * - Weekly tasks: Enhanced support for specific weekdays
  * 
  * Key behaviors:
  * - Annual tasks use month_of_year (primary) or due_date (fallback) for month targeting
  * - Annual tasks return full hours only in target month, zero elsewhere
+ * - Weekly tasks can specify weekdays for more accurate calculations
  * - Interval adjustments apply to all recurrence types
  */
 export class RecurrenceCalculator {
   /**
    * Calculate monthly demand with proper annual task month-specific logic
+   * and enhanced weekly task weekday support
    */
   static calculateMonthlyDemand(
     task: RecurringTaskDB,
@@ -36,6 +39,7 @@ export class RecurrenceCalculator {
       dueDate: task.due_date,
       monthOfYear: task.month_of_year,
       dayOfMonth: task.day_of_month,
+      weekdays: task.weekdays,
       dateRange: {
         start: startDate.toISOString(),
         end: endDate.toISOString()
@@ -69,7 +73,7 @@ export class RecurrenceCalculator {
         startMonth = MonthUtils.getMonthFromDate(task.due_date);
       }
 
-      // Handle other recurrence types
+      // Handle other recurrence types with enhanced weekly support
       return this.calculateNonAnnualTaskDemand(
         task,
         recurrenceType,
@@ -85,7 +89,7 @@ export class RecurrenceCalculator {
   }
 
   /**
-   * Calculate demand for non-annual recurring tasks
+   * Calculate demand for non-annual recurring tasks with enhanced weekly support
    */
   private static calculateNonAnnualTaskDemand(
     task: RecurringTaskDB,
@@ -94,20 +98,24 @@ export class RecurrenceCalculator {
     periodMonth: number,
     startMonth: number
   ): RecurrenceCalculation {
+    // Pass weekdays array for weekly tasks
     const monthlyOccurrences = RecurrenceTypeCalculator.calculateMonthlyOccurrences(
       recurrenceType,
       interval,
       periodMonth,
-      startMonth
+      startMonth,
+      task.weekdays || undefined
     );
+    
     const monthlyHours = Number(task.estimated_hours) * monthlyOccurrences;
 
     console.log(`✅ [RECURRENCE CALC] Non-annual calculation complete:`, {
       taskId: task.id,
       recurrenceType: task.recurrence_type,
-      monthlyOccurrences,
-      monthlyHours,
-      calculation: `${task.estimated_hours} × ${monthlyOccurrences} = ${monthlyHours}`
+      weekdays: task.weekdays,
+      monthlyOccurrences: monthlyOccurrences.toFixed(4),
+      monthlyHours: monthlyHours.toFixed(2),
+      calculation: `${task.estimated_hours} × ${monthlyOccurrences.toFixed(4)} = ${monthlyHours.toFixed(2)}`
     });
 
     return {
