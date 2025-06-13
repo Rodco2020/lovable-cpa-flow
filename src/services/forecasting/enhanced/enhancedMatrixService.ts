@@ -272,7 +272,7 @@ export class EnhancedMatrixService {
       months: demandData.months.map((m, index) => ({
         key: m.key,
         label: m.label,
-        index: (m as any).index ?? index
+        index: index // Use array index as fallback
       })),
       skills: demandData.skills,
       dataPoints: demandData.dataPoints.map(point => ({
@@ -304,7 +304,7 @@ export class EnhancedMatrixService {
     let csvData = headers.join(',') + '\n';
     
     filteredSkills.forEach(skill => {
-      filteredMonths.forEach(month => {
+      filteredMonths.forEach((month, monthIndex) => {
         const dataPoint = demandData.dataPoints.find(
           point => point.skillType === skill && point.month === month.key
         );
@@ -344,7 +344,7 @@ export class EnhancedMatrixService {
         months: filteredMonths.map((m, index) => ({
           key: m.key,
           label: m.label,
-          index: m.index || index
+          index: index // Use array index
         })),
         totalDemand: demandData.totalDemand,
         totalTasks: demandData.totalTasks,
@@ -360,7 +360,7 @@ export class EnhancedMatrixService {
           return {
             month: month.label,
             monthKey: month.key,
-            monthIndex: month.index || index,
+            monthIndex: index, // Use array index
             demandHours: dataPoint?.demandHours || 0,
             taskCount: dataPoint?.taskCount || 0,
             clientCount: dataPoint?.clientCount || 0,
@@ -371,5 +371,28 @@ export class EnhancedMatrixService {
     };
     
     return JSON.stringify(exportData, null, 2);
+  }
+
+  // Re-implement missing methods to maintain interface compatibility
+  static async getDrillDownData(skill: string, month: string, matrixData?: MatrixData) {
+    return DrillDownProvider.getDrillDownData(skill, month, matrixData);
+  }
+
+  static generateCapacityReport(
+    matrixData: MatrixData,
+    trends: TrendAnalysis[],
+    recommendations: CapacityRecommendation[],
+    alerts: ThresholdAlert[]
+  ) {
+    return ReportGenerator.generateCapacityReport(matrixData, trends, recommendations, alerts);
+  }
+
+  static clearCache(): void {
+    EnhancedCacheManager.clearCache();
+    DemandMatrixService.clearCache();
+  }
+
+  static getCacheStats() {
+    return EnhancedCacheManager.getCacheStats();
   }
 }

@@ -1,280 +1,199 @@
 
 import { SkillType } from '@/types/task';
-import { DemandDataPoint } from '@/types/demand';
+import { 
+  SkillMappingReport, 
+  SkillConsistencyIssue, 
+  SkillMappingCorrection,
+  SkillMappingRecommendation,
+  SkillMappingTrace,
+  SkillMapping
+} from './DataIntegrityValidator';
 
 /**
- * Skill Mapping Verification Utilities
- * Provides utilities to verify skill key transformations and mappings
+ * Skill Mapping Verification Service
+ * Provides detailed analysis of skill mapping consistency
  */
 export class SkillMappingVerifier {
   /**
-   * Verify skill key consistency throughout transformation pipeline
+   * Generate comprehensive skill mapping report
    */
-  static verifySkillKeyConsistency(
-    originalSkills: SkillType[],
-    dataPoints: DemandDataPoint[],
-    transformedSkills: SkillType[]
+  static generateSkillMappingReport(
+    sourceSkills: SkillType[],
+    mappedSkills: SkillType[],
+    skillMapping: Map<string, string>
   ): SkillMappingReport {
-    const report: SkillMappingReport = {
-      consistencyIssues: [],
-      mappingCorrections: [],
-      recommendations: [],
-      summary: {
-        totalOriginalSkills: originalSkills.length,
-        totalTransformedSkills: transformedSkills.length,
-        skillsWithIssues: 0,
-        mappingCorrectionsApplied: 0
-      }
-    };
-    
-    // Create skill usage tracking from data points
-    const skillUsageMap = this.createSkillUsageMap(dataPoints);
-    
-    // Verify each original skill
-    originalSkills.forEach(skill => {
-      const skillStr = String(skill);
-      const trimmedSkill = skillStr.trim();
+    const unmappedSkills: string[] = [];
+    const conflictingMappings: SkillMappingCorrection[] = [];
+    let mappedCount = 0;
+
+    sourceSkills.forEach(skill => {
+      const skillKey = String(skill).trim();
+      const mapping = skillMapping.get(skillKey);
       
-      // Check for whitespace issues
-      if (skillStr !== trimmedSkill) {
-        report.consistencyIssues.push({
-          skillName: skillStr,
-          issueType: 'whitespace',
-          description: `Skill '${skillStr}' contains leading/trailing whitespace`,
-          originalValue: skillStr,
-          correctedValue: trimmedSkill
-        });
-        
-        report.mappingCorrections.push({
-          from: skillStr,
-          to: trimmedSkill,
-          reason: 'whitespace normalization'
-        });
-        
-        report.summary.skillsWithIssues++;
-        report.summary.mappingCorrectionsApplied++;
-      }
-      
-      // Check if skill exists in data points
-      const isUsedInData = skillUsageMap.has(trimmedSkill);
-      if (!isUsedInData) {
-        report.consistencyIssues.push({
-          skillName: skillStr,
-          issueType: 'unused',
-          description: `Skill '${skillStr}' defined but not used in data points`,
-          originalValue: skillStr,
-          correctedValue: null
-        });
-      }
-      
-      // Check if skill exists in transformed skills
-      const existsInTransformed = transformedSkills.some(ts => String(ts).trim() === trimmedSkill);
-      if (!existsInTransformed) {
-        report.consistencyIssues.push({
-          skillName: skillStr,
-          issueType: 'missing_in_transform',
-          description: `Skill '${skillStr}' missing from transformed skill set`,
-          originalValue: skillStr,
-          correctedValue: null
-        });
-        
-        report.summary.skillsWithIssues++;
-      }
-    });
-    
-    // Check for orphaned skills in data points
-    skillUsageMap.forEach((usage, skillKey) => {
-      const existsInOriginal = originalSkills.some(os => String(os).trim() === skillKey);
-      if (!existsInOriginal) {
-        report.consistencyIssues.push({
-          skillName: skillKey,
-          issueType: 'orphaned_data',
-          description: `Skill '${skillKey}' used in data points but not in original skill list`,
-          originalValue: skillKey,
-          correctedValue: null
-        });
-      }
-    });
-    
-    // Generate recommendations
-    this.generateRecommendations(report);
-    
-    return report;
-  }
-  
-  /**
-   * Create skill usage map from data points
-   */
-  private static createSkillUsageMap(dataPoints: DemandDataPoint[]): Map<string, SkillUsage> {
-    const usageMap = new Map<string, SkillUsage>();
-    
-    dataPoints.forEach(dp => {
-      const skillKey = String(dp.skillType).trim();
-      const existing = usageMap.get(skillKey) || {
-        occurrences: 0,
-        totalDemand: 0,
-        months: new Set<string>()
-      };
-      
-      existing.occurrences++;
-      existing.totalDemand += dp.demandHours;
-      existing.months.add(dp.month);
-      
-      usageMap.set(skillKey, existing);
-    });
-    
-    return usageMap;
-  }
-  
-  /**
-   * Generate recommendations based on consistency issues
-   */
-  private static generateRecommendations(report: SkillMappingReport): void {
-    const whitespaceIssues = report.consistencyIssues.filter(issue => issue.issueType === 'whitespace');
-    const orphanedIssues = report.consistencyIssues.filter(issue => issue.issueType === 'orphaned_data');
-    const missingIssues = report.consistencyIssues.filter(issue => issue.issueType === 'missing_in_transform');
-    
-    if (whitespaceIssues.length > 0) {
-      report.recommendations.push({
-        priority: 'high',
-        category: 'data_cleaning',
-        description: `Apply consistent skill key trimming to resolve ${whitespaceIssues.length} whitespace issues`,
-        action: 'Implement skill key normalization in transformation pipeline'
-      });
-    }
-    
-    if (orphanedIssues.length > 0) {
-      report.recommendations.push({
-        priority: 'medium',
-        category: 'data_integrity',
-        description: `Investigate ${orphanedIssues.length} orphaned skills in data points`,
-        action: 'Review data source and skill assignment logic'
-      });
-    }
-    
-    if (missingIssues.length > 0) {
-      report.recommendations.push({
-        priority: 'high',
-        category: 'transformation_logic',
-        description: `Fix transformation logic to preserve ${missingIssues.length} missing skills`,
-        action: 'Review skill set union logic in transformation method'
-      });
-    }
-  }
-  
-  /**
-   * Create skill mapping verification for debugging
-   */
-  static createSkillMappingTrace(
-    originalSkills: SkillType[],
-    transformedSkills: SkillType[]
-  ): SkillMappingTrace {
-    const trace: SkillMappingTrace = {
-      mappings: [],
-      unmappedOriginal: [],
-      unmappedTransformed: []
-    };
-    
-    // Create normalized mapping
-    const transformedNormalized = new Map<string, SkillType>();
-    transformedSkills.forEach(skill => {
-      transformedNormalized.set(String(skill).trim(), skill);
-    });
-    
-    // Trace each original skill
-    originalSkills.forEach(originalSkill => {
-      const normalizedKey = String(originalSkill).trim();
-      const transformedSkill = transformedNormalized.get(normalizedKey);
-      
-      if (transformedSkill) {
-        trace.mappings.push({
-          original: originalSkill,
-          transformed: transformedSkill,
-          keyMatches: String(originalSkill) === String(transformedSkill),
-          normalizedKey: normalizedKey
-        });
-        transformedNormalized.delete(normalizedKey);
+      if (!mapping) {
+        unmappedSkills.push(skillKey);
       } else {
-        trace.unmappedOriginal.push(originalSkill);
+        mappedCount++;
+        
+        // Check for conflicting mappings
+        if (!mappedSkills.includes(mapping as SkillType)) {
+          conflictingMappings.push({
+            originalSkill: skillKey,
+            suggestedMapping: this.suggestMapping(skillKey),
+            confidence: this.calculateMappingConfidence(skillKey, mapping)
+          });
+        }
       }
     });
+
+    return {
+      totalSkills: sourceSkills.length,
+      mappedSkills: mappedCount,
+      unmappedSkills,
+      conflictingMappings
+    };
+  }
+
+  /**
+   * Detect skill consistency issues
+   */
+  static detectConsistencyIssues(
+    demandSkills: SkillType[],
+    capacitySkills: SkillType[]
+  ): SkillConsistencyIssue[] {
+    const issues: SkillConsistencyIssue[] = [];
     
-    // Remaining transformed skills are unmapped
-    trace.unmappedTransformed = Array.from(transformedNormalized.values());
+    const demandSet = new Set(demandSkills.map(s => String(s).trim()));
+    const capacitySet = new Set(capacitySkills.map(s => String(s).trim()));
+
+    // Check for missing skills in capacity
+    demandSet.forEach(skill => {
+      if (!capacitySet.has(skill)) {
+        issues.push({
+          skillName: skill,
+          issueType: 'missing',
+          recommendation: `Add '${skill}' to capacity matrix or create mapping`
+        });
+      }
+    });
+
+    // Check for extra skills in capacity
+    capacitySet.forEach(skill => {
+      if (!demandSet.has(skill)) {
+        issues.push({
+          skillName: skill,
+          issueType: 'duplicate',
+          recommendation: `Remove '${skill}' from capacity or add to demand matrix`
+        });
+      }
+    });
+
+    return issues;
+  }
+
+  /**
+   * Generate mapping recommendations
+   */
+  static generateMappingRecommendations(
+    issues: SkillConsistencyIssue[]
+  ): SkillMappingRecommendation[] {
+    return issues.map(issue => ({
+      action: issue.issueType === 'missing' ? 'add' : 'remove',
+      skillName: issue.skillName,
+      reason: issue.recommendation
+    }));
+  }
+
+  /**
+   * Trace skill mapping path
+   */
+  static traceSkillMapping(
+    skillName: string,
+    skillMapping: Map<string, string>
+  ): SkillMappingTrace {
+    const mappingPath: string[] = [skillName];
+    let currentSkill = skillName;
+    let finalMapping = skillName;
+
+    // Follow the mapping chain
+    while (skillMapping.has(currentSkill)) {
+      const nextMapping = skillMapping.get(currentSkill)!;
+      if (mappingPath.includes(nextMapping)) {
+        // Circular reference detected
+        break;
+      }
+      mappingPath.push(nextMapping);
+      finalMapping = nextMapping;
+      currentSkill = nextMapping;
+    }
+
+    return {
+      skillName,
+      mappingPath,
+      finalMapping
+    };
+  }
+
+  /**
+   * Suggest mapping for unmapped skill
+   */
+  private static suggestMapping(skillName: string): string {
+    const skillLower = skillName.toLowerCase().trim();
     
-    return trace;
+    // Simple suggestion logic based on common patterns
+    if (skillLower.includes('junior') || skillLower.includes('jr')) {
+      return 'Junior Staff';
+    }
+    if (skillLower.includes('senior') || skillLower.includes('sr')) {
+      return 'Senior Staff';
+    }
+    if (skillLower.includes('cpa') || skillLower.includes('certified')) {
+      return 'CPA';
+    }
+    
+    // Default to capitalized version
+    return skillName.charAt(0).toUpperCase() + skillName.slice(1).toLowerCase();
+  }
+
+  /**
+   * Calculate confidence score for mapping
+   */
+  private static calculateMappingConfidence(originalSkill: string, mapping: string): number {
+    const original = originalSkill.toLowerCase().trim();
+    const mapped = mapping.toLowerCase().trim();
+    
+    // Exact match gets highest confidence
+    if (original === mapped) return 1.0;
+    
+    // Check for substring matches
+    if (mapped.includes(original) || original.includes(mapped)) {
+      return 0.8;
+    }
+    
+    // Check for common variations
+    const commonMappings = [
+      ['junior', 'junior staff'],
+      ['senior', 'senior staff'],
+      ['jr', 'junior staff'],
+      ['sr', 'senior staff']
+    ];
+    
+    for (const [from, to] of commonMappings) {
+      if (original.includes(from) && mapped.includes(to)) {
+        return 0.9;
+      }
+    }
+    
+    return 0.3; // Low confidence for unclear mappings
   }
 }
 
-/**
- * Skill mapping report interface
- */
-export interface SkillMappingReport {
-  consistencyIssues: SkillConsistencyIssue[];
-  mappingCorrections: SkillMappingCorrection[];
-  recommendations: SkillMappingRecommendation[];
-  summary: {
-    totalOriginalSkills: number;
-    totalTransformedSkills: number;
-    skillsWithIssues: number;
-    mappingCorrectionsApplied: number;
-  };
-}
-
-/**
- * Skill consistency issue interface
- */
-export interface SkillConsistencyIssue {
-  skillName: string;
-  issueType: 'whitespace' | 'unused' | 'orphaned_data' | 'missing_in_transform';
-  description: string;
-  originalValue: string;
-  correctedValue: string | null;
-}
-
-/**
- * Skill mapping correction interface
- */
-export interface SkillMappingCorrection {
-  from: string;
-  to: string;
-  reason: string;
-}
-
-/**
- * Skill mapping recommendation interface
- */
-export interface SkillMappingRecommendation {
-  priority: 'low' | 'medium' | 'high';
-  category: 'data_cleaning' | 'data_integrity' | 'transformation_logic';
-  description: string;
-  action: string;
-}
-
-/**
- * Skill usage tracking interface
- */
-interface SkillUsage {
-  occurrences: number;
-  totalDemand: number;
-  months: Set<string>;
-}
-
-/**
- * Skill mapping trace interface
- */
-export interface SkillMappingTrace {
-  mappings: SkillMapping[];
-  unmappedOriginal: SkillType[];
-  unmappedTransformed: SkillType[];
-}
-
-/**
- * Individual skill mapping interface
- */
-export interface SkillMapping {
-  original: SkillType;
-  transformed: SkillType;
-  keyMatches: boolean;
-  normalizedKey: string;
-}
+// Re-export types for convenience
+export type {
+  SkillMappingReport,
+  SkillConsistencyIssue,
+  SkillMappingCorrection,
+  SkillMappingRecommendation,
+  SkillMappingTrace,
+  SkillMapping
+};

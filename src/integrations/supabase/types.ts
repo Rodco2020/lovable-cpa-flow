@@ -126,6 +126,7 @@ export type Database = {
           template_id: string
           updated_at: string
           weekdays: number[] | null
+          weekdays_for_daily: number[] | null
         }
         Insert: {
           category: string
@@ -151,6 +152,7 @@ export type Database = {
           template_id: string
           updated_at?: string
           weekdays?: number[] | null
+          weekdays_for_daily?: number[] | null
         }
         Update: {
           category?: string
@@ -176,6 +178,7 @@ export type Database = {
           template_id?: string
           updated_at?: string
           weekdays?: number[] | null
+          weekdays_for_daily?: number[] | null
         }
         Relationships: [
           {

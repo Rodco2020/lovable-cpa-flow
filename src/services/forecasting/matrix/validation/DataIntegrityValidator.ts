@@ -226,3 +226,43 @@ export interface ValidationResult {
   warnings: string[];
   details: Record<string, any>;
 }
+
+/**
+ * Skill Mapping Report Types - Added for exports
+ */
+export interface SkillMappingReport {
+  totalSkills: number;
+  mappedSkills: number;
+  unmappedSkills: string[];
+  conflictingMappings: SkillMappingCorrection[];
+}
+
+export interface SkillConsistencyIssue {
+  skillName: string;
+  issueType: 'missing' | 'duplicate' | 'inconsistent';
+  recommendation: string;
+}
+
+export interface SkillMappingCorrection {
+  originalSkill: string;
+  suggestedMapping: string;
+  confidence: number;
+}
+
+export interface SkillMappingRecommendation {
+  action: 'add' | 'remove' | 'update';
+  skillName: string;
+  reason: string;
+}
+
+export interface SkillMappingTrace {
+  skillName: string;
+  mappingPath: string[];
+  finalMapping: string;
+}
+
+export interface SkillMapping {
+  from: string;
+  to: string;
+  bidirectional: boolean;
+}
