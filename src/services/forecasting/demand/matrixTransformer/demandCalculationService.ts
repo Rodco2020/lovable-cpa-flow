@@ -9,11 +9,12 @@ import { startOfMonth, endOfMonth } from 'date-fns';
 /**
  * Service responsible for calculating demand for skills and periods
  * FIXED: Now uses consistent full-hours-per-skill logic
+ * ENHANCED: Added detailed debugging for Bloom Advisory LLC CPA calculation
  */
 export class DemandCalculationService {
   /**
    * Calculate demand for skill period with mapping support
-   * FIXED: Uses consistent logic for skill demand calculation
+   * ENHANCED: Added detailed debugging for CPA calculation investigation
    */
   static calculateDemandForSkillPeriodWithMapping(
     period: ForecastData, 
@@ -51,6 +52,18 @@ export class DemandCalculationService {
       }
 
       const hours = Math.max(0, skillDemand.hours);
+      
+      // ENHANCED: Special debugging for CPA skill to investigate 30h calculation
+      if (skill === 'CPA' || skill.toLowerCase().includes('cpa')) {
+        console.log(`🧐 [CPA DEBUG] CPA skill demand calculation:`, {
+          skill,
+          period: period.period,
+          calculatedHours: hours,
+          demandItem: skillDemand,
+          allDemandItems: period.demand
+        });
+      }
+      
       console.log(`✅ [DEMAND CALC] Found ${hours}h demand for skill "${skill}" (FIXED: using full hours per skill)`);
       return hours;
     } catch (error) {
@@ -61,7 +74,7 @@ export class DemandCalculationService {
 
   /**
    * Generate task breakdown with consistent client resolution using pre-resolved client map
-   * FIXED: Now uses full task hours per skill in breakdown generation
+   * ENHANCED: Added detailed debugging for Bloom Advisory LLC investigation
    */
   static async generateTaskBreakdownWithMapping(
     tasks: RecurringTaskDB[],
@@ -97,21 +110,30 @@ export class DemandCalculationService {
         try {
           if (!task || !Array.isArray(task.required_skills)) continue;
           
+          const clientId = task.client_id || 'unknown';
+          const clientName = resolvedClientMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
+          
+          // ENHANCED: Special debugging for Bloom Advisory LLC
+          const isBloomAdvisory = clientName.toLowerCase().includes('bloom');
+          
           // Check if task requires this skill using mapping
           let hasSkill = false;
+          let skillMatchDetails = [];
           
           for (const taskSkillRef of task.required_skills) {
             const mappedSkillName = skillMapping.get(taskSkillRef);
+            skillMatchDetails.push({
+              originalSkill: taskSkillRef,
+              mappedSkill: mappedSkillName,
+              matchesTargetSkill: mappedSkillName === skillDisplayName
+            });
+            
             if (mappedSkillName === skillDisplayName) {
               hasSkill = true;
-              break;
             }
           }
 
           if (hasSkill) {
-            const clientId = task.client_id || 'unknown';
-            const clientName = resolvedClientMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
-
             // Calculate monthly recurrence for this task within the period
             const recurrence = RecurrenceCalculator.calculateMonthlyDemand(
               task,
@@ -139,11 +161,59 @@ export class DemandCalculationService {
             };
 
             breakdown.push(demandItem);
+            
+            // ENHANCED: Special debugging for Bloom Advisory LLC CPA calculations
+            if (isBloomAdvisory && (skillDisplayName === 'CPA' || skillDisplayName.toLowerCase().includes('cpa'))) {
+              console.log(`🧐 [BLOOM CPA DEBUG] Found Bloom Advisory CPA task:`, {
+                taskId: task.id,
+                taskName: task.name,
+                clientName,
+                period,
+                skillDisplayName,
+                originalSkills: task.required_skills,
+                skillMatchDetails,
+                recurrenceType: task.recurrence_type,
+                recurrenceInterval: task.recurrence_interval,
+                estimatedHours: fullTaskHours,
+                monthlyOccurrences: recurrence.monthlyOccurrences,
+                monthlyTaskHours,
+                calculation: `${fullTaskHours}h × ${recurrence.monthlyOccurrences} occurrences = ${monthlyTaskHours}h`
+              });
+            }
+            
             console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} (${clientName}) to breakdown for skill "${skillDisplayName}" with ${monthlyTaskHours}h (FIXED)`);
+          } else if (isBloomAdvisory) {
+            // Log Bloom Advisory tasks that don't match CPA skill for investigation
+            console.log(`🔍 [BLOOM DEBUG] Bloom Advisory task excluded from CPA:`, {
+              taskId: task.id,
+              taskName: task.name,
+              requiredSkills: task.required_skills,
+              skillMatchDetails,
+              targetSkill: skillDisplayName
+            });
           }
         } catch (itemError) {
           console.warn(`Error creating demand item for task ${task.id}:`, itemError);
         }
+      }
+
+      // ENHANCED: Special summary for CPA skill calculations
+      if (skillDisplayName === 'CPA' || skillDisplayName.toLowerCase().includes('cpa')) {
+        const totalCPAHours = breakdown.reduce((sum, item) => sum + item.monthlyHours, 0);
+        const bloomTasks = breakdown.filter(item => item.clientName.toLowerCase().includes('bloom'));
+        const bloomHours = bloomTasks.reduce((sum, item) => sum + item.monthlyHours, 0);
+        
+        console.log(`🧐 [CPA SUMMARY] CPA skill breakdown for period ${period}:`, {
+          totalCPATasks: breakdown.length,
+          totalCPAHours,
+          bloomAdvisoryTasks: bloomTasks.length,
+          bloomAdvisoryHours: bloomHours,
+          bloomTaskDetails: bloomTasks.map(t => ({
+            taskName: t.taskName,
+            hours: t.monthlyHours,
+            occurrences: t.recurrencePattern.frequency
+          }))
+        });
       }
 
       console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with FIXED logic`);
