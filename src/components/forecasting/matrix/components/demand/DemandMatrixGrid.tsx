@@ -210,10 +210,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
             {filteredData.months.map((month) => {
               let cellData;
 
-              if (groupingMode ===
-
-
-) {
+              if (groupingMode === 'client') {
                 // FIXED: Use the corrected aggregation function
                 cellData = getAggregatedDataForClient(skillOrClient, month.key);
               } else {
