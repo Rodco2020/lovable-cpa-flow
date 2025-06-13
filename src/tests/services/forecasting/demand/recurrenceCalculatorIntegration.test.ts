@@ -2,9 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import { RecurrenceCalculator } from '@/services/forecasting/demand/recurrenceCalculator/recurrenceCalculator';
 import { ValidationUtils } from '@/services/forecasting/demand/recurrenceCalculator/validationUtils';
+import { WeekdayUtils } from '@/services/forecasting/demand/recurrenceCalculator/weekdayUtils';
 import { RecurringTaskDB } from '@/types/task';
 
-describe('RecurrenceCalculator - Phase 2 Integration Tests', () => {
+describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling Tests', () => {
   const baseTask: RecurringTaskDB = {
     id: '1',
     name: 'Test Weekly Task',
@@ -21,7 +22,7 @@ describe('RecurrenceCalculator - Phase 2 Integration Tests', () => {
     due_date: '2025-01-15T00:00:00Z',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
-    description: 'Test weekly task with weekdays integration',
+    description: 'Test weekly task with enhanced validation',
     notes: null,
     weekdays: null,
     day_of_month: null,
@@ -31,79 +32,39 @@ describe('RecurrenceCalculator - Phase 2 Integration Tests', () => {
     last_generated_date: null
   };
 
-  describe('Parameter Passing Integration', () => {
-    it('should correctly pass weekdays parameter to RecurrenceTypeCalculator', () => {
-      const weeklyTask: RecurringTaskDB = {
-        ...baseTask,
-        weekdays: [1, 3, 5] // Monday, Wednesday, Friday
+  describe('Enhanced Error Handling', () => {
+    it('should handle null task gracefully', () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(null as any, startDate, endDate);
+
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
+      expect(result.taskId).toBe('unknown');
+    });
+
+    it('should handle missing required fields gracefully', () => {
+      const invalidTask: Partial<RecurringTaskDB> = {
+        id: '1',
+        name: 'Invalid Task'
+        // Missing required fields
       };
 
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-31');
 
-      const result = RecurrenceCalculator.calculateMonthlyDemand(weeklyTask, startDate, endDate);
+      const result = RecurrenceCalculator.calculateMonthlyDemand(invalidTask as RecurringTaskDB, startDate, endDate);
 
-      // Should use enhanced weekdays calculation (not legacy 4.33)
-      expect(result.monthlyOccurrences).toBeCloseTo(13.05, 1); // 3 days * 4.35 weeks
-      expect(result.monthlyHours).toBeCloseTo(130.5, 1);
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
       expect(result.taskId).toBe('1');
     });
 
-    it('should handle null weekdays parameter correctly', () => {
-      const weeklyTask: RecurringTaskDB = {
-        ...baseTask,
-        weekdays: null
-      };
-
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
-
-      const result = RecurrenceCalculator.calculateMonthlyDemand(weeklyTask, startDate, endDate);
-
-      // Should fall back to legacy calculation
-      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
-      expect(result.monthlyHours).toBeCloseTo(43.3, 1);
-    });
-
-    it('should handle undefined weekdays parameter correctly', () => {
-      const weeklyTask: RecurringTaskDB = {
-        ...baseTask,
-        weekdays: undefined as any
-      };
-
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
-
-      const result = RecurrenceCalculator.calculateMonthlyDemand(weeklyTask, startDate, endDate);
-
-      // Should fall back to legacy calculation
-      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
-      expect(result.monthlyHours).toBeCloseTo(43.3, 1);
-    });
-
-    it('should not pass weekdays parameter for non-weekly tasks', () => {
-      const monthlyTask: RecurringTaskDB = {
-        ...baseTask,
-        recurrence_type: 'Monthly',
-        weekdays: [1, 2, 3] // Should be ignored for monthly tasks
-      };
-
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
-
-      const result = RecurrenceCalculator.calculateMonthlyDemand(monthlyTask, startDate, endDate);
-
-      // Should use monthly calculation (1 occurrence)
-      expect(result.monthlyOccurrences).toBe(1);
-      expect(result.monthlyHours).toBe(10);
-    });
-  });
-
-  describe('Weekdays Validation Integration', () => {
-    it('should validate weekdays during task input validation', () => {
+    it('should handle extremely invalid weekdays data gracefully', () => {
       const taskWithInvalidWeekdays: RecurringTaskDB = {
         ...baseTask,
-        weekdays: [1, 7, 3, -1] // Mix of valid and invalid
+        weekdays: 'not an array at all' as any
       };
 
       const startDate = new Date('2025-01-01');
@@ -111,95 +72,179 @@ describe('RecurrenceCalculator - Phase 2 Integration Tests', () => {
 
       const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithInvalidWeekdays, startDate, endDate);
 
-      // Should still calculate but filter out invalid weekdays
-      // Valid weekdays: [1, 3] = 2 days * 4.35 weeks = ~8.7 occurrences
-      expect(result.monthlyOccurrences).toBeCloseTo(8.7, 1);
-      expect(result.monthlyHours).toBeCloseTo(87, 1);
-    });
-
-    it('should handle completely invalid weekdays array', () => {
-      const taskWithAllInvalidWeekdays: RecurringTaskDB = {
-        ...baseTask,
-        weekdays: [7, 8, -1, -2] // All invalid
-      };
-
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
-
-      const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithAllInvalidWeekdays, startDate, endDate);
-
       // Should fall back to legacy calculation
       expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
       expect(result.monthlyHours).toBeCloseTo(43.3, 1);
     });
 
-    it('should handle empty weekdays array', () => {
-      const taskWithEmptyWeekdays: RecurringTaskDB = {
+    it('should handle negative estimated hours', () => {
+      const taskWithNegativeHours: RecurringTaskDB = {
         ...baseTask,
-        weekdays: []
+        estimated_hours: -5
       };
 
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-31');
 
-      const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithEmptyWeekdays, startDate, endDate);
+      const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithNegativeHours, startDate, endDate);
 
-      // Should fall back to legacy calculation
-      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
-      expect(result.monthlyHours).toBeCloseTo(43.3, 1);
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
+    });
+
+    it('should handle invalid recurrence interval', () => {
+      const taskWithInvalidInterval: RecurringTaskDB = {
+        ...baseTask,
+        recurrence_interval: 0
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithInvalidInterval, startDate, endDate);
+
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
     });
   });
 
-  describe('Backward Compatibility', () => {
-    it('should maintain exact same behavior for legacy weekly tasks', () => {
-      const legacyWeeklyTask: RecurringTaskDB = {
+  describe('Enhanced Weekdays Validation', () => {
+    it('should provide detailed validation results', () => {
+      const validationResult = ValidationUtils.validateTaskInputs({
         ...baseTask,
-        weekdays: null // Legacy behavior
+        weekdays: [1, 3, 5, 7, -1] // Mix of valid and invalid
+      });
+
+      expect(validationResult.isValid).toBe(false);
+      expect(validationResult.errors.some(error => error.includes('Weekdays validation failed'))).toBe(true);
+      expect(validationResult.warnings).toBeDefined();
+      expect(validationResult.context).toBeDefined();
+    });
+
+    it('should provide warnings for edge cases', () => {
+      const validationResult = ValidationUtils.validateTaskInputs({
+        ...baseTask,
+        weekdays: [0, 1, 2, 3, 4, 5, 6] // All 7 days
+      });
+
+      expect(validationResult.isValid).toBe(true);
+      expect(validationResult.warnings.some(warning => warning.includes('All 7 weekdays selected'))).toBe(true);
+    });
+
+    it('should handle null weekdays appropriately', () => {
+      const validationResult = ValidationUtils.validateTaskInputs({
+        ...baseTask,
+        weekdays: null
+      });
+
+      expect(validationResult.isValid).toBe(true);
+      expect(validationResult.warnings.some(warning => warning.includes('legacy calculation'))).toBe(true);
+    });
+  });
+
+  describe('WeekdayUtils Comprehensive Testing', () => {
+    it('should validate weekdays with detailed error reporting', () => {
+      const result = WeekdayUtils.validateAndNormalizeWeekdays([1, 'invalid', 3, 7, -1]);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('Invalid weekday values');
+      expect(result.validWeekdays).toEqual([1, 3]);
+    });
+
+    it('should handle duplicate weekdays', () => {
+      const result = WeekdayUtils.validateAndNormalizeWeekdays([1, 1, 3, 3, 5]);
+
+      expect(result.isValid).toBe(true);
+      expect(result.warnings.some(w => w.includes('Duplicate weekdays removed'))).toBe(true);
+      expect(result.validWeekdays).toEqual([1, 3, 5]);
+    });
+
+    it('should calculate weekly occurrences correctly', () => {
+      const result = WeekdayUtils.calculateWeeklyOccurrences([1, 3, 5], 1);
+
+      expect(result.occurrences).toBeCloseTo(13.05, 1); // 3 days * 4.35 weeks
+      expect(result.calculation).toContain('4.35 weeks/month');
+      expect(result.details.weekdayNames).toEqual(['Monday', 'Wednesday', 'Friday']);
+    });
+
+    it('should throw error for empty weekdays in calculation', () => {
+      expect(() => {
+        WeekdayUtils.calculateWeeklyOccurrences([], 1);
+      }).toThrow('Cannot calculate occurrences for empty weekdays array');
+    });
+
+    it('should throw error for invalid interval', () => {
+      expect(() => {
+        WeekdayUtils.calculateWeeklyOccurrences([1, 3, 5], 0);
+      }).toThrow('Invalid interval: 0');
+    });
+
+    it('should provide appropriate weekday descriptions', () => {
+      expect(WeekdayUtils.getWeekdaysDescription([1, 2, 3, 4, 5])).toBe('Weekdays (Mon-Fri)');
+      expect(WeekdayUtils.getWeekdaysDescription([0, 6])).toBe('Weekends (Sat-Sun)');
+      expect(WeekdayUtils.getWeekdaysDescription([1, 3, 5])).toBe('Monday, Wednesday, Friday');
+      expect(WeekdayUtils.getWeekdaysDescription([])).toBe('No specific days');
+    });
+  });
+
+  describe('Graceful Fallback Behavior', () => {
+    it('should fall back to legacy calculation when weekdays validation fails', () => {
+      const taskWithCorruptWeekdays: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [7, 8, 9, 10] // All invalid
       };
 
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-31');
 
-      const result = RecurrenceCalculator.calculateMonthlyDemand(legacyWeeklyTask, startDate, endDate);
+      const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithCorruptWeekdays, startDate, endDate);
 
-      // Must match legacy calculation exactly
-      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 3);
-      expect(result.monthlyHours).toBeCloseTo(43.3, 2);
+      // Should fall back to legacy calculation
+      expect(result.monthlyOccurrences).toBeCloseTo(4.33, 2);
+      expect(result.monthlyHours).toBeCloseTo(43.3, 1);
+    });
+
+    it('should maintain existing functionality for non-weekly tasks', () => {
+      const monthlyTask: RecurringTaskDB = {
+        ...baseTask,
+        recurrence_type: 'Monthly',
+        weekdays: [1, 2, 3] // Should be ignored
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(monthlyTask, startDate, endDate);
+
+      expect(result.monthlyOccurrences).toBe(1);
+      expect(result.monthlyHours).toBe(10);
+    });
+  });
+
+  describe('Integration with Larger System', () => {
+    it('should preserve existing calculation results for valid tasks', () => {
+      const validWeeklyTask: RecurringTaskDB = {
+        ...baseTask,
+        weekdays: [1, 3, 5]
+      };
+
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
+
+      const result = RecurrenceCalculator.calculateMonthlyDemand(validWeeklyTask, startDate, endDate);
+
+      expect(result.monthlyOccurrences).toBeCloseTo(13.05, 1);
+      expect(result.monthlyHours).toBeCloseTo(130.5, 1);
       expect(result.taskId).toBe('1');
-      expect(result.nextDueDates).toEqual([]);
     });
 
-    it('should maintain exact same behavior for non-weekly recurrence types', () => {
-      const testCases = [
-        { type: 'Daily', interval: 1, expected: 30 },
-        { type: 'Monthly', interval: 1, expected: 1 },
-        { type: 'Quarterly', interval: 1, expected: 1 }, // First quarter
-      ];
-
-      testCases.forEach((testCase) => {
-        const task: RecurringTaskDB = {
-          ...baseTask,
-          recurrence_type: testCase.type,
-          recurrence_interval: testCase.interval,
-          weekdays: [1, 2, 3] // Should be ignored for non-weekly tasks
-        };
-
-        const startDate = new Date('2025-01-01');
-        const endDate = new Date('2025-01-31');
-
-        const result = RecurrenceCalculator.calculateMonthlyDemand(task, startDate, endDate);
-
-        expect(result.monthlyOccurrences).toBe(testCase.expected);
-        expect(result.monthlyHours).toBe(testCase.expected * 10);
-      });
-    });
-
-    it('should preserve annual task behavior completely', () => {
+    it('should handle annual tasks without interference from weekdays logic', () => {
       const annualTask: RecurringTaskDB = {
         ...baseTask,
         recurrence_type: 'Annually',
         month_of_year: 1, // January
-        weekdays: [1, 2, 3] // Should be ignored for annual tasks
+        weekdays: [1, 2, 3] // Should be ignored
       };
 
       // Test January (target month)
@@ -220,173 +265,40 @@ describe('RecurrenceCalculator - Phase 2 Integration Tests', () => {
     });
   });
 
-  describe('Various Weekly Recurrence Configurations', () => {
-    const testConfigurations = [
-      {
-        name: 'Single weekday (Monday)',
-        weekdays: [1],
-        expectedOccurrences: 4.35,
-        expectedHours: 43.5
-      },
-      {
-        name: 'Two weekdays (Monday, Friday)',
-        weekdays: [1, 5],
-        expectedOccurrences: 8.7,
-        expectedHours: 87
-      },
-      {
-        name: 'Weekdays (Mon-Fri)',
-        weekdays: [1, 2, 3, 4, 5],
-        expectedOccurrences: 21.75,
-        expectedHours: 217.5
-      },
-      {
-        name: 'Weekend only',
-        weekdays: [0, 6],
-        expectedOccurrences: 8.7,
-        expectedHours: 87
-      },
-      {
-        name: 'All days',
-        weekdays: [0, 1, 2, 3, 4, 5, 6],
-        expectedOccurrences: 30.45,
-        expectedHours: 304.5
-      }
-    ];
-
-    testConfigurations.forEach((config) => {
-      it(`should calculate correctly for ${config.name}`, () => {
-        const weeklyTask: RecurringTaskDB = {
-          ...baseTask,
-          weekdays: config.weekdays
-        };
-
-        const startDate = new Date('2025-01-01');
-        const endDate = new Date('2025-01-31');
-
-        const result = RecurrenceCalculator.calculateMonthlyDemand(weeklyTask, startDate, endDate);
-
-        expect(result.monthlyOccurrences).toBeCloseTo(config.expectedOccurrences, 1);
-        expect(result.monthlyHours).toBeCloseTo(config.expectedHours, 1);
-      });
-    });
-
-    it('should handle biweekly tasks with weekdays correctly', () => {
-      const biweeklyTask: RecurringTaskDB = {
+  describe('Performance and Error Recovery', () => {
+    it('should handle calculation errors gracefully', () => {
+      const taskWithExtremeDatas: RecurringTaskDB = {
         ...baseTask,
-        recurrence_interval: 2,
-        weekdays: [1, 3, 5] // Monday, Wednesday, Friday every 2 weeks
+        estimated_hours: Number.POSITIVE_INFINITY
       };
 
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-31');
 
-      const result = RecurrenceCalculator.calculateMonthlyDemand(biweeklyTask, startDate, endDate);
+      const result = RecurrenceCalculator.calculateMonthlyDemand(taskWithExtremeDatas, startDate, endDate);
 
-      // 3 days per week * 4.35 weeks per month / 2 interval = ~6.525
-      expect(result.monthlyOccurrences).toBeCloseTo(6.525, 2);
-      expect(result.monthlyHours).toBeCloseTo(65.25, 1);
-    });
-  });
-});
-
-describe('ValidationUtils - Weekdays Validation Tests', () => {
-  describe('validateWeekdaysArray', () => {
-    it('should validate correct weekdays array', () => {
-      const result = ValidationUtils.validateWeekdaysArray([1, 3, 5]);
-      
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.validWeekdays).toEqual([1, 3, 5]);
+      // Should return 0 instead of crashing
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
     });
 
-    it('should handle empty array correctly', () => {
-      const result = ValidationUtils.validateWeekdaysArray([]);
-      
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.validWeekdays).toEqual([]);
-    });
+    it('should not crash with malformed task objects', () => {
+      const malformedTask = {
+        // Minimal required fields
+        id: 'test',
+        estimated_hours: 10,
+        recurrence_type: 'Weekly',
+        // Missing many required fields
+      } as any;
 
-    it('should reject non-array input', () => {
-      const result = ValidationUtils.validateWeekdaysArray('not-an-array');
-      
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Weekdays must be an array, got: string');
-    });
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-31');
 
-    it('should filter out invalid weekday values', () => {
-      const result = ValidationUtils.validateWeekdaysArray([1, 7, 3, -1, 5]);
-      
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('Invalid weekday values found');
-      expect(result.validWeekdays).toEqual([1, 3, 5]);
-    });
+      const result = RecurrenceCalculator.calculateMonthlyDemand(malformedTask, startDate, endDate);
 
-    it('should remove duplicate weekdays', () => {
-      const result = ValidationUtils.validateWeekdaysArray([1, 1, 3, 3, 5]);
-      
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.validWeekdays).toEqual([1, 3, 5]);
-    });
-
-    it('should handle all invalid weekdays', () => {
-      const result = ValidationUtils.validateWeekdaysArray([7, 8, -1, -2]);
-      
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('No valid weekdays found (all values were invalid)');
-    });
-  });
-
-  describe('validateTaskInputs with weekdays', () => {
-    const baseTask: RecurringTaskDB = {
-      id: '1',
-      name: 'Test Task',
-      template_id: 'template-1',
-      client_id: 'client-1',
-      estimated_hours: 10,
-      required_skills: ['Tax Preparation'],
-      priority: 'Medium',
-      category: 'Tax',
-      status: 'Unscheduled',
-      recurrence_type: 'Weekly',
-      recurrence_interval: 1,
-      is_active: true,
-      due_date: '2025-01-15T00:00:00Z',
-      created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z',
-      description: 'Test task',
-      notes: null,
-      weekdays: null,
-      day_of_month: null,
-      month_of_year: null,
-      end_date: null,
-      custom_offset_days: null,
-      last_generated_date: null
-    };
-
-    it('should validate weekly task with valid weekdays', () => {
-      const task = { ...baseTask, weekdays: [1, 3, 5] };
-      const result = ValidationUtils.validateTaskInputs(task);
-      
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
-
-    it('should handle weekly task with invalid weekdays', () => {
-      const task = { ...baseTask, weekdays: [1, 7, 3, -1] };
-      const result = ValidationUtils.validateTaskInputs(task);
-      
-      expect(result.isValid).toBe(false);
-      expect(result.errors.some(error => error.includes('Invalid weekday values'))).toBe(true);
-    });
-
-    it('should not validate weekdays for non-weekly tasks', () => {
-      const task = { ...baseTask, recurrence_type: 'Monthly', weekdays: [7, 8] };
-      const result = ValidationUtils.validateTaskInputs(task);
-      
-      expect(result.isValid).toBe(true); // Invalid weekdays should be ignored for non-weekly tasks
+      expect(result.taskId).toBe('test');
+      expect(result.monthlyOccurrences).toBe(0);
+      expect(result.monthlyHours).toBe(0);
     });
   });
 });

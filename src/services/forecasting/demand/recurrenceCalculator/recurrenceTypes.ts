@@ -1,11 +1,13 @@
 
+import { WeekdayUtils } from './weekdayUtils';
+
 /**
- * Recurrence type calculation utilities
+ * Enhanced recurrence type calculation utilities with robust error handling
  */
 export class RecurrenceTypeCalculator {
   /**
    * Calculate monthly occurrences for non-annual recurrence types
-   * Enhanced to support weekdays array for weekly tasks
+   * Enhanced with improved weekdays support and error handling
    */
   static calculateMonthlyOccurrences(
     recurrenceType: string,
@@ -16,105 +18,165 @@ export class RecurrenceTypeCalculator {
   ): number {
     const type = recurrenceType.toLowerCase();
 
-    console.log(`📊 [RECURRENCE TYPE CALC] Calculating ${type} occurrences:`, {
+    console.log(`📊 [RECURRENCE TYPE CALC] Starting calculation for ${type}:`, {
       interval,
       periodMonth,
       startMonth,
-      weekdays: weekdays || 'not provided'
+      weekdays: weekdays || 'not provided',
+      weekdaysLength: weekdays ? weekdays.length : 'N/A'
     });
 
-    switch (type) {
-      case 'daily':
-        const dailyOccurrences = 30 / interval;
-        console.log(`📅 [DAILY] Result: ${dailyOccurrences} occurrences`);
-        return dailyOccurrences;
+    try {
+      switch (type) {
+        case 'daily':
+          return this.calculateDailyOccurrences(interval);
 
-      case 'weekly':
-        return this.calculateWeeklyOccurrences(interval, weekdays);
+        case 'weekly':
+          return this.calculateWeeklyOccurrencesEnhanced(interval, weekdays);
 
-      case 'monthly':
-        const monthlyOccurrences = 1 / interval;
-        console.log(`📅 [MONTHLY] Result: ${monthlyOccurrences} occurrences`);
-        return monthlyOccurrences;
+        case 'monthly':
+          return this.calculateMonthlyOccurrences_Internal(interval);
 
-      case 'quarterly': {
-        // Determine the position within the on/off quarterly cycle
-        const cycleLength = interval * 6; // 3 months on, 3 months off per interval
-        const monthsFromStart = (periodMonth - startMonth + 12) % 12;
-        const cyclePosition = monthsFromStart % cycleLength;
-        const quarterlyOccurrences = cyclePosition < 3 ? 1 / interval : 0;
-        console.log(`📅 [QUARTERLY] Result: ${quarterlyOccurrences} occurrences (cycle position: ${cyclePosition})`);
-        return quarterlyOccurrences;
+        case 'quarterly':
+          return this.calculateQuarterlyOccurrences(interval, periodMonth, startMonth);
+
+        default:
+          console.warn(`⚠️ [RECURRENCE TYPE CALC] Unknown recurrence type: ${recurrenceType}`);
+          return 0;
       }
-
-      default:
-        console.warn(`⚠️ [RECURRENCE CALC] Unknown recurrence type: ${recurrenceType}`);
-        return 0;
+    } catch (calculationError) {
+      console.error(`❌ [RECURRENCE TYPE CALC] Error calculating ${type} occurrences:`, {
+        recurrenceType,
+        interval,
+        weekdays,
+        error: calculationError
+      });
+      
+      // Return 0 for failed calculations to prevent system crashes
+      return 0;
     }
   }
 
   /**
-   * Enhanced weekly occurrences calculation with weekdays support
+   * Calculate daily occurrences
    */
-  private static calculateWeeklyOccurrences(interval: number, weekdays?: number[]): number {
-    // Backward compatibility: If no weekdays specified, use legacy formula
+  private static calculateDailyOccurrences(interval: number): number {
+    if (interval <= 0) {
+      throw new Error(`Invalid daily interval: ${interval}. Must be greater than 0.`);
+    }
+
+    const occurrences = 30 / interval;
+    console.log(`📅 [DAILY] Calculation: 30 days ÷ ${interval} interval = ${occurrences} occurrences`);
+    return occurrences;
+  }
+
+  /**
+   * Enhanced weekly occurrences calculation with comprehensive error handling
+   */
+  private static calculateWeeklyOccurrencesEnhanced(interval: number, weekdays?: number[]): number {
+    console.log(`📅 [WEEKLY] Starting enhanced weekly calculation:`, {
+      interval,
+      weekdays,
+      hasWeekdays: !!weekdays && weekdays.length > 0
+    });
+
+    // Validate interval
+    if (interval <= 0) {
+      throw new Error(`Invalid weekly interval: ${interval}. Must be greater than 0.`);
+    }
+
+    // Handle legacy behavior - no weekdays specified
     if (!weekdays || weekdays.length === 0) {
       const legacyOccurrences = 4.33 / interval;
-      console.log(`📅 [WEEKLY - LEGACY] No weekdays specified, using legacy formula: ${legacyOccurrences} occurrences`);
+      console.log(`📅 [WEEKLY - LEGACY] No weekdays specified, using legacy formula: 4.33 ÷ ${interval} = ${legacyOccurrences} occurrences`);
       return legacyOccurrences;
     }
 
-    // Validate weekdays array
-    const validWeekdays = this.validateWeekdays(weekdays);
-    if (validWeekdays.length === 0) {
-      console.warn(`⚠️ [WEEKLY] Invalid weekdays array, falling back to legacy formula`);
+    try {
+      // Validate and normalize weekdays
+      const validationResult = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
+      
+      if (!validationResult.isValid) {
+        console.warn(`⚠️ [WEEKLY] Weekdays validation failed, falling back to legacy calculation:`, validationResult.errors);
+        return 4.33 / interval;
+      }
+
+      // Handle empty valid weekdays (after validation)
+      if (validationResult.validWeekdays.length === 0) {
+        console.warn(`⚠️ [WEEKLY] No valid weekdays after validation, using legacy calculation`);
+        return 4.33 / interval;
+      }
+
+      // Calculate using validated weekdays
+      const calculationResult = WeekdayUtils.calculateWeeklyOccurrences(
+        validationResult.validWeekdays,
+        interval
+      );
+
+      console.log(`📅 [WEEKLY - ENHANCED] Calculation complete:`, {
+        originalWeekdays: weekdays,
+        validWeekdays: validationResult.validWeekdays,
+        weekdayNames: calculationResult.details.weekdayNames,
+        calculation: calculationResult.calculation,
+        result: calculationResult.occurrences.toFixed(4)
+      });
+
+      return calculationResult.occurrences;
+
+    } catch (weekdayError) {
+      console.error(`❌ [WEEKLY] Error in weekday calculation, falling back to legacy:`, {
+        weekdays,
+        interval,
+        error: weekdayError
+      });
+      
+      // Fallback to legacy calculation on any error
       return 4.33 / interval;
     }
-
-    // Calculate occurrences based on selected weekdays
-    // Average month has 30.44 days, which equals ~4.35 weeks
-    // Each selected weekday occurs once per week
-    const averageWeeksPerMonth = 30.44 / 7; // ~4.35 weeks
-    const occurrencesPerWeek = validWeekdays.length;
-    const monthlyOccurrences = (averageWeeksPerMonth * occurrencesPerWeek) / interval;
-
-    console.log(`📅 [WEEKLY - ENHANCED] Calculation details:`, {
-      validWeekdays: validWeekdays,
-      weekdayCount: validWeekdays.length,
-      averageWeeksPerMonth: averageWeeksPerMonth.toFixed(2),
-      occurrencesPerWeek,
-      interval,
-      monthlyOccurrences: monthlyOccurrences.toFixed(2)
-    });
-
-    return monthlyOccurrences;
   }
 
   /**
-   * Validate weekdays array and filter out invalid values
+   * Calculate monthly occurrences
    */
-  private static validateWeekdays(weekdays: number[]): number[] {
-    if (!Array.isArray(weekdays)) {
-      console.warn(`⚠️ [WEEKLY] Weekdays is not an array:`, weekdays);
-      return [];
+  private static calculateMonthlyOccurrences_Internal(interval: number): number {
+    if (interval <= 0) {
+      throw new Error(`Invalid monthly interval: ${interval}. Must be greater than 0.`);
     }
 
-    const validWeekdays = weekdays.filter(day => {
-      const isValid = Number.isInteger(day) && day >= 0 && day <= 6;
-      if (!isValid) {
-        console.warn(`⚠️ [WEEKLY] Invalid weekday value: ${day} (must be 0-6)`);
-      }
-      return isValid;
-    });
+    const occurrences = 1 / interval;
+    console.log(`📅 [MONTHLY] Calculation: 1 ÷ ${interval} interval = ${occurrences} occurrences`);
+    return occurrences;
+  }
 
-    // Remove duplicates
-    const uniqueWeekdays = [...new Set(validWeekdays)];
+  /**
+   * Calculate quarterly occurrences
+   */
+  private static calculateQuarterlyOccurrences(
+    interval: number,
+    periodMonth: number,
+    startMonth: number
+  ): number {
+    if (interval <= 0) {
+      throw new Error(`Invalid quarterly interval: ${interval}. Must be greater than 0.`);
+    }
+
+    // Determine the position within the on/off quarterly cycle
+    const cycleLength = interval * 6; // 3 months on, 3 months off per interval
+    const monthsFromStart = (periodMonth - startMonth + 12) % 12;
+    const cyclePosition = monthsFromStart % cycleLength;
+    const occurrences = cyclePosition < 3 ? 1 / interval : 0;
     
-    if (uniqueWeekdays.length !== validWeekdays.length) {
-      console.log(`📅 [WEEKLY] Removed duplicate weekdays, final count: ${uniqueWeekdays.length}`);
-    }
-
-    return uniqueWeekdays.sort();
+    console.log(`📅 [QUARTERLY] Calculation:`, {
+      interval,
+      periodMonth,
+      startMonth,
+      cycleLength,
+      monthsFromStart,
+      cyclePosition,
+      result: occurrences
+    });
+    
+    return occurrences;
   }
 
   /**
@@ -125,23 +187,67 @@ export class RecurrenceTypeCalculator {
   }
 
   /**
-   * Get human-readable description of weekly recurrence
+   * Get human-readable description of weekly recurrence with enhanced weekdays support
    */
   static getWeeklyRecurrenceDescription(interval: number, weekdays?: number[]): string {
-    const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    
-    if (!weekdays || weekdays.length === 0) {
+    try {
+      const baseInterval = interval === 1 ? 'every week' : `every ${interval} weeks`;
+      
+      if (!weekdays || weekdays.length === 0) {
+        return interval === 1 ? 'Every week' : `Every ${interval} weeks`;
+      }
+
+      const validationResult = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
+      
+      if (!validationResult.isValid || validationResult.validWeekdays.length === 0) {
+        return interval === 1 ? 'Every week' : `Every ${interval} weeks`;
+      }
+
+      const description = WeekdayUtils.getWeekdaysDescription(validationResult.validWeekdays);
+      return `${description} ${baseInterval}`;
+
+    } catch (error) {
+      console.warn(`⚠️ [RECURRENCE TYPE CALC] Error generating description:`, error);
       return interval === 1 ? 'Every week' : `Every ${interval} weeks`;
     }
+  }
 
-    const validWeekdays = this.validateWeekdays(weekdays);
-    if (validWeekdays.length === 0) {
-      return interval === 1 ? 'Every week' : `Every ${interval} weeks`;
+  /**
+   * Validate recurrence parameters before calculation
+   */
+  static validateRecurrenceParameters(
+    recurrenceType: string,
+    interval: number,
+    weekdays?: number[]
+  ): {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Validate recurrence type
+    if (!recurrenceType || typeof recurrenceType !== 'string') {
+      errors.push('Recurrence type is required and must be a string');
     }
 
-    const dayNames = validWeekdays.map(day => weekdayNames[day]).join(', ');
-    const intervalText = interval === 1 ? 'every week' : `every ${interval} weeks`;
-    
-    return `${dayNames} ${intervalText}`;
+    // Validate interval
+    if (typeof interval !== 'number' || interval <= 0) {
+      errors.push(`Invalid interval: ${interval}. Must be a positive number.`);
+    }
+
+    // Validate weekdays for weekly tasks
+    if (recurrenceType?.toLowerCase() === 'weekly' && weekdays) {
+      const weekdayValidation = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
+      errors.push(...weekdayValidation.errors);
+      warnings.push(...weekdayValidation.warnings);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
   }
 }
