@@ -135,6 +135,37 @@ export class SkillMappingVerifier {
   }
 
   /**
+   * Verify skill key consistency - NEW METHOD to fix the missing property error
+   */
+  static verifySkillKeyConsistency(
+    demandSkills: SkillType[],
+    demandDataPoints: any[],
+    matrixSkills: SkillType[]
+  ): {
+    consistencyIssues: SkillConsistencyIssue[];
+    mappingReport: SkillMappingReport;
+  } {
+    const consistencyIssues = this.detectConsistencyIssues(demandSkills, matrixSkills);
+    
+    // Create a simple mapping for the report
+    const skillMapping = new Map<string, string>();
+    demandSkills.forEach(skill => {
+      skillMapping.set(String(skill).trim(), String(skill).trim());
+    });
+    
+    const mappingReport = this.generateSkillMappingReport(
+      demandSkills,
+      matrixSkills,
+      skillMapping
+    );
+
+    return {
+      consistencyIssues,
+      mappingReport
+    };
+  }
+
+  /**
    * Suggest mapping for unmapped skill
    */
   private static suggestMapping(skillName: string): string {
@@ -142,10 +173,10 @@ export class SkillMappingVerifier {
     
     // Simple suggestion logic based on common patterns
     if (skillLower.includes('junior') || skillLower.includes('jr')) {
-      return 'Junior Staff';
+      return 'Junior';
     }
     if (skillLower.includes('senior') || skillLower.includes('sr')) {
-      return 'Senior Staff';
+      return 'Senior';
     }
     if (skillLower.includes('cpa') || skillLower.includes('certified')) {
       return 'CPA';
@@ -172,10 +203,10 @@ export class SkillMappingVerifier {
     
     // Check for common variations
     const commonMappings = [
-      ['junior', 'junior staff'],
-      ['senior', 'senior staff'],
-      ['jr', 'junior staff'],
-      ['sr', 'senior staff']
+      ['junior', 'junior'],
+      ['senior', 'senior'],
+      ['jr', 'junior'],
+      ['sr', 'senior']
     ];
     
     for (const [from, to] of commonMappings) {

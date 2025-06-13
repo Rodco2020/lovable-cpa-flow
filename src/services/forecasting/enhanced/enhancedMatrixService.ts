@@ -372,27 +372,4 @@ export class EnhancedMatrixService {
     
     return JSON.stringify(exportData, null, 2);
   }
-
-  // Re-implement missing methods to maintain interface compatibility
-  static async getDrillDownData(skill: string, month: string, matrixData?: MatrixData) {
-    return DrillDownProvider.getDrillDownData(skill, month, matrixData);
-  }
-
-  static generateCapacityReport(
-    matrixData: MatrixData,
-    trends: TrendAnalysis[],
-    recommendations: CapacityRecommendation[],
-    alerts: ThresholdAlert[]
-  ) {
-    return ReportGenerator.generateCapacityReport(matrixData, trends, recommendations, alerts);
-  }
-
-  static clearCache(): void {
-    EnhancedCacheManager.clearCache();
-    DemandMatrixService.clearCache();
-  }
-
-  static getCacheStats() {
-    return EnhancedCacheManager.getCacheStats();
-  }
 }
