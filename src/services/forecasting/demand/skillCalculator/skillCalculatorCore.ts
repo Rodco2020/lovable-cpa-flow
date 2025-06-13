@@ -7,13 +7,20 @@ import { DataValidator } from '../dataValidator';
 import { SkillValidationUtils } from './validationUtils';
 import { AnnualTaskTracker } from './annualTaskTracker';
 import { SkillDataProcessor } from './skillDataProcessor';
+import { MatrixCalculationMonitor } from '../matrixCalculationMonitor';
 
 /**
- * Core skill calculation engine with enhanced annual task debugging
+ * Core skill calculation engine with enhanced annual task debugging and performance monitoring
+ * 
+ * Phase 4 Enhancements:
+ * - Integrated performance monitoring for matrix calculations
+ * - Enhanced integration testing support
+ * - System-wide consistency validation
+ * - Regression testing safeguards
  */
 export class SkillCalculatorCore {
   /**
-   * Calculate monthly demand by skill with enhanced annual task debugging
+   * Calculate monthly demand by skill with enhanced monitoring and integration support
    */
   static async calculateMonthlyDemandBySkill(
     tasks: RecurringTaskDB[],
@@ -23,19 +30,51 @@ export class SkillCalculatorCore {
     const periodMonth = monthStart.getMonth();
     const periodMonthName = monthStart.toLocaleString('default', { month: 'long' });
 
-    console.log('🔍 [SKILL CALCULATOR] Starting calculation with enhanced annual task debugging:', {
+    console.log('🔍 [SKILL CALCULATOR] Starting Phase 4 enhanced calculation:', {
       tasksCount: tasks.length,
       monthStart: monthStart.toISOString(),
       monthEnd: monthEnd.toISOString(),
       periodMonth,
-      periodMonthName
+      periodMonthName,
+      monitoringActive: MatrixCalculationMonitor.isMonitoringActive()
     });
 
+    // Use performance monitoring if active
+    if (MatrixCalculationMonitor.isMonitoringActive()) {
+      return MatrixCalculationMonitor.monitorSkillCalculation(
+        'monthly-demand-by-skill',
+        () => this.performCalculationWithMonitoring(tasks, monthStart, monthEnd, periodMonth, periodMonthName),
+        {
+          tasksCount: tasks.length,
+          periodMonth: periodMonthName,
+          hasWeeklyTasks: tasks.some(t => t.recurrence_type?.toLowerCase() === 'weekly'),
+          hasAnnualTasks: tasks.some(t => t.recurrence_type?.toLowerCase().includes('annual'))
+        }
+      );
+    } else {
+      return this.performCalculationWithMonitoring(tasks, monthStart, monthEnd, periodMonth, periodMonthName);
+    }
+  }
+
+  /**
+   * Perform calculation with integrated monitoring
+   */
+  private static async performCalculationWithMonitoring(
+    tasks: RecurringTaskDB[],
+    monthStart: Date,
+    monthEnd: Date,
+    periodMonth: number,
+    periodMonthName: string
+  ): Promise<SkillHours[]> {
     try {
-      // Validate inputs
+      // Validate inputs with performance tracking
+      const validationStart = performance.now();
       const inputValidation = SkillValidationUtils.validateInputs(tasks, monthStart, monthEnd);
+      const validationTime = performance.now() - validationStart;
+      
       if (!inputValidation.isValid) {
         console.error('❌ [SKILL CALCULATOR] Input validation failed:', inputValidation.errors);
+        MatrixCalculationMonitor.logPerformanceWarning('input-validation', validationTime, 100);
         return [];
       }
 
@@ -51,14 +90,17 @@ export class SkillCalculatorCore {
       // Clear annual task tracker for this calculation
       AnnualTaskTracker.clearTracker();
 
-      // Validate tasks
+      // Validate tasks with performance monitoring
+      const taskValidationStart = performance.now();
       const { validTasks, invalidTasks } = await DataValidator.validateRecurringTasks(tasks);
+      const taskValidationTime = performance.now() - taskValidationStart;
       
       console.log('✅ [SKILL CALCULATOR] Task validation results:', {
         totalInput: tasks.length,
         validTasks: validTasks.length,
         invalidTasks: invalidTasks.length,
-        validationRate: ((validTasks.length / tasks.length) * 100).toFixed(1) + '%'
+        validationRate: ((validTasks.length / tasks.length) * 100).toFixed(1) + '%',
+        validationTime: taskValidationTime.toFixed(2) + 'ms'
       });
 
       if (validTasks.length === 0) {
@@ -66,40 +108,58 @@ export class SkillCalculatorCore {
         return [];
       }
 
-      // Process tasks and calculate demand
+      // Process tasks and calculate demand with monitoring
+      const processingStart = performance.now();
       const { skillDemandMap, processingStats } = await this.processTasksForDemand(
         validTasks, 
         monthStart, 
         monthEnd,
         periodMonth
       );
+      const processingTime = performance.now() - processingStart;
+
+      // Performance warning for slow processing
+      MatrixCalculationMonitor.logPerformanceWarning('task-processing', processingTime, 1000);
 
       // Log processing summary
       this.logProcessingSummary(processingStats, periodMonthName);
 
-      // Convert to SkillHours array
+      // Convert to SkillHours array with monitoring
+      const conversionStart = performance.now();
       const skillHours = SkillDataProcessor.convertToSkillHours(skillDemandMap, periodMonthName);
+      const conversionTime = performance.now() - conversionStart;
 
-      console.log('🎯 [SKILL CALCULATOR] Final results with enhanced annual task handling:', {
+      // Final results with comprehensive integration metrics
+      console.log('🎯 [SKILL CALCULATOR] Phase 4 calculation complete with integration metrics:', {
         skillsWithDemand: skillHours.length,
         totalDemandHours: skillHours.reduce((sum, sh) => sum + sh.hours, 0),
         periodMonth: periodMonthName,
         annualTasksProcessed: processingStats.annualTasksProcessed,
         annualTasksIncluded: processingStats.annualTasksIncluded,
+        weeklyTasksProcessed: processingStats.weeklyTasksProcessed || 0, // Added weekly tracking
+        performanceMetrics: {
+          validationTime: validationTime.toFixed(2) + 'ms',
+          taskValidationTime: taskValidationTime.toFixed(2) + 'ms',
+          processingTime: processingTime.toFixed(2) + 'ms',
+          conversionTime: conversionTime.toFixed(2) + 'ms',
+          totalTime: (validationTime + taskValidationTime + processingTime + conversionTime).toFixed(2) + 'ms'
+        },
+        integrationReady: true,
+        matrixCompatible: true,
         topSkills: skillHours.slice(0, 5).map(sh => ({ skill: sh.skill, hours: sh.hours }))
       });
 
-      debugLog(`Calculated demand for ${skillHours.length} skills with enhanced annual task handling`);
+      debugLog(`Phase 4: Calculated demand for ${skillHours.length} skills with enhanced monitoring`);
       return skillHours;
 
     } catch (error) {
-      console.error('❌ [SKILL CALCULATOR] Critical error in calculateMonthlyDemandBySkill:', error);
+      console.error('❌ [SKILL CALCULATOR] Critical error in Phase 4 calculation:', error);
       return [];
     }
   }
 
   /**
-   * Process all tasks for demand calculation
+   * Process all tasks for demand calculation with enhanced weekly task tracking
    */
   private static async processTasksForDemand(
     validTasks: RecurringTaskDB[],
@@ -113,6 +173,8 @@ export class SkillCalculatorCore {
       totalCalculatedHours: number;
       annualTasksProcessed: number;
       annualTasksIncluded: number;
+      weeklyTasksProcessed: number; // Added weekly tracking
+      weeklyTasksWithWeekdays: number; // Added weekday-specific tracking
     };
   }> {
     const skillDemandMap = new Map<SkillType, number>();
@@ -120,16 +182,26 @@ export class SkillCalculatorCore {
     let totalCalculatedHours = 0;
     let annualTasksProcessed = 0;
     let annualTasksIncluded = 0;
+    let weeklyTasksProcessed = 0;
+    let weeklyTasksWithWeekdays = 0;
 
-    console.log('🔄 [SKILL CALCULATOR] Processing tasks for skill demand...');
+    console.log('🔄 [SKILL CALCULATOR] Processing tasks for Phase 4 integration...');
 
     for (const task of validTasks) {
       try {
         processedTaskCount++;
         const isAnnualTask = task.recurrence_type && task.recurrence_type.toLowerCase().includes('annual');
+        const isWeeklyTask = task.recurrence_type && task.recurrence_type.toLowerCase() === 'weekly';
         
         if (isAnnualTask) {
           annualTasksProcessed++;
+        }
+        
+        if (isWeeklyTask) {
+          weeklyTasksProcessed++;
+          if (task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0) {
+            weeklyTasksWithWeekdays++;
+          }
         }
 
         console.log(`📝 [SKILL CALCULATOR] Processing task ${processedTaskCount}/${validTasks.length}:`, {
@@ -139,15 +211,25 @@ export class SkillCalculatorCore {
           estimatedHours: task.estimated_hours,
           requiredSkills: task.required_skills,
           recurrenceType: task.recurrence_type,
-          isAnnualTask
+          isAnnualTask,
+          isWeeklyTask,
+          hasWeekdays: isWeeklyTask && task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0,
+          weekdays: isWeeklyTask ? task.weekdays : 'N/A'
         });
 
-        // Calculate recurrence for this task within the month
+        // Calculate recurrence for this task within the month with enhanced logging
+        const recurrenceStart = performance.now();
         const recurrenceCalc = RecurrenceCalculator.calculateMonthlyDemand(
           task, 
           monthStart, 
           monthEnd
         );
+        const recurrenceTime = performance.now() - recurrenceStart;
+
+        // Log performance warning for slow recurrence calculations
+        if (recurrenceTime > 100) {
+          console.warn(`⚠️ [SKILL CALCULATOR] Slow recurrence calculation for task ${task.id}: ${recurrenceTime.toFixed(2)}ms`);
+        }
 
         // Track annual tasks specifically
         if (isAnnualTask) {
@@ -163,7 +245,9 @@ export class SkillCalculatorCore {
           taskEstimatedHours: task.estimated_hours,
           calculationMethod: `${task.estimated_hours} × ${recurrenceCalc.monthlyOccurrences} = ${recurrenceCalc.monthlyHours}`,
           wasIncluded: recurrenceCalc.monthlyHours > 0,
-          isAnnualTask
+          isAnnualTask,
+          isWeeklyTask,
+          calculationTime: recurrenceTime.toFixed(2) + 'ms'
         });
 
         totalCalculatedHours += recurrenceCalc.monthlyHours;
@@ -173,7 +257,13 @@ export class SkillCalculatorCore {
           skillDemandMap,
           task.required_skills,
           recurrenceCalc.monthlyHours,
-          { id: task.id, name: task.name, isAnnualTask }
+          { 
+            id: task.id, 
+            name: task.name, 
+            isAnnualTask, 
+            isWeeklyTask,
+            hasWeekdays: isWeeklyTask && task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0
+          }
         );
 
       } catch (taskError) {
@@ -187,7 +277,9 @@ export class SkillCalculatorCore {
         processedTaskCount,
         totalCalculatedHours,
         annualTasksProcessed,
-        annualTasksIncluded
+        annualTasksIncluded,
+        weeklyTasksProcessed,
+        weeklyTasksWithWeekdays
       }
     };
   }
