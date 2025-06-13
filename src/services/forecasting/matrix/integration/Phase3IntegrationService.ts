@@ -1,4 +1,3 @@
-
 import { MatrixData, ForecastType } from '../types';
 import { DemandMatrixData } from '@/types/demand';
 import { CrossMatrixValidator, CrossMatrixValidationResult } from '../validation/CrossMatrixValidator';
@@ -22,6 +21,11 @@ export interface Phase3ValidationReport {
     bottlenecks: string[];
     recommendations: string[];
     optimizationApplied: boolean;
+    cacheStats: {
+      skillMappingCacheSize: number;
+      transformationCacheSize: number;
+      redundantOperations: number;
+    };
   };
   integrationTests: IntegrationTestSuite;
   overallStatus: 'PASS' | 'FAIL' | 'WARNING';
@@ -125,7 +129,9 @@ export class Phase3IntegrationService {
       }
       
       return {
-        ...performanceAnalysis,
+        bottlenecks: performanceAnalysis.bottlenecks,
+        recommendations: performanceAnalysis.recommendations,
+        cacheStats: performanceAnalysis.cacheStats,
         optimizationApplied
       };
       
@@ -211,7 +217,7 @@ export class Phase3IntegrationService {
       '-'.repeat(50),
       `🎯 Bottlenecks Found: ${report.performanceAnalysis.bottlenecks.length}`,
       `🔧 Optimization Applied: ${report.performanceAnalysis.optimizationApplied ? 'YES' : 'NO'}`,
-      `💨 Cache Performance: ${report.performanceAnalysis.cacheStats?.skillMappingCacheSize || 0} mappings, ${report.performanceAnalysis.cacheStats?.transformationCacheSize || 0} transforms`,
+      `💨 Cache Performance: ${report.performanceAnalysis.cacheStats.skillMappingCacheSize} mappings, ${report.performanceAnalysis.cacheStats.transformationCacheSize} transforms`,
       '',
       '🧪 INTEGRATION TESTING',
       '-'.repeat(50),
