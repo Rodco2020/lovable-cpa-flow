@@ -1,23 +1,15 @@
 
 /**
- * Matrix Validation and Debugging Infrastructure
- * Exports all validation and debugging utilities including Phase 3 components
+ * Matrix Validation Services
+ * Exports validation utilities including skill consistency validation
  */
 export { DataIntegrityValidator } from './DataIntegrityValidator';
 export { SkillMappingVerifier } from './SkillMappingVerifier';
-export { CrossMatrixValidator } from './CrossMatrixValidator';
+export { SkillMappingConsistencyValidator } from './SkillMappingConsistencyValidator';
+
+export type { ValidationResult } from './DataIntegrityValidator';
+export type { SkillMappingReport } from './SkillMappingVerifier';
 export type { 
-  ValidationResult
-} from './DataIntegrityValidator';
-export type { 
-  SkillMappingReport,
-  SkillConsistencyIssue,
-  SkillMappingCorrection,
-  SkillMappingRecommendation,
-  SkillMappingTrace,
-  SkillMapping
-} from './SkillMappingVerifier';
-export type {
-  CrossMatrixValidationResult,
-  MatrixComparisonData
-} from './CrossMatrixValidator';
+  SkillConsistencyResult, 
+  SkillInconsistency 
+} from './SkillMappingConsistencyValidator';
