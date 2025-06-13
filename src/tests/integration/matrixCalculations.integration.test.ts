@@ -259,7 +259,7 @@ describe('Phase 4: Matrix Calculations Integration', () => {
         }
       };
       
-      const { container } = render(
+      render(
         <DemandMatrixGrid
           filteredData={mockMatrixData}
           groupingMode="skill"
@@ -281,7 +281,7 @@ describe('Phase 4: Matrix Calculations Integration', () => {
       
       console.log('✅ [INTEGRATION] Matrix UI display verified:', {
         renderTime: performanceMetrics.matrixRenderTime,
-        cellsRendered: container.querySelectorAll('[class*="border"]').length
+        cellsRendered: document.querySelectorAll('[class*="border"]').length
       });
     });
 
@@ -407,7 +407,7 @@ describe('Phase 4: Matrix Calculations Integration', () => {
 
     it('should monitor memory usage during matrix calculations', () => {
       // Basic memory usage check
-      const initialMemory = performance.memory?.usedJSHeapSize || 0;
+      const initialMemory = (performance as any).memory?.usedJSHeapSize || 0;
       
       // Simulate matrix data processing
       const largeMatrixData = {
@@ -416,7 +416,7 @@ describe('Phase 4: Matrix Calculations Integration', () => {
           label: `Month ${i + 1}`
         })),
         skills: Array.from({ length: 20 }, (_, i) => `Skill ${i + 1}`),
-        dataPoints: []
+        dataPoints: [] as any[]
       };
       
       // Create data points for all combinations
@@ -434,7 +434,7 @@ describe('Phase 4: Matrix Calculations Integration', () => {
         }
       }
       
-      const finalMemory = performance.memory?.usedJSHeapSize || 0;
+      const finalMemory = (performance as any).memory?.usedJSHeapSize || 0;
       const memoryUsed = finalMemory - initialMemory;
       
       console.log('📊 [INTEGRATION] Memory usage monitoring:', {
