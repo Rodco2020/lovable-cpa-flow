@@ -1,134 +1,69 @@
 
 import { RecurringTaskDB } from '@/types/task';
-import { RecurrenceCalculation } from '@/types/demand';
-import { MonthUtils } from './monthUtils';
 
 /**
- * Annual task calculation utilities
+ * Annual Task Calculator for handling yearly recurring tasks
+ * 
+ * This calculator determines whether annual tasks should be included
+ * in monthly demand calculations based on their month_of_year or due_date.
  */
 export class AnnualTaskCalculator {
   /**
-   * Calculate demand for annual tasks with month-specific logic
-   * Returns full hours only for the target month, zero for all other months
+   * Calculate annual task occurrences for a given month
+   * 
+   * @param task The annual recurring task
+   * @param startDate Start of the calculation period
+   * @param endDate End of the calculation period
+   * @returns Number of occurrences (0 or adjusted for interval)
    */
-  static calculateAnnualTaskDemand(
+  static calculateAnnualOccurrences(
     task: RecurringTaskDB,
-    periodMonth: number,
-    interval: number
-  ): RecurrenceCalculation {
-    console.log(`📆 [ANNUAL CALC] Processing annual task ${task.id}:`, {
-      taskName: task.name,
-      estimatedHours: task.estimated_hours,
-      interval,
-      periodMonth: periodMonth,
-      periodMonthName: MonthUtils.getMonthName(periodMonth),
-      dueDate: task.due_date,
-      monthOfYear: task.month_of_year,
-      dayOfMonth: task.day_of_month
-    });
+    startDate: Date,
+    endDate: Date
+  ): number {
+    const periodMonth = startDate.getMonth(); // 0-based (0=January, 11=December)
+    const interval = task.recurrence_interval || 1;
 
-    const { targetMonth, dataSource } = this.determineTargetMonth(task, periodMonth);
+    // Check if task should occur in this month
+    let targetMonth: number | null = null;
 
-    // Return hours only for the target month, zero for all others
-    if (targetMonth !== null) {
-      if (targetMonth === periodMonth) {
-        return this.createIncludedResult(task, interval, targetMonth, dataSource);
-      } else {
-        return this.createExcludedResult(task, targetMonth, periodMonth, dataSource);
-      }
-    }
-
-    // No month information available - exclude from all months
-    console.warn(`⚠️ [ANNUAL CALC] Annual task ${task.id} has no month information. Excluding from all periods.`);
-    return this.createEmptyResult(task.id);
-  }
-
-  /**
-   * Determine the target month for an annual task
-   */
-  private static determineTargetMonth(task: RecurringTaskDB, periodMonth: number): {
-    targetMonth: number | null;
-    dataSource: string;
-  } {
-    // Strategy 1: Use month_of_year if available (most reliable)
+    // Priority 1: Use month_of_year if available (1-based)
     if (task.month_of_year !== null && task.month_of_year !== undefined) {
-      const targetMonth = task.month_of_year - 1; // Convert 1-12 to 0-11
-      const dataSource = `month_of_year (${task.month_of_year})`;
-      console.log(`📅 [ANNUAL CALC] Using month_of_year: ${task.month_of_year} (${MonthUtils.getMonthName(targetMonth)})`);
-      return { targetMonth, dataSource };
+      targetMonth = task.month_of_year - 1; // Convert to 0-based
     }
-
-    // Strategy 2: Use due_date if month_of_year is not available
-    if (task.due_date) {
+    // Priority 2: Use due_date if month_of_year not available
+    else if (task.due_date) {
       const dueDate = new Date(task.due_date);
-      const targetMonth = dueDate.getMonth(); // 0-11
-      const dataSource = `due_date (${task.due_date})`;
-      console.log(`📅 [ANNUAL CALC] Using due_date fallback: ${task.due_date} (month ${targetMonth} - ${MonthUtils.getMonthName(targetMonth)})`);
-      return { targetMonth, dataSource };
+      targetMonth = dueDate.getMonth(); // Already 0-based
     }
 
-    return { targetMonth: null, dataSource: '' };
+    // If no month information available, exclude from all months
+    if (targetMonth === null) {
+      return 0;
+    }
+
+    // Check if current period matches target month
+    if (periodMonth === targetMonth) {
+      // Return occurrence adjusted for interval (e.g., every 2 years = 0.5 occurrence per year)
+      return 1 / interval;
+    }
+
+    // Not the target month, return 0
+    return 0;
   }
 
   /**
-   * Create result for included annual task (target month matches period month)
+   * Check if an annual task should be included in the given month
+   * 
+   * @param task The annual recurring task
+   * @param monthIndex 0-based month index (0=January, 11=December)
+   * @returns boolean indicating if task should be included
    */
-  private static createIncludedResult(
-    task: RecurringTaskDB,
-    interval: number,
-    targetMonth: number,
-    dataSource: string
-  ): RecurrenceCalculation {
-    const occurrences = 1 / interval;
-    const hours = Number(task.estimated_hours) * occurrences;
-    
-    console.log(`✅ [ANNUAL CALC] Task included - matches target month:`, {
-      targetMonth,
-      targetMonthName: MonthUtils.getMonthName(targetMonth),
-      occurrences,
-      hours,
-      calculation: `${task.estimated_hours} × ${occurrences} = ${hours}`,
-      dataSource
-    });
-    
-    return {
-      monthlyOccurrences: occurrences,
-      monthlyHours: hours,
-      taskId: task.id,
-      nextDueDates: []
-    };
-  }
-
-  /**
-   * Create result for excluded annual task (target month doesn't match period month)
-   */
-  private static createExcludedResult(
-    task: RecurringTaskDB,
-    targetMonth: number,
-    periodMonth: number,
-    dataSource: string
-  ): RecurrenceCalculation {
-    console.log(`❌ [ANNUAL CALC] Task excluded - month mismatch:`, {
-      targetMonth,
-      targetMonthName: MonthUtils.getMonthName(targetMonth),
-      periodMonth,
-      periodMonthName: MonthUtils.getMonthName(periodMonth),
-      dataSource,
-      result: 'Zero hours returned'
-    });
-    
-    return this.createEmptyResult(task.id);
-  }
-
-  /**
-   * Create an empty result for failed calculations
-   */
-  private static createEmptyResult(taskId: string): RecurrenceCalculation {
-    return {
-      monthlyOccurrences: 0,
-      monthlyHours: 0,
-      taskId,
-      nextDueDates: []
-    };
+  static shouldIncludeInMonth(task: RecurringTaskDB, monthIndex: number): boolean {
+    return this.calculateAnnualOccurrences(
+      task,
+      new Date(2025, monthIndex, 1),
+      new Date(2025, monthIndex + 1, 0)
+    ) > 0;
   }
 }

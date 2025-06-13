@@ -167,4 +167,28 @@ export class RecurrenceCalculator {
         return 0;
     }
   }
+
+  /**
+   * Utility method to check if a date is within a given period
+   * 
+   * @param date The date to check
+   * @param startDate Start of the period
+   * @param endDate End of the period
+   * @returns boolean indicating if date is in period
+   */
+  static isDateInPeriod(date: Date, startDate: Date, endDate: Date): boolean {
+    const checkDate = new Date(date);
+    return checkDate >= startDate && checkDate <= endDate;
+  }
+
+  /**
+   * Utility method to get month from date
+   * 
+   * @param date Date object or date string
+   * @returns 0-based month index (0=January, 11=December)
+   */
+  static getMonthFromDate(date: Date | string): number {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.getMonth();
+  }
 }

@@ -269,4 +269,22 @@ export class WeekdayUtils {
       description: this.getWeekdaysDescription(weekdays)
     };
   }
+
+  /**
+   * Create error context for debugging purposes
+   * 
+   * @param taskId The task ID for context
+   * @param weekdays The weekdays array that caused issues
+   * @returns Error context object
+   */
+  static createErrorContext(taskId: string, weekdays: any): any {
+    return {
+      taskId,
+      weekdays,
+      weekdaysType: typeof weekdays,
+      isArray: Array.isArray(weekdays),
+      length: Array.isArray(weekdays) ? weekdays.length : 'N/A',
+      timestamp: new Date().toISOString()
+    };
+  }
 }

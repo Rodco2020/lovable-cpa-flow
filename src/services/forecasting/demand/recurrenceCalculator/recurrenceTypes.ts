@@ -257,4 +257,79 @@ export class RecurrenceTypeCalculator {
 
     return 4.33 / interval;
   }
+
+  /**
+   * Calculate monthly occurrences for different recurrence types (for testing)
+   * 
+   * @param recurrenceType The type of recurrence
+   * @param interval The interval between recurrences
+   * @param periodMonth Current month being calculated (0-based)
+   * @param startMonth Starting month for calculation context
+   * @param weekdays Optional weekdays for weekly recurrence
+   * @returns Number of monthly occurrences
+   */
+  static calculateMonthlyOccurrences(
+    recurrenceType: string,
+    interval: number,
+    periodMonth: number,
+    startMonth: number,
+    weekdays?: number[]
+  ): number {
+    const type = recurrenceType.toLowerCase();
+
+    if (type === 'weekly') {
+      if (weekdays && Array.isArray(weekdays) && weekdays.length > 0) {
+        // Use enhanced weekday calculation
+        const validation = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
+        if (validation.isValid) {
+          const result = WeekdayUtils.calculateWeeklyOccurrences(validation.validWeekdays, interval);
+          return result.occurrences;
+        }
+      }
+      // Fall back to legacy calculation
+      return 4.33 / interval;
+    }
+
+    if (type === 'monthly') {
+      return 1 / interval;
+    }
+
+    if (type === 'quarterly') {
+      // Check if we're in an active quarter
+      const quarterMonth = Math.floor(periodMonth / 3) * 3;
+      const startQuarter = Math.floor(startMonth / 3) * 3;
+      
+      if (quarterMonth === startQuarter) {
+        return 1 / interval;
+      }
+      return 0;
+    }
+
+    if (type === 'daily') {
+      return 30 / interval; // Simplified daily calculation
+    }
+
+    return 0;
+  }
+
+  /**
+   * Get weekly recurrence description for display purposes
+   * 
+   * @param interval Recurrence interval
+   * @param weekdays Optional weekdays array
+   * @returns Human-readable description
+   */
+  static getWeeklyRecurrenceDescription(interval: number, weekdays?: number[]): string {
+    const intervalText = interval === 1 ? 'week' : `${interval} weeks`;
+    
+    if (weekdays && Array.isArray(weekdays) && weekdays.length > 0) {
+      const validation = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
+      if (validation.isValid) {
+        const description = WeekdayUtils.getWeekdaysDescription(validation.validWeekdays);
+        return `${description} every ${intervalText}`;
+      }
+    }
+    
+    return `Every ${intervalText}`;
+  }
 }

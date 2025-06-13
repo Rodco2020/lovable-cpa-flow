@@ -1,32 +1,49 @@
 
 /**
- * Month-related utility functions
+ * Month utilities for date calculations
  */
 export class MonthUtils {
-  private static readonly MONTH_NAMES = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
   /**
-   * Get month name for logging (0-11 index)
+   * Get month name from 0-based index
+   * 
+   * @param monthIndex 0-based month index (0=January)
+   * @returns Month name
    */
   static getMonthName(monthIndex: number): string {
-    return this.MONTH_NAMES[monthIndex] || `Invalid(${monthIndex})`;
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[monthIndex] || 'Invalid Month';
   }
 
   /**
-   * Check if a date falls within a period
+   * Check if a month index is valid
+   * 
+   * @param monthIndex Month index to validate
+   * @returns boolean indicating validity
    */
-  static isDateInPeriod(date: Date, startDate: Date, endDate: Date): boolean {
-    return date >= startDate && date <= endDate;
+  static isValidMonth(monthIndex: number): boolean {
+    return Number.isInteger(monthIndex) && monthIndex >= 0 && monthIndex <= 11;
   }
 
   /**
-   * Get the month number (0-11) from a date string or Date object
+   * Convert 1-based month to 0-based
+   * 
+   * @param oneBasedMonth 1-based month (1=January)
+   * @returns 0-based month (0=January)
    */
-  static getMonthFromDate(date: string | Date): number {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.getMonth();
+  static oneBasedToZeroBased(oneBasedMonth: number): number {
+    return oneBasedMonth - 1;
+  }
+
+  /**
+   * Convert 0-based month to 1-based
+   * 
+   * @param zeroBasedMonth 0-based month (0=January)
+   * @returns 1-based month (1=January)
+   */
+  static zeroBasedToOneBased(zeroBasedMonth: number): number {
+    return zeroBasedMonth + 1;
   }
 }
