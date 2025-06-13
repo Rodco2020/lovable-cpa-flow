@@ -1,4 +1,3 @@
-
 import { MatrixData, ForecastType, MatrixErrorContext, MonthInfo, MatrixDataPoint } from './types';
 import { MATRIX_CONSTANTS } from './constants';
 import { MatrixValidator } from './MatrixValidator';
@@ -191,7 +190,7 @@ export class MatrixServiceCore {
       if (existing) {
         // Aggregate demand hours and client tasks
         existing.demandHours += dp.demandHours;
-        existing.clientTasks.push(...dp.clientTasks);
+        existing.taskBreakdown.push(...dp.taskBreakdown);
       } else {
         aggregationMap.set(key, { ...dp });
       }
