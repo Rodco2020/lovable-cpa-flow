@@ -1,4 +1,3 @@
-
 import { MatrixData, ForecastType } from '../types';
 import { DemandMatrixData } from '@/types/demand';
 import { CrossMatrixValidator } from '../validation/CrossMatrixValidator';
@@ -73,7 +72,7 @@ export class IntegrationTester {
     {
       name: 'Demand Matrix Only',
       description: 'Test demand-only matrix generation',
-      forecastType: 'demand-only' as ForecastType,
+      forecastType: 'demand-only',
       expectedSkills: ['Junior', 'Senior', 'CPA'],
       expectedMonths: 12,
       testFilters: false,

@@ -275,7 +275,8 @@ export class PerformanceOptimizer {
       })),
       totalDemand: capacityData.totalDemand,
       totalTasks: 0,
-      totalClients: 0
+      totalClients: 0,
+      skillSummary: [] // Add missing required property
     };
   }
 }
