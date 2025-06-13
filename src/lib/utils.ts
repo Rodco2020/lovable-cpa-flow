@@ -26,7 +26,8 @@ export function formatNumber(num: number): string {
 }
 
 /**
- * Format hours with proper unit
+ * Format hours with proper unit (deprecated - use formatHours from numberUtils)
+ * @deprecated Use formatHours from @/lib/numberUtils instead
  */
 export function formatHours(hours: number): string {
   if (hours === 1) return `${hours} hour`;
@@ -46,7 +47,8 @@ export function formatDate(date: Date | string): string {
 }
 
 /**
- * Format a number as a percentage
+ * Format a number as a percentage (deprecated - use formatPercentage from numberUtils)
+ * @deprecated Use formatPercentage from @/lib/numberUtils instead
  */
 export function formatPercentage(value: number, decimals: number = 1): string {
   return `${value.toFixed(decimals)}%`;

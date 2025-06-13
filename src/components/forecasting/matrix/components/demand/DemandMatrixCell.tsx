@@ -3,6 +3,7 @@ import React from 'react';
 import { ClientTaskDemand } from '@/types/demand';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
+import { formatHours, formatNumber, roundToDecimals } from '@/lib/numberUtils';
 
 interface DemandMatrixCellProps {
   skillOrClient: string;
@@ -25,6 +26,9 @@ export const DemandMatrixCell: React.FC<DemandMatrixCellProps> = ({
   taskBreakdown,
   groupingMode
 }) => {
+  // Round demand hours to prevent floating point precision issues
+  const roundedDemandHours = roundToDecimals(demandHours, 1);
+
   // Color coding based on demand intensity
   const getIntensityColor = (hours: number) => {
     if (hours === 0) return 'bg-gray-50 border-gray-200';
@@ -35,9 +39,9 @@ export const DemandMatrixCell: React.FC<DemandMatrixCellProps> = ({
   };
 
   const cellContent = (
-    <div className={`p-3 border text-center cursor-pointer hover:shadow-md transition-shadow ${getIntensityColor(demandHours)}`}>
+    <div className={`p-3 border text-center cursor-pointer hover:shadow-md transition-shadow ${getIntensityColor(roundedDemandHours)}`}>
       <div className="text-sm font-semibold">
-        {demandHours.toFixed(1)}h
+        {formatHours(roundedDemandHours, 1)}
       </div>
       <div className="text-xs text-muted-foreground">
         {taskCount} task{taskCount !== 1 ? 's' : ''}
@@ -50,7 +54,7 @@ export const DemandMatrixCell: React.FC<DemandMatrixCellProps> = ({
     </div>
   );
 
-  if (demandHours === 0) {
+  if (roundedDemandHours === 0) {
     return cellContent;
   }
 
@@ -70,7 +74,7 @@ export const DemandMatrixCell: React.FC<DemandMatrixCellProps> = ({
             </div>
             <div className="text-sm mb-3">
               <Badge variant="outline" className="mr-2">
-                {demandHours.toFixed(1)} hours
+                {formatHours(roundedDemandHours, 1)}
               </Badge>
               <Badge variant="outline" className="mr-2">
                 {taskCount} tasks
@@ -92,7 +96,7 @@ export const DemandMatrixCell: React.FC<DemandMatrixCellProps> = ({
                         {task.taskName}
                       </div>
                       <div className="text-muted-foreground">
-                        {groupingMode === 'skill' ? task.clientName : task.skillType} • {task.monthlyHours.toFixed(1)}h
+                        {groupingMode === 'skill' ? task.clientName : task.skillType} • {formatHours(task.monthlyHours, 1)}
                       </div>
                     </div>
                   ))}

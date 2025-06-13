@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatHours, formatPercentage, formatNumber, roundToDecimals } from '@/lib/numberUtils';
 
 interface EnhancedMatrixCellProps {
   skillType: string;
@@ -27,7 +28,7 @@ interface EnhancedMatrixCellProps {
 }
 
 /**
- * Enhanced matrix cell with improved color coding, tooltips, and interactive features
+ * Enhanced matrix cell with improved color coding, tooltips, and consistent number formatting
  */
 export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
   skillType,
@@ -42,17 +43,23 @@ export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
   staffAllocation = [],
   className
 }) => {
+  // Round all input values to prevent floating point display issues
+  const roundedDemand = roundToDecimals(demandHours, 1);
+  const roundedCapacity = roundToDecimals(capacityHours, 1);
+  const roundedGap = roundToDecimals(gap, 1);
+  const roundedUtilization = roundToDecimals(utilizationPercent, 1);
+
   // Enhanced color coding based on gap and utilization
   const getCellColorScheme = () => {
-    const absGap = Math.abs(gap);
-    const severity = capacityHours > 0 ? absGap / capacityHours : 0;
+    const absGap = Math.abs(roundedGap);
+    const severity = roundedCapacity > 0 ? absGap / roundedCapacity : 0;
 
-    if (gap < 0) {
+    if (roundedGap < 0) {
       // Shortage (red variants)
       if (severity > 0.5) return 'bg-red-100 border-red-300 text-red-900';
       if (severity > 0.2) return 'bg-red-50 border-red-200 text-red-800';
       return 'bg-orange-50 border-orange-200 text-orange-800';
-    } else if (gap > 0) {
+    } else if (roundedGap > 0) {
       // Surplus (green variants)
       if (severity > 0.5) return 'bg-green-100 border-green-300 text-green-900';
       if (severity > 0.2) return 'bg-green-50 border-green-200 text-green-800';
@@ -63,17 +70,18 @@ export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
     }
   };
 
-  // Format display values based on view mode
+  // Format display values based on view mode with consistent rounding
   const getDisplayValues = () => {
     if (viewMode === 'percentage') {
+      const gapPercentage = roundedCapacity > 0 ? roundToDecimals((roundedGap / roundedCapacity) * 100, 1) : 0;
       return {
-        primary: `${utilizationPercent.toFixed(0)}%`,
-        secondary: gap >= 0 ? `+${(gap / capacityHours * 100).toFixed(0)}%` : `${(gap / capacityHours * 100).toFixed(0)}%`
+        primary: formatPercentage(roundedUtilization, 1),
+        secondary: gapPercentage >= 0 ? `+${formatPercentage(gapPercentage, 1)}` : formatPercentage(gapPercentage, 1)
       };
     }
     return {
-      primary: `${demandHours}h / ${capacityHours}h`,
-      secondary: gap >= 0 ? `+${gap}h` : `${gap}h`
+      primary: `${formatNumber(roundedDemand, 1)}h / ${formatNumber(roundedCapacity, 1)}h`,
+      secondary: roundedGap >= 0 ? `+${formatNumber(roundedGap, 1)}h` : `${formatNumber(roundedGap, 1)}h`
     };
   };
 
@@ -99,16 +107,16 @@ export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
             {/* Gap indicator */}
             <div className={cn(
               "text-xs font-medium flex items-center justify-center gap-1",
-              gap >= 0 ? "text-green-700" : "text-red-700"
+              roundedGap >= 0 ? "text-green-700" : "text-red-700"
             )}>
-              {gap >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {roundedGap >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
               {displayValues.secondary}
             </div>
             
             {/* Utilization percentage (always shown) */}
             {viewMode === 'hours' && (
               <div className="text-xs opacity-75">
-                {utilizationPercent.toFixed(0)}% util
+                {formatPercentage(roundedUtilization, 1)} util
               </div>
             )}
           </div>
@@ -120,36 +128,36 @@ export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-sm">{skillType} - {monthLabel}</h4>
-            <Badge variant={gap >= 0 ? 'success' : 'destructive'} className="text-xs">
-              {gap >= 0 ? 'Surplus' : 'Shortage'}
+            <Badge variant={roundedGap >= 0 ? 'success' : 'destructive'} className="text-xs">
+              {roundedGap >= 0 ? 'Surplus' : 'Shortage'}
             </Badge>
           </div>
           
-          {/* Key metrics */}
+          {/* Key metrics with consistent formatting */}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 Demand
               </div>
-              <div className="font-medium">{demandHours}h</div>
+              <div className="font-medium">{formatHours(roundedDemand, 1)}</div>
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Users className="h-3 w-3" />
                 Capacity
               </div>
-              <div className="font-medium">{capacityHours}h</div>
+              <div className="font-medium">{formatHours(roundedCapacity, 1)}</div>
             </div>
             <div className="space-y-1">
               <div className="text-muted-foreground">Gap</div>
-              <div className={cn("font-medium", gap >= 0 ? "text-green-600" : "text-red-600")}>
-                {gap >= 0 ? '+' : ''}{gap}h
+              <div className={cn("font-medium", roundedGap >= 0 ? "text-green-600" : "text-red-600")}>
+                {roundedGap >= 0 ? '+' : ''}{formatHours(roundedGap, 1)}
               </div>
             </div>
             <div className="space-y-1">
               <div className="text-muted-foreground">Utilization</div>
-              <div className="font-medium">{utilizationPercent.toFixed(1)}%</div>
+              <div className="font-medium">{formatPercentage(roundedUtilization, 1)}</div>
             </div>
           </div>
           
@@ -161,7 +169,7 @@ export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
                 {taskBreakdown.slice(0, 5).map((task, index) => (
                   <div key={index} className="flex justify-between text-xs">
                     <span className="truncate flex-1">{task.clientName}: {task.taskName}</span>
-                    <span className="font-medium ml-2">{task.hours}h</span>
+                    <span className="font-medium ml-2">{formatHours(task.hours, 1)}</span>
                   </div>
                 ))}
                 {taskBreakdown.length > 5 && (
@@ -181,7 +189,7 @@ export const EnhancedMatrixCell: React.FC<EnhancedMatrixCellProps> = ({
                 {staffAllocation.slice(0, 5).map((staff, index) => (
                   <div key={index} className="flex justify-between text-xs">
                     <span className="truncate flex-1">{staff.staffName}</span>
-                    <span className="font-medium ml-2">{staff.allocatedHours}h</span>
+                    <span className="font-medium ml-2">{formatHours(staff.allocatedHours, 1)}</span>
                   </div>
                 ))}
                 {staffAllocation.length > 5 && (

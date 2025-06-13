@@ -4,6 +4,7 @@ import { DemandMatrixData } from '@/types/demand';
 import { DemandMatrixCell } from './DemandMatrixCell';
 import { ClientTotalsCalculator } from '@/services/forecasting/demand/matrixTransformer/clientTotalsCalculator';
 import { ClientRevenueCalculator } from '@/services/forecasting/demand/matrixTransformer/clientRevenueCalculator';
+import { formatHours, formatCurrency, roundToDecimals, formatNumber } from '@/lib/numberUtils';
 
 interface DemandMatrixGridProps {
   filteredData: DemandMatrixData;
@@ -115,19 +116,19 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
   const clientRevenue = filteredData.clientRevenue || new Map<string, number>();
   const clientHourlyRates = filteredData.clientHourlyRates || new Map<string, number>();
 
-  const getClientTotal = (clientName: string): number => clientTotals.get(clientName) || 0;
-  const getClientRevenue = (clientName: string): number => clientRevenue.get(clientName) || 0;
-  const getClientHourlyRate = (clientName: string): number => clientHourlyRates.get(clientName) || 0;
+  const getClientTotal = (clientName: string): number => roundToDecimals(clientTotals.get(clientName) || 0, 1);
+  const getClientRevenue = (clientName: string): number => roundToDecimals(clientRevenue.get(clientName) || 0, 0);
+  const getClientHourlyRate = (clientName: string): number => roundToDecimals(clientHourlyRates.get(clientName) || 0, 2);
 
-  // NEW: Grand totals for client mode
-  const grandTotalHours = ClientTotalsCalculator.calculateGrandTotal(clientTotals);
-  const grandTotalRevenue = ClientRevenueCalculator.calculateGrandTotalRevenue(clientRevenue);
-  const grandAverageRate = ClientRevenueCalculator.calculateWeightedAverageRate(clientTotals, clientRevenue);
+  // NEW: Grand totals for client mode with proper rounding
+  const grandTotalHours = roundToDecimals(ClientTotalsCalculator.calculateGrandTotal(clientTotals), 1);
+  const grandTotalRevenue = roundToDecimals(ClientRevenueCalculator.calculateGrandTotalRevenue(clientRevenue), 0);
+  const grandAverageRate = roundToDecimals(ClientRevenueCalculator.calculateWeightedAverageRate(clientTotals, clientRevenue), 2);
 
-  // NEW: Formatting utilities
-  const formatHours = (hours: number): string => (hours > 0 ? `${hours.toFixed(1)}h` : '0h');
-  const formatCurrency = (amount: number): string => (amount > 0 ? `$${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '$0');
-  const formatRate = (rate: number): string => (rate > 0 ? `$${rate.toFixed(2)}/h` : '$0/h');
+  // NEW: Formatting utilities with consistent rounding
+  const formatHoursDisplay = (hours: number): string => (hours > 0 ? formatHours(hours, 1) : '0h');
+  const formatCurrencyDisplay = (amount: number): string => (amount > 0 ? formatCurrency(amount) : '$0');
+  const formatRateDisplay = (rate: number): string => (rate > 0 ? `$${formatNumber(rate, 2)}/h` : '$0/h');
 
   const getCellColorClass = (hours: number): string => {
     if (hours === 0) return 'bg-slate-50 text-slate-400';
@@ -209,7 +210,10 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
             {filteredData.months.map((month) => {
               let cellData;
 
-              if (groupingMode === 'client') {
+              if (groupingMode ===
+
+
+) {
                 // FIXED: Use the corrected aggregation function
                 cellData = getAggregatedDataForClient(skillOrClient, month.key);
               } else {
@@ -238,7 +242,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
               );
             })}
 
-            {/* NEW: Revenue summary cells for client mode */}
+            {/* NEW: Revenue summary cells for client mode with consistent formatting */}
             {groupingMode === 'client' && (() => {
               const totalHours = getClientTotal(skillOrClient);
               const totalRevenue = getClientRevenue(skillOrClient);
@@ -254,27 +258,27 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
                   <div
                     key={`${skillOrClient}-total-hours`}
                     className={`p-3 border text-center text-sm font-medium border-l-2 border-slate-300 ${hoursColorClass}`}
-                    title={`Total: ${formatHours(totalHours)} for ${skillOrClient}`}
+                    title={`Total: ${formatHoursDisplay(totalHours)} for ${skillOrClient}`}
                   >
-                    {formatHours(totalHours)}
+                    {formatHoursDisplay(totalHours)}
                   </div>
                   
                   {/* Total Expected Revenue */}
                   <div
                     key={`${skillOrClient}-total-revenue`}
                     className={`p-3 border text-center text-sm font-medium border-l-2 border-green-300 ${revenueColorClass}`}
-                    title={`Total Expected Revenue: ${formatCurrency(totalRevenue)} for ${skillOrClient}`}
+                    title={`Total Expected Revenue: ${formatCurrencyDisplay(totalRevenue)} for ${skillOrClient}`}
                   >
-                    {formatCurrency(totalRevenue)}
+                    {formatCurrencyDisplay(totalRevenue)}
                   </div>
                   
                   {/* Expected Hourly Rate */}
                   <div
                     key={`${skillOrClient}-hourly-rate`}
                     className={`p-3 border text-center text-sm font-medium border-l-2 border-purple-300 ${rateColorClass}`}
-                    title={`Expected Hourly Rate: ${formatRate(hourlyRate)} for ${skillOrClient}`}
+                    title={`Expected Hourly Rate: ${formatRateDisplay(hourlyRate)} for ${skillOrClient}`}
                   >
-                    {formatRate(hourlyRate)}
+                    {formatRateDisplay(hourlyRate)}
                   </div>
                 </>
               );
@@ -282,7 +286,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
           </React.Fragment>
         ))}
 
-        {/* NEW: Grand total cells aligned to the summary columns */}
+        {/* NEW: Grand total cells aligned to the summary columns with consistent formatting */}
         {groupingMode === 'client' && rowItems.length > 0 && (
           <>
             {/* Grand Total Hours */}
@@ -290,21 +294,21 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
               className="p-3 bg-slate-100 border border-l-2 border-slate-400 text-center text-sm font-bold text-slate-800"
               style={{ gridColumnStart: filteredData.months.length + 2 }}
             >
-              {formatHours(grandTotalHours)}
+              {formatHoursDisplay(grandTotalHours)}
             </div>
             
             {/* Grand Total Revenue */}
             <div
               className="p-3 bg-green-100 border border-l-2 border-green-400 text-center text-sm font-bold text-green-800"
             >
-              {formatCurrency(grandTotalRevenue)}
+              {formatCurrencyDisplay(grandTotalRevenue)}
             </div>
             
             {/* Weighted Average Rate */}
             <div
               className="p-3 bg-purple-100 border border-l-2 border-purple-400 text-center text-sm font-bold text-purple-800"
             >
-              {formatRate(grandAverageRate)}
+              {formatRateDisplay(grandAverageRate)}
             </div>
           </>
         )}
