@@ -169,7 +169,7 @@ export const IntegrationVerificationPanel: React.FC = () => {
         weekdays: [1, 3, 5],
         is_active: true,
         priority: 'Medium',
-        category: 'Test',
+        category: 'Other',
         status: 'Unscheduled',
         due_date: '2025-01-15T00:00:00Z',
         created_at: '2025-01-01T00:00:00Z',
@@ -221,7 +221,7 @@ export const IntegrationVerificationPanel: React.FC = () => {
         weekdays: [1, 2], // Mon, Tue
         is_active: true,
         priority: 'Medium',
-        category: 'Test',
+        category: 'Other',
         status: 'Unscheduled',
         due_date: '2025-01-15T00:00:00Z',
         created_at: '2025-01-01T00:00:00Z',
@@ -236,7 +236,7 @@ export const IntegrationVerificationPanel: React.FC = () => {
       }
     ];
 
-    const skillHours = await SkillCalculatorCore.calculateMonthlyDemandBySkirl(
+    const skillHours = await SkillCalculatorCore.calculateMonthlyDemandBySkill(
       weeklyTasks,
       new Date('2025-01-01'),
       new Date('2025-01-31')
@@ -302,7 +302,7 @@ export const IntegrationVerificationPanel: React.FC = () => {
         weekdays: i % 3 === 0 ? [1, 3, 5] : null,
         is_active: true,
         priority: 'Medium',
-        category: 'Performance',
+        category: 'Other',
         status: 'Unscheduled',
         due_date: '2025-01-15T00:00:00Z',
         created_at: '2025-01-01T00:00:00Z',
@@ -356,7 +356,7 @@ export const IntegrationVerificationPanel: React.FC = () => {
         weekdays: null,
         is_active: true,
         priority: 'Medium',
-        category: 'Regression',
+        category: 'Other',
         status: 'Unscheduled',
         due_date: '2025-01-15T00:00:00Z',
         created_at: '2025-01-01T00:00:00Z',
