@@ -12,9 +12,14 @@ import { debugLog } from '../logger';
 import { DemandMatrixData, DemandDataPoint } from '@/types/demand';
 import { SkillType } from '@/types/task';
 
+// Import new debugging and validation infrastructure
+import { MatrixDebugLogger } from './debug/MatrixDebugLogger';
+import { DataIntegrityValidator, ValidationResult } from './validation/DataIntegrityValidator';
+import { SkillMappingVerifier } from './validation/SkillMappingVerifier';
+
 /**
  * Matrix Service Core
- * Core business logic for matrix data generation
+ * Core business logic for matrix data generation with enhanced debugging
  */
 export class MatrixServiceCore {
   /**
@@ -90,7 +95,7 @@ export class MatrixServiceCore {
         totalDemand: demandMatrix.totalDemand
       });
 
-      // Transform demand and capacity into matrix data without corruption
+      // Transform demand and capacity into matrix data WITH ENHANCED DEBUGGING
       const matrixData = this.preservingTransformDemandToMatrix(demandMatrix, capacityForecast);
 
       debugLog('VALIDATION: Matrix data after transformation', {
@@ -98,10 +103,29 @@ export class MatrixServiceCore {
         totalDemand: matrixData.totalDemand
       });
       
-      // Validate the generated data
+      // Enhanced validation with new infrastructure
       const validation = MatrixValidator.validateMatrixData(matrixData);
       if (!validation.isValid) {
         throw MatrixErrorHandler.handleValidationError(validation.issues, context);
+      }
+
+      // Additional data integrity validation
+      const integrityValidation = DataIntegrityValidator.validateDemandPreservation(demandMatrix, matrixData);
+      if (!integrityValidation.isValid) {
+        console.error('❌ Data integrity validation failed:', integrityValidation.errors);
+        debugLog('Data integrity validation failed', integrityValidation);
+      }
+
+      // Skill mapping verification
+      const skillMappingReport = SkillMappingVerifier.verifySkillKeyConsistency(
+        demandMatrix.skills,
+        demandMatrix.dataPoints,
+        matrixData.skills
+      );
+      
+      if (skillMappingReport.consistencyIssues.length > 0) {
+        console.warn('⚠️ Skill mapping consistency issues detected:', skillMappingReport.consistencyIssues);
+        debugLog('Skill mapping issues', skillMappingReport);
       }
       
       debugLog('UNIFIED Matrix data generated successfully', {
@@ -112,7 +136,9 @@ export class MatrixServiceCore {
         totalCapacity: matrixData.totalCapacity,
         totalGap: matrixData.totalGap,
         demandSource: 'DemandMatrixService (UNIFIED)',
-        capacitySource: 'SkillAwareForecastingService'
+        capacitySource: 'SkillAwareForecastingService',
+        integrityValidation: integrityValidation.isValid,
+        skillMappingIssues: skillMappingReport.consistencyIssues.length
       });
       
       return matrixData;
@@ -155,17 +181,27 @@ export class MatrixServiceCore {
   }
 
   /**
-   * Transform demand matrix and capacity forecast into MatrixData without altering demand values
+   * Transform demand matrix and capacity forecast into MatrixData WITH ENHANCED DEBUGGING
    */
   private static preservingTransformDemandToMatrix(
     demandMatrix: DemandMatrixData,
     capacityForecast: any[]
   ): MatrixData {
+    // PHASE 1: Enhanced debugging - Log transformation start
+    MatrixDebugLogger.logTransformationStart(demandMatrix, capacityForecast);
+
     const months: MonthInfo[] = demandMatrix.months.map((m, index) => ({
       key: m.key,
       label: m.label,
       index: (m as any).index ?? index
     }));
+
+    // PHASE 1: Enhanced debugging - Log skill set creation
+    const demandSkills = demandMatrix.skills;
+    const capacitySkills: string[] = [];
+    capacityForecast.forEach(period => {
+      period.capacity.forEach((c: any) => capacitySkills.push(String(c.skill).trim()));
+    });
 
     // Build the union of all skills from demand and capacity data.
     // Use trimmed string keys to avoid mismatches caused by whitespace
@@ -176,6 +212,16 @@ export class MatrixServiceCore {
     });
     const skills = Array.from(skillSet).sort() as SkillType[];
 
+    // PHASE 1: Enhanced debugging - Log skill set creation results
+    MatrixDebugLogger.logSkillSetCreation(demandSkills, capacitySkills, skills);
+
+    // VALIDATION CHECKPOINT: Skill set creation
+    MatrixDebugLogger.logValidationCheckpoint(
+      'Skill Set Creation',
+      { originalSkills: demandSkills.length, finalSkills: skills.length },
+      skills.length >= demandSkills.length
+    );
+
     // Map month -> skill -> demand data using sanitized skill keys
     const demandMap = new Map<string, Map<string, DemandDataPoint>>();
     demandMatrix.dataPoints.forEach(dp => {
@@ -184,6 +230,9 @@ export class MatrixServiceCore {
       monthMap.set(skillKey, dp);
       demandMap.set(dp.month, monthMap);
     });
+
+    // PHASE 1: Enhanced debugging - Log demand map creation
+    MatrixDebugLogger.logDemandMapCreation(demandMatrix.dataPoints, demandMap);
 
     const capacityMap = new Map<string, Map<string, number>>();
     capacityForecast.forEach(period => {
@@ -194,6 +243,21 @@ export class MatrixServiceCore {
       });
       capacityMap.set(period.period, monthMap);
     });
+
+    // PHASE 1: Enhanced debugging - Log capacity map creation
+    MatrixDebugLogger.logCapacityMapCreation(capacityForecast, capacityMap);
+
+    // VALIDATION CHECKPOINT: Map creation
+    const expectedDemandSum = demandMatrix.dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+    const actualDemandInMap = Array.from(demandMap.values()).reduce((sum, monthMap) => {
+      return sum + Array.from(monthMap.values()).reduce((monthSum, dp) => monthSum + dp.demandHours, 0);
+    }, 0);
+    
+    MatrixDebugLogger.logValidationCheckpoint(
+      'Demand Map Integrity',
+      { expected: expectedDemandSum, actual: actualDemandInMap },
+      expectedDemandSum === actualDemandInMap
+    );
 
     const dataPoints: MatrixDataPoint[] = [];
     for (const skill of skills) {
@@ -217,11 +281,14 @@ export class MatrixServiceCore {
       }
     }
 
+    // PHASE 1: Enhanced debugging - Log data point generation
+    MatrixDebugLogger.logDataPointGeneration(skills, months, demandMap, capacityMap, dataPoints);
+
     const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
     const totalCapacity = dataPoints.reduce((sum, dp) => sum + dp.capacityHours, 0);
     const totalGap = totalDemand - totalCapacity;
 
-    return {
+    const matrixData: MatrixData = {
       months,
       skills,
       dataPoints,
@@ -229,6 +296,22 @@ export class MatrixServiceCore {
       totalCapacity,
       totalGap
     };
+
+    // VALIDATION CHECKPOINT: Final data integrity
+    MatrixDebugLogger.logValidationCheckpoint(
+      'Final Data Integrity',
+      { 
+        originalTotalDemand: demandMatrix.totalDemand, 
+        transformedTotalDemand: totalDemand,
+        preserved: demandMatrix.totalDemand === totalDemand
+      },
+      demandMatrix.totalDemand === totalDemand
+    );
+
+    // PHASE 1: Enhanced debugging - Log transformation completion
+    MatrixDebugLogger.logTransformationComplete(demandMatrix, matrixData);
+
+    return matrixData;
   }
   
   /**
