@@ -229,7 +229,7 @@ export class SkillCalculatorCore {
 
         // Log performance warning for slow recurrence calculations
         if (recurrenceTime > 100) {
-          console.warn(`⚠️ [SKILL CALCULATOR] Slow recurrence calculation for task ${task.id}: ${recurrenceTime.to oFixed(2)}ms`);
+          console.warn(`⚠️ [SKILL CALCULATOR] Slow recurrence calculation for task ${task.id}: ${recurrenceTime.toFixed(2)}ms`);
         }
 
         // Track annual tasks specifically
