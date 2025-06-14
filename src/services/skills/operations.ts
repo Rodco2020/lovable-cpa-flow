@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabaseClient";
 import { Skill } from "@/types/skill";
 import { SkillsServiceError, SkillCreateData, SkillUpdateData, SkillRow } from "./types";
@@ -107,7 +106,8 @@ export const createSkillInDB = async (skillData: SkillCreateData): Promise<Skill
       description: skillData.description || null,
       category: skillData.category || null,
       proficiency_level: skillData.proficiencyLevel || null,
-      cost_per_hour: skillData.hourlyRate || 50.00
+      cost_per_hour: skillData.hourlyRate || 50.00,
+      fee_per_hour: skillData.feePerHour || 75.00 // NEW: Handle client billing rate
     };
 
     const { data, error } = await supabase
@@ -157,6 +157,7 @@ export const updateSkillInDB = async (id: string, updates: SkillUpdateData): Pro
     if (updates.category !== undefined) updateData.category = updates.category;
     if (updates.proficiencyLevel !== undefined) updateData.proficiency_level = updates.proficiencyLevel;
     if (updates.hourlyRate !== undefined) updateData.cost_per_hour = updates.hourlyRate;
+    if (updates.feePerHour !== undefined) updateData.fee_per_hour = updates.feePerHour; // NEW: Handle client billing rate updates
 
     const { data, error } = await supabase
       .from("skills")

@@ -10,6 +10,7 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Compliance' as SkillCategory,
       proficiencyLevel: 'Expert' as ProficiencyLevel,
       hourlyRate: 150.00,
+      feePerHour: 225.00, // NEW: Client billing rate (50% markup)
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -20,6 +21,7 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Tax' as SkillCategory,
       proficiencyLevel: 'Intermediate' as ProficiencyLevel,
       hourlyRate: 75.00,
+      feePerHour: 112.50, // NEW: Client billing rate (50% markup)
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -30,6 +32,7 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Bookkeeping' as SkillCategory,
       proficiencyLevel: 'Intermediate' as ProficiencyLevel,
       hourlyRate: 45.00,
+      feePerHour: 67.50, // NEW: Client billing rate (50% markup)
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },

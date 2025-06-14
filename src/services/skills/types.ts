@@ -19,6 +19,7 @@ export interface SkillRow {
   proficiency_level?: string;
   category?: string;
   cost_per_hour?: number;
+  fee_per_hour?: number; // NEW: Client billing rate
   created_at?: string;
   updated_at?: string;
 }

@@ -28,13 +28,14 @@ import {
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 
-// Define the schema with required name field and hourly rate
+// Define the schema with required name field, hourly rate, and fee per hour
 const skillSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().optional(),
   proficiencyLevel: z.enum(["Beginner", "Intermediate", "Expert"] as const).optional(),
   category: z.enum(["Tax", "Audit", "Advisory", "Bookkeeping", "Compliance", "Administrative", "Other"] as const).optional(),
   hourlyRate: z.number().positive("Hourly rate must be positive").optional(),
+  feePerHour: z.number().positive("Fee per hour must be positive").optional(), // NEW: Client billing rate
 });
 
 type FormValues = z.infer<typeof skillSchema>;
@@ -75,6 +76,7 @@ const SkillForm: React.FC = () => {
       proficiencyLevel: undefined,
       category: undefined,
       hourlyRate: undefined,
+      feePerHour: undefined, // NEW: Default client billing rate
     },
     values: existingSkill ? {
       name: existingSkill.name,
@@ -82,6 +84,7 @@ const SkillForm: React.FC = () => {
       proficiencyLevel: existingSkill.proficiencyLevel,
       category: existingSkill.category,
       hourlyRate: existingSkill.hourlyRate,
+      feePerHour: existingSkill.feePerHour, // NEW: Populate client billing rate
     } : undefined,
   });
 
@@ -123,6 +126,7 @@ const SkillForm: React.FC = () => {
       proficiencyLevel: data.proficiencyLevel,
       category: data.category,
       hourlyRate: data.hourlyRate,
+      feePerHour: data.feePerHour, // NEW: Include client billing rate
     };
     
     if (isEditMode && id) {
@@ -193,7 +197,7 @@ const SkillForm: React.FC = () => {
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="category"
@@ -249,18 +253,44 @@ const SkillForm: React.FC = () => {
                   </FormItem>
                 )}
               />
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="hourlyRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hourly Rate ($)</FormLabel>
+                    <FormLabel>Internal Hourly Rate ($)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Enter hourly rate"
+                        placeholder="Enter internal hourly rate"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value ? parseFloat(value) : undefined);
+                        }}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="feePerHour"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client Fee Per Hour ($)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter client billing rate"
                         {...field}
                         onChange={(e) => {
                           const value = e.target.value;

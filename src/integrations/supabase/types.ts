@@ -203,6 +203,7 @@ export type Database = {
           cost_per_hour: number
           created_at: string
           description: string | null
+          fee_per_hour: number | null
           id: string
           name: string
           proficiency_level: string | null
@@ -213,6 +214,7 @@ export type Database = {
           cost_per_hour: number
           created_at?: string
           description?: string | null
+          fee_per_hour?: number | null
           id?: string
           name: string
           proficiency_level?: string | null
@@ -223,6 +225,7 @@ export type Database = {
           cost_per_hour?: number
           created_at?: string
           description?: string | null
+          fee_per_hour?: number | null
           id?: string
           name?: string
           proficiency_level?: string | null
