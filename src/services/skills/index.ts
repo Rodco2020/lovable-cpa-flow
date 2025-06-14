@@ -14,14 +14,19 @@
 export {
   getAllSkills,
   getSkillById,
+  getSkillsByIds,
   resolveSkills,
   createSkill,
   updateSkill,
   deleteSkill,
+  getSkillsByCategory,
+  getSkillsByProficiencyLevel,
+  searchSkills,
   SkillsServiceError,
-  createFallbackSkill,
-  getDefaultSkills
+  createFallbackSkill
 } from './skillsService';
+
+export { getDefaultSkills } from './defaults';
 
 // Type exports
 export type {

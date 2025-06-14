@@ -2,6 +2,14 @@
 import { supabase } from "@/lib/supabaseClient";
 import { Skill, ProficiencyLevel, SkillCategory } from "@/types/skill";
 
+// Custom error class for skills service
+export class SkillsServiceError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'SkillsServiceError';
+  }
+}
+
 // CRUD operations
 export const getAllSkills = async (): Promise<Skill[]> => {
   const { data, error } = await supabase
@@ -10,7 +18,7 @@ export const getAllSkills = async (): Promise<Skill[]> => {
   
   if (error) {
     console.error("Error fetching skills:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   // Map the Supabase data to our Skill type
@@ -38,7 +46,7 @@ export const getSkillById = async (id: string): Promise<Skill | undefined> => {
       return undefined; // Skill not found
     }
     console.error("Error fetching skill:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   if (!data) return undefined;
@@ -53,6 +61,33 @@ export const getSkillById = async (id: string): Promise<Skill | undefined> => {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
+};
+
+export const getSkillsByIds = async (ids: string[]): Promise<Skill[]> => {
+  if (!ids || ids.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*")
+    .in("id", ids);
+  
+  if (error) {
+    console.error("Error fetching skills by IDs:", error);
+    throw new SkillsServiceError(error.message);
+  }
+  
+  return data.map((item: any): Skill => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    proficiencyLevel: item.proficiency_level as ProficiencyLevel,
+    category: item.category as SkillCategory,
+    hourlyRate: item.cost_per_hour,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  }));
 };
 
 export const createSkill = async (skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">): Promise<Skill> => {
@@ -70,7 +105,7 @@ export const createSkill = async (skillData: Omit<Skill, "id" | "createdAt" | "u
   
   if (error) {
     console.error("Error creating skill:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   return {
@@ -103,7 +138,7 @@ export const updateSkill = async (id: string, skillData: Partial<Omit<Skill, "id
   
   if (error) {
     console.error("Error updating skill:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   if (!data) return undefined;
@@ -128,7 +163,7 @@ export const deleteSkill = async (id: string): Promise<boolean> => {
   
   if (error) {
     console.error("Error deleting skill:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   return true;
@@ -143,7 +178,7 @@ export const getSkillsByCategory = async (category: SkillCategory): Promise<Skil
   
   if (error) {
     console.error("Error fetching skills by category:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   return data.map((item: any): Skill => ({
@@ -166,13 +201,13 @@ export const getSkillsByProficiencyLevel = async (level: ProficiencyLevel): Prom
   
   if (error) {
     console.error("Error fetching skills by proficiency level:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   return data.map((item: any): Skill => ({
     id: item.id,
     name: item.name,
-    description: item.description,
+    description: data.description,
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,
@@ -191,7 +226,7 @@ export const searchSkills = async (query: string): Promise<Skill[]> => {
   
   if (error) {
     console.error("Error searching skills:", error);
-    throw new Error(error.message);
+    throw new SkillsServiceError(error.message);
   }
   
   return data.map((item: any): Skill => ({
@@ -204,4 +239,103 @@ export const searchSkills = async (query: string): Promise<Skill[]> => {
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   }));
+};
+
+// Utility functions
+export const createFallbackSkill = (skillName: string): Skill => {
+  const fallbackId = `fallback-${skillName.toLowerCase().replace(/\s+/g, '-')}`;
+  
+  return {
+    id: fallbackId,
+    name: skillName,
+    description: `Fallback skill created for: ${skillName}`,
+    category: 'Other' as SkillCategory,
+    proficiencyLevel: 'Intermediate' as ProficiencyLevel,
+    hourlyRate: 50.00,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+export const getDefaultSkills = (): Skill[] => {
+  return [
+    {
+      id: 'cpa',
+      name: 'CPA',
+      description: 'Certified Public Accountant',
+      category: 'Compliance' as SkillCategory,
+      proficiencyLevel: 'Expert' as ProficiencyLevel,
+      hourlyRate: 150.00,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'tax-prep',
+      name: 'Tax Preparation',
+      description: 'Individual and business tax preparation',
+      category: 'Tax' as SkillCategory,
+      proficiencyLevel: 'Intermediate' as ProficiencyLevel,
+      hourlyRate: 75.00,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'bookkeeping',
+      name: 'Bookkeeping',
+      description: 'General bookkeeping and accounting',
+      category: 'Bookkeeping' as SkillCategory,
+      proficiencyLevel: 'Intermediate' as ProficiencyLevel,
+      hourlyRate: 45.00,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+};
+
+export const resolveSkills = async (skillNames: string[]): Promise<Skill[]> => {
+  if (!skillNames || skillNames.length === 0) {
+    return [];
+  }
+
+  try {
+    // First try to get all skills from database
+    const allSkills = await getAllSkills();
+    const resolvedSkills: Skill[] = [];
+
+    for (const skillName of skillNames) {
+      // Try to find exact match first
+      let foundSkill = allSkills.find(skill => 
+        skill.name.toLowerCase() === skillName.toLowerCase()
+      );
+
+      // If not found, try partial match
+      if (!foundSkill) {
+        foundSkill = allSkills.find(skill => 
+          skill.name.toLowerCase().includes(skillName.toLowerCase()) ||
+          skillName.toLowerCase().includes(skill.name.toLowerCase())
+        );
+      }
+
+      // If still not found, check default skills
+      if (!foundSkill) {
+        const defaultSkills = getDefaultSkills();
+        foundSkill = defaultSkills.find(skill => 
+          skill.name.toLowerCase() === skillName.toLowerCase()
+        );
+      }
+
+      // If still not found, create fallback
+      if (!foundSkill) {
+        foundSkill = createFallbackSkill(skillName);
+      }
+
+      resolvedSkills.push(foundSkill);
+    }
+
+    return resolvedSkills;
+  } catch (error) {
+    console.error('Error resolving skills:', error);
+    // Return fallback skills for all requested names
+    return skillNames.map(name => createFallbackSkill(name));
+  }
 };

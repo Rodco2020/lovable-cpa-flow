@@ -1,31 +1,41 @@
 
-import { Skill } from '@/types/skill';
-import { SkillRow } from './types';
+import { Skill, ProficiencyLevel, SkillCategory } from "@/types/skill";
 
-/**
- * Skills Data Mappers
- * 
- * Handles transformation between database rows and application models.
- * This provides a clean abstraction layer and makes it easy to adapt
- * to schema changes without affecting the rest of the application.
- */
+export interface SkillRow {
+  id: string;
+  name: string;
+  description?: string;
+  proficiency_level?: string;
+  category?: string;
+  cost_per_hour?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
-export const mapSkillFromDB = (row: SkillRow): Skill => ({
-  id: row.id,
-  name: row.name,
-  description: row.description || undefined,
-  proficiencyLevel: row.proficiency_level || undefined,
-  category: row.category || undefined,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
+export const mapSkillFromDB = (dbRow: SkillRow): Skill => {
+  return {
+    id: dbRow.id,
+    name: dbRow.name,
+    description: dbRow.description,
+    proficiencyLevel: dbRow.proficiency_level as ProficiencyLevel,
+    category: dbRow.category as SkillCategory,
+    hourlyRate: dbRow.cost_per_hour,
+    createdAt: dbRow.created_at,
+    updatedAt: dbRow.updated_at,
+  };
+};
 
-export const createFallbackSkill = (skillName: string): Skill => ({
-  id: `fallback-${skillName.toLowerCase().replace(/\s+/g, '-')}`,
-  name: skillName,
-  description: `Fallback skill created for: ${skillName}`,
-  proficiencyLevel: 'Beginner',
-  category: 'Other',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-});
+export const createFallbackSkill = (skillName: string): Skill => {
+  const fallbackId = `fallback-${skillName.toLowerCase().replace(/\s+/g, '-')}`;
+  
+  return {
+    id: fallbackId,
+    name: skillName,
+    description: `Fallback skill created for: ${skillName}`,
+    category: 'Other' as SkillCategory,
+    proficiencyLevel: 'Intermediate' as ProficiencyLevel,
+    hourlyRate: 50.00,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
