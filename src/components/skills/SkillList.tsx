@@ -70,8 +70,16 @@ const SkillList: React.FC = () => {
   };
 
   const handleEditSkill = (skillId: string) => {
-    console.log("Navigating to skill edit:", skillId);
-    navigate(`/skills/${skillId}/edit`);
+    console.log("🔧 EDIT BUTTON CLICKED - Attempting navigation to:", `/skills/${skillId}/edit`);
+    console.log("🔧 Current URL:", window.location.href);
+    console.log("🔧 Skill ID:", skillId);
+    
+    try {
+      navigate(`/skills/${skillId}/edit`);
+      console.log("🔧 Navigation command executed successfully");
+    } catch (error) {
+      console.error("🔧 Navigation failed:", error);
+    }
   };
 
   const categories: SkillCategory[] = ["Tax", "Audit", "Advisory", "Bookkeeping", "Compliance", "Administrative", "Other"];
@@ -215,7 +223,7 @@ const SkillList: React.FC = () => {
                     </Button>
                   </div>
                 </TableCell>
-              </TableRow>
+              </Row>
             ))}
           </TableBody>
         </Table>

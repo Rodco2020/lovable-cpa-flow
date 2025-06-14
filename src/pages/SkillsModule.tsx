@@ -6,6 +6,11 @@ import SkillDetail from "@/components/skills/SkillDetail";
 import SkillForm from "@/components/skills/SkillForm";
 
 const SkillsModule: React.FC = () => {
+  // Add debugging to track route matching
+  React.useEffect(() => {
+    console.log('SkillsModule: Component mounted, routes configured');
+  }, []);
+
   return (
     <Routes>
       <Route index element={<SkillList />} />

@@ -44,13 +44,22 @@ const SkillForm: React.FC = () => {
   const queryClient = useQueryClient();
   const isEditMode = Boolean(id);
 
+  // Add debugging for route parameters and edit mode detection
+  React.useEffect(() => {
+    console.log('🔧 SkillForm: Component mounted');
+    console.log('🔧 Route ID parameter:', id);
+    console.log('🔧 Is Edit Mode:', isEditMode);
+    console.log('🔧 Current URL:', window.location.href);
+    console.log('🔧 Current pathname:', window.location.pathname);
+  }, [id, isEditMode]);
+
   const { data: existingSkill, isLoading: isLoadingSkill, error: loadError } = useQuery({
     queryKey: ["skill", id],
     queryFn: async () => {
       if (!id) return null;
-      console.log("Loading skill for edit:", id);
+      console.log("🔧 Loading skill for edit:", id);
       const skill = await getSkillById(id);
-      console.log("Loaded skill:", skill);
+      console.log("🔧 Loaded skill:", skill);
       return skill;
     },
     enabled: isEditMode,
@@ -103,6 +112,8 @@ const SkillForm: React.FC = () => {
   });
 
   const onSubmit = async (data: FormValues) => {
+    console.log('🔧 Form submission - Edit Mode:', isEditMode, 'ID:', id);
+    
     const skillData = {
       name: data.name,
       description: data.description,
@@ -111,8 +122,10 @@ const SkillForm: React.FC = () => {
     };
     
     if (isEditMode && id) {
+      console.log('🔧 Updating skill with ID:', id);
       updateMutation.mutate({ id, data: skillData });
     } else {
+      console.log('🔧 Creating new skill');
       createMutation.mutate(skillData);
     }
   };
@@ -131,7 +144,7 @@ const SkillForm: React.FC = () => {
   }
 
   if (isEditMode && (loadError || !existingSkill)) {
-    console.error("Error loading skill for edit:", loadError);
+    console.error("🔧 Error loading skill for edit:", loadError);
     return (
       <div className="container mx-auto py-6 space-y-6">
         <div className="text-center py-8">
@@ -150,7 +163,9 @@ const SkillForm: React.FC = () => {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{isEditMode ? "Edit Skill" : "Add New Skill"}</h1>
+        <h1 className="text-3xl font-bold">
+          {isEditMode ? `Edit Skill${existingSkill ? `: ${existingSkill.name}` : ''}` : "Add New Skill"}
+        </h1>
         <Button variant="outline" onClick={() => navigate("/skills")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Cancel
