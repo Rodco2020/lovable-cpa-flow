@@ -28,12 +28,13 @@ import {
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 
-// Define the schema with required name field
+// Define the schema with required name field and hourly rate
 const skillSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().optional(),
   proficiencyLevel: z.enum(["Beginner", "Intermediate", "Expert"] as const).optional(),
   category: z.enum(["Tax", "Audit", "Advisory", "Bookkeeping", "Compliance", "Administrative", "Other"] as const).optional(),
+  hourlyRate: z.number().positive("Hourly rate must be positive").optional(),
 });
 
 type FormValues = z.infer<typeof skillSchema>;
@@ -73,12 +74,14 @@ const SkillForm: React.FC = () => {
       description: "",
       proficiencyLevel: undefined,
       category: undefined,
+      hourlyRate: undefined,
     },
     values: existingSkill ? {
       name: existingSkill.name,
       description: existingSkill.description || "",
       proficiencyLevel: existingSkill.proficiencyLevel,
       category: existingSkill.category,
+      hourlyRate: existingSkill.hourlyRate,
     } : undefined,
   });
 
@@ -119,6 +122,7 @@ const SkillForm: React.FC = () => {
       description: data.description,
       proficiencyLevel: data.proficiencyLevel,
       category: data.category,
+      hourlyRate: data.hourlyRate,
     };
     
     if (isEditMode && id) {
@@ -189,7 +193,7 @@ const SkillForm: React.FC = () => {
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
                 name="category"
@@ -241,6 +245,30 @@ const SkillForm: React.FC = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="hourlyRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hourly Rate ($)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter hourly rate"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value ? parseFloat(value) : undefined);
+                        }}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

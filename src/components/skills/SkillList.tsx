@@ -178,6 +178,7 @@ const SkillList: React.FC = () => {
               <TableHead>Skill Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Proficiency Level</TableHead>
+              <TableHead>Hourly Rate</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -199,6 +200,9 @@ const SkillList: React.FC = () => {
                       {skill.proficiencyLevel}
                     </span>
                   )}
+                </TableCell>
+                <TableCell>
+                  {skill.hourlyRate ? `$${skill.hourlyRate.toFixed(2)}` : "-"}
                 </TableCell>
                 <TableCell className="max-w-xs truncate">{skill.description || "-"}</TableCell>
                 <TableCell className="text-right">

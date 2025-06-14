@@ -9,6 +9,7 @@ export interface Skill {
   description?: string;
   proficiencyLevel?: ProficiencyLevel;
   category?: SkillCategory;
+  hourlyRate?: number;
   createdAt?: string;
   updatedAt?: string;
 }
