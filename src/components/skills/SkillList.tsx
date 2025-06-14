@@ -223,7 +223,7 @@ const SkillList: React.FC = () => {
                     </Button>
                   </div>
                 </TableCell>
-              </Row>
+              </TableRow>
             ))}
           </TableBody>
         </Table>
