@@ -207,7 +207,7 @@ export const getSkillsByProficiencyLevel = async (level: ProficiencyLevel): Prom
   return data.map((item: any): Skill => ({
     id: item.id,
     name: item.name,
-    description: data.description,
+    description: item.description,
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,

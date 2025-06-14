@@ -35,3 +35,21 @@ export const getDefaultSkills = (): Skill[] => {
     },
   ];
 };
+
+export const getCriticalSkills = (): Skill[] => {
+  return getDefaultSkills();
+};
+
+export const validateCriticalSkillsPresent = (currentSkills: Skill[]) => {
+  const criticalSkills = getCriticalSkills();
+  const currentSkillNames = currentSkills.map(skill => skill.name.trim());
+  
+  const missingSkills = criticalSkills
+    .filter(critical => !currentSkillNames.includes(critical.name.trim()))
+    .map(skill => skill.name);
+  
+  return {
+    isValid: missingSkills.length === 0,
+    missingSkills
+  };
+};

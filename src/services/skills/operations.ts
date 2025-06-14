@@ -21,8 +21,7 @@ export const fetchAllSkillsFromDB = async (): Promise<Skill[]> => {
     if (error) {
       throw new SkillsServiceError(
         `Database error fetching skills: ${error.message}`,
-        'DATABASE_ERROR',
-        error
+        'DATABASE_ERROR'
       );
     }
     
@@ -33,8 +32,7 @@ export const fetchAllSkillsFromDB = async (): Promise<Skill[]> => {
     }
     throw new SkillsServiceError(
       'Unexpected error fetching skills from database',
-      'UNKNOWN_ERROR',
-      error
+      'UNKNOWN_ERROR'
     );
   }
 };
@@ -50,8 +48,7 @@ export const fetchSkillByIdFromDB = async (id: string): Promise<Skill | null> =>
     if (error) {
       throw new SkillsServiceError(
         `Database error fetching skill ${id}: ${error.message}`,
-        'DATABASE_ERROR',
-        error
+        'DATABASE_ERROR'
       );
     }
     
@@ -62,8 +59,7 @@ export const fetchSkillByIdFromDB = async (id: string): Promise<Skill | null> =>
     }
     throw new SkillsServiceError(
       `Unexpected error fetching skill ${id} from database`,
-      'UNKNOWN_ERROR',
-      error
+      'UNKNOWN_ERROR'
     );
   }
 };
@@ -88,8 +84,7 @@ export const fetchSkillsByIdsFromDB = async (ids: string[]): Promise<Skill[]> =>
     if (error) {
       throw new SkillsServiceError(
         `Database error fetching skills by IDs: ${error.message}`,
-        'DATABASE_ERROR',
-        error
+        'DATABASE_ERROR'
       );
     }
     
@@ -100,8 +95,7 @@ export const fetchSkillsByIdsFromDB = async (ids: string[]): Promise<Skill[]> =>
     }
     throw new SkillsServiceError(
       'Unexpected error fetching skills by IDs from database',
-      'UNKNOWN_ERROR',
-      error
+      'UNKNOWN_ERROR'
     );
   }
 };
@@ -113,7 +107,7 @@ export const createSkillInDB = async (skillData: SkillCreateData): Promise<Skill
       description: skillData.description || null,
       category: skillData.category || null,
       proficiency_level: skillData.proficiencyLevel || null,
-      cost_per_hour: 50.00 // Default value
+      cost_per_hour: skillData.hourlyRate || 50.00
     };
 
     const { data, error } = await supabase
@@ -126,14 +120,12 @@ export const createSkillInDB = async (skillData: SkillCreateData): Promise<Skill
       if (error.code === '23505') { // Unique constraint violation
         throw new SkillsServiceError(
           `A skill with the name "${skillData.name}" already exists`,
-          'DUPLICATE_SKILL',
-          error
+          'DUPLICATE_SKILL'
         );
       }
       throw new SkillsServiceError(
         `Database error creating skill: ${error.message}`,
-        'DATABASE_ERROR',
-        error
+        'DATABASE_ERROR'
       );
     }
     
@@ -151,8 +143,7 @@ export const createSkillInDB = async (skillData: SkillCreateData): Promise<Skill
     }
     throw new SkillsServiceError(
       'Unexpected error creating skill in database',
-      'UNKNOWN_ERROR',
-      error
+      'UNKNOWN_ERROR'
     );
   }
 };
@@ -165,6 +156,7 @@ export const updateSkillInDB = async (id: string, updates: SkillUpdateData): Pro
     if (updates.description !== undefined) updateData.description = updates.description;
     if (updates.category !== undefined) updateData.category = updates.category;
     if (updates.proficiencyLevel !== undefined) updateData.proficiency_level = updates.proficiencyLevel;
+    if (updates.hourlyRate !== undefined) updateData.cost_per_hour = updates.hourlyRate;
 
     const { data, error } = await supabase
       .from("skills")
@@ -177,21 +169,18 @@ export const updateSkillInDB = async (id: string, updates: SkillUpdateData): Pro
       if (error.code === 'PGRST116') {
         throw new SkillsServiceError(
           `Skill with ID ${id} not found`,
-          'SKILL_NOT_FOUND',
-          error
+          'SKILL_NOT_FOUND'
         );
       }
       if (error.code === '23505') { // Unique constraint violation
         throw new SkillsServiceError(
           `A skill with the name "${updates.name}" already exists`,
-          'DUPLICATE_SKILL',
-          error
+          'DUPLICATE_SKILL'
         );
       }
       throw new SkillsServiceError(
         `Database error updating skill ${id}: ${error.message}`,
-        'DATABASE_ERROR',
-        error
+        'DATABASE_ERROR'
       );
     }
     
@@ -209,8 +198,7 @@ export const updateSkillInDB = async (id: string, updates: SkillUpdateData): Pro
     }
     throw new SkillsServiceError(
       `Unexpected error updating skill ${id} in database`,
-      'UNKNOWN_ERROR',
-      error
+      'UNKNOWN_ERROR'
     );
   }
 };
@@ -225,8 +213,7 @@ export const deleteSkillFromDB = async (id: string): Promise<void> => {
     if (error) {
       throw new SkillsServiceError(
         `Database error deleting skill ${id}: ${error.message}`,
-        'DATABASE_ERROR',
-        error
+        'DATABASE_ERROR'
       );
     }
   } catch (error) {
@@ -235,8 +222,7 @@ export const deleteSkillFromDB = async (id: string): Promise<void> => {
     }
     throw new SkillsServiceError(
       `Unexpected error deleting skill ${id} from database`,
-      'UNKNOWN_ERROR',
-      error
+      'UNKNOWN_ERROR'
     );
   }
 };
