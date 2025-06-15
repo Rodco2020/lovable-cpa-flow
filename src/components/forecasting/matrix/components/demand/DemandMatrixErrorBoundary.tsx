@@ -3,7 +3,9 @@ import React, { Component, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, Bug, ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, RefreshCw, Bug, ExternalLink, DollarSign, Calculator } from 'lucide-react';
+import { errorHandlingService } from '@/services/forecasting/validation/ErrorHandlingService';
 
 interface DemandMatrixErrorBoundaryProps {
   children: ReactNode;
@@ -16,6 +18,7 @@ interface DemandMatrixErrorBoundaryState {
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
   retryCount: number;
+  userFriendlyError: any | null;
 }
 
 export class DemandMatrixErrorBoundary extends Component<
@@ -30,7 +33,8 @@ export class DemandMatrixErrorBoundary extends Component<
       hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: 0
+      retryCount: 0,
+      userFriendlyError: null
     };
   }
 
@@ -44,9 +48,19 @@ export class DemandMatrixErrorBoundary extends Component<
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Demand Matrix Error Boundary caught an error:', error, errorInfo);
     
+    // Generate user-friendly error using error handling service
+    const context = {
+      operation: 'renderDemandMatrix',
+      component: 'DemandMatrixErrorBoundary',
+      timestamp: new Date()
+    };
+
+    const userFriendlyError = errorHandlingService.generateUserFriendlyError(error, context);
+
     this.setState({
       error,
-      errorInfo
+      errorInfo,
+      userFriendlyError
     });
 
     // Call optional error handler
@@ -81,6 +95,7 @@ export class DemandMatrixErrorBoundary extends Component<
         hasError: false,
         error: null,
         errorInfo: null,
+        userFriendlyError: null,
         retryCount: prevState.retryCount + 1
       }));
     }
@@ -91,40 +106,53 @@ export class DemandMatrixErrorBoundary extends Component<
       hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: 0
+      retryCount: 0,
+      userFriendlyError: null
     });
   };
 
-  private getErrorSeverity = (error: Error): 'low' | 'medium' | 'high' => {
+  private getErrorCategory = (error: Error): 'revenue' | 'network' | 'validation' | 'generic' => {
     const message = error.message.toLowerCase();
+    
+    if (message.includes('revenue') || message.includes('fee rate') || message.includes('skill')) {
+      return 'revenue';
+    }
     
     if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
-      return 'medium';
+      return 'network';
     }
     
-    if (message.includes('memory') || message.includes('maximum call stack')) {
-      return 'high';
+    if (message.includes('validation') || message.includes('invalid') || message.includes('missing')) {
+      return 'validation';
     }
     
-    return 'low';
+    return 'generic';
   };
 
-  private getSuggestion = (error: Error): string => {
-    const message = error.message.toLowerCase();
-    
-    if (message.includes('network') || message.includes('fetch')) {
-      return 'Check your internet connection and try again.';
+  private getErrorIcon = (category: 'revenue' | 'network' | 'validation' | 'generic') => {
+    switch (category) {
+      case 'revenue':
+        return <DollarSign className="h-5 w-5" />;
+      case 'network':
+        return <ExternalLink className="h-5 w-5" />;
+      case 'validation':
+        return <Calculator className="h-5 w-5" />;
+      default:
+        return <AlertTriangle className="h-5 w-5" />;
     }
-    
-    if (message.includes('data') || message.includes('undefined') || message.includes('null')) {
-      return 'There may be an issue with the demand data. Try refreshing or adjusting your filters.';
+  };
+
+  private getCategoryColor = (category: 'revenue' | 'network' | 'validation' | 'generic') => {
+    switch (category) {
+      case 'revenue':
+        return 'text-orange-600';
+      case 'network':
+        return 'text-blue-600';
+      case 'validation':
+        return 'text-purple-600';
+      default:
+        return 'text-destructive';
     }
-    
-    if (message.includes('memory') || message.includes('maximum call stack')) {
-      return 'The dataset may be too large. Try reducing the date range or applying more filters.';
-    }
-    
-    return 'This appears to be a technical issue. Try refreshing the page or contact support if the problem persists.';
   };
 
   render() {
@@ -134,34 +162,92 @@ export class DemandMatrixErrorBoundary extends Component<
         return this.props.fallback;
       }
 
-      const severity = this.getErrorSeverity(this.state.error!);
-      const suggestion = this.getSuggestion(this.state.error!);
+      const error = this.state.error!;
+      const userError = this.state.userFriendlyError;
+      const category = this.getErrorCategory(error);
       const canRetry = this.state.retryCount < this.maxRetries;
+      const categoryColor = this.getCategoryColor(category);
 
       return (
         <div className="p-4">
           <Card className="border-destructive">
             <CardHeader>
-              <CardTitle className="text-destructive flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Demand Matrix Error
+              <CardTitle className={`${categoryColor} flex items-center gap-2`}>
+                {this.getErrorIcon(category)}
+                {userError?.title || 'Demand Matrix Error'}
+                <Badge variant="outline" className="ml-auto">
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Error Alert */}
-              <Alert variant="destructive">
+              {/* Enhanced Error Alert with User-Friendly Message */}
+              <Alert variant={userError?.severity === 'warning' ? 'default' : 'destructive'}>
                 <Bug className="h-4 w-4" />
                 <AlertDescription>
                   <div className="space-y-2">
                     <p className="font-medium">
-                      Something went wrong while loading the demand matrix.
+                      {userError?.message || 'Something went wrong while loading the demand matrix.'}
                     </p>
-                    <p className="text-sm">
-                      {suggestion}
-                    </p>
+                    
+                    {/* Actionable Suggestions */}
+                    {userError?.actionable && userError.suggestedActions?.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium mb-2">Suggested actions:</p>
+                        <ul className="text-sm list-disc list-inside space-y-1">
+                          {userError.suggestedActions.map((action: string, index: number) => (
+                            <li key={index}>{action}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </AlertDescription>
               </Alert>
+
+              {/* Category-Specific Guidance */}
+              {category === 'revenue' && (
+                <Alert>
+                  <DollarSign className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-medium">Revenue Calculation Issue</p>
+                      <p className="text-sm">
+                        This appears to be related to revenue calculations or skill fee rates. 
+                        The system will use fallback values where possible.
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {category === 'network' && (
+                <Alert>
+                  <ExternalLink className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-medium">Connection Issue</p>
+                      <p className="text-sm">
+                        Unable to load data due to a network issue. Please check your connection and try again.
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {category === 'validation' && (
+                <Alert>
+                  <Calculator className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-medium">Data Validation Issue</p>
+                      <p className="text-sm">
+                        Some data quality issues were detected. The system will continue with available data.
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Error Details (Development Mode) */}
               {process.env.NODE_ENV === 'development' && this.state.error && (
@@ -208,21 +294,32 @@ export class DemandMatrixErrorBoundary extends Component<
                 
                 <Button 
                   onClick={() => window.location.reload()} 
-                  variant={severity === 'high' ? 'default' : 'outline'}
+                  variant={category === 'network' ? 'default' : 'outline'}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh Page
                 </Button>
               </div>
 
-              {/* Helpful Information */}
-              <div className="text-sm text-muted-foreground space-y-1">
+              {/* Enhanced Helpful Information */}
+              <div className="text-sm text-muted-foreground space-y-2">
                 <p>💡 <strong>Quick fixes to try:</strong></p>
                 <ul className="list-disc list-inside ml-4 space-y-1">
                   <li>Clear your browser cache and reload</li>
                   <li>Try reducing the selected date range</li>
                   <li>Apply fewer filters to reduce data complexity</li>
-                  <li>Check if your client data is properly configured</li>
+                  {category === 'revenue' && (
+                    <>
+                      <li>Check if skill fee rates are properly configured</li>
+                      <li>Verify client revenue data in the Client module</li>
+                    </>
+                  )}
+                  {category === 'network' && (
+                    <>
+                      <li>Check your internet connection</li>
+                      <li>Wait a few minutes and try again</li>
+                    </>
+                  )}
                 </ul>
               </div>
 

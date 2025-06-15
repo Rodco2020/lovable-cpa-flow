@@ -1,19 +1,12 @@
-
 /**
  * Suggested Revenue Calculator
  * 
- * Provides calculation logic for determining suggested revenue based on demand hours
- * and skill-specific fee rates. This calculator supports the "Total Suggested Revenue"
- * column in the Demand Forecast Matrix.
- * 
- * Key Features:
- * - Skill-based revenue calculation using fee rates
- * - Comprehensive error handling with fallback mechanisms
- * - Support for bulk calculations with performance optimization
- * - Detailed logging for debugging and audit trails
+ * Enhanced with comprehensive error handling, validation, and logging
  */
 
 import { getDefaultFeeRates, type SkillFeeRateMap } from '@/services/skills/feeRateService';
+import { errorHandlingService } from '@/services/forecasting/validation/ErrorHandlingService';
+import { loggingService } from '@/services/forecasting/validation/LoggingService';
 
 export class SuggestedRevenueCalculatorError extends Error {
   constructor(message: string, public code?: string) {
@@ -37,6 +30,7 @@ export class SuggestedRevenueCalculator {
 
   private constructor() {
     this.fallbackRates = getDefaultFeeRates();
+    loggingService.info('initialize', 'SuggestedRevenueCalculator', 'Calculator initialized with fallback rates');
   }
 
   public static getInstance(): SuggestedRevenueCalculator {
@@ -47,19 +41,22 @@ export class SuggestedRevenueCalculator {
   }
 
   /**
-   * Calculate suggested revenue for a specific skill and demand hours
-   * @param demandHours - Number of hours of demand
-   * @param skillName - Name of the skill
-   * @param skillFeeRates - Map of skill names to fee rates
-   * @returns Calculated suggested revenue
+   * Calculate suggested revenue with enhanced error handling
    */
   public calculateSuggestedRevenue(
     demandHours: number,
     skillName: string,
     skillFeeRates: Map<string, number>
   ): number {
+    const timerId = loggingService.startTimer('calculateSuggestedRevenue');
+    
     try {
-      // Input validation
+      loggingService.revenue('calculateSuggestedRevenue', 'SuggestedRevenueCalculator', 
+        `Calculating revenue for skill: ${skillName}`, 
+        { demandHours, skillName }
+      );
+
+      // Input validation with detailed logging
       this.validateInputs(demandHours, skillName, skillFeeRates);
 
       // Get fee rate with fallback logic
@@ -68,16 +65,224 @@ export class SuggestedRevenueCalculator {
       // Calculate revenue
       const suggestedRevenue = demandHours * feeRate;
 
-      console.log(`Calculated suggested revenue for ${skillName}: ${demandHours} hours × $${feeRate}/hour = $${suggestedRevenue}`);
+      loggingService.revenue('calculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+        `Revenue calculated successfully`,
+        { 
+          skillName, 
+          demandHours, 
+          feeRate, 
+          suggestedRevenue: Number(suggestedRevenue.toFixed(2))
+        }
+      );
+
+      loggingService.endTimer(timerId, 'calculateSuggestedRevenue', 'SuggestedRevenueCalculator', true);
 
       return Number(suggestedRevenue.toFixed(2));
+
     } catch (error) {
-      console.error('Error calculating suggested revenue:', error);
+      loggingService.endTimer(timerId, 'calculateSuggestedRevenue', 'SuggestedRevenueCalculator', false);
+      
+      loggingService.error('calculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+        'Revenue calculation failed', error as Error, { skillName, demandHours }
+      );
+
+      // Use error handling service for recovery
+      const recovery = errorHandlingService.handleError(
+        error as Error,
+        {
+          operation: 'calculateSuggestedRevenue',
+          component: 'SuggestedRevenueCalculator',
+          skillName,
+          timestamp: new Date()
+        },
+        true
+      );
+
+      if (recovery.success && typeof recovery.fallbackValue === 'number') {
+        loggingService.warn('calculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+          `Using recovery value: ${recovery.fallbackValue}`, { recovery }
+        );
+        return recovery.fallbackValue;
+      }
+
       throw new SuggestedRevenueCalculatorError(
         `Failed to calculate suggested revenue for skill "${skillName}": ${error instanceof Error ? error.message : 'Unknown error'}`,
         'CALCULATION_ERROR'
       );
     }
+  }
+
+  /**
+   * Enhanced bulk calculation with progress tracking
+   */
+  public bulkCalculateSuggestedRevenue(
+    demandData: Array<{ skillName: string; demandHours: number }>,
+    skillFeeRates: Map<string, number>
+  ): SuggestedRevenueCalculation[] {
+    const timerId = loggingService.startTimer('bulkCalculateSuggestedRevenue');
+    
+    loggingService.revenue('bulkCalculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+      `Starting bulk calculation for ${demandData.length} skills`
+    );
+
+    const results: SuggestedRevenueCalculation[] = [];
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < demandData.length; i++) {
+      const data = demandData[i];
+      
+      try {
+        const calculation = this.calculateSuggestedRevenueDetailed(
+          data.demandHours,
+          data.skillName,
+          skillFeeRates
+        );
+        results.push(calculation);
+        successCount++;
+
+        // Log progress for large datasets
+        if (demandData.length > 50 && (i + 1) % 20 === 0) {
+          loggingService.performanceMilestone('bulkCalculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+            `Processed ${i + 1}/${demandData.length} calculations`
+          );
+        }
+
+      } catch (error) {
+        const errorMessage = `Error calculating for ${data.skillName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        errors.push(errorMessage);
+        
+        loggingService.warn('bulkCalculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+          errorMessage, { skillName: data.skillName, demandHours: data.demandHours }
+        );
+        
+        // Add fallback calculation with zero revenue
+        results.push({
+          skillName: data.skillName,
+          demandHours: data.demandHours,
+          feeRate: 0,
+          suggestedRevenue: 0,
+          isUsingFallback: true,
+          calculationNotes: `Error in calculation: ${errorMessage}`
+        });
+      }
+    }
+
+    loggingService.endTimer(timerId, 'bulkCalculateSuggestedRevenue', 'SuggestedRevenueCalculator', errors.length === 0);
+
+    loggingService.revenue('bulkCalculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+      `Bulk calculation completed`,
+      {
+        totalItems: demandData.length,
+        successCount,
+        errorCount: errors.length,
+        totalRevenue: this.getTotalSuggestedRevenue(results)
+      }
+    );
+
+    if (errors.length > 0) {
+      loggingService.warn('bulkCalculateSuggestedRevenue', 'SuggestedRevenueCalculator',
+        `${errors.length} errors encountered during bulk calculation`, { errors }
+      );
+    }
+
+    return results;
+  }
+
+  /**
+   * Enhanced validation with detailed logging
+   */
+  private validateInputs(
+    demandHours: number,
+    skillName: string,
+    skillFeeRates: Map<string, number>
+  ): void {
+    const validationErrors: string[] = [];
+
+    if (typeof demandHours !== 'number' || isNaN(demandHours) || demandHours < 0) {
+      validationErrors.push('Demand hours must be a non-negative number');
+    }
+    
+    if (typeof skillName !== 'string' || skillName.trim().length === 0) {
+      validationErrors.push('Skill name must be a non-empty string');
+    }
+    
+    if (!(skillFeeRates instanceof Map)) {
+      validationErrors.push('Skill fee rates must be a Map instance');
+    }
+
+    if (validationErrors.length > 0) {
+      loggingService.validation('error', 'validateInputs', 'SuggestedRevenueCalculator',
+        'Input validation failed', 
+        { validationErrors, demandHours, skillName }
+      );
+      
+      throw new Error(validationErrors.join('; '));
+    }
+
+    loggingService.validation('debug', 'validateInputs', 'SuggestedRevenueCalculator',
+      'Input validation passed', { demandHours, skillName }
+    );
+  }
+
+  /**
+   * Enhanced fee rate retrieval with fallback logging
+   */
+  private getFeeRateWithFallback(
+    skillName: string,
+    skillFeeRates: Map<string, number>
+  ): number {
+    // Try exact match first
+    let feeRate = skillFeeRates.get(skillName);
+    
+    if (feeRate !== undefined && feeRate > 0) {
+      loggingService.debug('getFeeRateWithFallback', 'SuggestedRevenueCalculator',
+        `Using configured rate for skill: ${skillName}`,
+        { skillName, feeRate }
+      );
+      return feeRate;
+    }
+
+    // Try case-insensitive match
+    for (const [key, value] of skillFeeRates.entries()) {
+      if (key.toLowerCase() === skillName.toLowerCase() && value > 0) {
+        loggingService.warn('getFeeRateWithFallback', 'SuggestedRevenueCalculator',
+          `Using case-insensitive match for skill "${skillName}" -> "${key}"`,
+          { originalSkill: skillName, matchedSkill: key, feeRate: value }
+        );
+        return value;
+      }
+    }
+
+    // Try fallback rates
+    feeRate = this.fallbackRates[skillName];
+    if (feeRate !== undefined && feeRate > 0) {
+      loggingService.warn('getFeeRateWithFallback', 'SuggestedRevenueCalculator',
+        `Using fallback rate for skill: ${skillName}`,
+        { skillName, feeRate }
+      );
+      return feeRate;
+    }
+
+    // Try case-insensitive fallback match
+    for (const [key, value] of Object.entries(this.fallbackRates)) {
+      if (key.toLowerCase() === skillName.toLowerCase() && value > 0) {
+        loggingService.warn('getFeeRateWithFallback', 'SuggestedRevenueCalculator',
+          `Using case-insensitive fallback match for skill "${skillName}" -> "${key}"`,
+          { originalSkill: skillName, matchedSkill: key, feeRate: value }
+        );
+        return value;
+      }
+    }
+
+    // Final fallback - use default rate
+    const defaultRate = 75.00;
+    loggingService.warn('getFeeRateWithFallback', 'SuggestedRevenueCalculator',
+      `No fee rate found for skill "${skillName}", using default rate`,
+      { skillName, defaultRate }
+    );
+    
+    return defaultRate;
   }
 
   /**
@@ -91,7 +296,6 @@ export class SuggestedRevenueCalculator {
     suggestedRevenue: number
   ): number {
     try {
-      // Input validation
       if (typeof expectedRevenue !== 'number' || isNaN(expectedRevenue)) {
         throw new Error('Expected revenue must be a valid number');
       }
@@ -101,11 +305,16 @@ export class SuggestedRevenueCalculator {
 
       const difference = expectedRevenue - suggestedRevenue;
       
-      console.log(`Calculated expected less suggested: $${expectedRevenue} - $${suggestedRevenue} = $${difference}`);
+      loggingService.debug('calculateExpectedLessSuggested', 'SuggestedRevenueCalculator',
+        'Calculated revenue difference',
+        { expectedRevenue, suggestedRevenue, difference }
+      );
 
       return Number(difference.toFixed(2));
     } catch (error) {
-      console.error('Error calculating expected less suggested:', error);
+      loggingService.error('calculateExpectedLessSuggested', 'SuggestedRevenueCalculator',
+        'Error calculating expected less suggested', error as Error
+      );
       throw new SuggestedRevenueCalculatorError(
         `Failed to calculate expected less suggested: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'COMPARISON_ERROR'
@@ -152,51 +361,6 @@ export class SuggestedRevenueCalculator {
   }
 
   /**
-   * Bulk calculate suggested revenue for multiple skills
-   * @param demandData - Array of demand data with skill and hours
-   * @param skillFeeRates - Map of skill names to fee rates
-   * @returns Array of calculation results
-   */
-  public bulkCalculateSuggestedRevenue(
-    demandData: Array<{ skillName: string; demandHours: number }>,
-    skillFeeRates: Map<string, number>
-  ): SuggestedRevenueCalculation[] {
-    const results: SuggestedRevenueCalculation[] = [];
-    const errors: string[] = [];
-
-    for (const data of demandData) {
-      try {
-        const calculation = this.calculateSuggestedRevenueDetailed(
-          data.demandHours,
-          data.skillName,
-          skillFeeRates
-        );
-        results.push(calculation);
-      } catch (error) {
-        const errorMessage = `Error calculating for ${data.skillName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        errors.push(errorMessage);
-        console.warn(errorMessage);
-        
-        // Add fallback calculation with zero revenue
-        results.push({
-          skillName: data.skillName,
-          demandHours: data.demandHours,
-          feeRate: 0,
-          suggestedRevenue: 0,
-          isUsingFallback: true,
-          calculationNotes: `Error in calculation: ${errorMessage}`
-        });
-      }
-    }
-
-    if (errors.length > 0) {
-      console.warn(`Bulk calculation completed with ${errors.length} errors:`, errors);
-    }
-
-    return results;
-  }
-
-  /**
    * Get total suggested revenue from multiple calculations
    * @param calculations - Array of calculation results
    * @returns Total suggested revenue
@@ -204,62 +368,6 @@ export class SuggestedRevenueCalculator {
   public getTotalSuggestedRevenue(calculations: SuggestedRevenueCalculation[]): number {
     const total = calculations.reduce((sum, calc) => sum + calc.suggestedRevenue, 0);
     return Number(total.toFixed(2));
-  }
-
-  private validateInputs(
-    demandHours: number,
-    skillName: string,
-    skillFeeRates: Map<string, number>
-  ): void {
-    if (typeof demandHours !== 'number' || isNaN(demandHours) || demandHours < 0) {
-      throw new Error('Demand hours must be a non-negative number');
-    }
-    if (typeof skillName !== 'string' || skillName.trim().length === 0) {
-      throw new Error('Skill name must be a non-empty string');
-    }
-    if (!(skillFeeRates instanceof Map)) {
-      throw new Error('Skill fee rates must be a Map instance');
-    }
-  }
-
-  private getFeeRateWithFallback(
-    skillName: string,
-    skillFeeRates: Map<string, number>
-  ): number {
-    // Try exact match first
-    let feeRate = skillFeeRates.get(skillName);
-    
-    if (feeRate !== undefined && feeRate > 0) {
-      return feeRate;
-    }
-
-    // Try case-insensitive match
-    for (const [key, value] of skillFeeRates.entries()) {
-      if (key.toLowerCase() === skillName.toLowerCase() && value > 0) {
-        console.log(`Using case-insensitive match for skill "${skillName}" -> "${key}"`);
-        return value;
-      }
-    }
-
-    // Try fallback rates
-    feeRate = this.fallbackRates[skillName];
-    if (feeRate !== undefined && feeRate > 0) {
-      console.log(`Using fallback rate for skill "${skillName}": $${feeRate}/hour`);
-      return feeRate;
-    }
-
-    // Try case-insensitive fallback match
-    for (const [key, value] of Object.entries(this.fallbackRates)) {
-      if (key.toLowerCase() === skillName.toLowerCase() && value > 0) {
-        console.log(`Using case-insensitive fallback match for skill "${skillName}" -> "${key}"`);
-        return value;
-      }
-    }
-
-    // Final fallback - use default rate
-    const defaultRate = 75.00;
-    console.warn(`No fee rate found for skill "${skillName}", using default rate: $${defaultRate}/hour`);
-    return defaultRate;
   }
 }
 
