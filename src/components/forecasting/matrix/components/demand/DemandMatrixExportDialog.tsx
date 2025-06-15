@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import { DemandMatrixData } from '@/types/demand';
 import { useToast } from '@/components/ui/use-toast';
+import { formatCurrency, formatHours, formatNumber } from '@/lib/numberUtils';
 
 interface DemandMatrixExportDialogProps {
   isOpen: boolean;
@@ -30,6 +32,7 @@ interface DemandMatrixExportDialogProps {
   selectedSkills: string[];
   selectedClients: string[];
   monthRange: { start: number; end: number };
+  groupingMode: 'skill' | 'client';
 }
 
 export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> = ({
@@ -38,12 +41,14 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
   demandData,
   selectedSkills,
   selectedClients,
-  monthRange
+  monthRange,
+  groupingMode
 }) => {
   const [exportOptions, setExportOptions] = useState({
     includeTaskBreakdown: true,
-    includeClientSummary: true,
+    includeClientSummary: groupingMode === 'client',
     includeRecurrencePatterns: true,
+    includeRevenueColumns: groupingMode === 'client',
     includeTrendAnalysis: false,
     format: 'xlsx' as 'xlsx' | 'csv' | 'json'
   });
@@ -54,11 +59,13 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
   const estimatedFileSize = calculateEstimatedFileSize();
 
   function calculateEstimatedFileSize(): string {
-    const baseSize = demandData.dataPoints.length * 50; // Base size estimate
+    const baseSize = demandData.dataPoints.length * 100; // Increased base size for revenue columns
     const taskBreakdownSize = exportOptions.includeTaskBreakdown ? 
-      demandData.dataPoints.reduce((sum, point) => sum + (point.taskBreakdown?.length || 0), 0) * 100 : 0;
+      demandData.dataPoints.reduce((sum, point) => sum + (point.taskBreakdown?.length || 0), 0) * 150 : 0;
+    const revenueColumnsSize = exportOptions.includeRevenueColumns && groupingMode === 'client' ? 
+      demandData.dataPoints.length * 50 : 0; // Additional size for revenue columns
     
-    const totalBytes = baseSize + taskBreakdownSize;
+    const totalBytes = baseSize + taskBreakdownSize + revenueColumnsSize;
     
     if (totalBytes < 1024) return `${totalBytes} B`;
     if (totalBytes < 1024 * 1024) return `${(totalBytes / 1024).toFixed(1)} KB`;
@@ -103,24 +110,36 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
     const exportData = {
       metadata: {
         exportDate: new Date().toISOString(),
+        groupingMode,
         skillsIncluded: selectedSkills.length,
         clientsIncluded: selectedClients.length,
         monthsIncluded: filteredMonths.length,
-        totalDataPoints: filteredData.length
+        totalDataPoints: filteredData.length,
+        includeRevenueColumns: exportOptions.includeRevenueColumns && groupingMode === 'client'
       },
       matrixData: filteredData.map(point => ({
         skill: point.skillType,
         month: point.month,
-        monthLabel: point.monthLabel || point.month, // Fixed: Handle missing monthLabel safely
+        monthLabel: point.monthLabel || point.month,
         demandHours: point.demandHours,
         taskCount: point.taskCount,
         clientCount: point.clientCount,
+        // NEW: Include revenue columns for client grouping mode
+        ...(exportOptions.includeRevenueColumns && groupingMode === 'client' && {
+          suggestedRevenue: point.suggestedRevenue || 0,
+          expectedLessSuggested: point.expectedLessSuggested || 0
+        }),
         ...(exportOptions.includeTaskBreakdown && {
           taskBreakdown: point.taskBreakdown
         })
       })),
-      ...(exportOptions.includeClientSummary && {
-        clientSummary: generateClientSummary(filteredData)
+      // NEW: Include client revenue summaries for client mode
+      ...(exportOptions.includeClientSummary && groupingMode === 'client' && {
+        clientSummary: generateClientSummaryWithRevenue(filteredData)
+      }),
+      // NEW: Include revenue totals
+      ...(exportOptions.includeRevenueColumns && groupingMode === 'client' && demandData.revenueTotals && {
+        revenueTotals: demandData.revenueTotals
       }),
       ...(exportOptions.includeRecurrencePatterns && {
         recurrencePatterns: generateRecurrencePatterns(filteredData)
@@ -130,7 +149,8 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
     return exportData;
   };
 
-  const generateClientSummary = (data: any[]) => {
+  // NEW: Enhanced client summary with revenue information
+  const generateClientSummaryWithRevenue = (data: any[]) => {
     const clientMap = new Map();
     
     data.forEach(point => {
@@ -144,7 +164,12 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
             clientId: task.clientId,
             clientName: task.clientName,
             totalHours: task.monthlyHours,
-            taskCount: 1
+            taskCount: 1,
+            // NEW: Include revenue information
+            expectedRevenue: demandData.clientRevenue?.get(task.clientName) || 0,
+            suggestedRevenue: demandData.clientSuggestedRevenue?.get(task.clientName) || 0,
+            expectedLessSuggested: demandData.clientExpectedLessSuggested?.get(task.clientName) || 0,
+            hourlyRate: demandData.clientHourlyRates?.get(task.clientName) || 0
           });
         }
       });
@@ -178,7 +203,8 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
   };
 
   const downloadFile = async (data: any) => {
-    const filename = `demand-matrix-${new Date().toISOString().split('T')[0]}.${exportOptions.format}`;
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `demand-matrix-${groupingMode}-${timestamp}.${exportOptions.format}`;
     
     let content: string;
     let mimeType: string;
@@ -189,11 +215,12 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
         mimeType = 'application/json';
         break;
       case 'csv':
-        content = convertToCSV(data.matrixData);
+        content = convertToEnhancedCSV(data.matrixData);
         mimeType = 'text/csv';
         break;
       case 'xlsx':
         // In a real implementation, you would use a library like xlsx to create Excel files
+        // For now, we'll create a structured JSON that could be converted to Excel
         content = JSON.stringify(data, null, 2);
         mimeType = 'application/json';
         break;
@@ -212,17 +239,48 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
     URL.revokeObjectURL(url);
   };
 
-  const convertToCSV = (data: any[]): string => {
+  // NEW: Enhanced CSV conversion with revenue columns
+  const convertToEnhancedCSV = (data: any[]): string => {
     if (data.length === 0) return '';
     
-    const headers = Object.keys(data[0]).filter(key => key !== 'taskBreakdown');
+    // Build headers based on grouping mode and options
+    const baseHeaders = [
+      groupingMode === 'skill' ? 'Skill Type' : 'Client Name',
+      'Month',
+      'Month Label',
+      'Demand Hours',
+      'Task Count',
+      'Client Count'
+    ];
+
+    // NEW: Add revenue headers for client mode
+    const revenueHeaders = exportOptions.includeRevenueColumns && groupingMode === 'client' ? [
+      'Suggested Revenue',
+      'Expected Less Suggested'
+    ] : [];
+
+    const headers = [...baseHeaders, ...revenueHeaders];
+    
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
-        headers.map(header => 
-          typeof row[header] === 'string' ? `"${row[header]}"` : row[header]
-        ).join(',')
-      )
+      ...data.map(row => {
+        const baseValues = [
+          `"${row.skill || row.clientName}"`,
+          `"${row.month}"`,
+          `"${row.monthLabel}"`,
+          formatHours(row.demandHours, 1),
+          row.taskCount,
+          row.clientCount
+        ];
+
+        // NEW: Add revenue values for client mode
+        const revenueValues = exportOptions.includeRevenueColumns && groupingMode === 'client' ? [
+          row.suggestedRevenue || 0,
+          row.expectedLessSuggested || 0
+        ] : [];
+
+        return [...baseValues, ...revenueValues].join(',');
+      })
     ].join('\n');
     
     return csvContent;
@@ -234,7 +292,7 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Export Demand Matrix
+            Export Demand Matrix ({groupingMode === 'skill' ? 'Skill View' : 'Client View'})
           </DialogTitle>
         </DialogHeader>
         
@@ -250,6 +308,9 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                   <Badge variant="outline">{selectedClients.length} clients</Badge>
                   <Badge variant="outline">{filteredMonths.length} months</Badge>
                   <Badge variant="outline">~{estimatedFileSize}</Badge>
+                  {exportOptions.includeRevenueColumns && groupingMode === 'client' && (
+                    <Badge variant="secondary">Revenue Columns</Badge>
+                  )}
                 </div>
               </div>
             </AlertDescription>
@@ -305,7 +366,15 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                 { 
                   key: 'includeClientSummary', 
                   label: 'Client Summary', 
-                  desc: 'Aggregated client demand statistics' 
+                  desc: 'Aggregated client demand and revenue statistics',
+                  disabled: groupingMode !== 'client'
+                },
+                { 
+                  key: 'includeRevenueColumns', 
+                  label: 'Revenue Columns', 
+                  desc: 'Suggested Revenue and Expected Less Suggested columns',
+                  disabled: groupingMode !== 'client',
+                  highlight: groupingMode === 'client'
                 },
                 { 
                   key: 'includeRecurrencePatterns', 
@@ -322,6 +391,7 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                   <Checkbox
                     id={option.key}
                     checked={exportOptions[option.key as keyof typeof exportOptions] as boolean}
+                    disabled={option.disabled}
                     onCheckedChange={(checked) => 
                       setExportOptions(prev => ({ 
                         ...prev, 
@@ -332,9 +402,14 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                   <div className="space-y-1">
                     <Label 
                       htmlFor={option.key}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
+                        option.highlight ? 'text-primary' : ''
+                      }`}
                     >
                       {option.label}
+                      {option.highlight && (
+                        <Badge variant="secondary" className="ml-2 text-xs">NEW</Badge>
+                      )}
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {option.desc}
