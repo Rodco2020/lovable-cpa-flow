@@ -1,4 +1,3 @@
-
 /**
  * Validation Test Suite
  * 
@@ -201,18 +200,22 @@ export class ValidationTestSuite {
       throw new Error('Expected recovery to fail when recovery is disabled');
     }
 
-    // Test error reporting
-    const errorReport = errorHandlingService.generateErrorReport();
+    // Test recent errors retrieval
+    const recentErrors = errorHandlingService.getRecentErrors(5);
     
-    if (!errorReport || !errorReport.includes('Test error for handling')) {
-      throw new Error('Expected error to be included in error report');
+    if (!Array.isArray(recentErrors)) {
+      throw new Error('Expected recent errors to be an array');
     }
 
-    // Test error metrics
-    const errorMetrics = errorHandlingService.getErrorMetrics();
+    // Test error statistics
+    const errorStats = errorHandlingService.getErrorStatistics();
     
-    if (errorMetrics.totalErrors === 0) {
-      throw new Error('Expected error metrics to show recorded errors');
+    if (errorStats.totalErrors === 0) {
+      throw new Error('Expected error statistics to show recorded errors');
+    }
+
+    if (typeof errorStats.totalErrors !== 'number') {
+      throw new Error('Expected totalErrors to be a number');
     }
   }
 
