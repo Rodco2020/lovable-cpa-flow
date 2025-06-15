@@ -1,4 +1,3 @@
-
 import { DemandDataPoint } from '@/types/demand';
 
 /**
@@ -125,10 +124,7 @@ export class ClientRevenueCalculator {
       const suggestedRevenue = clientSuggestedRevenue.get(clientName) || 0;
       const difference = expectedRevenue - suggestedRevenue;
       
-      clientExpectedLessS
-
-
-ested.set(clientName, difference);
+      clientExpectedLessSuggested.set(clientName, difference);
       
       const status = difference > 0 ? 'OVER' : difference < 0 ? 'UNDER' : 'MATCH';
       console.log(`📊 [CLIENT EXPECTED LESS SUGGESTED] ${clientName}: $${expectedRevenue} - $${suggestedRevenue.toFixed(2)} = $${difference.toFixed(2)} (${status})`);

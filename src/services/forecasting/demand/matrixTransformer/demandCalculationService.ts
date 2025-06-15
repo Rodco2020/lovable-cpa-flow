@@ -60,6 +60,73 @@ export class DemandCalculationService {
   }
 
   /**
+   * NEW: Calculate demand for skill period (simplified interface)
+   */
+  static calculateDemandForSkillPeriod(
+    skill: SkillType,
+    period: ForecastData,
+    tasks: RecurringTaskDB[],
+    skillMapping: Map<string, string>
+  ): { totalDemand: number; totalTasks: number; totalClients: number } {
+    try {
+      const demandHours = this.calculateDemandForSkillPeriodWithMapping(period, skill, skillMapping);
+      
+      // Calculate task and client counts for this skill in this period
+      const skillTasks = tasks.filter(task => {
+        if (!Array.isArray(task.required_skills)) return false;
+        return task.required_skills.some(taskSkill => {
+          const mappedSkill = skillMapping.get(taskSkill);
+          return mappedSkill === skill || taskSkill === skill;
+        });
+      });
+
+      const uniqueClients = new Set(skillTasks.map(task => task.client_id)).size;
+
+      return {
+        totalDemand: demandHours,
+        totalTasks: skillTasks.length,
+        totalClients: uniqueClients
+      };
+    } catch (error) {
+      console.warn(`Error calculating demand for skill period ${skill}:`, error);
+      return { totalDemand: 0, totalTasks: 0, totalClients: 0 };
+    }
+  }
+
+  /**
+   * NEW: Calculate monthly demand for a specific task
+   */
+  static calculateMonthlyDemandForTask(
+    task: RecurringTaskDB,
+    forecastPeriod: ForecastData
+  ): { monthlyHours: number; monthlyOccurrences: number } {
+    try {
+      if (!task || !forecastPeriod) {
+        return { monthlyHours: 0, monthlyOccurrences: 0 };
+      }
+
+      // Parse period to get month boundaries
+      const periodDate = new Date(`${forecastPeriod.period}-01`);
+      const monthStart = startOfMonth(periodDate);
+      const monthEnd = endOfMonth(periodDate);
+
+      // Calculate recurrence for this task in the month
+      const recurrence = RecurrenceCalculator.calculateMonthlyDemand(task, monthStart, monthEnd);
+
+      const estimatedHours = Math.max(0, task.estimated_hours || 0);
+      const monthlyHours = recurrence.monthlyOccurrences * estimatedHours;
+
+      return {
+        monthlyHours,
+        monthlyOccurrences: recurrence.monthlyOccurrences
+      };
+    } catch (error) {
+      console.warn(`Error calculating monthly demand for task ${task.id}:`, error);
+      return { monthlyHours: 0, monthlyOccurrences: 0 };
+    }
+  }
+
+  /**
    * Generate task breakdown with consistent client resolution using pre-resolved client map
    * FIXED: Now uses full task hours per skill in breakdown generation
    */

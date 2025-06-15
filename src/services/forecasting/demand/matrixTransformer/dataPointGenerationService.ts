@@ -83,8 +83,7 @@ export class DataPointGenerationService {
     try {
       // Find matching forecast period
       const forecastPeriod = forecastData.find(period => {
-        const periodKey = PeriodProcessingService.formatMonthKey(new Date(period.month));
-        return periodKey === month.key;
+        return period.period === month.key;
       });
 
       if (!forecastPeriod) {
@@ -173,8 +172,10 @@ export class DataPointGenerationService {
 
       for (const task of skillTasks) {
         try {
-          // Resolve client information
-          const clientInfo = await ClientResolutionService.resolveClientInfo(task.client_id);
+          // Resolve client information using the available method
+          const clientIds = [task.client_id];
+          const clientResolutionMap = await ClientResolutionService.resolveClientIds(clientIds);
+          const clientInfo = clientResolutionMap.get(task.client_id);
           
           if (!clientInfo) {
             console.warn(`⚠️ [TASK BREAKDOWN] Could not resolve client for task ${task.id}`);
@@ -190,11 +191,11 @@ export class DataPointGenerationService {
           if (monthlyDemand.monthlyHours > 0) {
             const taskDemand: ClientTaskDemand = {
               clientId: task.client_id,
-              clientName: clientInfo.legal_name,
+              clientName: clientInfo,
               recurringTaskId: task.id,
               taskName: task.name,
               skillType: skill,
-              estimatedHours: task.estimated_hours,
+              estimatedH</s: task.estimated_hours,
               recurrencePattern: {
                 type: task.recurrence_type,
                 interval: task.recurrence_interval || 1,

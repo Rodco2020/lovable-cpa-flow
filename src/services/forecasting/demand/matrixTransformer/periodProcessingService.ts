@@ -48,4 +48,21 @@ export class PeriodProcessingService {
       return [];
     }
   }
+
+  /**
+   * Format month key from date for consistent formatting
+   */
+  static formatMonthKey(date: Date): string {
+    try {
+      if (!date || isNaN(date.getTime())) {
+        console.warn('Invalid date provided to formatMonthKey');
+        return '';
+      }
+      
+      return format(date, 'yyyy-MM');
+    } catch (error) {
+      console.warn('Error formatting month key:', error);
+      return '';
+    }
+  }
 }

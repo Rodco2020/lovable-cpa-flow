@@ -24,7 +24,7 @@ vi.mock('../clientResolutionService', () => ({
   ClientResolutionService: {
     initializeClientCache: vi.fn(() => Promise.resolve()),
     getCacheStats: vi.fn(() => ({ clientsCount: 0 })),
-    resolveClientInfo: vi.fn(() => Promise.resolve({ legal_name: 'Test Client' }))
+    resolveClientIds: vi.fn(() => Promise.resolve(new Map([['client1', 'Test Client']])))
   }
 }));
 
@@ -51,13 +51,17 @@ describe('MatrixTransformerCore Integration Tests', () => {
   beforeEach(() => {
     mockForecastData = [
       {
-        id: 'forecast1',
-        month: '2024-01-01',
-        cpa_demand: 20,
-        senior_demand: 40,
-        junior_demand: 60,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        period: '2024-01',
+        demand: [
+          { skill: 'CPA', hours: 20 },
+          { skill: 'Senior', hours: 40 },
+          { skill: 'Junior', hours: 60 }
+        ],
+        capacity: [
+          { skill: 'CPA', hours: 25 },
+          { skill: 'Senior', hours: 45 },
+          { skill: 'Junior', hours: 65 }
+        ]
       }
     ];
 
@@ -75,7 +79,7 @@ describe('MatrixTransformerCore Integration Tests', () => {
         recurrence_type: 'Monthly',
         recurrence_interval: 1,
         is_active: true,
-        status: 'Active',
+        status: 'Unscheduled',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -183,15 +187,19 @@ describe('MatrixTransformerCore Integration Tests', () => {
     });
 
     it('should handle large datasets efficiently', async () => {
-      // Create larger dataset
+      // Create larger dataset with correct structure
       const largeForecastData = Array.from({ length: 12 }, (_, i) => ({
-        id: `forecast${i + 1}`,
-        month: `2024-${String(i + 1).padStart(2, '0')}-01`,
-        cpa_demand: Math.random() * 50,
-        senior_demand: Math.random() * 100,
-        junior_demand: Math.random() * 150,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        period: `2024-${String(i + 1).padStart(2, '0')}`,
+        demand: [
+          { skill: 'CPA', hours: Math.random() * 50 },
+          { skill: 'Senior', hours: Math.random() * 100 },
+          { skill: 'Junior', hours: Math.random() * 150 }
+        ],
+        capacity: [
+          { skill: 'CPA', hours: Math.random() * 60 },
+          { skill: 'Senior', hours: Math.random() * 110 },
+          { skill: 'Junior', hours: Math.random() * 160 }
+        ]
       }));
 
       const largeTasks = Array.from({ length: 50 }, (_, i) => ({
@@ -201,13 +209,13 @@ describe('MatrixTransformerCore Integration Tests', () => {
         name: `Test Task ${i + 1}`,
         description: `Test Description ${i + 1}`,
         estimated_hours: Math.random() * 20,
-        required_skills: ['CPA', 'Senior', 'Junior'][i % 3] ? [['CPA', 'Senior', 'Junior'][i % 3]] : ['CPA'],
+        required_skills: [['CPA', 'Senior', 'Junior'][i % 3]],
         priority: ['High', 'Medium', 'Low'][i % 3],
         category: 'Tax',
         recurrence_type: 'Monthly',
         recurrence_interval: 1,
         is_active: true,
-        status: 'Active',
+        status: 'Unscheduled',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }));
