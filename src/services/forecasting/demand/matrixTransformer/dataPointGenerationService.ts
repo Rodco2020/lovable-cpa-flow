@@ -1,120 +1,241 @@
 
-import { DemandDataPoint } from '@/types/demand';
+import { debugLog } from '../../logger';
+import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
-import { RecurringTaskDB, SkillType } from '@/types/task';
-import { DataValidator } from '../dataValidator';
-import { DemandCalculationService } from './demandCalculationService';
-import { DataPointGenerationContext } from './types';
+import { RecurringTaskDB } from '@/types/task';
 import { ClientResolutionService } from '../clientResolutionService';
-import { format } from 'date-fns';
+import { DemandCalculationService } from './demandCalculationService';
+import { PeriodProcessingService } from './periodProcessingService';
+import { suggestedRevenueCalculator } from '../calculators/SuggestedRevenueCalculator';
+import { RevenueEnhancedDataPointContext } from './types';
 
 /**
- * Service responsible for generating data points for the matrix
+ * Enhanced Data Point Generation Service
+ * Now includes revenue calculations during data point generation
  */
 export class DataPointGenerationService {
   /**
-   * Generate data points with correct skill mapping and client resolution
+   * Generate data points with skill mapping and revenue calculations
    */
   static async generateDataPointsWithSkillMapping(
-    context: DataPointGenerationContext
+    context: RevenueEnhancedDataPointContext
   ): Promise<DemandDataPoint[]> {
+    const { forecastData, tasks, skills, skillMapping, revenueContext, revenueCalculationConfig } = context;
+    
+    debugLog('Generating data points with enhanced revenue calculations', {
+      periodsCount: forecastData.length,
+      skillsCount: skills.length,
+      tasksCount: tasks.length,
+      revenueEnabled: revenueCalculationConfig?.enabled || false
+    });
+
     try {
-      const { forecastData, tasks, skills, skillMapping } = context;
       const dataPoints: DemandDataPoint[] = [];
+      const months = PeriodProcessingService.generateMonthsFromForecast(forecastData);
 
-      console.log('🔄 [DATA POINT GEN] Generating data points with skill mapping and client resolution...');
+      console.log(`📊 [DATA POINTS] Generating ${months.length} × ${skills.length} data points with revenue calculations`);
 
-      // Pre-warm the client resolution cache
-      await ClientResolutionService.initializeClientCache();
-
-      // Pre-resolve all client IDs to names for consistent aggregation
-      const allClientIds = [...new Set(tasks.map(task => task.client_id).filter(Boolean))];
-      const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
-      
-      console.log(`🏢 [DATA POINT GEN] Pre-resolved ${clientResolutionMap.size} clients for consistent aggregation`);
-
-      for (const skill of skills) {
-        for (const period of forecastData) {
+      // Generate data points for each month-skill combination
+      for (const month of months) {
+        for (const skill of skills) {
           try {
-            if (!period || !period.period) continue;
-
-            // Calculate demand using both direct match and mapping
-            const demandHours = DemandCalculationService.calculateDemandForSkillPeriodWithMapping(
-              period, 
-              skill, 
-              skillMapping
-            );
-            
-            const taskBreakdown = await DemandCalculationService.generateTaskBreakdownWithMapping(
-              tasks, 
-              skill, 
-              period.period, 
+            const dataPoint = await this.generateSingleDataPoint(
+              month,
+              skill,
+              forecastData,
+              tasks,
               skillMapping,
-              clientResolutionMap  // Pass pre-resolved client map
+              revenueContext
             );
             
-            // Calculate derived metrics safely with consistent client counting using resolved names
-            const taskCount = DataValidator.sanitizeArrayLength(taskBreakdown.length, 1000);
-            
-            // Count unique clients by resolved names (not UUIDs)
-            const uniqueClientNames = new Set(
-              taskBreakdown
-                .map(t => t.clientName)
-                .filter(name => typeof name === 'string' && name.length > 0 && !name.includes('...')) // Exclude fallback names
-            );
-            const clientCount = DataValidator.sanitizeArrayLength(uniqueClientNames.size, 1000);
-
-            const dataPoint: DemandDataPoint = {
-              skillType: skill,
-              month: period.period,
-              monthLabel: this.getMonthLabel(period.period),
-              demandHours: Math.max(0, demandHours),
-              taskCount,
-              clientCount,
-              taskBreakdown
-            };
-
-            dataPoints.push(dataPoint);
-
-            console.log(`✅ [DATA POINT GEN] Generated data point for ${skill} in ${period.period}:`, {
-              demandHours,
-              taskCount,
-              clientCount,
-              uniqueClients: Array.from(uniqueClientNames).slice(0, 3)
-            });
-
-          } catch (pointError) {
-            console.warn(`Error generating data point for ${skill} in ${period.period}:`, pointError);
+            if (dataPoint) {
+              dataPoints.push(dataPoint);
+            }
+          } catch (error) {
+            console.warn(`⚠️ [DATA POINTS] Error generating data point for ${month.key}/${skill}:`, error);
+            // Continue with other data points rather than failing
+            const fallbackDataPoint = this.createFallbackDataPoint(month, skill);
+            dataPoints.push(fallbackDataPoint);
           }
         }
       }
 
-      console.log(`📊 [DATA POINT GEN] Generated ${dataPoints.length} total data points with consistent client resolution`);
+      console.log(`✅ [DATA POINTS] Generated ${dataPoints.length} data points with revenue calculations`);
       return dataPoints;
+
     } catch (error) {
-      console.error('Error generating data points with skill mapping and client resolution:', error);
+      console.error('❌ [DATA POINTS] Error generating data points:', error);
       return [];
     }
   }
 
   /**
-   * Get month label safely
+   * Generate a single data point with revenue calculations
    */
-  private static getMonthLabel(period: string): string {
+  private static async generateSingleDataPoint(
+    month: { key: string; label: string },
+    skill: string,
+    forecastData: ForecastData[],
+    tasks: RecurringTaskDB[],
+    skillMapping: Map<string, string>,
+    revenueContext?: any
+  ): Promise<DemandDataPoint | null> {
     try {
-      if (!period || !/^\d{4}-\d{2}$/.test(period)) {
-        return 'Invalid Date';
+      // Find matching forecast period
+      const forecastPeriod = forecastData.find(period => {
+        const periodKey = PeriodProcessingService.formatMonthKey(new Date(period.month));
+        return periodKey === month.key;
+      });
+
+      if (!forecastPeriod) {
+        return null;
       }
-      
-      const date = new Date(period + '-01');
-      if (isNaN(date.getTime())) {
-        return 'Invalid Date';
+
+      // Calculate demand using existing logic
+      const demandCalculation = DemandCalculationService.calculateDemandForSkillPeriod(
+        skill,
+        forecastPeriod,
+        tasks,
+        skillMapping
+      );
+
+      // Generate task breakdown with client resolution
+      const taskBreakdown = await this.generateTaskBreakdown(
+        skill,
+        forecastPeriod,
+        tasks,
+        skillMapping
+      );
+
+      // NEW: Calculate revenue if enabled
+      let suggestedRevenue = 0;
+      let expectedLessSuggested = 0;
+
+      if (revenueContext?.includeRevenueCalculations && revenueContext.skillFeeRates) {
+        try {
+          suggestedRevenue = suggestedRevenueCalculator.calculateSuggestedRevenue(
+            demandCalculation.totalDemand,
+            skill,
+            revenueContext.skillFeeRates
+          );
+
+          // For now, set expectedLessSuggested to 0 - will be calculated at client level
+          expectedLessSuggested = 0;
+
+          console.log(`💰 [DATA POINT] ${month.key}/${skill}: ${demandCalculation.totalDemand}h × fee rate = $${suggestedRevenue}`);
+        } catch (revenueError) {
+          console.warn(`⚠️ [DATA POINT] Error calculating revenue for ${month.key}/${skill}:`, revenueError);
+          // Continue with zero revenue rather than failing
+        }
       }
-      
-      return format(date, 'MMM yyyy');
+
+      const dataPoint: DemandDataPoint = {
+        skillType: skill,
+        month: month.key,
+        monthLabel: month.label,
+        demandHours: demandCalculation.totalDemand,
+        taskCount: demandCalculation.totalTasks,
+        clientCount: demandCalculation.totalClients,
+        taskBreakdown,
+        // NEW: Revenue fields
+        suggestedRevenue,
+        expectedLessSuggested
+      };
+
+      return dataPoint;
+
     } catch (error) {
-      console.warn(`Error formatting month label for ${period}:`, error);
-      return 'Invalid Date';
+      console.error(`❌ [DATA POINT] Error generating data point for ${month.key}/${skill}:`, error);
+      return null;
     }
+  }
+
+  /**
+   * Generate task breakdown for a data point with enhanced client resolution
+   */
+  private static async generateTaskBreakdown(
+    skill: string,
+    forecastPeriod: ForecastData,
+    tasks: RecurringTaskDB[],
+    skillMapping: Map<string, string>
+  ): Promise<ClientTaskDemand[]> {
+    const taskBreakdown: ClientTaskDemand[] = [];
+
+    try {
+      // Filter tasks by skill using the skill mapping
+      const skillTasks = tasks.filter(task => {
+        const taskSkills = Array.isArray(task.required_skills) ? task.required_skills : [];
+        return taskSkills.some(taskSkill => {
+          const mappedSkill = skillMapping.get(taskSkill);
+          return mappedSkill === skill || taskSkill === skill;
+        });
+      });
+
+      for (const task of skillTasks) {
+        try {
+          // Resolve client information
+          const clientInfo = await ClientResolutionService.resolveClientInfo(task.client_id);
+          
+          if (!clientInfo) {
+            console.warn(`⚠️ [TASK BREAKDOWN] Could not resolve client for task ${task.id}`);
+            continue;
+          }
+
+          // Calculate monthly demand for this task
+          const monthlyDemand = DemandCalculationService.calculateMonthlyDemandForTask(
+            task,
+            forecastPeriod
+          );
+
+          if (monthlyDemand.monthlyHours > 0) {
+            const taskDemand: ClientTaskDemand = {
+              clientId: task.client_id,
+              clientName: clientInfo.legal_name,
+              recurringTaskId: task.id,
+              taskName: task.name,
+              skillType: skill,
+              estimatedHours: task.estimated_hours,
+              recurrencePattern: {
+                type: task.recurrence_type,
+                interval: task.recurrence_interval || 1,
+                frequency: monthlyDemand.monthlyOccurrences
+              },
+              monthlyHours: monthlyDemand.monthlyHours
+            };
+
+            taskBreakdown.push(taskDemand);
+          }
+        } catch (taskError) {
+          console.warn(`⚠️ [TASK BREAKDOWN] Error processing task ${task.id}:`, taskError);
+          // Continue with other tasks
+        }
+      }
+
+      return taskBreakdown;
+
+    } catch (error) {
+      console.error('❌ [TASK BREAKDOWN] Error generating task breakdown:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create a fallback data point when generation fails
+   */
+  private static createFallbackDataPoint(
+    month: { key: string; label: string },
+    skill: string
+  ): DemandDataPoint {
+    return {
+      skillType: skill,
+      month: month.key,
+      monthLabel: month.label,
+      demandHours: 0,
+      taskCount: 0,
+      clientCount: 0,
+      taskBreakdown: [],
+      suggestedRevenue: 0,
+      expectedLessSuggested: 0
+    };
   }
 }

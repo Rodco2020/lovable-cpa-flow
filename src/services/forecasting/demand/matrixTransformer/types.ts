@@ -144,3 +144,37 @@ export interface RevenueCalculationPerformanceMetrics {
     errorsByType: Record<string, number>;
   };
 }
+
+/**
+ * NEW: Integration verification result for Phase 4 testing
+ */
+export interface IntegrationVerificationResult {
+  matrixTransformation: {
+    successful: boolean;
+    processingTime: number;
+    dataPointsGenerated: number;
+    revenueCalculationsComplete: boolean;
+    performanceWithinThreshold: boolean;
+  };
+  revenueCalculations: {
+    skillFeeRatesLoaded: boolean;
+    suggestedRevenueCalculated: boolean;
+    expectedLessSuggestedCalculated: boolean;
+    clientRevenueMetricsComplete: boolean;
+    matrixTotalsCalculated: boolean;
+  };
+  dataValidation: {
+    structureValid: boolean;
+    revenueFieldsPresent: boolean;
+    dataConsistencyChecks: boolean;
+    backwardCompatibilityMaintained: boolean;
+  };
+  performance: {
+    transformationTime: number;
+    memoryUsage: number;
+    withinTimeThreshold: boolean;
+    withinMemoryThreshold: boolean;
+  };
+  errors: string[];
+  warnings: string[];
+}
