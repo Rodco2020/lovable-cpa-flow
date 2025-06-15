@@ -28,6 +28,21 @@ export {
 
 export { getDefaultSkills } from './defaults';
 
+// Fee rate service exports
+export {
+  getSkillFeeRatesMap,
+  getSkillFeeRates,
+  getSkillFeeRate,
+  getMultipleSkillFeeRates,
+  calculateSkillsRevenue,
+  getDefaultFeeRates
+} from './feeRateService';
+
+export type {
+  SkillFeeRate,
+  SkillFeeRateMap
+} from './feeRateService';
+
 // Type exports
 export type {
   SkillsServiceError as SkillsError,

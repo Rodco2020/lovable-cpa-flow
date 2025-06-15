@@ -10,7 +10,7 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Compliance' as SkillCategory,
       proficiencyLevel: 'Expert' as ProficiencyLevel,
       hourlyRate: 150.00,
-      feePerHour: 225.00,
+      feePerHour: 250.00, // Updated to correct rate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -21,7 +21,7 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Administrative' as SkillCategory,
       proficiencyLevel: 'Expert' as ProficiencyLevel,
       hourlyRate: 125.00,
-      feePerHour: 187.50,
+      feePerHour: 150.00, // Updated to correct rate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -32,7 +32,7 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Administrative' as SkillCategory,
       proficiencyLevel: 'Intermediate' as ProficiencyLevel,
       hourlyRate: 65.00,
-      feePerHour: 97.50,
+      feePerHour: 100.00, // Updated to correct rate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },

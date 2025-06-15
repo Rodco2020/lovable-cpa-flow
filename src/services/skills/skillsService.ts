@@ -28,7 +28,7 @@ export const getAllSkills = async (): Promise<Skill[]> => {
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,
-    feePerHour: item.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: item.fee_per_hour,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   }));
@@ -58,7 +58,7 @@ export const getSkillById = async (id: string): Promise<Skill | undefined> => {
     proficiencyLevel: data.proficiency_level as ProficiencyLevel,
     category: data.category as SkillCategory,
     hourlyRate: data.cost_per_hour,
-    feePerHour: data.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: data.fee_per_hour,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -86,7 +86,7 @@ export const getSkillsByIds = async (ids: string[]): Promise<Skill[]> => {
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,
-    feePerHour: item.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: item.fee_per_hour,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   }));
@@ -101,7 +101,7 @@ export const createSkill = async (skillData: Omit<Skill, "id" | "createdAt" | "u
       category: skillData.category,
       proficiency_level: skillData.proficiencyLevel,
       cost_per_hour: skillData.hourlyRate || 50.00, // Default value if not provided
-      fee_per_hour: skillData.feePerHour || 75.00, // NEW: Default client billing rate
+      fee_per_hour: skillData.feePerHour || 75.00,
     })
     .select()
     .single();
@@ -118,7 +118,7 @@ export const createSkill = async (skillData: Omit<Skill, "id" | "createdAt" | "u
     proficiencyLevel: data.proficiency_level as ProficiencyLevel,
     category: data.category as SkillCategory,
     hourlyRate: data.cost_per_hour,
-    feePerHour: data.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: data.fee_per_hour,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -132,7 +132,7 @@ export const updateSkill = async (id: string, skillData: Partial<Omit<Skill, "id
   if (skillData.category) updateData.category = skillData.category;
   if (skillData.proficiencyLevel) updateData.proficiency_level = skillData.proficiencyLevel;
   if (skillData.hourlyRate !== undefined) updateData.cost_per_hour = skillData.hourlyRate;
-  if (skillData.feePerHour !== undefined) updateData.fee_per_hour = skillData.feePerHour; // NEW: Handle client billing rate updates
+  if (skillData.feePerHour !== undefined) updateData.fee_per_hour = skillData.feePerHour;
   
   const { data, error } = await supabase
     .from("skills")
@@ -155,7 +155,7 @@ export const updateSkill = async (id: string, skillData: Partial<Omit<Skill, "id
     proficiencyLevel: data.proficiency_level as ProficiencyLevel,
     category: data.category as SkillCategory,
     hourlyRate: data.cost_per_hour,
-    feePerHour: data.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: data.fee_per_hour,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -194,7 +194,7 @@ export const getSkillsByCategory = async (category: SkillCategory): Promise<Skil
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,
-    feePerHour: item.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: item.fee_per_hour,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   }));
@@ -218,7 +218,7 @@ export const getSkillsByProficiencyLevel = async (level: ProficiencyLevel): Prom
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,
-    feePerHour: item.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: item.fee_per_hour,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   }));
@@ -244,7 +244,7 @@ export const searchSkills = async (query: string): Promise<Skill[]> => {
     proficiencyLevel: item.proficiency_level as ProficiencyLevel,
     category: item.category as SkillCategory,
     hourlyRate: item.cost_per_hour,
-    feePerHour: item.fee_per_hour, // NEW: Map client billing rate
+    feePerHour: item.fee_per_hour,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   }));
@@ -276,29 +276,29 @@ export const getDefaultSkills = (): Skill[] => {
       category: 'Compliance' as SkillCategory,
       proficiencyLevel: 'Expert' as ProficiencyLevel,
       hourlyRate: 150.00,
-      feePerHour: 225.00, // NEW: Client billing rate (50% markup)
+      feePerHour: 250.00, // Updated to correct rate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
     {
-      id: 'tax-prep',
-      name: 'Tax Preparation',
-      description: 'Individual and business tax preparation',
-      category: 'Tax' as SkillCategory,
-      proficiencyLevel: 'Intermediate' as ProficiencyLevel,
-      hourlyRate: 75.00,
-      feePerHour: 112.50, // NEW: Client billing rate (50% markup)
+      id: 'senior',
+      name: 'Senior',
+      description: 'Senior-level professional with advanced expertise',
+      category: 'Administrative' as SkillCategory,
+      proficiencyLevel: 'Expert' as ProficiencyLevel,
+      hourlyRate: 125.00,
+      feePerHour: 150.00, // Updated to correct rate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
     {
-      id: 'bookkeeping',
-      name: 'Bookkeeping',
-      description: 'General bookkeeping and accounting',
-      category: 'Bookkeeping' as SkillCategory,
+      id: 'junior',
+      name: 'Junior',
+      description: 'Junior-level professional with foundational skills',
+      category: 'Administrative' as SkillCategory,
       proficiencyLevel: 'Intermediate' as ProficiencyLevel,
-      hourlyRate: 45.00,
-      feePerHour: 67.50, // NEW: Client billing rate (50% markup)
+      hourlyRate: 65.00,
+      feePerHour: 100.00, // Updated to correct rate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
