@@ -80,6 +80,14 @@ describe('MatrixTransformerCore Integration Tests', () => {
         recurrence_interval: 1,
         is_active: true,
         status: 'Unscheduled',
+        due_date: null,
+        weekdays: null,
+        day_of_month: null,
+        month_of_year: null,
+        end_date: null,
+        custom_offset_days: null,
+        last_generated_date: null,
+        notes: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -202,7 +210,7 @@ describe('MatrixTransformerCore Integration Tests', () => {
         ]
       }));
 
-      const largeTasks = Array.from({ length: 50 }, (_, i) => ({
+      const largeTasks: RecurringTaskDB[] = Array.from({ length: 50 }, (_, i) => ({
         id: `task${i + 1}`,
         client_id: `client${(i % 10) + 1}`,
         template_id: `template${i + 1}`,
@@ -210,12 +218,20 @@ describe('MatrixTransformerCore Integration Tests', () => {
         description: `Test Description ${i + 1}`,
         estimated_hours: Math.random() * 20,
         required_skills: [['CPA', 'Senior', 'Junior'][i % 3]],
-        priority: ['High', 'Medium', 'Low'][i % 3],
+        priority: ['High', 'Medium', 'Low'][i % 3] as any,
         category: 'Tax',
         recurrence_type: 'Monthly',
         recurrence_interval: 1,
         is_active: true,
         status: 'Unscheduled',
+        due_date: null,
+        weekdays: null,
+        day_of_month: null,
+        month_of_year: null,
+        end_date: null,
+        custom_offset_days: null,
+        last_generated_date: null,
+        notes: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }));
