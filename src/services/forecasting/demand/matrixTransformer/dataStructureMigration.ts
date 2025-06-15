@@ -1,4 +1,3 @@
-
 /**
  * Data Structure Migration Utility
  * 
@@ -111,7 +110,7 @@ export class DataStructureMigrationService {
       skillSummary: data.skillSummary,
       clientTotals: data.clientTotals,
       clientRevenue: data.clientRevenue,
-      clientHourlyRates: data.clientHourly
+      clientHourlyRates: data.clientHourlyRates,
 
       // Revenue properties (only in enhanced version)
       clientSuggestedRevenue: hasRevenue ? data.clientSuggestedRevenue : undefined,
