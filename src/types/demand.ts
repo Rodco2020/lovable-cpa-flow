@@ -1,4 +1,3 @@
-
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
@@ -59,6 +58,8 @@ export interface DemandMatrixData {
       totalSuggestedRevenue?: number;
       /** NEW: Total expected less suggested for this skill across all months */
       totalExpectedLessSuggested?: number;
+      /** NEW: Average fee rate for this skill */
+      averageFeeRate?: number;
     };
   };
   clientTotals?: Map<string, number>;
