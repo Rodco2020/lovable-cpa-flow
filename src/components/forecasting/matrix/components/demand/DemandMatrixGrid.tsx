@@ -137,7 +137,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
                   totalRevenue={clientValues.totalRevenue}
                   hourlyRate={clientValues.hourlyRate}
                   suggestedRevenue={clientValues.suggestedRevenue}
-                  expectedLessSuggested={clientValues.expectedLessSuggeste}
+                  expectedLessSuggested={clientValues.expectedLessSuggested}
                 />
               );
             })()}
