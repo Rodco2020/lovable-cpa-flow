@@ -195,7 +195,7 @@ export class DataPointGenerationService {
               recurringTaskId: task.id,
               taskName: task.name,
               skillType: skill,
-              estimatedH</s: task.estimated_hours,
+              estimatedHours: task.estimated_hours,
               recurrencePattern: {
                 type: task.recurrence_type,
                 interval: task.recurrence_interval || 1,
