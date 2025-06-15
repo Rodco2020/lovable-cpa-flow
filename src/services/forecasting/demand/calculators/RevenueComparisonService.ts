@@ -1,4 +1,3 @@
-
 /**
  * Revenue Comparison Service
  * 
@@ -16,18 +15,13 @@
 
 import { suggestedRevenueCalculator, type SuggestedRevenueCalculation } from './SuggestedRevenueCalculator';
 import { getSkillFeeRatesMap } from '@/services/skills/feeRateService';
+import type { ClientRevenueData } from '@/types/demand';
 
 export class RevenueComparisonServiceError extends Error {
   constructor(message: string, public code?: string) {
     super(message);
     this.name = 'RevenueComparisonServiceError';
   }
-}
-
-export interface ClientRevenueData {
-  clientId: string;
-  clientName: string;
-  expectedMonthlyRevenue: number;
 }
 
 export interface SkillDemandData {
