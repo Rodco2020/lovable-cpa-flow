@@ -9,19 +9,20 @@ import {
   getDefaultFeeRates
 } from '../feeRateService';
 import * as skillsService from '../skillsService';
+import { Skill, ProficiencyLevel, SkillCategory } from '@/types/skill';
 
 // Mock the skills service
 vi.mock('../skillsService', () => ({
   getAllSkills: vi.fn()
 }));
 
-const mockSkills = [
+const mockSkills: Skill[] = [
   {
     id: 'cpa',
     name: 'CPA',
     description: 'Certified Public Accountant',
-    category: 'Compliance',
-    proficiencyLevel: 'Expert',
+    category: 'Compliance' as SkillCategory,
+    proficiencyLevel: 'Expert' as ProficiencyLevel,
     hourlyRate: 150.00,
     feePerHour: 250.00,
     createdAt: new Date().toISOString(),
@@ -31,8 +32,8 @@ const mockSkills = [
     id: 'senior',
     name: 'Senior',
     description: 'Senior-level professional',
-    category: 'Administrative',
-    proficiencyLevel: 'Expert',
+    category: 'Administrative' as SkillCategory,
+    proficiencyLevel: 'Expert' as ProficiencyLevel,
     hourlyRate: 125.00,
     feePerHour: 150.00,
     createdAt: new Date().toISOString(),
@@ -42,8 +43,8 @@ const mockSkills = [
     id: 'junior',
     name: 'Junior',
     description: 'Junior-level professional',
-    category: 'Administrative',
-    proficiencyLevel: 'Intermediate',
+    category: 'Administrative' as SkillCategory,
+    proficiencyLevel: 'Intermediate' as ProficiencyLevel,
     hourlyRate: 65.00,
     feePerHour: 100.00,
     createdAt: new Date().toISOString(),
@@ -69,7 +70,7 @@ describe('Fee Rate Service', () => {
     });
 
     it('should handle skills without fee rates', async () => {
-      const skillsWithoutFees = [
+      const skillsWithoutFees: Skill[] = [
         { ...mockSkills[0], feePerHour: undefined },
         { ...mockSkills[1], feePerHour: 0 },
         mockSkills[2]
