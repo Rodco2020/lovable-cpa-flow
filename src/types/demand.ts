@@ -76,6 +76,11 @@ export interface DemandMatrixData {
    */
   clientExpectedLessSuggested?: Map<string, number>;
   /** 
+   * NEW: Skill fee rates used for revenue calculations
+   * Key: skillName, Value: fee rate per hour
+   */
+  skillFeeRates?: Map<string, number>;
+  /** 
    * NEW: Matrix-level totals for revenue calculations
    */
   revenueTotals?: {

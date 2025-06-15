@@ -220,7 +220,7 @@ export class SuggestedRevenueCalculator {
       throw new Error(validationErrors.join('; '));
     }
 
-    loggingService.validation('debug', 'validateInputs', 'SuggestedRevenueCalculator',
+    loggingService.validation('info', 'validateInputs', 'SuggestedRevenueCalculator',
       'Input validation passed', { demandHours, skillName }
     );
   }
