@@ -359,7 +359,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
                 groupingMode={groupingMode}
                 availableSkills={availableSkills}
                 availableClients={availableClients}
-                onPrintExport={handleShowPrintExport} // NEW: Pass print/export handler
+                onPrintExport={handleShowPrintExport}
               />
             </div>
           </div>
@@ -425,10 +425,11 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
             selectedSkills={selectedSkills}
             selectedClients={selectedClients}
             monthRange={monthRange}
+            groupingMode={groupingMode}
           />
         )}
 
-        {/* NEW: Print/Export Dialog */}
+        {/* Print/Export Dialog */}
         {demandData && (
           <DemandMatrixPrintExportDialog
             isOpen={showPrintExportDialog}
@@ -437,6 +438,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
             selectedSkills={selectedSkills}
             selectedClients={selectedClients}
             monthRange={monthRange}
+            groupingMode={groupingMode}
           />
         )}
       </div>

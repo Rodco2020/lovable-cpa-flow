@@ -497,8 +497,8 @@ export const DemandMatrixPrintExportDialog: React.FC<DemandMatrixPrintExportDial
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-bold">{formatCurrency(month.totalRevenue)}</div>
-                              <div className="text-sm text-muted-foreground">Revenue</div>
+                              <div className="font-bold">{formatCurrency(month.expectedRevenue)}</div>
+                              <div className="text-sm text-muted-foreground">Expected Revenue</div>
                             </div>
                           </div>
                           {month.tasks.length > 0 && (
