@@ -11,14 +11,14 @@
  * - Task generation and scheduling simulation
  * - Matrix-based demand visualization
  * - Skill-based demand breakdown
- * - Financial demand projections
+ * - Financial demand projections (NEW: Revenue calculations)
  * - Data validation and error handling
  * - Performance optimization for large datasets
  * 
  * Architecture:
  * - Core orchestration layer (ForecastGenerator)
  * - Data fetching layer (DataFetcher)
- * - Calculation engines (DemandCalculationService, etc.)
+ * - Calculation engines (DemandCalculationService, RevenueCalculationService)
  * - Matrix transformation services
  * - Validation and optimization utilities
  */
@@ -29,6 +29,19 @@ export { DataFetcher } from './dataFetcher';
 
 // Matrix transformation services - New modular structure
 export { MatrixTransformer } from './matrixTransformer';
+
+// NEW: Revenue calculation services
+export {
+  SuggestedRevenueCalculator,
+  suggestedRevenueCalculator,
+  RevenueComparisonService,
+  revenueComparisonService,
+  type SuggestedRevenueCalculation,
+  type ClientRevenueData,
+  type SkillDemandData,
+  type RevenueComparisonResult,
+  type BulkRevenueCalculationOptions
+} from './calculators';
 
 // Data validation and processing
 export { DataValidator } from './dataValidator';
