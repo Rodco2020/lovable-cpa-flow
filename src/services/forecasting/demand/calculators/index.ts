@@ -26,11 +26,13 @@ export {
   RevenueComparisonService,
   revenueComparisonService,
   RevenueComparisonServiceError,
-  type ClientRevenueData,
   type SkillDemandData,
   type RevenueComparisonResult,
   type BulkRevenueCalculationOptions
 } from './RevenueComparisonService';
+
+// Re-export ClientRevenueData from demand types for convenience
+export type { ClientRevenueData } from '@/types/demand';
 
 // Re-export utility types from skills service for convenience
 export type {

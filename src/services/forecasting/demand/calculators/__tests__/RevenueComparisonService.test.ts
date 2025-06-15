@@ -1,12 +1,13 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   RevenueComparisonService,
   RevenueComparisonServiceError,
   revenueComparisonService,
-  type ClientRevenueData,
-  type SkillDemandData
+  type SkillDemandData,
+  type RevenueComparisonResult,
+  type BulkRevenueCalculationOptions
 } from '../RevenueComparisonService';
+import type { ClientRevenueData } from '@/types/demand';
 import * as feeRateService from '@/services/skills/feeRateService';
 
 // Mock the fee rate service
@@ -40,9 +41,30 @@ describe('RevenueComparisonService', () => {
     ];
 
     mockClientRevenueData = [
-      { clientId: 'client1', clientName: 'Client A', expectedMonthlyRevenue: 5000 },
-      { clientId: 'client2', clientName: 'Client B', expectedMonthlyRevenue: 7500 },
-      { clientId: 'client3', clientName: 'Client C', expectedMonthlyRevenue: 2500 }
+      { 
+        clientId: 'client1', 
+        clientName: 'Client A', 
+        expectedMonthlyRevenue: 5000,
+        totalHours: 20,
+        totalRevenue: 5000,
+        hourlyRate: 250
+      },
+      { 
+        clientId: 'client2', 
+        clientName: 'Client B', 
+        expectedMonthlyRevenue: 7500,
+        totalHours: 30,
+        totalRevenue: 7500,
+        hourlyRate: 250
+      },
+      { 
+        clientId: 'client3', 
+        clientName: 'Client C', 
+        expectedMonthlyRevenue: 2500,
+        totalHours: 10,
+        totalRevenue: 2500,
+        hourlyRate: 250
+      }
     ];
 
     vi.clearAllMocks();
@@ -179,8 +201,15 @@ describe('RevenueComparisonService', () => {
     });
 
     it('should handle zero total expected revenue', async () => {
-      const zeroRevenueClients = [
-        { clientId: 'client1', clientName: 'Client A', expectedMonthlyRevenue: 0 }
+      const zeroRevenueClients: ClientRevenueData[] = [
+        { 
+          clientId: 'client1', 
+          clientName: 'Client A', 
+          expectedMonthlyRevenue: 0,
+          totalHours: 0,
+          totalRevenue: 0,
+          hourlyRate: 0
+        }
       ];
 
       const result = await service.calculateRevenueComparison(
@@ -318,8 +347,15 @@ describe('RevenueComparisonService', () => {
     });
 
     it('should handle very large revenue values', async () => {
-      const largeRevenueData = [
-        { clientId: 'client1', clientName: 'Large Client', expectedMonthlyRevenue: 1000000 }
+      const largeRevenueData: ClientRevenueData[] = [
+        { 
+          clientId: 'client1', 
+          clientName: 'Large Client', 
+          expectedMonthlyRevenue: 1000000,
+          totalHours: 4000,
+          totalRevenue: 1000000,
+          hourlyRate: 250
+        }
       ];
 
       const result = await service.calculateRevenueComparison(
