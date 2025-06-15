@@ -7,10 +7,11 @@ import { ClientSummaryRow } from './components/ClientSummaryRow';
 import { GrandTotalRow } from './components/GrandTotalRow';
 import { 
   getAggregatedDataForClient, 
-  getDataPointForSkill, 
-  getUniqueClientsFromData 
+  getDataPointForSkill
 } from './utils/gridDataUtils';
-import { calculateGrandTotals, getClientValues } from './utils/gridCalculationUtils';
+import { getClientValues } from './utils/gridCalculationUtils';
+import { getRowLabel, calculateGridTemplateRows, logMatrixRendering } from './utils/gridLayoutUtils';
+import { useDemandMatrixGrid } from './hooks/useDemandMatrixGrid';
 
 interface DemandMatrixGridProps {
   filteredData: DemandMatrixData;
@@ -18,11 +19,10 @@ interface DemandMatrixGridProps {
 }
 
 /**
- * DemandMatrixGrid Component - Refactored for Maintainability
+ * DemandMatrixGrid Component - Refactored for Enhanced Maintainability
  * 
  * This component renders the demand matrix grid with support for both skill and client grouping modes.
- * It has been refactored into smaller, focused utilities and components while maintaining
- * exact functionality and UI appearance.
+ * It has been further refactored to improve maintainability, testability, and separation of concerns.
  * 
  * Key features:
  * - Dual grouping modes (skill/client) with different data aggregation
@@ -31,45 +31,32 @@ interface DemandMatrixGridProps {
  * - Grand total calculations for client mode
  * - Responsive grid layout with proper accessibility
  * 
- * The refactoring improves:
- * - Code organization and maintainability
- * - Separation of concerns
- * - Testability of individual functions
- * - Reusability of utility functions
+ * The refactoring improvements:
+ * - Extracted complex logic into custom hooks
+ * - Created focused utility functions for layout calculations
+ * - Improved separation of concerns for better testability
+ * - Enhanced code organization and maintainability
+ * - Preserved exact functionality and UI appearance
  */
 export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
   filteredData,
   groupingMode
 }) => {
-  const getRowLabel = (skillOrClient: string) => {
-    // For both skill and client modes, the value is already the display name
-    return skillOrClient;
-  };
+  // Use custom hook for grid logic and calculations
+  const {
+    rowItems,
+    gridTemplateColumns,
+    grandTotals,
+    additionalRows,
+    clientTotals,
+    clientRevenue,
+    clientHourlyRates,
+    clientSuggestedRevenue,
+    clientExpectedLessSuggested
+  } = useDemandMatrixGrid({ filteredData, groupingMode });
 
-  // Determine the row items based on grouping mode
-  const rowItems = groupingMode === 'client' ? getUniqueClientsFromData(filteredData) : filteredData.skills;
-
-  console.log(`🎯 [MATRIX GRID] Rendering ${groupingMode} matrix with ${rowItems.length} ${groupingMode}s and ${filteredData.months.length} months`);
-
-  // Calculate grid columns - add revenue columns for client mode (5 total columns)
-  const extraColumnsCount = groupingMode === 'client' ? 5 : 0;
-  const gridTemplateColumns = `180px repeat(${filteredData.months.length}, minmax(120px, 1fr))${
-    groupingMode === 'client' ? ' repeat(5, minmax(140px, 1fr))' : ''
-  }`;
-
-  // Revenue data maps for client grouping mode
-  const clientTotals = filteredData.clientTotals || new Map<string, number>();
-  const clientRevenue = filteredData.clientRevenue || new Map<string, number>();
-  const clientHourlyRates = filteredData.clientHourlyRates || new Map<string, number>();
-  const clientSuggestedRevenue = filteredData.clientSuggestedRevenue || new Map<string, number>();
-  const clientExpectedLessSuggested = filteredData.clientExpectedLessSuggested || new Map<string, number>();
-
-  // Calculate grand totals for client mode
-  const grandTotals = groupingMode === 'client' 
-    ? calculateGrandTotals(clientTotals, clientRevenue, clientSuggestedRevenue, clientExpectedLessSuggested)
-    : null;
-
-  const additionalRows = groupingMode === 'client' && rowItems.length > 0 ? 1 : 0;
+  // Log rendering information for debugging
+  logMatrixRendering(groupingMode, rowItems.length, filteredData.months.length);
 
   return (
     <div className="overflow-x-auto">
@@ -77,7 +64,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
         className="grid gap-1 min-w-fit"
         style={{
           gridTemplateColumns,
-          gridTemplateRows: `auto repeat(${rowItems.length + additionalRows}, auto)`
+          gridTemplateRows: calculateGridTemplateRows(rowItems.length, additionalRows)
         }}
       >
         {/* Grid Headers */}

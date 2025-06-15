@@ -21,7 +21,10 @@ export { DemandMatrixSummaryFooter } from './DemandMatrixSummaryFooter';
 // Dialog components
 export { DemandDrillDownDialog } from './DemandDrillDownDialog';
 export { DemandMatrixExportDialog } from './DemandMatrixExportDialog';
-export { DemandMatrixPrintExportDialog } from './DemandMatrixPrintExportDialog'; // NEW
+export { DemandMatrixPrintExportDialog } from './DemandMatrixPrintExportDialog';
 
 // Error boundary
 export { DemandMatrixErrorBoundary } from './DemandMatrixErrorBoundary';
+
+// Hooks
+export { useDemandMatrixGrid } from './hooks/useDemandMatrixGrid';
