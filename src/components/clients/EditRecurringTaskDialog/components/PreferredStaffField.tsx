@@ -2,7 +2,7 @@
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
+import { getActiveStaffForDropdown } from '@/services/staff/staffDropdownService';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EditTaskFormValues } from '../types';
@@ -11,29 +11,13 @@ interface PreferredStaffFieldProps {
   form: UseFormReturn<EditTaskFormValues>;
 }
 
-interface StaffOption {
-  id: string;
-  full_name: string;
-}
-
 export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }) => {
-  // Fetch active staff members
+  // Fetch active staff members using the optimized dropdown service
   const { data: staffOptions = [], isLoading } = useQuery({
-    queryKey: ['staff-options'],
-    queryFn: async (): Promise<StaffOption[]> => {
-      const { data, error } = await supabase
-        .from('staff')
-        .select('id, full_name')
-        .eq('status', 'active')
-        .order('full_name');
-      
-      if (error) {
-        console.error('Error fetching staff options:', error);
-        throw error;
-      }
-      
-      return data || [];
-    },
+    queryKey: ['staff-dropdown-options'],
+    queryFn: getActiveStaffForDropdown,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
   });
 
   return (

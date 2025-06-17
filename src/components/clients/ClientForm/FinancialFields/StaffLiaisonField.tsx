@@ -15,8 +15,28 @@ interface StaffLiaisonFieldProps {
  * Staff Liaison Field Component
  * 
  * Displays and manages the staff liaison dropdown selector
+ * Now includes enhanced validation for better reliability
  */
 export const StaffLiaisonField: React.FC<StaffLiaisonFieldProps> = ({ form, staffOptions }) => {
+  // Enhanced validation to ensure only valid staff options are displayed
+  const validStaffOptions = React.useMemo(() => {
+    if (!Array.isArray(staffOptions)) {
+      console.warn('StaffLiaisonField: staffOptions is not an array');
+      return [];
+    }
+    
+    return staffOptions.filter(staff => 
+      staff && 
+      typeof staff === 'object' && 
+      staff.id && 
+      typeof staff.id === 'string' && 
+      staff.id.trim() !== '' &&
+      staff.full_name &&
+      typeof staff.full_name === 'string' &&
+      staff.full_name.trim() !== ''
+    );
+  }, [staffOptions]);
+
   return (
     <FormField
       control={form.control}
@@ -35,7 +55,7 @@ export const StaffLiaisonField: React.FC<StaffLiaisonFieldProps> = ({ form, staf
             </FormControl>
             <SelectContent>
               <SelectItem value="none">No liaison assigned</SelectItem>
-              {staffOptions.map((staff: StaffOption) => (
+              {validStaffOptions.map((staff: StaffOption) => (
                 <SelectItem key={staff.id} value={staff.id}>
                   {staff.full_name}
                 </SelectItem>

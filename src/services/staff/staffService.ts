@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabaseClient';
 import { Staff } from "@/types/staff";
 import { mapStaffFromDbRecord, mapStaffToDbRecord } from "./staffMapper";
@@ -34,6 +35,37 @@ export const getAllStaff = async (): Promise<Staff[]> => {
     return data.map(mapStaffFromDbRecord);
   } catch (err) {
     console.error("Failed to fetch staff data:", err);
+    throw new Error(`Database connection error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Fetch active staff members only
+ * Optimized for dropdown and selection components
+ * @returns Promise resolving to an array of active Staff objects
+ */
+export const getActiveStaff = async (): Promise<Staff[]> => {
+  try {
+    console.log("Fetching active staff members");
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('status', 'active')
+      .order('full_name', { ascending: true });
+    
+    if (error) {
+      console.error("Error fetching active staff:", error);
+      throw error;
+    }
+    
+    if (!data) {
+      return [];
+    }
+    
+    console.log(`Fetched ${data.length} active staff members`);
+    return data.map(mapStaffFromDbRecord);
+  } catch (err) {
+    console.error("Failed to fetch active staff data:", err);
     throw new Error(`Database connection error: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 };
@@ -98,6 +130,10 @@ export const createStaff = async (staffData: Omit<Staff, 'id' | 'createdAt' | 'u
       throw error;
     }
     
+    // Clear cache when new staff member is created
+    const { clearStaffOptionsCache } = await import('./staffDropdownService');
+    clearStaffOptionsCache();
+    
     return mapStaffFromDbRecord(data);
   } catch (error) {
     console.error('Error in createStaff:', error);
@@ -127,6 +163,10 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
     throw error;
   }
   
+  // Clear cache when staff member is updated
+  const { clearStaffOptionsCache } = await import('./staffDropdownService');
+  clearStaffOptionsCache();
+  
   return mapStaffFromDbRecord(data);
 };
 
@@ -145,6 +185,10 @@ export const deleteStaff = async (id: string): Promise<boolean> => {
     console.error("Error deleting staff:", error);
     throw error;
   }
+  
+  // Clear cache when staff member is deleted
+  const { clearStaffOptionsCache } = await import('./staffDropdownService');
+  clearStaffOptionsCache();
   
   return true;
 };

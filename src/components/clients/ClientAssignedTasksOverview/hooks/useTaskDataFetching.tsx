@@ -8,12 +8,12 @@ import { FormattedTask } from '../types';
 import { TaskDataService } from '../services/taskDataService';
 import { TaskDataUtils } from '../utils/taskDataUtils';
 import { SkillDeduplicationService } from '../services/skillDeduplicationService';
-import { getStaffForLiaisonDropdown } from '@/services/client/staffLiaisonService';
+import { getActiveStaffForDropdown } from '@/services/staff/staffDropdownService';
 
 /**
  * Hook to manage the data fetching process for clients and tasks
  * Handles loading states, error handling, and data transformation
- * Now includes staff options fetching for staff liaison filtering
+ * Now uses optimized staff dropdown service for better performance
  */
 export const useTaskDataFetching = () => {
   const { toast } = useToast();
@@ -24,11 +24,12 @@ export const useTaskDataFetching = () => {
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
   const [availablePriorities, setAvailablePriorities] = useState<string[]>([]);
 
-  // Fetch staff options for staff liaison filtering
+  // Fetch staff options using the optimized dropdown service
   const { data: staffOptions = [], isLoading: isStaffLoading } = useQuery({
-    queryKey: ['staff-liaison-dropdown'],
-    queryFn: getStaffForLiaisonDropdown,
-    staleTime: 10 * 60 * 1000, // 10 minutes cache
+    queryKey: ['staff-dropdown-options'],
+    queryFn: getActiveStaffForDropdown,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
   });
 
   const fetchData = async () => {

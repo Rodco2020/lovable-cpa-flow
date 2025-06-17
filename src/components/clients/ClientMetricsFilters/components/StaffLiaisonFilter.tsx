@@ -19,8 +19,8 @@ interface StaffLiaisonFilterProps {
 /**
  * Staff Liaison Filter Component
  * 
- * Renders a dropdown for filtering by staff liaison with validation
- * to ensure only valid staff options are displayed
+ * Renders a dropdown for filtering by staff liaison with enhanced validation
+ * and performance optimizations for better reliability
  */
 export const StaffLiaisonFilter: React.FC<StaffLiaisonFilterProps> = ({
   value,
@@ -28,11 +28,16 @@ export const StaffLiaisonFilter: React.FC<StaffLiaisonFilterProps> = ({
   staffOptions,
   isLoading = false
 }) => {
-  // Comprehensive validation to prevent empty strings
+  // Enhanced validation to prevent empty strings and ensure data integrity
   const validStaffOptions = React.useMemo(() => {
-    console.log('Available staff options:', staffOptions);
-    if (!Array.isArray(staffOptions)) return [];
-    return staffOptions.filter(staff => 
+    console.log('StaffLiaisonFilter: Processing staff options:', staffOptions?.length || 0);
+    
+    if (!Array.isArray(staffOptions)) {
+      console.warn('StaffLiaisonFilter: staffOptions is not an array');
+      return [];
+    }
+    
+    const filtered = staffOptions.filter(staff => 
       staff && 
       typeof staff === 'object' && 
       staff.id && 
@@ -42,10 +47,29 @@ export const StaffLiaisonFilter: React.FC<StaffLiaisonFilterProps> = ({
       typeof staff.full_name === 'string' &&
       staff.full_name.trim() !== ''
     );
+    
+    console.log(`StaffLiaisonFilter: ${filtered.length} valid staff options after filtering`);
+    return filtered;
   }, [staffOptions]);
 
+  if (isLoading) {
+    return (
+      <Select disabled>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Loading staff..." />
+        </SelectTrigger>
+      </Select>
+    );
+  }
+
   if (validStaffOptions.length === 0) {
-    return null;
+    return (
+      <Select disabled>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="No staff available" />
+        </SelectTrigger>
+      </Select>
+    );
   }
 
   return (

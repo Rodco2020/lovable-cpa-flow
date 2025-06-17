@@ -11,3 +11,4 @@ export * from './availabilityService';
 export * from './defaultTemplateService';
 export * from './skillMappingService';
 export * from './staffMapper';
+export * from './staffDropdownService';
