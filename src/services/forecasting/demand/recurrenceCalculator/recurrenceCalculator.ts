@@ -138,6 +138,89 @@ export class RecurrenceCalculator {
   }
 
   /**
+   * Calculate the next due date for a recurring task
+   * 
+   * @param task The recurring task
+   * @param lastGeneratedDate The last generated date (optional)
+   * @returns The next due date or null if calculation fails
+   */
+  static calculateNextDueDate(
+    task: RecurringTaskDB,
+    lastGeneratedDate: Date | null = null
+  ): Date | null {
+    if (!task.is_active) {
+      return null;
+    }
+
+    try {
+      const baseDate = lastGeneratedDate || new Date(task.due_date || new Date());
+      const nextDate = new Date(baseDate);
+
+      switch (task.recurrence_type.toLowerCase()) {
+        case 'daily':
+          nextDate.setDate(nextDate.getDate() + (task.recurrence_interval || 1));
+          break;
+
+        case 'weekly':
+          if (task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0) {
+            // Find next occurrence based on weekdays
+            const currentWeekday = nextDate.getDay();
+            const sortedWeekdays = [...task.weekdays].sort((a, b) => a - b);
+            
+            let nextWeekday = sortedWeekdays.find(day => day > currentWeekday);
+            if (!nextWeekday) {
+              // Move to next week, use first weekday
+              nextWeekday = sortedWeekdays[0];
+              nextDate.setDate(nextDate.getDate() + (7 - currentWeekday + nextWeekday));
+              nextDate.setDate(nextDate.getDate() + (task.recurrence_interval - 1) * 7);
+            } else {
+              nextDate.setDate(nextDate.getDate() + (nextWeekday - currentWeekday));
+            }
+          } else {
+            nextDate.setDate(nextDate.getDate() + (task.recurrence_interval || 1) * 7);
+          }
+          break;
+
+        case 'monthly':
+          nextDate.setMonth(nextDate.getMonth() + (task.recurrence_interval || 1));
+          if (task.day_of_month) {
+            const targetDay = Math.min(task.day_of_month, new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate());
+            nextDate.setDate(targetDay);
+          }
+          break;
+
+        case 'quarterly':
+          nextDate.setMonth(nextDate.getMonth() + 3 * (task.recurrence_interval || 1));
+          if (task.month_of_year) {
+            nextDate.setMonth((task.month_of_year - 1) % 12);
+          }
+          break;
+
+        case 'annually':
+        case 'annual':
+          nextDate.setFullYear(nextDate.getFullYear() + (task.recurrence_interval || 1));
+          if (task.month_of_year) {
+            nextDate.setMonth((task.month_of_year - 1) % 12);
+          }
+          if (task.day_of_month) {
+            const targetDay = Math.min(task.day_of_month, new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate());
+            nextDate.setDate(targetDay);
+          }
+          break;
+
+        default:
+          console.warn(`Unknown recurrence type: ${task.recurrence_type}`);
+          return null;
+      }
+
+      return nextDate;
+    } catch (error) {
+      console.error(`Error calculating next due date for task ${task.id}:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Legacy method maintained for backward compatibility
    * 
    * This method provides a simplified interface for basic recurrence

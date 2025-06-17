@@ -31,6 +31,34 @@ describe('AnnualTaskTracker', () => {
     preferred_staff_id: null
   };
 
+  // Define mockAnnualTask for the tests
+  const mockAnnualTask: RecurringTaskDB = {
+    id: '1',
+    name: 'Annual Tax Filing',
+    template_id: 'template-1',
+    client_id: 'client-1',
+    estimated_hours: 40,
+    required_skills: ['Tax Preparation'],
+    priority: 'High',
+    category: 'Tax',
+    status: 'Unscheduled',
+    recurrence_type: 'Annually',
+    recurrence_interval: 1,
+    is_active: true,
+    due_date: '2025-04-15T00:00:00Z',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+    description: 'Annual tax filing task',
+    notes: null,
+    weekdays: null,
+    day_of_month: null,
+    month_of_year: 4,
+    end_date: null,
+    custom_offset_days: null,
+    last_generated_date: null,
+    preferred_staff_id: null
+  };
+
   beforeEach(() => {
     AnnualTaskTracker.clearTracker();
   });

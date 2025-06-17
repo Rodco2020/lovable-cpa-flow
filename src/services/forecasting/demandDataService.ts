@@ -57,6 +57,30 @@ export class DemandDataService {
   }
 
   /**
+   * Get recurring tasks data from the database
+   */
+  static async getRecurringTasksData(): Promise<RecurringTaskDB[]> {
+    debugLog('DemandDataService: Fetching recurring tasks data');
+    
+    try {
+      const tasks = await DataFetcher.fetchClientAssignedTasks();
+      
+      // Filter only active tasks
+      const activeTasks = tasks.filter(task => task.is_active);
+      
+      debugLog('DemandDataService: Successfully fetched recurring tasks', { 
+        totalTasks: tasks.length,
+        activeTasks: activeTasks.length 
+      });
+      
+      return activeTasks;
+    } catch (error) {
+      console.error('Error fetching recurring tasks:', error);
+      return [];
+    }
+  }
+
+  /**
    * Generate complete demand forecast with matrix
    */
   static async generateDemandForecastWithMatrix(
