@@ -53,4 +53,5 @@ export interface UseEditTaskFormReturn {
   skillsError: string | null;
   toggleSkill: (skillId: string) => void;
   onSubmit: (data: EditTaskFormValues) => Promise<void>;
+  resetForm: () => void; // Add resetForm function to return type
 }

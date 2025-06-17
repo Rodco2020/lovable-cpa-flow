@@ -16,27 +16,31 @@ export const useEditTaskForm = ({
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
-  // Initialize form with task data when available
-  const form = useForm<EditTaskFormValues>({
-    resolver: zodResolver(EditTaskSchema),
-    defaultValues: task ? {
-      name: task.name,
-      description: task.description || '',
-      estimatedHours: task.estimatedHours,
-      priority: task.priority,
-      category: task.category,
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-      isRecurring: true,
-      requiredSkills: task.requiredSkills || [],
-      preferredStaffId: task.preferredStaffId || null,
-      recurrenceType: task.recurrencePattern.type,
-      interval: task.recurrencePattern.interval || 1,
-      weekdays: task.recurrencePattern.weekdays || [],
-      dayOfMonth: task.recurrencePattern.dayOfMonth,
-      monthOfYear: task.recurrencePattern.monthOfYear,
-      endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
-      customOffsetDays: task.recurrencePattern.customOffsetDays
-    } : {
+  // Helper function to get default form values
+  const getDefaultFormValues = (taskData?: RecurringTask | null): EditTaskFormValues => {
+    if (taskData) {
+      return {
+        name: taskData.name,
+        description: taskData.description || '',
+        estimatedHours: taskData.estimatedHours,
+        priority: taskData.priority,
+        category: taskData.category,
+        dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
+        isRecurring: true,
+        requiredSkills: taskData.requiredSkills || [],
+        preferredStaffId: taskData.preferredStaffId || null,
+        recurrenceType: taskData.recurrencePattern.type,
+        interval: taskData.recurrencePattern.interval || 1,
+        weekdays: taskData.recurrencePattern.weekdays || [],
+        dayOfMonth: taskData.recurrencePattern.dayOfMonth,
+        monthOfYear: taskData.recurrencePattern.monthOfYear,
+        endDate: taskData.recurrencePattern.endDate ? new Date(taskData.recurrencePattern.endDate) : null,
+        customOffsetDays: taskData.recurrencePattern.customOffsetDays
+      };
+    }
+    
+    // Default values for new task
+    return {
       name: '',
       description: '',
       estimatedHours: 1,
@@ -50,9 +54,37 @@ export const useEditTaskForm = ({
       dayOfMonth: 15,
       monthOfYear: 1,
       customOffsetDays: 0
-    },
+    };
+  };
+  
+  // Initialize form with task data when available
+  const form = useForm<EditTaskFormValues>({
+    resolver: zodResolver(EditTaskSchema),
+    defaultValues: getDefaultFormValues(task),
     mode: 'onChange' // Enable real-time validation for better UX
   });
+
+  // Initialize selected skills and form when task changes
+  useEffect(() => {
+    if (task) {
+      console.log('Initializing form with task:', task);
+      console.log('Task preferred staff ID:', task.preferredStaffId);
+      
+      const formValues = getDefaultFormValues(task);
+      
+      // Reset form with new values
+      form.reset(formValues);
+      
+      // Update selected skills state
+      setSelectedSkills(task.requiredSkills || []);
+      
+      // Clear any existing errors
+      setFormError(null);
+      setSkillsError(null);
+      
+      console.log('Form initialized with preferred staff ID:', formValues.preferredStaffId);
+    }
+  }, [task, form]);
 
   // Update selected skills state when form values change
   useEffect(() => {
@@ -60,36 +92,7 @@ export const useEditTaskForm = ({
       setSelectedSkills(task.requiredSkills);
       form.setValue('requiredSkills', task.requiredSkills);
     }
-  }, [task, form]);
-
-  // Reset form when task changes
-  useEffect(() => {
-    if (task) {
-      const resetValues = {
-        name: task.name,
-        description: task.description || '',
-        estimatedHours: task.estimatedHours,
-        priority: task.priority,
-        category: task.category,
-        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-        isRecurring: true,
-        requiredSkills: task.requiredSkills || [],
-        preferredStaffId: task.preferredStaffId || null,
-        recurrenceType: task.recurrencePattern.type,
-        interval: task.recurrencePattern.interval || 1,
-        weekdays: task.recurrencePattern.weekdays || [],
-        dayOfMonth: task.recurrencePattern.dayOfMonth,
-        monthOfYear: task.recurrencePattern.monthOfYear,
-        endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
-        customOffsetDays: task.recurrencePattern.customOffsetDays
-      };
-      
-      form.reset(resetValues);
-      setSelectedSkills(task.requiredSkills || []);
-      setFormError(null);
-      setSkillsError(null);
-    }
-  }, [task, form]);
+  }, [task?.requiredSkills, form]);
   
   // Handle skill selection
   const toggleSkill = (skillId: string) => {
@@ -127,10 +130,15 @@ export const useEditTaskForm = ({
     setFormError(null);
     
     try {
+      console.log('Form submission data:', data);
+      console.log('Preferred staff ID in submission:', data.preferredStaffId);
+      
       // Validate preferred staff ID if provided
-      if (data.preferredStaffId && typeof data.preferredStaffId === 'string' && data.preferredStaffId.trim() === '') {
-        setFormError("Preferred staff ID cannot be empty. Please select a staff member or leave it unassigned.");
-        return;
+      if (data.preferredStaffId !== null && data.preferredStaffId !== undefined) {
+        if (typeof data.preferredStaffId === 'string' && data.preferredStaffId.trim() === '') {
+          setFormError("Preferred staff ID cannot be empty. Please select a staff member or leave it unassigned.");
+          return;
+        }
       }
       
       // Build recurrence pattern from form data
@@ -159,6 +167,9 @@ export const useEditTaskForm = ({
         isActive: task.isActive
       };
 
+      console.log('Updated task object:', updatedTask);
+      console.log('Final preferred staff ID:', updatedTask.preferredStaffId);
+
       await onSave(updatedTask);
       onSuccess();
       toast.success("Task updated successfully");
@@ -170,6 +181,18 @@ export const useEditTaskForm = ({
       setIsSaving(false);
     }
   };
+  
+  // Helper function to manually reset form (useful for testing and debugging)
+  const resetForm = () => {
+    if (task) {
+      const formValues = getDefaultFormValues(task);
+      form.reset(formValues);
+      setSelectedSkills(task.requiredSkills || []);
+      setFormError(null);
+      setSkillsError(null);
+      console.log('Form manually reset with preferred staff ID:', formValues.preferredStaffId);
+    }
+  };
 
   return {
     form,
@@ -179,6 +202,7 @@ export const useEditTaskForm = ({
     setSelectedSkills,
     skillsError,
     toggleSkill,
-    onSubmit
+    onSubmit,
+    resetForm // Expose reset function for testing
   };
 };

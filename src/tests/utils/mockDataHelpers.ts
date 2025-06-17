@@ -55,3 +55,32 @@ export const createMockRecurringTaskForValidation = (overrides: Partial<Recurrin
     ...overrides
   });
 };
+
+/**
+ * Create mock recurring task for form testing scenarios
+ */
+export const createMockRecurringTaskForFormTesting = (overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    name: 'Form Test Task',
+    description: 'Task for testing form functionality',
+    estimated_hours: 5,
+    priority: 'High',
+    category: 'Advisory',
+    required_skills: ['Form Testing Skill'],
+    preferred_staff_id: 'form-test-staff-123',
+    recurrence_type: 'Weekly',
+    recurrence_interval: 2,
+    weekdays: [1, 3, 5], // Monday, Wednesday, Friday
+    ...overrides
+  });
+};
+
+/**
+ * Create mock recurring task without preferred staff (explicitly null)
+ */
+export const createMockRecurringTaskWithoutStaff = (overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    preferred_staff_id: null,
+    ...overrides
+  });
+};

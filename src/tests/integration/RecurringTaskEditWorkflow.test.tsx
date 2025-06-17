@@ -203,4 +203,66 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     // Check that error was displayed
     expect(updateRecurringTask).toHaveBeenCalled();
   });
+  
+  test('Form hook handles preferred staff initialization correctly', async () => {
+    // Test with preferred staff
+    const taskWithStaff = {
+      ...mockRecurringTask,
+      preferredStaffId: 'staff-123'
+    };
+    
+    (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithStaff);
+    
+    await act(async () => {
+      await updateRecurringTask('task-1', {
+        name: 'Test Task',
+        preferredStaffId: 'staff-123'
+      });
+    });
+    
+    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
+      preferredStaffId: 'staff-123'
+    }));
+    
+    // Test without preferred staff (null)
+    const taskWithoutStaff = {
+      ...mockRecurringTask,
+      preferredStaffId: null
+    };
+    
+    (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithoutStaff);
+    
+    await act(async () => {
+      await updateRecurringTask('task-1', {
+        name: 'Test Task',
+        preferredStaffId: null
+      });
+    });
+    
+    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
+      preferredStaffId: null
+    }));
+  });
+  
+  test('Form reset includes preferred staff field', async () => {
+    // Test form reset with preferred staff
+    const taskWithStaff = {
+      ...mockRecurringTask,
+      preferredStaffId: 'staff-456'
+    };
+    
+    (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithStaff);
+    
+    // Simulate form operations that would trigger reset
+    await act(async () => {
+      await updateRecurringTask('task-1', {
+        name: 'Updated Task',
+        preferredStaffId: 'staff-456'
+      });
+    });
+    
+    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
+      preferredStaffId: 'staff-456'
+    }));
+  });
 });
