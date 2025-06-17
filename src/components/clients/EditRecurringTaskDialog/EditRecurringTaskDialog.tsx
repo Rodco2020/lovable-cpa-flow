@@ -191,7 +191,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
                   )}
                 />
 
-                {/* Add Preferred Staff Field */}
+                {/* Preferred Staff Field - positioned after basic information fields */}
                 <PreferredStaffField form={form} />
               </div>
 
