@@ -61,6 +61,7 @@ describe('Client Task Service', () => {
           custom_offset_days: null,
           last_generated_date: null,
           is_active: true,
+          preferred_staff_id: 'staff-1', // Include preferred staff in mock data
           created_at: '2023-01-01',
           updated_at: '2023-01-01',
           notes: 'Test notes'
@@ -83,6 +84,52 @@ describe('Client Task Service', () => {
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('task1');
       expect(result[0].clientId).toBe('client1');
+      expect(result[0].preferredStaffId).toBe('staff-1'); // Verify preferred staff is mapped
+    });
+
+    it('should handle tasks without preferred staff (null values)', async () => {
+      const mockData = [
+        {
+          id: 'task1',
+          client_id: 'client1',
+          name: 'Task 1',
+          template_id: 'template1',
+          description: 'Test task',
+          estimated_hours: 5,
+          required_skills: ['skill1'],
+          priority: 'Medium',
+          category: 'Tax',
+          status: 'Unscheduled',
+          due_date: '2023-12-01',
+          recurrence_type: 'Monthly',
+          recurrence_interval: 1,
+          weekdays: null,
+          day_of_month: 15,
+          month_of_year: null,
+          end_date: null,
+          custom_offset_days: null,
+          last_generated_date: null,
+          is_active: true,
+          preferred_staff_id: null, // Test null preferred staff
+          created_at: '2023-01-01',
+          updated_at: '2023-01-01',
+          notes: 'Test notes'
+        }
+      ];
+
+      const mockChain = {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => Promise.resolve({ data: mockData, error: null }))
+          }))
+        }))
+      };
+
+      mockSupabase.from.mockReturnValue(mockChain as any);
+
+      const result = await getClientRecurringTasks('client1');
+
+      expect(result[0].preferredStaffId).toBeNull(); // Verify null is handled properly
     });
 
     it('should handle errors gracefully', async () => {
@@ -150,7 +197,7 @@ describe('Client Task Service', () => {
   });
 
   describe('getRecurringTaskById', () => {
-    it('should return a specific recurring task', async () => {
+    it('should return a specific recurring task with preferred staff', async () => {
       const mockData = {
         id: 'task1',
         client_id: 'client1',
@@ -172,6 +219,7 @@ describe('Client Task Service', () => {
         custom_offset_days: null,
         last_generated_date: null,
         is_active: true,
+        preferred_staff_id: 'staff-1', // Include preferred staff
         created_at: '2023-01-01',
         updated_at: '2023-01-01',
         notes: 'Test notes'
@@ -191,6 +239,7 @@ describe('Client Task Service', () => {
 
       expect(result).not.toBeNull();
       expect(result?.id).toBe('task1');
+      expect(result?.preferredStaffId).toBe('staff-1'); // Verify preferred staff is included
     });
 
     it('should return null when task not found', async () => {

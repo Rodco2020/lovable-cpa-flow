@@ -26,7 +26,7 @@ export const createMockRecurringTask = (overrides: Partial<RecurringTaskDB> = {}
     end_date: null,
     custom_offset_days: null,
     last_generated_date: null,
-    preferred_staff_id: null,
+    preferred_staff_id: null, // Add preferred staff field to mock data
     ...overrides
   };
 };

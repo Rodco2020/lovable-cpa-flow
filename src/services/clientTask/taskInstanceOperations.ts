@@ -1,31 +1,24 @@
 
-import { supabase } from '@/integrations/supabase/client';
+/**
+ * Client Task Service - Task Instance Operations
+ * 
+ * Handles operations specific to task instances (ad-hoc tasks)
+ */
+
+import { supabase } from '@/lib/supabaseClient';
 import { TaskInstance } from '@/types/task';
-import { Database } from '@/types/supabase';
 
-// Define a custom error class for consistency
-class TaskServiceError extends Error {
-  constructor(message: string, public code?: string, public details?: any) {
-    super(message);
-    this.name = 'TaskServiceError';
-  }
-}
-
-type TaskInstanceRow = Database['public']['Tables']['task_instances']['Row'];
-
-export interface TaskInstanceData {
+export interface TaskInstanceWithClientInfo {
   taskInstance: TaskInstance;
   clientName: string;
   templateName: string;
 }
 
 /**
- * Get task instance by ID with enhanced error handling
+ * Get a task instance by ID
  */
-export const getTaskInstanceById = async (instanceId: string): Promise<TaskInstanceData | null> => {
+export const getTaskInstanceById = async (taskId: string): Promise<TaskInstanceWithClientInfo | null> => {
   try {
-    console.log('Fetching task instance by ID:', instanceId);
-    
     const { data, error } = await supabase
       .from('task_instances')
       .select(`
@@ -33,50 +26,55 @@ export const getTaskInstanceById = async (instanceId: string): Promise<TaskInsta
         clients!inner(legal_name),
         task_templates!inner(name)
       `)
-      .eq('id', instanceId)
+      .eq('id', taskId)
       .single();
-
+      
     if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
       console.error('Error fetching task instance:', error);
-      throw new TaskServiceError(`Failed to fetch task instance: ${error.message}`);
-    }
-
-    if (!data) {
-      return null;
-    }
-
-    return {
-      taskInstance: mapTaskInstanceFromDB(data),
-      clientName: (data.clients as any)?.legal_name || 'Unknown Client',
-      templateName: (data.task_templates as any)?.name || 'Unknown Template'
-    };
-  } catch (error) {
-    console.error('Failed to fetch task instance:', error);
-    if (error instanceof TaskServiceError) {
       throw error;
     }
-    throw new TaskServiceError('Unexpected error fetching task instance');
+    
+    const taskInstance: TaskInstance = {
+      id: data.id,
+      templateId: data.template_id,
+      clientId: data.client_id,
+      name: data.name,
+      description: data.description || '',
+      estimatedHours: Number(data.estimated_hours),
+      requiredSkills: data.required_skills || [],
+      priority: data.priority,
+      category: data.category,
+      status: data.status,
+      dueDate: data.due_date ? new Date(data.due_date) : null,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      notes: data.notes || undefined,
+      recurringTaskId: data.recurring_task_id || undefined,
+      completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
+      assignedStaffId: data.assigned_staff_id || undefined,
+      scheduledStartTime: data.scheduled_start_time ? new Date(data.scheduled_start_time) : undefined,
+      scheduledEndTime: data.scheduled_end_time ? new Date(data.scheduled_end_time) : undefined
+    };
+    
+    return {
+      taskInstance,
+      clientName: data.clients.legal_name,
+      templateName: data.task_templates.name
+    };
+  } catch (error) {
+    console.error('Error in getTaskInstanceById:', error);
+    throw error;
   }
 };
 
 /**
- * Get client ad-hoc tasks with enhanced error handling
+ * Fetch ad-hoc tasks (task instances without recurring_task_id) for a specific client
  */
-export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanceData[]> => {
+export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanceWithClientInfo[]> => {
   try {
-    console.log('Fetching client ad-hoc tasks for client:', clientId);
-    
-    // Validate client exists first
-    const { data: clientExists, error: clientError } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('id', clientId)
-      .single();
-
-    if (clientError || !clientExists) {
-      throw new TaskServiceError(`Client with ID ${clientId} not found`);
-    }
-
     const { data, error } = await supabase
       .from('task_instances')
       .select(`
@@ -85,52 +83,45 @@ export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanc
         task_templates!inner(name)
       `)
       .eq('client_id', clientId)
-      .is('recurring_task_id', null) // Ad-hoc tasks don't have recurring_task_id
+      .is('recurring_task_id', null)
       .order('created_at', { ascending: false });
-
+      
     if (error) {
       console.error('Error fetching client ad-hoc tasks:', error);
-      throw new TaskServiceError(`Failed to fetch client ad-hoc tasks: ${error.message}`);
-    }
-
-    const tasks = (data || []).map(row => ({
-      taskInstance: mapTaskInstanceFromDB(row),
-      clientName: (row.clients as any)?.legal_name || 'Unknown Client',
-      templateName: (row.task_templates as any)?.name || 'Unknown Template'
-    }));
-
-    console.log(`Found ${tasks.length} ad-hoc tasks for client ${clientId}`);
-    return tasks;
-  } catch (error) {
-    console.error('Failed to fetch client ad-hoc tasks:', error);
-    if (error instanceof TaskServiceError) {
       throw error;
     }
-    throw new TaskServiceError('Unexpected error fetching client ad-hoc tasks');
+    
+    return data.map(taskData => {
+      const taskInstance: TaskInstance = {
+        id: taskData.id,
+        templateId: taskData.template_id,
+        clientId: taskData.client_id,
+        name: taskData.name,
+        description: taskData.description || '',
+        estimatedHours: Number(taskData.estimated_hours),
+        requiredSkills: taskData.required_skills || [],
+        priority: taskData.priority,
+        category: taskData.category,
+        status: taskData.status,
+        dueDate: taskData.due_date ? new Date(taskData.due_date) : null,
+        createdAt: new Date(taskData.created_at),
+        updatedAt: new Date(taskData.updated_at),
+        notes: taskData.notes || undefined,
+        recurringTaskId: taskData.recurring_task_id || undefined,
+        completedAt: taskData.completed_at ? new Date(taskData.completed_at) : undefined,
+        assignedStaffId: taskData.assigned_staff_id || undefined,
+        scheduledStartTime: taskData.scheduled_start_time ? new Date(taskData.scheduled_start_time) : undefined,
+        scheduledEndTime: taskData.scheduled_end_time ? new Date(taskData.scheduled_end_time) : undefined
+      };
+      
+      return {
+        taskInstance,
+        clientName: taskData.clients.legal_name,
+        templateName: taskData.task_templates.name
+      };
+    });
+  } catch (error) {
+    console.error('Error in getClientAdHocTasks:', error);
+    throw error;
   }
 };
-
-/**
- * Helper function to map database rows to TaskInstance objects
- */
-const mapTaskInstanceFromDB = (row: TaskInstanceRow): TaskInstance => ({
-  id: row.id,
-  templateId: row.template_id,
-  clientId: row.client_id,
-  name: row.name,
-  description: row.description || '',
-  estimatedHours: Number(row.estimated_hours),
-  requiredSkills: row.required_skills || [],
-  priority: row.priority as TaskInstance['priority'],
-  category: row.category as TaskInstance['category'],
-  status: row.status as TaskInstance['status'],
-  dueDate: row.due_date ? new Date(row.due_date) : null,
-  createdAt: new Date(row.created_at),
-  updatedAt: new Date(row.updated_at),
-  notes: row.notes,
-  recurringTaskId: row.recurring_task_id || undefined,
-  completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
-  assignedStaffId: row.assigned_staff_id || undefined,
-  scheduledStartTime: row.scheduled_start_time ? new Date(row.scheduled_start_time) : undefined,
-  scheduledEndTime: row.scheduled_end_time ? new Date(row.scheduled_end_time) : undefined
-});

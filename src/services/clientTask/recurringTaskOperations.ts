@@ -7,7 +7,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { RecurringTask } from '@/types/task';
-import { mapDatabaseToRecurringTask } from './mappers';
+import { mapDatabaseToRecurringTask, mapRecurringTaskToDatabase } from './mappers';
 
 /**
  * Get a recurring task by ID
@@ -56,6 +56,67 @@ export const getClientRecurringTasks = async (clientId: string): Promise<Recurri
     return data.map(mapDatabaseToRecurringTask);
   } catch (error) {
     console.error('Error in getClientRecurringTasks:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a recurring task with preferred staff support
+ */
+export const updateRecurringTask = async (
+  taskId: string, 
+  updates: Partial<RecurringTask>
+): Promise<RecurringTask | null> => {
+  try {
+    const dbUpdates = mapRecurringTaskToDatabase(updates);
+    
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .update(dbUpdates)
+      .eq('id', taskId)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error updating recurring task:', error);
+      throw error;
+    }
+    
+    return mapDatabaseToRecurringTask(data);
+  } catch (error) {
+    console.error('Error in updateRecurringTask:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new recurring task with preferred staff support
+ */
+export const createRecurringTask = async (
+  taskData: Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<RecurringTask | null> => {
+  try {
+    const dbTask = mapRecurringTaskToDatabase(taskData);
+    
+    // Set required fields for creation
+    dbTask.template_id = taskData.templateId;
+    dbTask.client_id = taskData.clientId;
+    dbTask.created_at = new Date().toISOString();
+    
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .insert(dbTask)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating recurring task:', error);
+      throw error;
+    }
+    
+    return mapDatabaseToRecurringTask(data);
+  } catch (error) {
+    console.error('Error in createRecurringTask:', error);
     throw error;
   }
 };
