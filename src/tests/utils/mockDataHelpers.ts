@@ -26,7 +26,32 @@ export const createMockRecurringTask = (overrides: Partial<RecurringTaskDB> = {}
     end_date: null,
     custom_offset_days: null,
     last_generated_date: null,
-    preferred_staff_id: null, // Add preferred staff field to mock data
+    preferred_staff_id: null,
     ...overrides
   };
+};
+
+/**
+ * Create mock recurring task with preferred staff assigned
+ */
+export const createMockRecurringTaskWithStaff = (staffId: string, overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    preferred_staff_id: staffId,
+    ...overrides
+  });
+};
+
+/**
+ * Create mock recurring task with validation test data
+ */
+export const createMockRecurringTaskForValidation = (overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    name: 'Validation Test Task',
+    estimated_hours: 2.5,
+    priority: 'High',
+    category: 'Advisory',
+    required_skills: ['Skill1', 'Skill2'],
+    preferred_staff_id: 'staff-123',
+    ...overrides
+  });
 };

@@ -28,7 +28,7 @@ export const useEditTaskForm = ({
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
       isRecurring: true,
       requiredSkills: task.requiredSkills || [],
-      preferredStaffId: task.preferredStaffId || null, // Add preferred staff initialization
+      preferredStaffId: task.preferredStaffId || null,
       recurrenceType: task.recurrencePattern.type,
       interval: task.recurrencePattern.interval || 1,
       weekdays: task.recurrencePattern.weekdays || [],
@@ -44,13 +44,14 @@ export const useEditTaskForm = ({
       category: 'Other' as TaskCategory,
       isRecurring: true,
       requiredSkills: [],
-      preferredStaffId: null, // Add preferred staff default
+      preferredStaffId: null,
       interval: 1,
       weekdays: [],
       dayOfMonth: 15,
       monthOfYear: 1,
       customOffsetDays: 0
-    }
+    },
+    mode: 'onChange' // Enable real-time validation for better UX
   });
 
   // Update selected skills state when form values change
@@ -64,7 +65,7 @@ export const useEditTaskForm = ({
   // Reset form when task changes
   useEffect(() => {
     if (task) {
-      form.reset({
+      const resetValues = {
         name: task.name,
         description: task.description || '',
         estimatedHours: task.estimatedHours,
@@ -73,7 +74,7 @@ export const useEditTaskForm = ({
         dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
         isRecurring: true,
         requiredSkills: task.requiredSkills || [],
-        preferredStaffId: task.preferredStaffId || null, // Add preferred staff reset
+        preferredStaffId: task.preferredStaffId || null,
         recurrenceType: task.recurrencePattern.type,
         interval: task.recurrencePattern.interval || 1,
         weekdays: task.recurrencePattern.weekdays || [],
@@ -81,7 +82,9 @@ export const useEditTaskForm = ({
         monthOfYear: task.recurrencePattern.monthOfYear,
         endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
         customOffsetDays: task.recurrencePattern.customOffsetDays
-      });
+      };
+      
+      form.reset(resetValues);
       setSelectedSkills(task.requiredSkills || []);
       setFormError(null);
       setSkillsError(null);
@@ -124,6 +127,12 @@ export const useEditTaskForm = ({
     setFormError(null);
     
     try {
+      // Validate preferred staff ID if provided
+      if (data.preferredStaffId && typeof data.preferredStaffId === 'string' && data.preferredStaffId.trim() === '') {
+        setFormError("Preferred staff ID cannot be empty. Please select a staff member or leave it unassigned.");
+        return;
+      }
+      
       // Build recurrence pattern from form data
       const recurrencePattern = {
         type: data.recurrenceType!,
@@ -135,7 +144,7 @@ export const useEditTaskForm = ({
         customOffsetDays: data.recurrenceType === 'Custom' ? data.customOffsetDays : undefined
       };
 
-      // Build updated task object
+      // Build updated task object with proper preferred staff handling
       const updatedTask: Partial<RecurringTask> = {
         id: task.id,
         name: data.name,
@@ -145,7 +154,7 @@ export const useEditTaskForm = ({
         category: data.category,
         dueDate: data.dueDate,
         requiredSkills: selectedSkills as SkillType[],
-        preferredStaffId: data.preferredStaffId || null, // Add preferred staff to update
+        preferredStaffId: data.preferredStaffId === null || data.preferredStaffId === undefined ? null : data.preferredStaffId,
         recurrencePattern: recurrencePattern,
         isActive: task.isActive
       };
