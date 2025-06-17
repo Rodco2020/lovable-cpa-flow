@@ -1,4 +1,5 @@
 
+
 import { 
   PerformanceMonitor, 
   DataIntegrityValidator, 
@@ -54,12 +55,26 @@ describe('Phase 7: Performance Testing with Realistic Data Volumes', () => {
       const startTime = Date.now();
       
       try {
+        const completeTask = createCompleteRecurringTask();
+        
+        // Create task data without properties that shouldn't be passed to createRecurringTask
+        const taskDataForCreation = {
+          templateId: completeTask.templateId,
+          clientId: completeTask.clientId,
+          name: completeTask.name,
+          description: completeTask.description,
+          estimatedHours: completeTask.estimatedHours,
+          requiredSkills: completeTask.requiredSkills,
+          priority: completeTask.priority,
+          category: completeTask.category,
+          dueDate: completeTask.dueDate,
+          recurrencePattern: completeTask.recurrencePattern,
+          preferredStaffId: 'staff-1'
+        };
+
         const { metrics } = await performanceMonitor.measureOperation(
           'createTaskWithStaff',
-          () => createRecurringTask({
-            ...createCompleteRecurringTask(),
-            preferredStaffId: 'staff-1'
-          })
+          () => createRecurringTask(taskDataForCreation)
         );
 
         // Performance threshold: creation should take less than 500ms
@@ -234,14 +249,26 @@ describe('Phase 7: Performance Testing with Realistic Data Volumes', () => {
       const initialMemory = (performance as any).memory?.usedJSHeapSize || 0;
       
       // Create multiple tasks with various staff assignments
-      const taskPromises = Array.from({ length: 100 }, (_, i) =>
-        createRecurringTask({
-          ...createCompleteRecurringTask(),
-          id: `memory-test-task-${i}`,
+      const taskPromises = Array.from({ length: 100 }, (_, i) => {
+        const completeTask = createCompleteRecurringTask();
+        
+        // Create task data without properties that shouldn't be passed to createRecurringTask
+        const taskDataForCreation = {
+          templateId: completeTask.templateId,
+          clientId: completeTask.clientId,
           name: `Memory Test Task ${i}`,
+          description: completeTask.description,
+          estimatedHours: completeTask.estimatedHours,
+          requiredSkills: completeTask.requiredSkills,
+          priority: completeTask.priority,
+          category: completeTask.category,
+          dueDate: completeTask.dueDate,
+          recurrencePattern: completeTask.recurrencePattern,
           preferredStaffId: i % 10 === 0 ? null : `staff-${(i % 50) + 1}`
-        })
-      );
+        };
+
+        return createRecurringTask(taskDataForCreation);
+      });
 
       const startTime = Date.now();
       

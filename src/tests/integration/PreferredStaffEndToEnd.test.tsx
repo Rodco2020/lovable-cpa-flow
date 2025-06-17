@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -126,14 +125,23 @@ describe('Phase 7: End-to-End Integration Testing - Preferred Staff Feature', ()
       
       (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithStaff);
       
-      // Test creation workflow
+      // Test creation workflow - remove properties that shouldn't be passed to createRecurringTask
+      const taskDataForCreation = {
+        templateId: taskWithStaff.templateId,
+        clientId: taskWithStaff.clientId,
+        name: taskWithStaff.name,
+        description: taskWithStaff.description,
+        estimatedHours: taskWithStaff.estimatedHours,
+        requiredSkills: taskWithStaff.requiredSkills,
+        priority: taskWithStaff.priority,
+        category: taskWithStaff.category,
+        dueDate: taskWithStaff.dueDate,
+        recurrencePattern: taskWithStaff.recurrencePattern,
+        preferredStaffId: taskWithStaff.preferredStaffId
+      };
+
       await act(async () => {
-        await createRecurringTask({
-          ...taskWithStaff,
-          id: undefined as any,
-          createdAt: undefined as any,
-          updatedAt: undefined as any
-        });
+        await createRecurringTask(taskDataForCreation);
       });
 
       expect(createRecurringTask).toHaveBeenCalledWith(
@@ -450,8 +458,22 @@ describe('Phase 7: End-to-End Integration Testing - Preferred Staff Feature', ()
     test('Verify data persistence across all operations', async () => {
       const originalTask = createMockTask({ preferredStaffId: null });
       
-      // Step 1: Create task without staff
-      await createRecurringTask(originalTask);
+      // Step 1: Create task without staff - remove properties that shouldn't be passed
+      const taskDataForCreation = {
+        templateId: originalTask.templateId,
+        clientId: originalTask.clientId,
+        name: originalTask.name,
+        description: originalTask.description,
+        estimatedHours: originalTask.estimatedHours,
+        requiredSkills: originalTask.requiredSkills,
+        priority: originalTask.priority,
+        category: originalTask.category,
+        dueDate: originalTask.dueDate,
+        recurrencePattern: originalTask.recurrencePattern,
+        preferredStaffId: originalTask.preferredStaffId
+      };
+
+      await createRecurringTask(taskDataForCreation);
       expect(createRecurringTask).toHaveBeenCalledWith(
         expect.objectContaining({ preferredStaffId: null })
       );
