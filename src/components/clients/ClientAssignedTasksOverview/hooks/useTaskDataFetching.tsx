@@ -29,7 +29,7 @@ export const useTaskDataFetching = () => {
     queryKey: ['staff-dropdown-options'],
     queryFn: getActiveStaffForDropdown,
     staleTime: 5 * 60 * 1000, // 5 minutes cache
-    cacheTime: 10 * 60 * 1000, // 10 minutes cache
+    gcTime: 10 * 60 * 1000, // 10 minutes cache (renamed from cacheTime)
   });
 
   const fetchData = async () => {

@@ -61,9 +61,12 @@ const ClientAssignedTasksOverview: React.FC = () => {
     error,
     availableSkills,
     availablePriorities,
-    staffOptions,
+    staffOptions: rawStaffOptions,
     handleEditComplete
   } = useTasksData();
+
+  // Ensure staffOptions is always an array with proper typing
+  const staffOptions = Array.isArray(rawStaffOptions) ? rawStaffOptions : [];
 
   const {
     filteredTasks,
