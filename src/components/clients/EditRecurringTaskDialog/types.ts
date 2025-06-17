@@ -12,6 +12,7 @@ export const EditTaskSchema = z.object({
   dueDate: z.date().optional(),
   isRecurring: z.boolean(),
   requiredSkills: z.array(z.string()).min(1, 'At least one skill is required'),
+  preferredStaffId: z.string().optional().nullable(), // Add preferred staff field
   recurrenceType: z.enum(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'Custom'] as const).optional(),
   interval: z.number().positive('Interval must be positive').min(1, 'Minimum interval is 1').optional(),
   weekdays: z.array(z.number().min(0).max(6)).optional(),

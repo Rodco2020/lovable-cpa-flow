@@ -118,6 +118,7 @@ export type Database = {
           month_of_year: number | null
           name: string
           notes: string | null
+          preferred_staff_id: string | null
           priority: string
           recurrence_interval: number | null
           recurrence_type: string
@@ -144,6 +145,7 @@ export type Database = {
           month_of_year?: number | null
           name: string
           notes?: string | null
+          preferred_staff_id?: string | null
           priority: string
           recurrence_interval?: number | null
           recurrence_type: string
@@ -170,6 +172,7 @@ export type Database = {
           month_of_year?: number | null
           name?: string
           notes?: string | null
+          preferred_staff_id?: string | null
           priority?: string
           recurrence_interval?: number | null
           recurrence_type?: string
@@ -181,6 +184,13 @@ export type Database = {
           weekdays_for_daily?: number[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_recurring_tasks_preferred_staff"
+            columns: ["preferred_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recurring_tasks_client_id_fkey"
             columns: ["client_id"]

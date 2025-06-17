@@ -28,6 +28,7 @@ export const useEditTaskForm = ({
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
       isRecurring: true,
       requiredSkills: task.requiredSkills || [],
+      preferredStaffId: task.preferredStaffId || null, // Add preferred staff initialization
       recurrenceType: task.recurrencePattern.type,
       interval: task.recurrencePattern.interval || 1,
       weekdays: task.recurrencePattern.weekdays || [],
@@ -43,6 +44,7 @@ export const useEditTaskForm = ({
       category: 'Other' as TaskCategory,
       isRecurring: true,
       requiredSkills: [],
+      preferredStaffId: null, // Add preferred staff default
       interval: 1,
       weekdays: [],
       dayOfMonth: 15,
@@ -71,6 +73,7 @@ export const useEditTaskForm = ({
         dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
         isRecurring: true,
         requiredSkills: task.requiredSkills || [],
+        preferredStaffId: task.preferredStaffId || null, // Add preferred staff reset
         recurrenceType: task.recurrencePattern.type,
         interval: task.recurrencePattern.interval || 1,
         weekdays: task.recurrencePattern.weekdays || [],
@@ -142,6 +145,7 @@ export const useEditTaskForm = ({
         category: data.category,
         dueDate: data.dueDate,
         requiredSkills: selectedSkills as SkillType[],
+        preferredStaffId: data.preferredStaffId || null, // Add preferred staff to update
         recurrencePattern: recurrencePattern,
         isActive: task.isActive
       };

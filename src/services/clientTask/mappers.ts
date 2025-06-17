@@ -1,71 +1,69 @@
 
-/**
- * Client Task Service Mappers
- * 
- * Functions to map database results to our domain types
- */
-
-import { TaskInstance, RecurringTask, TaskPriority, TaskCategory, RecurrencePattern, TaskStatus } from '@/types/task';
+import { RecurringTask, RecurringTaskDB } from '@/types/task';
 
 /**
- * Maps database recurring task data to RecurringTask domain object
+ * Map database recurring task to application-level RecurringTask
  */
-export const mapDatabaseToRecurringTask = (data: any): RecurringTask => {
-  // Create recurrence pattern object from individual fields
-  const recurrencePattern: RecurrencePattern = {
-    type: data.recurrence_type as RecurrencePattern['type'],
-    interval: data.recurrence_interval || undefined,
-    weekdays: data.weekdays || undefined,
-    dayOfMonth: data.day_of_month || undefined,
-    monthOfYear: data.month_of_year || undefined,
-    endDate: data.end_date ? new Date(data.end_date) : undefined,
-    customOffsetDays: data.custom_offset_days || undefined,
-  };
-  
+export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTask => {
   return {
-    id: data.id,
-    templateId: data.template_id,
-    clientId: data.client_id,
-    name: data.name,
-    description: data.description || '',
-    estimatedHours: data.estimated_hours,
-    requiredSkills: data.required_skills || [],
-    priority: data.priority as TaskPriority,
-    category: data.category as TaskCategory,
-    status: data.status as TaskStatus,
-    dueDate: data.due_date ? new Date(data.due_date) : null,
-    recurrencePattern,
-    lastGeneratedDate: data.last_generated_date ? new Date(data.last_generated_date) : null,
-    isActive: data.is_active,
-    createdAt: new Date(data.created_at),
-    updatedAt: new Date(data.updated_at),
-    notes: data.notes
+    id: dbTask.id,
+    templateId: dbTask.template_id,
+    clientId: dbTask.client_id,
+    name: dbTask.name,
+    description: dbTask.description || '',
+    estimatedHours: Number(dbTask.estimated_hours),
+    requiredSkills: dbTask.required_skills || [],
+    priority: dbTask.priority,
+    category: dbTask.category,
+    status: dbTask.status,
+    dueDate: dbTask.due_date ? new Date(dbTask.due_date) : null,
+    preferredStaffId: dbTask.preferred_staff_id, // Add preferred staff mapping
+    recurrencePattern: {
+      type: dbTask.recurrence_type as any,
+      interval: dbTask.recurrence_interval || undefined,
+      weekdays: dbTask.weekdays || undefined,
+      dayOfMonth: dbTask.day_of_month || undefined,
+      monthOfYear: dbTask.month_of_year || undefined,
+      endDate: dbTask.end_date ? new Date(dbTask.end_date) : undefined,
+      customOffsetDays: dbTask.custom_offset_days || undefined
+    },
+    lastGeneratedDate: dbTask.last_generated_date ? new Date(dbTask.last_generated_date) : null,
+    isActive: dbTask.is_active,
+    createdAt: new Date(dbTask.created_at),
+    updatedAt: new Date(dbTask.updated_at),
+    notes: dbTask.notes || undefined
   };
 };
 
 /**
- * Maps database task instance data to TaskInstance domain object
+ * Map application-level RecurringTask to database format for updates
  */
-export const mapDatabaseToTaskInstance = (data: any): TaskInstance => {
-  return {
-    id: data.id,
-    templateId: data.template_id,
-    clientId: data.client_id,
-    name: data.name,
-    description: data.description || '',
-    estimatedHours: data.estimated_hours,
-    requiredSkills: data.required_skills || [],
-    priority: data.priority as TaskPriority,
-    category: data.category as TaskCategory,
-    status: data.status as TaskStatus,
-    dueDate: data.due_date ? new Date(data.due_date) : null,
-    completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
-    assignedStaffId: data.assigned_staff_id,
-    scheduledStartTime: data.scheduled_start_time ? new Date(data.scheduled_start_time) : undefined,
-    scheduledEndTime: data.scheduled_end_time ? new Date(data.scheduled_end_time) : undefined,
-    createdAt: new Date(data.created_at),
-    updatedAt: new Date(data.updated_at),
-    notes: data.notes,
-    recurringTaskId: data.recurring_task_id
-  };
+export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
+  const dbUpdate: any = {};
+  
+  if (task.name !== undefined) dbUpdate.name = task.name;
+  if (task.description !== undefined) dbUpdate.description = task.description;
+  if (task.estimatedHours !== undefined) dbUpdate.estimated_hours = task.estimatedHours;
+  if (task.requiredSkills !== undefined) dbUpdate.required_skills = task.requiredSkills;
+  if (task.priority !== undefined) dbUpdate.priority = task.priority;
+  if (task.category !== undefined) dbUpdate.category = task.category;
+  if (task.dueDate !== undefined) dbUpdate.due_date = task.dueDate?.toISOString() || null;
+  if (task.preferredStaffId !== undefined) dbUpdate.preferred_staff_id = task.preferredStaffId; // Add preferred staff mapping
+  if (task.isActive !== undefined) dbUpdate.is_active = task.isActive;
+  
+  // Handle recurrence pattern
+  if (task.recurrencePattern) {
+    const pattern = task.recurrencePattern;
+    if (pattern.type !== undefined) dbUpdate.recurrence_type = pattern.type;
+    if (pattern.interval !== undefined) dbUpdate.recurrence_interval = pattern.interval;
+    if (pattern.weekdays !== undefined) dbUpdate.weekdays = pattern.weekdays;
+    if (pattern.dayOfMonth !== undefined) dbUpdate.day_of_month = pattern.dayOfMonth;
+    if (pattern.monthOfYear !== undefined) dbUpdate.month_of_year = pattern.monthOfYear;
+    if (pattern.endDate !== undefined) dbUpdate.end_date = pattern.endDate?.toISOString() || null;
+    if (pattern.customOffsetDays !== undefined) dbUpdate.custom_offset_days = pattern.customOffsetDays;
+  }
+  
+  dbUpdate.updated_at = new Date().toISOString();
+  
+  return dbUpdate;
 };

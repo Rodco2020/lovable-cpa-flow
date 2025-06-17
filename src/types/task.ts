@@ -46,6 +46,7 @@ export interface BaseTask {
   createdAt: Date;
   updatedAt: Date;
   notes?: string;
+  preferredStaffId?: string | null; // Add preferred staff field
 }
 
 // Database-level recurring task (matches actual database schema)
@@ -70,6 +71,7 @@ export interface RecurringTaskDB {
   custom_offset_days: number | null;
   last_generated_date: string | null;
   is_active: boolean;
+  preferred_staff_id: string | null; // Add preferred staff field
   created_at: string;
   updated_at: string;
   notes: string | null;
