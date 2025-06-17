@@ -52,6 +52,7 @@ describe('MatrixTransformerCore', () => {
         custom_offset_days: null,
         last_generated_date: null,
         is_active: true,
+        preferred_staff_id: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z',
         notes: null

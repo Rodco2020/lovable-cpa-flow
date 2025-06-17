@@ -1,9 +1,10 @@
+
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ForecastDashboard from "@/components/forecasting/ForecastDashboard";
 import ForecastTestPage from "@/components/forecasting/ForecastTestPage";
 import ForecastSkillDebugger from "@/components/forecasting/ForecastSkillDebugger";
-import { IntegrationVerificationPanel } from "@/components/forecasting/matrix/IntegrationVerificationPanel";
+import IntegrationVerificationPanel from "@/components/forecasting/matrix/IntegrationVerificationPanel";
 
 const ForecastingModule: React.FC = () => {
   return (
