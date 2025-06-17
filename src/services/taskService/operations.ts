@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabaseClient';
 import { TaskTemplate, RecurringTask, TaskInstance } from '@/types/task';
 import { mapRecurringTaskToDatabase } from '../clientTask/mappers';
@@ -303,18 +304,50 @@ export const updateRecurringTask = async (taskId: string, updates: Partial<Recur
   }
 };
 
-export {
-  createRecurringTask,
-  createTaskInstance,
-  getTaskTemplates,
-  getRecurringTasks,
-  getTaskInstances,
-  getUnscheduledTaskInstances,
-  updateTaskInstance,
-  deleteRecurringTaskAssignment,
-  deleteTaskInstance,
-  createTaskTemplate,
-  updateTaskTemplate,
-  archiveTaskTemplate,
-  TaskServiceError
+/**
+ * Get a recurring task by ID
+ */
+export const getRecurringTaskById = async (taskId: string): Promise<RecurringTask | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+      
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      console.error('Error fetching recurring task:', error);
+      throw new TaskServiceError(`Failed to fetch recurring task: ${error.message}`);
+    }
+    
+    return data as RecurringTask;
+  } catch (error) {
+    console.error('Error in getRecurringTaskById:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deactivate a recurring task
+ */
+export const deactivateRecurringTask = async (taskId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('recurring_tasks')
+      .update({ is_active: false })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error(`Failed to deactivate recurring task ${taskId}:`, error);
+      throw new TaskServiceError(`Failed to deactivate recurring task: ${error.message}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`Error deactivating recurring task ${taskId}:`, error);
+    throw error;
+  }
 };

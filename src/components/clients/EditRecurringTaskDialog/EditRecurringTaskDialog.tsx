@@ -86,7 +86,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormHeader />
+            <FormHeader task={task} open={open} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Basic Information */}
@@ -199,11 +199,14 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
               <div className="space-y-4">
                 <SkillsSelection
                   selectedSkills={selectedSkills}
-                  onToggleSkill={toggleSkill}
+                  toggleSkill={toggleSkill}
                   error={skillsError}
                 />
                 
-                <RecurrenceSettings form={form} />
+                <RecurrenceSettings 
+                  form={form} 
+                  recurrenceType={form.watch('recurrenceType')}
+                />
               </div>
             </div>
 

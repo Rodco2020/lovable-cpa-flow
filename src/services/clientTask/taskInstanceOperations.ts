@@ -2,7 +2,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { TaskInstance } from '@/types/task';
 import { Database } from '@/types/supabase';
-import { TaskServiceError } from '../taskService/operations';
+
+// Define a custom error class for consistency
+class TaskServiceError extends Error {
+  constructor(message: string, public code?: string, public details?: any) {
+    super(message);
+    this.name = 'TaskServiceError';
+  }
+}
 
 type TaskInstanceRow = Database['public']['Tables']['task_instances']['Row'];
 
@@ -31,11 +38,7 @@ export const getTaskInstanceById = async (instanceId: string): Promise<TaskInsta
 
     if (error) {
       console.error('Error fetching task instance:', error);
-      throw new TaskServiceError(
-        `Failed to fetch task instance: ${error.message}`,
-        error.code,
-        error.details
-      );
+      throw new TaskServiceError(`Failed to fetch task instance: ${error.message}`);
     }
 
     if (!data) {
@@ -52,7 +55,7 @@ export const getTaskInstanceById = async (instanceId: string): Promise<TaskInsta
     if (error instanceof TaskServiceError) {
       throw error;
     }
-    throw new TaskServiceError('Unexpected error fetching task instance', 'UNKNOWN_ERROR', error);
+    throw new TaskServiceError('Unexpected error fetching task instance');
   }
 };
 
@@ -71,11 +74,7 @@ export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanc
       .single();
 
     if (clientError || !clientExists) {
-      throw new TaskServiceError(
-        `Client with ID ${clientId} not found`,
-        'CLIENT_NOT_FOUND',
-        { clientId }
-      );
+      throw new TaskServiceError(`Client with ID ${clientId} not found`);
     }
 
     const { data, error } = await supabase
@@ -91,11 +90,7 @@ export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanc
 
     if (error) {
       console.error('Error fetching client ad-hoc tasks:', error);
-      throw new TaskServiceError(
-        `Failed to fetch client ad-hoc tasks: ${error.message}`,
-        error.code,
-        error.details
-      );
+      throw new TaskServiceError(`Failed to fetch client ad-hoc tasks: ${error.message}`);
     }
 
     const tasks = (data || []).map(row => ({
@@ -111,7 +106,7 @@ export const getClientAdHocTasks = async (clientId: string): Promise<TaskInstanc
     if (error instanceof TaskServiceError) {
       throw error;
     }
-    throw new TaskServiceError('Unexpected error fetching client ad-hoc tasks', 'UNKNOWN_ERROR', error);
+    throw new TaskServiceError('Unexpected error fetching client ad-hoc tasks');
   }
 };
 
