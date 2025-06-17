@@ -47,7 +47,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
       month_of_year: null,
       end_date: null,
       custom_offset_days: null,
-      last_generated_date: null
+      last_generated_date: null,
+      preferred_staff_id: null
     },
     {
       id: 'weekly-2',
@@ -72,7 +73,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
       month_of_year: null,
       end_date: null,
       custom_offset_days: null,
-      last_generated_date: null
+      last_generated_date: null,
+      preferred_staff_id: null
     }
   ];
 
@@ -100,7 +102,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
       month_of_year: null,
       end_date: null,
       custom_offset_days: null,
-      last_generated_date: null
+      last_generated_date: null,
+      preferred_staff_id: null
     }
   ];
 
@@ -378,7 +381,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
           month_of_year: null,
           end_date: null,
           custom_offset_days: null,
-          last_generated_date: null
+          last_generated_date: null,
+          preferred_staff_id: null
         });
       }
       
@@ -534,7 +538,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
           month_of_year: null,
           end_date: null,
           custom_offset_days: null,
-          last_generated_date: null
+          last_generated_date: null,
+          preferred_staff_id: null
         },
         // Quarterly task
         {
@@ -560,7 +565,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
           month_of_year: 1,
           end_date: null,
           custom_offset_days: null,
-          last_generated_date: null
+          last_generated_date: null,
+          preferred_staff_id: null
         }
       ];
       
@@ -611,7 +617,8 @@ describe('Phase 4: Matrix Calculations Integration', () => {
         month_of_year: null,
         end_date: null,
         custom_offset_days: null,
-        last_generated_date: null
+        last_generated_date: null,
+        preferred_staff_id: null
       };
       
       const skillHours = await SkillCalculatorCore.calculateMonthlyDemandBySkill(

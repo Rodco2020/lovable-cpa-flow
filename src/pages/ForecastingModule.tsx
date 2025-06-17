@@ -40,7 +40,7 @@ const ForecastDebugPage: React.FC = () => {
               </p>
             </div>
             
-            <IntegrationVerificationPanel />
+            <IntegrationVerificationPanel recurringTasks={[]} staffOptions={[]} />
           </section>
 
           {/* Existing Skill Mapping Analysis */}

@@ -1,14 +1,13 @@
-
 import { describe, it, expect } from 'vitest';
 import { RecurrenceCalculator } from '@/services/forecasting/demand/recurrenceCalculator/recurrenceCalculator';
 import { ValidationUtils } from '@/services/forecasting/demand/recurrenceCalculator/validationUtils';
 import { WeekdayUtils } from '@/services/forecasting/demand/recurrenceCalculator/weekdayUtils';
 import { RecurringTaskDB } from '@/types/task';
 
-describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling Tests', () => {
-  const baseTask: RecurringTaskDB = {
+describe('RecurrenceCalculator Integration Tests', () => {
+  const mockTask: RecurringTaskDB = {
     id: '1',
-    name: 'Test Weekly Task',
+    name: 'Tax Task',
     template_id: 'template-1',
     client_id: 'client-1',
     estimated_hours: 10,
@@ -16,20 +15,21 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
     priority: 'Medium',
     category: 'Tax',
     status: 'Unscheduled',
-    recurrence_type: 'Weekly',
+    recurrence_type: 'Monthly',
     recurrence_interval: 1,
     is_active: true,
     due_date: '2025-01-15T00:00:00Z',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
-    description: 'Test weekly task with enhanced validation',
+    description: 'Test task',
     notes: null,
     weekdays: null,
     day_of_month: null,
     month_of_year: null,
     end_date: null,
     custom_offset_days: null,
-    last_generated_date: null
+    last_generated_date: null,
+    preferred_staff_id: null
   };
 
   describe('Enhanced Error Handling', () => {
@@ -63,7 +63,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should handle extremely invalid weekdays data gracefully', () => {
       const taskWithInvalidWeekdays: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         weekdays: 'not an array at all' as any
       };
 
@@ -79,7 +79,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should handle negative estimated hours', () => {
       const taskWithNegativeHours: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         estimated_hours: -5
       };
 
@@ -94,7 +94,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should handle invalid recurrence interval', () => {
       const taskWithInvalidInterval: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         recurrence_interval: 0
       };
 
@@ -111,7 +111,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
   describe('Enhanced Weekdays Validation', () => {
     it('should provide detailed validation results', () => {
       const validationResult = ValidationUtils.validateTaskInputs({
-        ...baseTask,
+        ...mockTask,
         weekdays: [1, 3, 5, 7, -1] // Mix of valid and invalid
       });
 
@@ -123,7 +123,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should provide warnings for edge cases', () => {
       const validationResult = ValidationUtils.validateTaskInputs({
-        ...baseTask,
+        ...mockTask,
         weekdays: [0, 1, 2, 3, 4, 5, 6] // All 7 days
       });
 
@@ -133,7 +133,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should handle null weekdays appropriately', () => {
       const validationResult = ValidationUtils.validateTaskInputs({
-        ...baseTask,
+        ...mockTask,
         weekdays: null
       });
 
@@ -191,7 +191,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
   describe('Graceful Fallback Behavior', () => {
     it('should fall back to legacy calculation when weekdays validation fails', () => {
       const taskWithCorruptWeekdays: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         weekdays: [7, 8, 9, 10] // All invalid
       };
 
@@ -207,7 +207,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should maintain existing functionality for non-weekly tasks', () => {
       const monthlyTask: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         recurrence_type: 'Monthly',
         weekdays: [1, 2, 3] // Should be ignored
       };
@@ -225,7 +225,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
   describe('Integration with Larger System', () => {
     it('should preserve existing calculation results for valid tasks', () => {
       const validWeeklyTask: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         weekdays: [1, 3, 5]
       };
 
@@ -241,7 +241,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
 
     it('should handle annual tasks without interference from weekdays logic', () => {
       const annualTask: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         recurrence_type: 'Annually',
         month_of_year: 1, // January
         weekdays: [1, 2, 3] // Should be ignored
@@ -268,7 +268,7 @@ describe('RecurrenceCalculator - Phase 3 Enhanced Validation and Error Handling 
   describe('Performance and Error Recovery', () => {
     it('should handle calculation errors gracefully', () => {
       const taskWithExtremeDatas: RecurringTaskDB = {
-        ...baseTask,
+        ...mockTask,
         estimated_hours: Number.POSITIVE_INFINITY
       };
 

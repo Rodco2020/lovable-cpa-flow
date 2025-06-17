@@ -28,7 +28,8 @@ describe('SkillCalculatorCore', () => {
       month_of_year: null,
       end_date: null,
       custom_offset_days: null,
-      last_generated_date: null
+      last_generated_date: null,
+      preferred_staff_id: null
     }
   ];
 

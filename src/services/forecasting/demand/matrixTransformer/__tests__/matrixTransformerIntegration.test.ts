@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MatrixTransformerCore } from '../matrixTransformerCore';
 import { DemandMatrixData } from '@/types/demand';
@@ -87,6 +86,7 @@ describe('MatrixTransformerCore Integration Tests', () => {
         end_date: null,
         custom_offset_days: null,
         last_generated_date: null,
+        preferred_staff_id: null,
         notes: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -231,6 +231,7 @@ describe('MatrixTransformerCore Integration Tests', () => {
         end_date: null,
         custom_offset_days: null,
         last_generated_date: null,
+        preferred_staff_id: null,
         notes: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

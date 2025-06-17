@@ -4,30 +4,31 @@ import { AnnualTaskTracker } from '@/services/forecasting/demand/skillCalculator
 import { RecurringTaskDB } from '@/types/task';
 
 describe('AnnualTaskTracker', () => {
-  const mockAnnualTask: RecurringTaskDB = {
+  const mockTask: RecurringTaskDB = {
     id: '1',
-    name: 'Annual Tax Return',
+    name: 'Annual Tax Filing',
     template_id: 'template-1',
     client_id: 'client-1',
-    estimated_hours: 20,
+    estimated_hours: 40,
     required_skills: ['Tax Preparation'],
     priority: 'High',
     category: 'Tax',
     status: 'Unscheduled',
-    recurrence_type: 'Annual',
+    recurrence_type: 'Annually',
     recurrence_interval: 1,
     is_active: true,
-    due_date: '2025-03-15T00:00:00Z',
-    month_of_year: 3,
+    due_date: '2025-04-15T00:00:00Z',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
-    description: 'Annual tax return preparation',
+    description: 'Annual tax filing task',
     notes: null,
     weekdays: null,
-    day_of_month: 15,
+    day_of_month: null,
+    month_of_year: 4,
     end_date: null,
     custom_offset_days: null,
-    last_generated_date: null
+    last_generated_date: null,
+    preferred_staff_id: null
   };
 
   beforeEach(() => {
