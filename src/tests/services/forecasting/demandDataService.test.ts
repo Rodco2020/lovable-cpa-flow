@@ -1,9 +1,8 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DemandDataService } from '@/services/forecasting/demandDataService';
 import { DemandForecastParameters } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
-import { createMockRecurringTask } from '../utils/mockDataHelpers';
+import { createMockRecurringTask } from '../../utils/mockDataHelpers';
 
 // Mock the new demand services
 vi.mock('@/services/forecasting/demand', () => ({
