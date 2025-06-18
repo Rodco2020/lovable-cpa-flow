@@ -5,6 +5,7 @@
  * Tests error scenarios and graceful degradation.
  */
 
+import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
@@ -24,7 +25,7 @@ export const runErrorHandlingTests = ({
     test('handles service errors gracefully', async () => {
       mockGetRecurringTasks.mockRejectedValue(new Error('Service error'));
 
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         // Should handle error gracefully without crashing
@@ -35,7 +36,7 @@ export const runErrorHandlingTests = ({
     test('handles update errors gracefully', async () => {
       mockUpdateRecurringTask.mockRejectedValue(new Error('Update failed'));
 
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();

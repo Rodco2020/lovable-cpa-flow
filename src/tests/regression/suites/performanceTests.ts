@@ -5,6 +5,7 @@
  * Tests performance characteristics to prevent regressions.
  */
 
+import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
@@ -47,7 +48,7 @@ export const runPerformanceRegressionTests = ({
 
       const startTime = performance.now();
       
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Task 0')).toBeInTheDocument();
@@ -61,7 +62,7 @@ export const runPerformanceRegressionTests = ({
     });
 
     test('maintains responsive UI during updates', async () => {
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();

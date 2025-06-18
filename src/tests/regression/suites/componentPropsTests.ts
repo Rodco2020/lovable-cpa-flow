@@ -5,6 +5,7 @@
  * Tests component prop interfaces and callback functionality.
  */
 
+import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
@@ -23,7 +24,7 @@ export const runComponentPropsTests = ({ renderWithProviders }: ComponentPropsTe
       };
 
       expect(() => {
-        renderWithProviders(<ClientRecurringTaskList {...props} />);
+        renderWithProviders(React.createElement(ClientRecurringTaskList, props));
       }).not.toThrow();
     });
 
@@ -31,10 +32,10 @@ export const runComponentPropsTests = ({ renderWithProviders }: ComponentPropsTe
       const onViewTask = jest.fn();
       
       renderWithProviders(
-        <ClientRecurringTaskList 
-          clientId="client-1" 
-          onViewTask={onViewTask}
-        />
+        React.createElement(ClientRecurringTaskList, {
+          clientId: "client-1",
+          onViewTask: onViewTask
+        })
       );
 
       await waitFor(() => {

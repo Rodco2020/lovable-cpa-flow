@@ -5,6 +5,7 @@
  * Tests core component functionality to ensure existing behavior is preserved.
  */
 
+import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ClientRecurringTaskList from '@/components/clients/ClientRecurringTaskList';
@@ -28,7 +29,7 @@ export const runComponentRegressionTests = ({
 }: ComponentRegressionTestConfig) => {
   describe('ClientRecurringTaskList Component', () => {
     test('renders task list correctly', async () => {
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();
@@ -43,7 +44,7 @@ export const runComponentRegressionTests = ({
     });
 
     test('handles task deactivation correctly', async () => {
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();
@@ -56,7 +57,7 @@ export const runComponentRegressionTests = ({
     });
 
     test('opens edit dialog when edit button is clicked', async () => {
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();
@@ -74,7 +75,7 @@ export const runComponentRegressionTests = ({
     test('displays empty state when no tasks exist', async () => {
       mockGetRecurringTasks.mockResolvedValue([]);
 
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('No recurring tasks')).toBeInTheDocument();
@@ -82,14 +83,14 @@ export const runComponentRegressionTests = ({
     });
 
     test('handles loading state correctly', () => {
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       // Should show loading state initially
       expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
     test('preserves existing task properties after update', async () => {
-      renderWithProviders(<ClientRecurringTaskList clientId="client-1" />);
+      renderWithProviders(React.createElement(ClientRecurringTaskList, { clientId: "client-1" }));
 
       await waitFor(() => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();
