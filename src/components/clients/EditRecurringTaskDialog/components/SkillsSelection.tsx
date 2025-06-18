@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 export interface SkillsSelectionProps {
-  selectedSkills: string[];
+  selectedSkills: string[]; // These are skill IDs (UUIDs)
   toggleSkill: (skillId: string) => void;
   error: string | null;
 }
@@ -59,7 +59,7 @@ export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
               type="button"
               variant={selectedSkills.includes(skill.id) ? "default" : "outline"}
               size="sm"
-              onClick={() => toggleSkill(skill.id)}
+              onClick={() => toggleSkill(skill.id)} // Pass skill ID, not name
               className="justify-start"
             >
               {skill.name}
