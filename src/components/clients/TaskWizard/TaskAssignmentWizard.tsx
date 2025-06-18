@@ -1,103 +1,53 @@
 
 import React from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { WizardProvider } from './WizardContext';
-import { WizardProgressIndicator } from './WizardProgressIndicator';
-import { WizardNavigation } from './WizardNavigation';
-import { WizardStepRenderer } from './WizardStepRenderer';
-import { useTaskAssignmentWizard } from './hooks/useTaskAssignmentWizard';
-
-interface TaskAssignmentWizardProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialClientId?: string;
-}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Settings } from 'lucide-react';
 
 /**
  * Task Assignment Wizard Component
  * 
- * A comprehensive wizard for managing task operations including:
- * - Copy tasks from one client to another
- * - Assign templates to clients
- * - Build new templates from existing tasks
- * - Bulk operations across multiple clients
- * 
- * The wizard provides a step-by-step interface with progress tracking,
- * navigation controls, and proper state management throughout the process.
+ * Main component for the task assignment and management wizard.
+ * This serves as the entry point for task-related operations including
+ * bulk assignments, task copying, and task management workflows.
  */
-const WizardContent: React.FC<{
-  onClose: () => void;
-  initialClientId?: string;
-}> = ({ onClose, initialClientId }) => {
-  const wizardState = useTaskAssignmentWizard(initialClientId, onClose);
-
+const TaskAssignmentWizard: React.FC = () => {
   return (
-    <div className="space-y-6">
-      <WizardProgressIndicator 
-        currentStep={wizardState.currentStep}
-        selectedAction={wizardState.selectedAction || undefined}
-      />
-      
-      <WizardStepRenderer
-        currentStep={wizardState.currentStep}
-        selectedAction={wizardState.selectedAction}
-        initialClientId={initialClientId}
-        clients={wizardState.clients}
-        isClientsLoading={wizardState.isClientsLoading}
-        copyTargetClientId={wizardState.copyTargetClientId}
-        copySelectedTaskIds={wizardState.copySelectedTaskIds}
-        copyStep={wizardState.copyStep}
-        isCopyProcessing={wizardState.isCopyProcessing}
-        selectedTemplateIds={wizardState.selectedTemplateIds}
-        setSelectedTemplateIds={wizardState.setSelectedTemplateIds}
-        selectedClientIds={wizardState.selectedClientIds}
-        setSelectedClientIds={wizardState.setSelectedClientIds}
-        assignmentConfig={wizardState.assignmentConfig}
-        setAssignmentConfig={wizardState.setAssignmentConfig}
-        isAssignmentProcessing={wizardState.isAssignmentProcessing}
-        selectedTaskIds={wizardState.selectedTaskIds}
-        setSelectedTaskIds={wizardState.setSelectedTaskIds}
-        handleActionSelect={wizardState.handleActionSelect}
-        handleClientSelect={wizardState.handleClientSelect}
-        handleTemplateAssignmentExecute={wizardState.handleTemplateAssignmentExecute}
-        handleTemplateCreated={wizardState.handleTemplateCreated}
-        handleEnhancedCopyExecute={wizardState.handleEnhancedCopyExecute}
-        getSourceClientName={wizardState.getSourceClientName}
-        getTargetClientName={wizardState.getTargetClientName}
-        setCurrentStep={wizardState.setCurrentStep}
-        setCopySelectedTaskIds={wizardState.setCopySelectedTaskIds}
-      />
-      
-      <WizardNavigation />
+    <div className="container mx-auto p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-6 w-6" />
+            Task Assignment Wizard
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Welcome to the Task Assignment Wizard. This tool helps you manage and assign tasks efficiently.
+            </p>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-800 mb-2">Available Features:</h3>
+              <ul className="text-blue-700 space-y-1 text-sm">
+                <li>• Bulk task assignment across multiple clients</li>
+                <li>• Task template management and assignment</li>
+                <li>• Copy tasks between clients</li>
+                <li>• Recurring task setup and management</li>
+              </ul>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h3 className="font-semibold text-amber-800 mb-2">Getting Started:</h3>
+              <p className="text-amber-700 text-sm">
+                This wizard is currently being developed as part of the CPA Practice Management System. 
+                Additional functionality will be added in future iterations.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-/**
- * Main Task Assignment Wizard Dialog
- * 
- * Provides a modal interface for the task assignment wizard with proper
- * context management and state isolation.
- */
-export const TaskAssignmentWizard: React.FC<TaskAssignmentWizardProps> = ({
-  open,
-  onOpenChange,
-  initialClientId
-}) => {
-  const handleOpenChange = (isOpen: boolean) => {
-    onOpenChange(isOpen);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-        <WizardProvider>
-          <WizardContent 
-            onClose={() => onOpenChange(false)}
-            initialClientId={initialClientId}
-          />
-        </WizardProvider>
-      </DialogContent>
-    </Dialog>
-  );
-};
+export default TaskAssignmentWizard;
