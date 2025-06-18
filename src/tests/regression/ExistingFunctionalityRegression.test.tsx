@@ -1,4 +1,3 @@
-
 /**
  * Regression Tests for Existing Functionality
  * 
@@ -321,7 +320,7 @@ describe('Existing Functionality Regression Tests', () => {
         expect(screen.getByText('Monthly Bookkeeping')).toBeInTheDocument();
       });
 
-      // Click on task row to trigger view - Fix: Pass boolean true instead of string
+      // Click on task row to trigger view - Fix: Call function with task ID instead of boolean
       const taskRow = screen.getByText('Monthly Bookkeeping').closest('tr');
       if (taskRow) {
         fireEvent.click(taskRow);
