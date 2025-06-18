@@ -7,26 +7,33 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, RenderResult } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 
-export const createTestQueryClient = () => new QueryClient({
+export const createTestQueryClient = (): QueryClient => new QueryClient({
   defaultOptions: {
     queries: { retry: false },
     mutations: { retry: false }
   }
 });
 
-export const renderWithProviders = (component: React.ReactElement, queryClient?: QueryClient) => {
+export const renderWithProviders = (
+  component: React.ReactElement, 
+  queryClient?: QueryClient
+): RenderResult => {
   const client = queryClient || createTestQueryClient();
   
   return render(
-    <QueryClientProvider client={client}>
-      <BrowserRouter>
-        {component}
-      </BrowserRouter>
-    </QueryClientProvider>
+    React.createElement(
+      QueryClientProvider,
+      { client },
+      React.createElement(
+        BrowserRouter,
+        null,
+        component
+      )
+    )
   );
 };
 
@@ -46,7 +53,7 @@ export const setupTestMocks = ({
   mockDeactivateRecurringTask,
   mockClient,
   mockRecurringTasks
-}: MockSetupConfig) => {
+}: MockSetupConfig): void => {
   // Setup default mocks with correct return types
   mockGetClientById.mockResolvedValue(mockClient);
   mockGetRecurringTasks.mockResolvedValue(mockRecurringTasks);
