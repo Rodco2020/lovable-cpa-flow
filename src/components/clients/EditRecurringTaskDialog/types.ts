@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 import { UseFormReturn } from 'react-hook-form';
-import { RecurringTask, TaskPriority, TaskCategory, RecurrenceType } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
 
 // PHASE 2: Enhanced schema with better preferred staff validation
 export const EditTaskSchema = z.object({
