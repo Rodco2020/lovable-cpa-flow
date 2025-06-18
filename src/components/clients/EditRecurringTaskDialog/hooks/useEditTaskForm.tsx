@@ -16,6 +16,14 @@ export const useEditTaskForm = ({
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
+  // PHASE 1: Enhanced logging for task initialization
+  console.log('🚀 [useEditTaskForm] Hook initialized:', {
+    taskId: task?.id,
+    taskPreferredStaffId: task?.preferredStaffId,
+    taskPreferredStaffIdType: typeof task?.preferredStaffId,
+    timestamp: new Date().toISOString()
+  });
+  
   // Initialize form with task data when available
   const form = useForm<EditTaskFormValues>({
     resolver: zodResolver(EditTaskSchema),
@@ -28,7 +36,7 @@ export const useEditTaskForm = ({
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
       isRecurring: true,
       requiredSkills: task.requiredSkills || [],
-      preferredStaffId: task.preferredStaffId || null, // Add preferred staff initialization
+      preferredStaffId: task.preferredStaffId || null, // PHASE 1: Enhanced logging will track this
       recurrenceType: task.recurrencePattern.type,
       interval: task.recurrencePattern.interval || 1,
       weekdays: task.recurrencePattern.weekdays || [],
@@ -44,7 +52,7 @@ export const useEditTaskForm = ({
       category: 'Other' as TaskCategory,
       isRecurring: true,
       requiredSkills: [],
-      preferredStaffId: null, // Add preferred staff default
+      preferredStaffId: null,
       interval: 1,
       weekdays: [],
       dayOfMonth: 15,
@@ -53,9 +61,22 @@ export const useEditTaskForm = ({
     }
   });
 
+  // PHASE 1: Log form values after initialization
+  useEffect(() => {
+    console.log('📋 [useEditTaskForm] Form initialized with values:', {
+      preferredStaffId: form.getValues('preferredStaffId'),
+      allFormValues: form.getValues(),
+      timestamp: new Date().toISOString()
+    });
+  }, [form]);
+
   // Update selected skills state when form values change
   useEffect(() => {
     if (task?.requiredSkills) {
+      console.log('🎯 [useEditTaskForm] Setting selected skills:', {
+        skills: task.requiredSkills,
+        timestamp: new Date().toISOString()
+      });
       setSelectedSkills(task.requiredSkills);
       form.setValue('requiredSkills', task.requiredSkills);
     }
@@ -64,7 +85,14 @@ export const useEditTaskForm = ({
   // Reset form when task changes
   useEffect(() => {
     if (task) {
-      form.reset({
+      console.log('🔄 [useEditTaskForm] Resetting form with new task data:', {
+        taskId: task.id,
+        originalPreferredStaffId: task.preferredStaffId,
+        preferredStaffIdType: typeof task.preferredStaffId,
+        timestamp: new Date().toISOString()
+      });
+
+      const resetValues = {
         name: task.name,
         description: task.description || '',
         estimatedHours: task.estimatedHours,
@@ -73,7 +101,7 @@ export const useEditTaskForm = ({
         dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
         isRecurring: true,
         requiredSkills: task.requiredSkills || [],
-        preferredStaffId: task.preferredStaffId || null, // Add preferred staff reset
+        preferredStaffId: task.preferredStaffId || null,
         recurrenceType: task.recurrencePattern.type,
         interval: task.recurrencePattern.interval || 1,
         weekdays: task.recurrencePattern.weekdays || [],
@@ -81,10 +109,30 @@ export const useEditTaskForm = ({
         monthOfYear: task.recurrencePattern.monthOfYear,
         endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
         customOffsetDays: task.recurrencePattern.customOffsetDays
+      };
+
+      console.log('📝 [useEditTaskForm] Reset values being applied:', {
+        preferredStaffId: resetValues.preferredStaffId,
+        resetValues,
+        timestamp: new Date().toISOString()
       });
+
+      form.reset(resetValues);
       setSelectedSkills(task.requiredSkills || []);
       setFormError(null);
       setSkillsError(null);
+
+      // PHASE 1: Verify reset was successful
+      setTimeout(() => {
+        const currentFormValues = form.getValues();
+        console.log('✅ [useEditTaskForm] Form reset verification:', {
+          expectedPreferredStaffId: resetValues.preferredStaffId,
+          actualPreferredStaffId: currentFormValues.preferredStaffId,
+          resetSuccessful: currentFormValues.preferredStaffId === resetValues.preferredStaffId,
+          allCurrentValues: currentFormValues,
+          timestamp: new Date().toISOString()
+        });
+      }, 0);
     }
   }, [task, form]);
   
@@ -98,6 +146,12 @@ export const useEditTaskForm = ({
       updatedSkills = [...selectedSkills, skillId];
     }
     
+    console.log('🔧 [useEditTaskForm] Skills updated:', {
+      previousSkills: selectedSkills,
+      updatedSkills,
+      timestamp: new Date().toISOString()
+    });
+    
     setSelectedSkills(updatedSkills);
     form.setValue('requiredSkills', updatedSkills);
     
@@ -110,13 +164,22 @@ export const useEditTaskForm = ({
   
   // Handle form submission
   const onSubmit = async (data: EditTaskFormValues) => {
+    console.log('🚀 [useEditTaskForm] Form submission started:', {
+      formData: data,
+      preferredStaffId: data.preferredStaffId,
+      preferredStaffIdType: typeof data.preferredStaffId,
+      timestamp: new Date().toISOString()
+    });
+
     if (!task) {
       setFormError("No task data available to update");
+      console.error('❌ [useEditTaskForm] No task data available for update');
       return;
     }
     
     if (selectedSkills.length === 0) {
       setSkillsError('At least one skill is required');
+      console.error('❌ [useEditTaskForm] No skills selected');
       return;
     }
     
@@ -145,16 +208,34 @@ export const useEditTaskForm = ({
         category: data.category,
         dueDate: data.dueDate,
         requiredSkills: selectedSkills as SkillType[],
-        preferredStaffId: data.preferredStaffId || null, // Add preferred staff to update
+        preferredStaffId: data.preferredStaffId || null,
         recurrencePattern: recurrencePattern,
         isActive: task.isActive
       };
 
+      console.log('📤 [useEditTaskForm] Sending update to service:', {
+        taskId: task.id,
+        updatedTask,
+        preferredStaffId: updatedTask.preferredStaffId,
+        preferredStaffIdType: typeof updatedTask.preferredStaffId,
+        timestamp: new Date().toISOString()
+      });
+
       await onSave(updatedTask);
       onSuccess();
+      
+      console.log('✅ [useEditTaskForm] Task update completed successfully:', {
+        taskId: task.id,
+        timestamp: new Date().toISOString()
+      });
+      
       toast.success("Task updated successfully");
     } catch (error) {
-      console.error("Error saving task:", error);
+      console.error("💥 [useEditTaskForm] Error saving task:", {
+        error,
+        taskId: task?.id,
+        timestamp: new Date().toISOString()
+      });
       setFormError(error instanceof Error ? error.message : "Failed to update task");
       toast.error("Failed to update task");
     } finally {

@@ -14,6 +14,11 @@ import { mapDatabaseToRecurringTask, mapRecurringTaskToDatabase } from './mapper
  */
 export const getRecurringTaskById = async (taskId: string): Promise<RecurringTask | null> => {
   try {
+    console.log('🔍 [getRecurringTaskById] Fetching task:', {
+      taskId,
+      timestamp: new Date().toISOString()
+    });
+
     const { data, error } = await supabase
       .from('recurring_tasks')
       .select('*')
@@ -22,16 +27,46 @@ export const getRecurringTaskById = async (taskId: string): Promise<RecurringTas
       
     if (error) {
       if (error.code === 'PGRST116') {
-        // No rows returned
+        console.log('ℹ️ [getRecurringTaskById] No task found:', {
+          taskId,
+          error: error.code,
+          timestamp: new Date().toISOString()
+        });
         return null;
       }
-      console.error('Error fetching recurring task:', error);
+      console.error('❌ [getRecurringTaskById] Database error:', {
+        taskId,
+        error,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
+
+    console.log('📋 [getRecurringTaskById] Raw database data:', {
+      taskId,
+      dbData: data,
+      preferredStaffId: data.preferred_staff_id,
+      preferredStaffIdType: typeof data.preferred_staff_id,
+      timestamp: new Date().toISOString()
+    });
     
-    return mapDatabaseToRecurringTask(data);
+    const mappedTask = mapDatabaseToRecurringTask(data);
+    
+    console.log('✅ [getRecurringTaskById] Mapped task data:', {
+      taskId,
+      mappedTask,
+      preferredStaffId: mappedTask.preferredStaffId,
+      preferredStaffIdType: typeof mappedTask.preferredStaffId,
+      timestamp: new Date().toISOString()
+    });
+    
+    return mappedTask;
   } catch (error) {
-    console.error('Error in getRecurringTaskById:', error);
+    console.error('💥 [getRecurringTaskById] Unexpected error:', {
+      taskId,
+      error,
+      timestamp: new Date().toISOString()
+    });
     throw error;
   }
 };
@@ -68,8 +103,31 @@ export const updateRecurringTask = async (
   updates: Partial<RecurringTask>
 ): Promise<RecurringTask | null> => {
   try {
+    console.log('🔄 [updateRecurringTask] Starting update operation:', {
+      taskId,
+      updates,
+      preferredStaffId: updates.preferredStaffId,
+      preferredStaffIdType: typeof updates.preferredStaffId,
+      timestamp: new Date().toISOString()
+    });
+
     const dbUpdates = mapRecurringTaskToDatabase(updates);
     
+    console.log('🗂️ [updateRecurringTask] Mapped database updates:', {
+      taskId,
+      dbUpdates,
+      preferredStaffId: dbUpdates.preferred_staff_id,
+      preferredStaffIdType: typeof dbUpdates.preferred_staff_id,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('📤 [updateRecurringTask] Executing database update:', {
+      taskId,
+      table: 'recurring_tasks',
+      updateData: dbUpdates,
+      timestamp: new Date().toISOString()
+    });
+
     const { data, error } = await supabase
       .from('recurring_tasks')
       .update(dbUpdates)
@@ -78,13 +136,41 @@ export const updateRecurringTask = async (
       .single();
       
     if (error) {
-      console.error('Error updating recurring task:', error);
+      console.error('❌ [updateRecurringTask] Database update failed:', {
+        taskId,
+        error,
+        dbUpdates,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
+
+    console.log('📋 [updateRecurringTask] Database update successful - raw response:', {
+      taskId,
+      dbResponse: data,
+      preferredStaffId: data.preferred_staff_id,
+      preferredStaffIdType: typeof data.preferred_staff_id,
+      timestamp: new Date().toISOString()
+    });
     
-    return mapDatabaseToRecurringTask(data);
+    const mappedResult = mapDatabaseToRecurringTask(data);
+    
+    console.log('✅ [updateRecurringTask] Final mapped result:', {
+      taskId,
+      mappedResult,
+      preferredStaffId: mappedResult.preferredStaffId,
+      preferredStaffIdType: typeof mappedResult.preferredStaffId,
+      timestamp: new Date().toISOString()
+    });
+    
+    return mappedResult;
   } catch (error) {
-    console.error('Error in updateRecurringTask:', error);
+    console.error('💥 [updateRecurringTask] Unexpected error:', {
+      taskId,
+      error,
+      updates,
+      timestamp: new Date().toISOString()
+    });
     throw error;
   }
 };

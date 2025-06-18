@@ -15,6 +15,7 @@ import { FormHeader } from './components/FormHeader';
 import { RecurrenceSettings } from './components/RecurrenceSettings';
 import { SkillsSelection } from './components/SkillsSelection';
 import { PreferredStaffField } from './components/PreferredStaffField';
+import { DiagnosticPanel } from './components/DiagnosticPanel';
 
 const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
   open,
@@ -38,6 +39,9 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
     onSave,
     onSuccess: () => onOpenChange(false)
   });
+
+  // PHASE 1: Show diagnostic panel in development/debug mode
+  const showDiagnostics = process.env.NODE_ENV === 'development' || open;
 
   // Handle loading state
   if (isLoading || (!task && !attemptedLoad)) {
@@ -87,6 +91,9 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormHeader task={task} open={open} />
+
+            {/* PHASE 1: Diagnostic Panel */}
+            <DiagnosticPanel form={form} isVisible={showDiagnostics} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Basic Information */}
@@ -191,7 +198,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
                   )}
                 />
 
-                {/* Add Preferred Staff Field */}
+                {/* PHASE 1: Enhanced Preferred Staff Field with logging */}
                 <PreferredStaffField form={form} />
               </div>
 
