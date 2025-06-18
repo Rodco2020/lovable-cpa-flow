@@ -1,25 +1,25 @@
 
-/**
- * Task Service - Main Export Module
- * 
- * This module serves as the main entry point for all task-related operations.
- * It re-exports all functionality from the operations module to maintain
- * a clean separation of concerns.
- */
+// Re-export all existing operations for backward compatibility
+export * from './operations';
 
-// Re-export all operations from the operations module
+// Export enhanced services for new functionality
+export * from './recurringTaskService';
+export * from './dataTransformationService';
+
+// Export specific functions for common use cases
 export {
+  getRecurringTaskById,
+  updateRecurringTask,
   createRecurringTask,
-  createTaskInstance,
-  getTaskTemplates,
-  getRecurringTasks,
-  getTaskInstances,
-  getUnscheduledTaskInstances,
-  updateTaskInstance,
-  deleteRecurringTaskAssignment,
-  deleteTaskInstance,
-  createTaskTemplate,
-  updateTaskTemplate,
-  archiveTaskTemplate,
-  TaskServiceError
-} from './operations';
+  deactivateRecurringTask,
+  getClientRecurringTasks,
+  RecurringTaskServiceError
+} from './recurringTaskService';
+
+export {
+  transformDatabaseToApplication,
+  transformApplicationToDatabase,
+  validateTaskData,
+  sanitizeTaskData,
+  DataTransformationError
+} from './dataTransformationService';
