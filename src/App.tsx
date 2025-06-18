@@ -1,14 +1,13 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import './App.css';
 
-// Existing imports
+// Updated imports - using ClientModule instead of individual client components
 import Navigation from './components/Navigation';
-import ClientList from './components/clients/ClientList';
-import ClientDetail from './components/clients/ClientDetail';
-import ClientForm from './components/clients/ClientForm';
+import ClientModule from './pages/ClientModule';
 import TaskWizard from './components/clients/TaskWizard/TaskAssignmentWizard';
 import ForecastDashboard from './components/forecasting/ForecastDashboard';
 import StaffAvailabilityMatrix from './components/forecasting/matrix/CapacityMatrix';
@@ -34,10 +33,8 @@ function App() {
           <main className="container mx-auto py-6">
             <Routes>
               <Route path="/" element={<Navigate to="/clients" replace />} />
-              <Route path="/clients" element={<ClientList />} />
-              <Route path="/clients/new" element={<ClientForm />} />
-              <Route path="/clients/:id" element={<ClientDetail />} />
-              <Route path="/clients/:id/edit" element={<ClientForm />} />
+              {/* Updated: Route all client paths through ClientModule */}
+              <Route path="/clients/*" element={<ClientModule />} />
               <Route path="/task-wizard" element={<TaskWizard />} />
               <Route path="/forecasting" element={<ForecastDashboard />} />
               <Route path="/staff-matrix" element={<StaffAvailabilityMatrix />} />
