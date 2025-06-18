@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 import { EditTaskSchema, EditTaskFormValues, UseEditTaskFormOptions, UseEditTaskFormReturn } from '../types';
+import { StaffSelectionErrorHandler } from '@/services/clientTask/staffSelectionErrorHandler';
 
 export const useEditTaskForm = ({ 
   task, 
@@ -16,24 +16,44 @@ export const useEditTaskForm = ({
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
-  // PHASE 2: Enhanced task initialization with better null handling
-  console.log('🚀 [useEditTaskForm] Hook initialized - Phase 2:', {
+  // PHASE 4: Enhanced error tracking and recovery state
+  const [submitAttempts, setSubmitAttempts] = useState(0);
+  const [lastSuccessfulSave, setLastSuccessfulSave] = useState<Date | null>(null);
+  
+  console.log('🚀 [useEditTaskForm] PHASE 4 - Hook initialized with enhanced error handling:', {
     taskId: task?.id,
     taskPreferredStaffId: task?.preferredStaffId,
     taskPreferredStaffIdType: typeof task?.preferredStaffId,
     isTaskAvailable: !!task,
+    submitAttempts,
+    lastSuccessfulSave,
     timestamp: new Date().toISOString()
   });
 
-  // PHASE 2: Helper function to normalize preferred staff ID
+  // PHASE 4: Enhanced helper function with error handling
   const normalizePreferredStaffId = (value: string | null | undefined): string | null => {
-    if (value === undefined || value === '') {
+    try {
+      if (value === undefined || value === '') {
+        return null;
+      }
+      
+      // PHASE 4: Additional validation for UUID format
+      if (value !== null && typeof value === 'string') {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(value)) {
+          console.warn('⚠️ [useEditTaskForm] PHASE 4 - Invalid UUID format detected:', value);
+          return null;
+        }
+      }
+      
+      return value;
+    } catch (error) {
+      console.error('💥 [useEditTaskForm] PHASE 4 - Error normalizing staff ID:', error);
       return null;
     }
-    return value;
   };
   
-  // Initialize form with task data when available
+  // Initialize form with enhanced error handling
   const form = useForm<EditTaskFormValues>({
     resolver: zodResolver(EditTaskSchema),
     defaultValues: task ? {
@@ -45,7 +65,7 @@ export const useEditTaskForm = ({
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
       isRecurring: true,
       requiredSkills: task.requiredSkills || [],
-      preferredStaffId: normalizePreferredStaffId(task.preferredStaffId), // PHASE 2: Enhanced normalization
+      preferredStaffId: normalizePreferredStaffId(task.preferredStaffId),
       recurrenceType: task.recurrencePattern.type,
       interval: task.recurrencePattern.interval || 1,
       weekdays: task.recurrencePattern.weekdays || [],
@@ -61,7 +81,7 @@ export const useEditTaskForm = ({
       category: 'Other' as TaskCategory,
       isRecurring: true,
       requiredSkills: [],
-      preferredStaffId: null, // PHASE 2: Explicit null default
+      preferredStaffId: null,
       interval: 1,
       weekdays: [],
       dayOfMonth: 15,
@@ -70,10 +90,10 @@ export const useEditTaskForm = ({
     }
   });
 
-  // PHASE 2: Enhanced form initialization logging
+  // PHASE 4: Enhanced form initialization logging
   useEffect(() => {
     const formValues = form.getValues();
-    console.log('📋 [useEditTaskForm] Form initialized with values - Phase 2:', {
+    console.log('📋 [useEditTaskForm] PHASE 4 - Form initialized with enhanced error handling:', {
       preferredStaffId: formValues.preferredStaffId,
       preferredStaffIdType: typeof formValues.preferredStaffId,
       allFormValues: formValues,
@@ -93,14 +113,15 @@ export const useEditTaskForm = ({
     }
   }, [task, form]);
 
-  // PHASE 2: Enhanced form reset logic with better null handling
+  // PHASE 4: Enhanced form reset with better error recovery
   useEffect(() => {
     if (task) {
-      console.log('🔄 [useEditTaskForm] Resetting form with new task data - Phase 2:', {
+      console.log('🔄 [useEditTaskForm] PHASE 4 - Resetting form with enhanced error handling:', {
         taskId: task.id,
         originalPreferredStaffId: task.preferredStaffId,
         normalizedPreferredStaffId: normalizePreferredStaffId(task.preferredStaffId),
         preferredStaffIdType: typeof task.preferredStaffId,
+        submitAttempts,
         timestamp: new Date().toISOString()
       });
 
@@ -115,7 +136,7 @@ export const useEditTaskForm = ({
         dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
         isRecurring: true,
         requiredSkills: task.requiredSkills || [],
-        preferredStaffId: normalizedStaffId, // PHASE 2: Use normalized value
+        preferredStaffId: normalizedStaffId,
         recurrenceType: task.recurrencePattern.type,
         interval: task.recurrencePattern.interval || 1,
         weekdays: task.recurrencePattern.weekdays || [],
@@ -125,22 +146,17 @@ export const useEditTaskForm = ({
         customOffsetDays: task.recurrencePattern.customOffsetDays
       };
 
-      console.log('📝 [useEditTaskForm] Reset values being applied - Phase 2:', {
-        preferredStaffId: resetValues.preferredStaffId,
-        resetValues,
-        timestamp: new Date().toISOString()
-      });
-
       form.reset(resetValues);
       setSelectedSkills(task.requiredSkills || []);
       setFormError(null);
       setSkillsError(null);
+      setSubmitAttempts(0); // PHASE 4: Reset attempt counter
 
-      // PHASE 2: Enhanced reset verification
+      // PHASE 4: Enhanced reset verification with error recovery
       setTimeout(() => {
         const currentFormValues = form.getValues();
         const preferredStaffMatch = currentFormValues.preferredStaffId === resetValues.preferredStaffId;
-        console.log('✅ [useEditTaskForm] Form reset verification - Phase 2:', {
+        console.log('✅ [useEditTaskForm] PHASE 4 - Form reset verification with error handling:', {
           expectedPreferredStaffId: resetValues.preferredStaffId,
           actualPreferredStaffId: currentFormValues.preferredStaffId,
           resetSuccessful: preferredStaffMatch,
@@ -149,7 +165,18 @@ export const useEditTaskForm = ({
         });
 
         if (!preferredStaffMatch) {
-          console.error('💥 [useEditTaskForm] Form reset failed for preferredStaffId!');
+          console.error('💥 [useEditTaskForm] PHASE 4 - Form reset failed, attempting recovery...');
+          // PHASE 4: Attempt to recover from reset failure
+          try {
+            form.setValue('preferredStaffId', resetValues.preferredStaffId);
+          } catch (recoveryError) {
+            console.error('💥 [useEditTaskForm] PHASE 4 - Reset recovery failed:', recoveryError);
+            StaffSelectionErrorHandler.handleError(recoveryError, {
+              context: 'form_reset_recovery',
+              taskId: task.id,
+              expectedValue: resetValues.preferredStaffId
+            });
+          }
         }
       }, 0);
     }
@@ -181,40 +208,55 @@ export const useEditTaskForm = ({
     }
   };
   
-  // PHASE 2: Enhanced form submission with improved validation
+  // PHASE 4: Enhanced form submission with comprehensive error handling
   const onSubmit = async (data: EditTaskFormValues) => {
-    console.log('🚀 [useEditTaskForm] Form submission started - Phase 2:', {
+    console.log('🚀 [useEditTaskForm] PHASE 4 - Form submission with enhanced error handling:', {
       formData: data,
       preferredStaffId: data.preferredStaffId,
       preferredStaffIdType: typeof data.preferredStaffId,
       isPreferredStaffNull: data.preferredStaffId === null,
+      submitAttempt: submitAttempts + 1,
       timestamp: new Date().toISOString()
     });
 
     if (!task) {
-      setFormError("No task data available to update");
-      console.error('❌ [useEditTaskForm] No task data available for update');
+      const error = "No task data available to update";
+      setFormError(error);
+      console.error('❌ [useEditTaskForm] PHASE 4 - No task data available');
+      StaffSelectionErrorHandler.handleError(new Error(error), {
+        context: 'missing_task_data',
+        submitAttempt: submitAttempts + 1
+      });
       return;
     }
     
     if (selectedSkills.length === 0) {
-      setSkillsError('At least one skill is required');
-      console.error('❌ [useEditTaskForm] No skills selected');
+      const error = 'At least one skill is required';
+      setSkillsError(error);
+      console.error('❌ [useEditTaskForm] PHASE 4 - No skills selected');
       return;
     }
 
-    // PHASE 2: Additional validation for preferred staff
+    // PHASE 4: Enhanced validation for preferred staff
     if (data.preferredStaffId !== null && typeof data.preferredStaffId !== 'string') {
-      setFormError("Invalid preferred staff selection");
-      console.error('❌ [useEditTaskForm] Invalid preferred staff value type:', {
+      const error = "Invalid preferred staff selection";
+      setFormError(error);
+      console.error('❌ [useEditTaskForm] PHASE 4 - Invalid preferred staff value type:', {
         value: data.preferredStaffId,
         type: typeof data.preferredStaffId
+      });
+      StaffSelectionErrorHandler.handleError(new Error(error), {
+        context: 'invalid_staff_type',
+        staffId: data.preferredStaffId,
+        expectedType: 'string',
+        actualType: typeof data.preferredStaffId
       });
       return;
     }
     
     setIsSaving(true);
     setFormError(null);
+    setSubmitAttempts(prev => prev + 1);
     
     try {
       // Build recurrence pattern from form data
@@ -228,7 +270,7 @@ export const useEditTaskForm = ({
         customOffsetDays: data.recurrenceType === 'Custom' ? data.customOffsetDays : undefined
       };
 
-      // PHASE 2: Enhanced task object construction with proper null handling
+      // PHASE 4: Enhanced task object construction with proper null handling
       const updatedTask: Partial<RecurringTask> = {
         id: task.id,
         name: data.name,
@@ -238,37 +280,71 @@ export const useEditTaskForm = ({
         category: data.category,
         dueDate: data.dueDate,
         requiredSkills: selectedSkills as SkillType[],
-        preferredStaffId: data.preferredStaffId, // PHASE 2: Direct assignment with null support
+        preferredStaffId: data.preferredStaffId,
         recurrencePattern: recurrencePattern,
         isActive: task.isActive
       };
 
-      console.log('📤 [useEditTaskForm] Sending update to service - Phase 2:', {
+      console.log('📤 [useEditTaskForm] PHASE 4 - Sending update with enhanced error handling:', {
         taskId: task.id,
         updatedTask,
         preferredStaffId: updatedTask.preferredStaffId,
         preferredStaffIdType: typeof updatedTask.preferredStaffId,
         isPreferredStaffNull: updatedTask.preferredStaffId === null,
+        submitAttempt: submitAttempts,
         timestamp: new Date().toISOString()
       });
 
       await onSave(updatedTask);
+      
+      // PHASE 4: Track successful save
+      setLastSuccessfulSave(new Date());
+      setSubmitAttempts(0); // Reset on success
       onSuccess();
       
-      console.log('✅ [useEditTaskForm] Task update completed successfully - Phase 2:', {
+      console.log('✅ [useEditTaskForm] PHASE 4 - Task update completed successfully with enhanced handling:', {
         taskId: task.id,
+        lastSuccessfulSave: new Date(),
         timestamp: new Date().toISOString()
       });
       
-      toast.success("Task updated successfully");
+      toast.success("Task updated successfully", {
+        description: data.preferredStaffId 
+          ? "Staff preference has been saved"
+          : "Task will be assigned automatically"
+      });
     } catch (error) {
-      console.error("💥 [useEditTaskForm] Error saving task - Phase 2:", {
+      console.error("💥 [useEditTaskForm] PHASE 4 - Error saving task with enhanced handling:", {
         error,
         taskId: task?.id,
+        submitAttempt: submitAttempts,
         timestamp: new Date().toISOString()
       });
-      setFormError(error instanceof Error ? error.message : "Failed to update task");
-      toast.error("Failed to update task");
+      
+      // PHASE 4: Use enhanced error handler
+      const handledError = StaffSelectionErrorHandler.handleError(error, {
+        context: 'form_submission',
+        taskId: task.id,
+        submitAttempt: submitAttempts,
+        preferredStaffId: data.preferredStaffId,
+        formData: data
+      }, {
+        showToast: true,
+        logError: true
+      });
+      
+      setFormError(handledError.message);
+      
+      // PHASE 4: Provide recovery suggestions
+      const recoverySuggestion = StaffSelectionErrorHandler.getRecoverySuggestion(handledError);
+      if (recoverySuggestion) {
+        setTimeout(() => {
+          toast.info("Suggestion", {
+            description: recoverySuggestion,
+            duration: 6000
+          });
+        }, 1000);
+      }
     } finally {
       setIsSaving(false);
     }
