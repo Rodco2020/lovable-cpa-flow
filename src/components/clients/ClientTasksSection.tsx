@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import ClientRecurringTaskList from './ClientRecurringTaskList';
 import ClientAdHocTaskList from './ClientAdHocTaskList';
 import TaskAssignmentWizard from './TaskWizard/TaskAssignmentWizard';
-import TaskForm from '../tasks/TaskForm';
 
 interface ClientTasksSectionProps {
   clientId: string;
@@ -23,7 +22,6 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
   onTaskUpdate,
   onRefreshClient
 }) => {
-  const [showTaskForm, setShowTaskForm] = useState(false);
   const [showTaskWizard, setShowTaskWizard] = useState(false);
 
   const handleTaskUpdate = () => {
@@ -37,24 +35,6 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
         <div className="flex justify-between items-center">
           <CardTitle>Task Management</CardTitle>
           <div className="flex space-x-2">
-            <Dialog open={showTaskForm} onOpenChange={setShowTaskForm}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <TaskForm 
-                  onClose={() => setShowTaskForm(false)}
-                  onTaskCreated={() => {
-                    setShowTaskForm(false);
-                    handleTaskUpdate();
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-
             <Dialog open={showTaskWizard} onOpenChange={setShowTaskWizard}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">

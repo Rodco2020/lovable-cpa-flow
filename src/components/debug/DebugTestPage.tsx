@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SystemVerificationPanel from './SystemVerificationPanel';
 import PreferredStaffDebugPanel from './PreferredStaffDebugPanel';
-import { TestTube, Database, Bug, FileText } from 'lucide-react';
+import Phase2TestingPanel from './Phase2TestingPanel';
+import { TestTube, Database, Bug, FileText, Cog } from 'lucide-react';
 
 const DebugTestPage: React.FC = () => {
   return (
@@ -25,10 +26,14 @@ const DebugTestPage: React.FC = () => {
       </Card>
 
       <Tabs defaultValue="phase1" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="phase1" className="flex items-center gap-2">
             <TestTube className="h-4 w-4" />
-            Phase 1 Testing
+            Phase 1
+          </TabsTrigger>
+          <TabsTrigger value="phase2" className="flex items-center gap-2">
+            <Cog className="h-4 w-4" />
+            Phase 2
           </TabsTrigger>
           <TabsTrigger value="database" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
@@ -46,6 +51,10 @@ const DebugTestPage: React.FC = () => {
 
         <TabsContent value="phase1" className="mt-6">
           <SystemVerificationPanel />
+        </TabsContent>
+
+        <TabsContent value="phase2" className="mt-6">
+          <Phase2TestingPanel />
         </TabsContent>
 
         <TabsContent value="database" className="mt-6">
@@ -71,8 +80,8 @@ const DebugTestPage: React.FC = () => {
               </p>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-yellow-800 text-sm">
-                  <strong>Coming in Phase 2-5:</strong> Form integration tests, service layer validation, 
-                  UI interaction testing, and complete workflow verification.
+                  <strong>Coming in Phase 3-5:</strong> Form integration tests, UI interaction testing, 
+                  and complete end-to-end workflow verification.
                 </p>
               </div>
             </CardContent>
