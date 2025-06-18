@@ -125,7 +125,7 @@ describe('Edit Task Workflow Integration Tests', () => {
       }
     });
 
-    // Setup default mocks
+    // Setup default mocks with correct return types
     mockGetAllSkills.mockResolvedValue(mockSkills);
     mockGetAllStaff.mockResolvedValue(mockStaff);
     mockSkillValidationService.validateSkillIds.mockResolvedValue({
@@ -133,7 +133,7 @@ describe('Edit Task Workflow Integration Tests', () => {
       invalid: [],
       details: mockSkills.slice(0, 2).map(skill => ({ id: skill.id, name: skill.name }))
     });
-    mockUpdateRecurringTask.mockResolvedValue(true);
+    mockUpdateRecurringTask.mockResolvedValue(undefined); // Fix: Return void instead of boolean
     mockGetRecurringTaskById.mockResolvedValue(mockTask);
 
     jest.clearAllMocks();
