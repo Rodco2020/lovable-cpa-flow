@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabaseClient';
 import { TaskTemplate, RecurringTask, TaskInstance } from '@/types/task';
 import { mapRecurringTaskToDatabase } from '../clientTask/mappers';
@@ -274,20 +275,29 @@ export const archiveTaskTemplate = async (templateId: string): Promise<boolean> 
 };
 
 /**
- * Update a recurring task assignment - Enhanced with unified type system
+ * Update a recurring task assignment
  */
 export const updateRecurringTask = async (taskId: string, updates: Partial<RecurringTask>): Promise<boolean> => {
   try {
-    console.log(`[TaskService] Delegating to RecurringTaskService for update: ${taskId}`);
+    console.log(`[TaskService] Updating recurring task ${taskId}:`, updates);
     
-    // Import the enhanced service
-    const { updateRecurringTask: enhancedUpdate } = await import('./recurringTaskService');
+    // Map the updates to database format
+    const dbUpdates = mapRecurringTaskToDatabase(updates);
     
-    // Use the enhanced service which includes validation and proper error handling
-    const result = await enhancedUpdate(taskId, updates);
+    console.log(`[TaskService] Database updates for recurring task ${taskId}:`, dbUpdates);
     
-    // Return boolean for backward compatibility
-    return result !== null;
+    const { error } = await supabase
+      .from('recurring_tasks')
+      .update(dbUpdates)
+      .eq('id', taskId);
+
+    if (error) {
+      console.error(`[TaskService] Failed to update recurring task ${taskId}:`, error);
+      throw new Error(`Failed to update recurring task: ${error.message}`);
+    }
+
+    console.log(`[TaskService] Successfully updated recurring task ${taskId}`);
+    return true;
   } catch (error) {
     console.error(`[TaskService] Error updating recurring task ${taskId}:`, error);
     throw error;
@@ -295,37 +305,49 @@ export const updateRecurringTask = async (taskId: string, updates: Partial<Recur
 };
 
 /**
- * Get a recurring task by ID - Enhanced with unified type system
+ * Get a recurring task by ID
  */
 export const getRecurringTaskById = async (taskId: string): Promise<RecurringTask | null> => {
   try {
-    console.log(`[TaskService] Delegating to RecurringTaskService for fetch: ${taskId}`);
+    const { data, error } = await supabase
+      .from('recurring_tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+      
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      console.error('Error fetching recurring task:', error);
+      throw new TaskServiceError(`Failed to fetch recurring task: ${error.message}`);
+    }
     
-    // Import the enhanced service
-    const { getRecurringTaskById: enhancedGet } = await import('./recurringTaskService');
-    
-    // Use the enhanced service
-    return await enhancedGet(taskId);
+    return data as RecurringTask;
   } catch (error) {
-    console.error('[TaskService] Error in getRecurringTaskById:', error);
+    console.error('Error in getRecurringTaskById:', error);
     throw error;
   }
 };
 
 /**
- * Deactivate a recurring task - Enhanced with unified type system
+ * Deactivate a recurring task
  */
 export const deactivateRecurringTask = async (taskId: string): Promise<boolean> => {
   try {
-    console.log(`[TaskService] Delegating to RecurringTaskService for deactivation: ${taskId}`);
-    
-    // Import the enhanced service
-    const { deactivateRecurringTask: enhancedDeactivate } = await import('./recurringTaskService');
-    
-    // Use the enhanced service
-    return await enhancedDeactivate(taskId);
+    const { error } = await supabase
+      .from('recurring_tasks')
+      .update({ is_active: false })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error(`Failed to deactivate recurring task ${taskId}:`, error);
+      throw new TaskServiceError(`Failed to deactivate recurring task: ${error.message}`);
+    }
+
+    return true;
   } catch (error) {
-    console.error(`[TaskService] Error deactivating recurring task ${taskId}:`, error);
+    console.error(`Error deactivating recurring task ${taskId}:`, error);
     throw error;
   }
 };

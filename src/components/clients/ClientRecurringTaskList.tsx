@@ -1,339 +1,165 @@
 
 import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Clock, RefreshCw } from 'lucide-react';
+import TaskListPagination from './TaskListPagination';
+import { EditRecurringTaskContainer } from './EditRecurringTaskContainer';
+import { useSkillNames } from '@/hooks/useSkillNames';
+import { useRecurringTaskOperations } from './hooks/useRecurringTaskOperations';
+import { usePagination } from './hooks/usePagination';
+import RecurringTaskTable from './RecurringTaskTable';
+import RecurringTaskDeleteDialog from './RecurringTaskDeleteDialog';
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Edit, Trash2, Calendar, Clock, User, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import { RecurringTask } from '@/types/task';
-import { getClientRecurringTasks, updateRecurringTask, deactivateRecurringTask } from '@/services/taskService/recurringTaskService';
-import { EditRecurringTaskDialog } from './EditRecurringTaskDialog';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
+  RecurringTaskLoadingState, 
+  RecurringTaskErrorState, 
+  RecurringTaskEmptyState 
+} from './RecurringTaskStates';
 
 interface ClientRecurringTaskListProps {
   clientId: string;
-  onViewTask?: (taskId: string) => void;
   onRefreshNeeded?: () => void;
+  onViewTask?: (taskId: string) => void;
 }
 
+/**
+ * ClientRecurringTaskList Component
+ * 
+ * Displays a paginated list of recurring tasks for a specific client.
+ * Provides functionality to:
+ * - View task details
+ * - Edit task assignments
+ * - Deactivate active tasks
+ * - Delete task assignments with confirmation
+ * - Handle loading, error, and empty states
+ * 
+ * @param clientId - The ID of the client whose tasks to display
+ * @param onRefreshNeeded - Optional callback triggered when data needs to be refreshed
+ * @param onViewTask - Optional callback triggered when a task is clicked for viewing
+ */
 const ClientRecurringTaskList: React.FC<ClientRecurringTaskListProps> = ({ 
   clientId, 
-  onViewTask,
-  onRefreshNeeded 
+  onRefreshNeeded,
+  onViewTask 
 }) => {
-  const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [taskLoadError, setTaskLoadError] = useState<string | null>(null);
-  const [attemptedTaskLoad, setAttemptedTaskLoad] = useState(false);
-  
-  const queryClient = useQueryClient();
-
-  // Query for recurring tasks
+  // Task operations and data management
   const {
-    data: recurringTasks,
-    isLoading,
+    tasks,
+    loading,
     error,
+    isRefreshing,
+    deleteDialogOpen,
+    taskToDelete,
+    setDeleteDialogOpen,
+    handleDeactivate,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    handleRetryLoad,
     refetch
-  } = useQuery({
-    queryKey: ['client-recurring-tasks', clientId],
-    queryFn: () => getClientRecurringTasks(clientId),
-    enabled: !!clientId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000 // 10 minutes (renamed from cacheTime)
+  } = useRecurringTaskOperations({ clientId, onRefreshNeeded });
+
+  // Pagination management
+  const {
+    currentPage,
+    totalPages,
+    currentItems: currentTasks,
+    setCurrentPage
+  } = usePagination({
+    items: tasks,
+    itemsPerPage: 5
   });
 
-  const handleEditTask = (task: RecurringTask) => {
-    console.log('[ClientRecurringTaskList] ============= EDIT TASK START =============');
-    console.log('[ClientRecurringTaskList] Opening edit dialog for task:', JSON.stringify(task, null, 2));
-    console.log('[ClientRecurringTaskList] Task preferredStaffId:', task.preferredStaffId);
-    
-    setSelectedTask(task);
-    setTaskLoadError(null);
-    setAttemptedTaskLoad(true);
+  // Edit dialog state
+  const [editingTaskId, setEditingTaskId] = useState<string | undefined>(undefined);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  // Get all skill IDs from all tasks to fetch their names
+  const allSkillIds = tasks.flatMap(task => task.requiredSkills);
+  const { skillsMap, isLoading: loadingSkills } = useSkillNames(allSkillIds);
+
+  /**
+   * Handles the edit button click for a task
+   * Prevents event propagation to avoid triggering row click
+   */
+  const handleEditClick = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTaskId(taskId);
     setIsEditDialogOpen(true);
-    
-    console.log('[ClientRecurringTaskList] Edit dialog opened, selectedTask set');
-    console.log('[ClientRecurringTaskList] ============= EDIT TASK END =============');
   };
 
-  const handleSaveTask = async (updates: Partial<RecurringTask>) => {
-    if (!selectedTask) {
-      console.error('[ClientRecurringTaskList] No selected task for update');
-      return;
-    }
-
-    console.log('[ClientRecurringTaskList] ============= SAVE TASK START =============');
-    console.log('[ClientRecurringTaskList] Saving task updates:', JSON.stringify(updates, null, 2));
-    console.log('[ClientRecurringTaskList] Selected task ID:', selectedTask.id);
-    console.log('[ClientRecurringTaskList] Updates preferredStaffId:', updates.preferredStaffId);
-
-    try {
-      const updatedTask = await updateRecurringTask(selectedTask.id, updates);
-      
-      console.log('[ClientRecurringTaskList] Task update successful, returned task:', JSON.stringify(updatedTask, null, 2));
-      console.log('[ClientRecurringTaskList] Returned task preferredStaffId:', updatedTask?.preferredStaffId);
-      
-      // Invalidate and refetch queries to ensure fresh data
-      await queryClient.invalidateQueries({ 
-        queryKey: ['client-recurring-tasks', clientId],
-        exact: true 
-      });
-      
-      // Also invalidate any other related queries that might cache this task
-      await queryClient.invalidateQueries({ 
-        predicate: (query) => 
-          query.queryKey.includes('recurring-tasks') || 
-          query.queryKey.includes(selectedTask.id)
-      });
-      
-      console.log('[ClientRecurringTaskList] Queries invalidated, triggering refetch');
-      
-      // Force refetch to get the latest data
-      await refetch();
-      
-      // Trigger external refresh if provided
-      if (onRefreshNeeded) {
-        onRefreshNeeded();
-      }
-      
-      toast.success('Task updated successfully');
-      console.log('[ClientRecurringTaskList] ============= SAVE TASK END =============');
-    } catch (error) {
-      console.error('[ClientRecurringTaskList] Error saving task:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update task';
-      toast.error(errorMessage);
-      throw error; // Re-throw so the dialog can handle it
-    }
+  /**
+   * Handles successful save completion
+   * Refreshes the task list and notifies parent if needed
+   */
+  const handleSaveComplete = async () => {
+    await refetch();
+    if (onRefreshNeeded) onRefreshNeeded();
+    setEditingTaskId(undefined);
   };
 
-  const handleDeactivateTask = async (task: RecurringTask) => {
-    console.log('[ClientRecurringTaskList] Deactivating task:', task.id);
-    
-    try {
-      await deactivateRecurringTask(task.id);
-      
-      // Invalidate queries and refetch
-      await queryClient.invalidateQueries({ 
-        queryKey: ['client-recurring-tasks', clientId] 
-      });
-      await refetch();
-      
-      if (onRefreshNeeded) {
-        onRefreshNeeded();
-      }
-      
-      toast.success('Task deactivated successfully');
-    } catch (error) {
-      console.error('[ClientRecurringTaskList] Error deactivating task:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to deactivate task';
-      toast.error(errorMessage);
-    }
-  };
-
-  const handleRowClick = (task: RecurringTask) => {
-    if (onViewTask) {
-      onViewTask(task.id);
-    }
-  };
-
-  const handleCloseEditDialog = () => {
-    setIsEditDialogOpen(false);
-    setSelectedTask(null);
-    setTaskLoadError(null);
-    setAttemptedTaskLoad(false);
-  };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recurring Tasks</CardTitle>
-          <CardDescription>Loading recurring tasks...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+  // Handle different states
+  if (loading) {
+    return <RecurringTaskLoadingState />;
   }
 
-  // Error state
   if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recurring Tasks</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Failed to load recurring tasks. Please try again.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
+    return <RecurringTaskErrorState error={error} onRetry={handleRetryLoad} />;
   }
 
-  // Empty state
-  if (!recurringTasks || recurringTasks.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recurring Tasks</CardTitle>
-          <CardDescription>No recurring tasks found for this client</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No recurring tasks</p>
-        </CardContent>
-      </Card>
-    );
+  if (tasks.length === 0) {
+    return <RecurringTaskEmptyState />;
   }
 
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Recurring Tasks ({recurringTasks.length})
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            Recurring Tasks ({tasks.length})
           </CardTitle>
-          <CardDescription>
-            Manage recurring tasks assigned to this client
-          </CardDescription>
+          {isRefreshing && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Refreshing...
+            </div>
+          )}
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Task Name</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Estimated Hours</TableHead>
-                <TableHead>Preferred Staff</TableHead>
-                <TableHead>Recurrence</TableHead>
-                <TableHead>Next Due</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recurringTasks.map((task) => (
-                <TableRow 
-                  key={task.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleRowClick(task)}
-                >
-                  <TableCell className="font-medium">
-                    {task.name}
-                    {task.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {task.description}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      task.priority === 'High' ? 'destructive' :
-                      task.priority === 'Medium' ? 'default' : 'secondary'
-                    }>
-                      {task.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      {task.estimatedHours} hours
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      {task.preferredStaffId ? (
-                        <span className="text-sm">Staff Assigned</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">No preference</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {task.recurrencePattern.type}
-                      {task.recurrencePattern.interval && task.recurrencePattern.interval > 1 && 
-                        ` (${task.recurrencePattern.interval}x)`
-                      }
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {task.dueDate ? (
-                      format(task.dueDate, 'MMM dd, yyyy')
-                    ) : (
-                      <span className="text-muted-foreground">Not scheduled</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={task.isActive ? 'default' : 'secondary'}>
-                      {task.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditTask(task);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeactivateTask(task);
-                        }}
-                        disabled={!task.isActive}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Deactivate
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <RecurringTaskTable
+            tasks={currentTasks}
+            skillsMap={skillsMap}
+            onViewTask={onViewTask}
+            onEdit={handleEditClick}
+            onDeactivate={handleDeactivate}
+            onDelete={handleDeleteClick}
+          />
+
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <TaskListPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+          
+          {/* Edit Task Dialog */}
+          <EditRecurringTaskContainer
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            taskId={editingTaskId}
+            onSaveComplete={handleSaveComplete}
+          />
         </CardContent>
       </Card>
 
-      <EditRecurringTaskDialog
-        open={isEditDialogOpen}
-        onOpenChange={handleCloseEditDialog}
-        task={selectedTask}
-        onSave={handleSaveTask}
-        isLoading={false}
-        loadError={taskLoadError}
-        attemptedLoad={attemptedTaskLoad}
+      {/* Delete Confirmation Dialog */}
+      <RecurringTaskDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        taskName={taskToDelete?.name || null}
+        onConfirm={handleDeleteConfirm}
       />
     </>
   );

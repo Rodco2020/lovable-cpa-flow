@@ -1,178 +1,162 @@
 
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect } from 'react';
-import { RecurringTask } from '@/types/task';
-import { skillValidationService } from '@/services/skillValidationService';
 import { toast } from 'sonner';
-import { EditTaskSchema, EditTaskFormValues, UseEditTaskFormOptions } from '../types';
+import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
+import { EditTaskSchema, EditTaskFormValues, UseEditTaskFormOptions, UseEditTaskFormReturn } from '../types';
 
-export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOptions) => {
+export const useEditTaskForm = ({ 
+  task, 
+  onSave, 
+  onSuccess 
+}: UseEditTaskFormOptions): UseEditTaskFormReturn => {
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [skillsError, setSkillsError] = useState<string | null>(null);
-
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  
+  // Initialize form with task data when available
   const form = useForm<EditTaskFormValues>({
     resolver: zodResolver(EditTaskSchema),
-    defaultValues: {
+    defaultValues: task ? {
+      name: task.name,
+      description: task.description || '',
+      estimatedHours: task.estimatedHours,
+      priority: task.priority,
+      category: task.category,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      isRecurring: true,
+      requiredSkills: task.requiredSkills || [],
+      preferredStaffId: task.preferredStaffId || null, // Add preferred staff initialization
+      recurrenceType: task.recurrencePattern.type,
+      interval: task.recurrencePattern.interval || 1,
+      weekdays: task.recurrencePattern.weekdays || [],
+      dayOfMonth: task.recurrencePattern.dayOfMonth,
+      monthOfYear: task.recurrencePattern.monthOfYear,
+      endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
+      customOffsetDays: task.recurrencePattern.customOffsetDays
+    } : {
       name: '',
       description: '',
       estimatedHours: 1,
-      priority: 'Medium',
-      category: 'Other',
-      requiredSkills: [],
-      preferredStaffId: null,
+      priority: 'Medium' as TaskPriority,
+      category: 'Other' as TaskCategory,
       isRecurring: true,
-      recurrenceType: 'Monthly',
+      requiredSkills: [],
+      preferredStaffId: null, // Add preferred staff default
       interval: 1,
       weekdays: [],
-      dayOfMonth: 1,
+      dayOfMonth: 15,
       monthOfYear: 1,
-      endDate: null,
-      customOffsetDays: undefined,
-      dueDate: undefined,
-    },
+      customOffsetDays: 0
+    }
   });
 
-  // Watch requiredSkills to keep it in sync
-  const selectedSkills = form.watch('requiredSkills') || [];
-
-  // Initialize form with task data - proper mapping from RecurringTask interface to form values
+  // Update selected skills state when form values change
   useEffect(() => {
-    if (task) {
-      console.log('[useEditTaskForm] ============= FORM INITIALIZATION START =============');
-      console.log('[useEditTaskForm] Initializing form with task data:', JSON.stringify(task, null, 2));
-      console.log('[useEditTaskForm] Task preferredStaffId:', task.preferredStaffId);
-      console.log('[useEditTaskForm] Task preferredStaffId type:', typeof task.preferredStaffId);
-      
-      // Map RecurringTask properties to form values using consistent interface
-      const formValues = {
-        name: task.name,
-        description: task.description || '',
-        estimatedHours: Number(task.estimatedHours),
-        priority: task.priority as EditTaskFormValues['priority'],
-        category: task.category as EditTaskFormValues['category'],
-        requiredSkills: task.requiredSkills || [],
-        preferredStaffId: task.preferredStaffId || null,
-        isRecurring: true,
-        
-        // Map recurrence pattern properties
-        recurrenceType: task.recurrencePattern?.type as EditTaskFormValues['recurrenceType'] || 'Monthly',
-        interval: task.recurrencePattern?.interval || 1,
-        weekdays: task.recurrencePattern?.weekdays || [],
-        dayOfMonth: task.recurrencePattern?.dayOfMonth || 1,
-        monthOfYear: task.recurrencePattern?.monthOfYear || 1,
-        endDate: task.recurrencePattern?.endDate || null,
-        customOffsetDays: task.recurrencePattern?.customOffsetDays,
-        dueDate: task.dueDate || undefined,
-      };
-      
-      console.log('[useEditTaskForm] Form values to be set:', JSON.stringify(formValues, null, 2));
-      console.log('[useEditTaskForm] Form preferredStaffId value:', formValues.preferredStaffId);
-      
-      form.reset(formValues);
-      
-      console.log('[useEditTaskForm] Form values after reset:', JSON.stringify(form.getValues(), null, 2));
-      console.log('[useEditTaskForm] Form preferredStaffId after reset:', form.getValues('preferredStaffId'));
-      console.log('[useEditTaskForm] ============= FORM INITIALIZATION END =============');
+    if (task?.requiredSkills) {
+      setSelectedSkills(task.requiredSkills);
+      form.setValue('requiredSkills', task.requiredSkills);
     }
   }, [task, form]);
 
-  const setSelectedSkills = (skills: string[]) => {
-    form.setValue('requiredSkills', skills, { shouldValidate: true });
-    setSkillsError(null);
-  };
-
+  // Reset form when task changes
+  useEffect(() => {
+    if (task) {
+      form.reset({
+        name: task.name,
+        description: task.description || '',
+        estimatedHours: task.estimatedHours,
+        priority: task.priority,
+        category: task.category,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        isRecurring: true,
+        requiredSkills: task.requiredSkills || [],
+        preferredStaffId: task.preferredStaffId || null, // Add preferred staff reset
+        recurrenceType: task.recurrencePattern.type,
+        interval: task.recurrencePattern.interval || 1,
+        weekdays: task.recurrencePattern.weekdays || [],
+        dayOfMonth: task.recurrencePattern.dayOfMonth,
+        monthOfYear: task.recurrencePattern.monthOfYear,
+        endDate: task.recurrencePattern.endDate ? new Date(task.recurrencePattern.endDate) : null,
+        customOffsetDays: task.recurrencePattern.customOffsetDays
+      });
+      setSelectedSkills(task.requiredSkills || []);
+      setFormError(null);
+      setSkillsError(null);
+    }
+  }, [task, form]);
+  
+  // Handle skill selection
   const toggleSkill = (skillId: string) => {
-    const currentSkills = form.getValues('requiredSkills') || [];
-    const newSkills = currentSkills.includes(skillId) 
-      ? currentSkills.filter(id => id !== skillId)
-      : [...currentSkills, skillId];
+    let updatedSkills: string[];
     
-    form.setValue('requiredSkills', newSkills, { shouldValidate: true });
-    setSkillsError(null);
+    if (selectedSkills.includes(skillId)) {
+      updatedSkills = selectedSkills.filter(s => s !== skillId);
+    } else {
+      updatedSkills = [...selectedSkills, skillId];
+    }
+    
+    setSelectedSkills(updatedSkills);
+    form.setValue('requiredSkills', updatedSkills);
+    
+    if (updatedSkills.length === 0) {
+      setSkillsError('At least one skill is required');
+    } else {
+      setSkillsError(null);
+    }
   };
-
-  const resetForm = () => {
-    form.reset();
-    setFormError(null);
-    setSkillsError(null);
-  };
-
-  const onSubmit = async (formData: EditTaskFormValues) => {
+  
+  // Handle form submission
+  const onSubmit = async (data: EditTaskFormValues) => {
     if (!task) {
-      setFormError('Task data is not available');
+      setFormError("No task data available to update");
       return;
     }
-
-    console.log('[useEditTaskForm] ============= FORM SUBMISSION START =============');
-    console.log('[useEditTaskForm] Starting form submission with data:', JSON.stringify(formData, null, 2));
-    console.log('[useEditTaskForm] Form preferredStaffId:', formData.preferredStaffId);
-    console.log('[useEditTaskForm] Form preferredStaffId type:', typeof formData.preferredStaffId);
-
-    // Validate that at least one skill is selected
-    if (!formData.requiredSkills || formData.requiredSkills.length === 0) {
-      setSkillsError('At least one skill must be selected');
+    
+    if (selectedSkills.length === 0) {
+      setSkillsError('At least one skill is required');
       return;
     }
-
+    
     setIsSaving(true);
     setFormError(null);
-    setSkillsError(null);
-
+    
     try {
-      // Validate selected skills against database using enhanced service
-      console.log('[useEditTaskForm] Validating skills:', formData.requiredSkills);
-      const skillValidation = await skillValidationService.validateSkillIds(formData.requiredSkills);
-      
-      if (skillValidation.invalid.length > 0) {
-        const invalidSkillsMessage = `Invalid skills detected: ${skillValidation.invalid.join(', ')}`;
-        console.error('[useEditTaskForm] Skill validation failed:', invalidSkillsMessage);
-        setSkillsError('Some selected skills are invalid. Please refresh and try again.');
-        return;
-      }
-
-      console.log('[useEditTaskForm] Skills validated successfully, proceeding with update');
-
-      // Create the update data object that matches the RecurringTask interface
-      const updateData: Partial<RecurringTask> = {
-        id: task.id, // Include ID for service layer
-        name: formData.name,
-        description: formData.description,
-        estimatedHours: formData.estimatedHours,
-        priority: formData.priority,
-        category: formData.category,
-        requiredSkills: skillValidation.valid, // Use validated skill IDs
-        preferredStaffId: formData.preferredStaffId, // CRITICAL: Ensure this is included
-        
-        // Map recurrence pattern back to RecurringTask format
-        recurrencePattern: {
-          type: formData.recurrenceType,
-          interval: formData.interval,
-          weekdays: formData.weekdays,
-          dayOfMonth: formData.dayOfMonth,
-          monthOfYear: formData.monthOfYear,
-          endDate: formData.endDate || undefined,
-          customOffsetDays: formData.customOffsetDays,
-        },
-        dueDate: formData.dueDate || null,
+      // Build recurrence pattern from form data
+      const recurrencePattern = {
+        type: data.recurrenceType!,
+        interval: data.interval,
+        weekdays: data.recurrenceType === 'Weekly' ? data.weekdays : undefined,
+        dayOfMonth: ['Monthly', 'Quarterly', 'Annually'].includes(data.recurrenceType!) ? data.dayOfMonth : undefined,
+        monthOfYear: data.recurrenceType === 'Annually' ? data.monthOfYear : undefined,
+        endDate: data.endDate || undefined,
+        customOffsetDays: data.recurrenceType === 'Custom' ? data.customOffsetDays : undefined
       };
 
-      console.log('[useEditTaskForm] Update data prepared:', JSON.stringify(updateData, null, 2));
-      console.log('[useEditTaskForm] CRITICAL - preferredStaffId in update data:', updateData.preferredStaffId);
+      // Build updated task object
+      const updatedTask: Partial<RecurringTask> = {
+        id: task.id,
+        name: data.name,
+        description: data.description,
+        estimatedHours: data.estimatedHours,
+        priority: data.priority,
+        category: data.category,
+        dueDate: data.dueDate,
+        requiredSkills: selectedSkills as SkillType[],
+        preferredStaffId: data.preferredStaffId || null, // Add preferred staff to update
+        recurrencePattern: recurrencePattern,
+        isActive: task.isActive
+      };
 
-      // Call the parent's onSave function which will handle the actual service call
-      await onSave(updateData);
-      
-      console.log('[useEditTaskForm] Update successful');
-      console.log('[useEditTaskForm] ============= FORM SUBMISSION END =============');
-      toast.success('Task updated successfully');
+      await onSave(updatedTask);
       onSuccess();
+      toast.success("Task updated successfully");
     } catch (error) {
-      console.error('[useEditTaskForm] Error updating task:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update task';
-      setFormError(errorMessage);
-      toast.error('Failed to update task');
+      console.error("Error saving task:", error);
+      setFormError(error instanceof Error ? error.message : "Failed to update task");
+      toast.error("Failed to update task");
     } finally {
       setIsSaving(false);
     }
@@ -186,7 +170,6 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
     setSelectedSkills,
     skillsError,
     toggleSkill,
-    onSubmit,
-    resetForm,
+    onSubmit
   };
 };

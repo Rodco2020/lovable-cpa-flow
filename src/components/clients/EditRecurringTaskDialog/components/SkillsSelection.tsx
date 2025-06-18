@@ -5,11 +5,10 @@ import { supabase } from '@/lib/supabaseClient';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { UseFormReturn } from 'react-hook-form';
-import { EditTaskFormValues } from '../types';
 
 export interface SkillsSelectionProps {
-  form: UseFormReturn<EditTaskFormValues>;
+  selectedSkills: string[];
+  toggleSkill: (skillId: string) => void;
   error: string | null;
 }
 
@@ -20,11 +19,10 @@ interface Skill {
 }
 
 export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
-  form,
+  selectedSkills,
+  toggleSkill,
   error
 }) => {
-  const selectedSkills = form.watch('requiredSkills') || [];
-
   const { data: skills = [], isLoading } = useQuery({
     queryKey: ['skills'],
     queryFn: async (): Promise<Skill[]> => {
@@ -37,15 +35,6 @@ export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
       return data || [];
     },
   });
-
-  const toggleSkill = (skillId: string) => {
-    const currentSkills = form.getValues('requiredSkills') || [];
-    const newSkills = currentSkills.includes(skillId) 
-      ? currentSkills.filter(id => id !== skillId)
-      : [...currentSkills, skillId];
-    
-    form.setValue('requiredSkills', newSkills, { shouldValidate: true });
-  };
 
   if (isLoading) {
     return (
@@ -86,16 +75,9 @@ export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
       {error && (
         <p className="text-sm text-destructive">{error}</p>
       )}
-      {selectedSkills.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Select at least one skill required for this task
-        </p>
-      )}
-      {selectedSkills.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {selectedSkills.length} skill{selectedSkills.length > 1 ? 's' : ''} selected
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">
+        Select at least one skill required for this task
+      </p>
     </div>
   );
 };

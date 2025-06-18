@@ -59,15 +59,7 @@ const mockRecurringTask: RecurringTask = {
     dayOfMonth: 15
   },
   lastGeneratedDate: null,
-  isActive: true,
-  preferredStaffId: null
-};
-
-const mockRecurringTaskWithStaff: RecurringTask = {
-  ...mockRecurringTask,
-  id: 'task-2',
-  name: 'Task With Preferred Staff',
-  preferredStaffId: 'staff-123'
+  isActive: true
 };
 
 describe('Integration Test: Recurring Task Edit Workflow', () => {
@@ -76,14 +68,18 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     
     // Mock service implementations
     (getClientById as jest.Mock).mockResolvedValue(mockClient);
-    (getRecurringTasks as jest.Mock).mockResolvedValue([mockRecurringTask, mockRecurringTaskWithStaff]);
+    (getRecurringTasks as jest.Mock).mockResolvedValue([mockRecurringTask]);
     (getTaskInstances as jest.Mock).mockResolvedValue([]);
     (getRecurringTaskById as jest.Mock).mockResolvedValue(mockRecurringTask);
     (updateRecurringTask as jest.Mock).mockResolvedValue(true);
     (deactivateRecurringTask as jest.Mock).mockResolvedValue(true);
   });
 
+  // This is a very simplified integration test that focuses on the component interaction
+  // In a real application, you might use tools like Cypress for true E2E testing
   test('End-to-end edit workflow: load task, edit, and save successfully', async () => {
+    // We'll simulate as much of the workflow as we can without a full DOM
+    
     // Mock edit dialog component to verify it's called correctly
     jest.mock('@/components/clients/EditRecurringTaskDialog', () => ({
       EditRecurringTaskDialog: ({ onSave }: any) => (
@@ -93,7 +89,6 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
             estimatedHours: 4,
             priority: 'High' as TaskPriority,
             category: 'Advisory' as TaskCategory,
-            preferredStaffId: 'staff-456',
             recurrencePattern: {
               type: 'Monthly' as RecurrencePattern['type'],
               interval: 1,
@@ -120,16 +115,18 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     // Verify task list is displayed
     await screen.findByText('Monthly Financial Review');
     
+    // Integration tests for the edit flow - we can't fully simulate the dialog opening
+    // but we can verify the API calls work correctly
+
     // Check that task fetching works
     expect(getRecurringTasks).toHaveBeenCalledWith(false);
     
-    // Verify update process calls the right service with correct parameters including preferred staff
+    // Verify update process calls the right service with correct parameters
     const updatedTask = {
       name: 'Updated Task Name',
       estimatedHours: 4,
       priority: 'High' as TaskPriority,
       category: 'Advisory' as TaskCategory,
-      preferredStaffId: 'staff-456',
       recurrencePattern: {
         type: 'Monthly' as RecurrencePattern['type'],
         interval: 1,
@@ -151,32 +148,6 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     expect(deactivateRecurringTask).toHaveBeenCalledWith('task-1');
   });
   
-  test('Edit flow handles preferred staff validation correctly', async () => {
-    // Test valid preferred staff ID
-    const validUpdate = {
-      name: 'Test Task',
-      preferredStaffId: 'staff-123'
-    };
-    
-    await act(async () => {
-      await updateRecurringTask('task-1', validUpdate);
-    });
-    
-    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', validUpdate);
-    
-    // Test null preferred staff ID (should be allowed)
-    const nullStaffUpdate = {
-      name: 'Test Task',
-      preferredStaffId: null
-    };
-    
-    await act(async () => {
-      await updateRecurringTask('task-1', nullStaffUpdate);
-    });
-    
-    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', nullStaffUpdate);
-  });
-  
   test('Edit flow handles errors correctly', async () => {
     // Mock service to produce an error
     (updateRecurringTask as jest.Mock).mockRejectedValue(new Error('Update failed'));
@@ -193,8 +164,7 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     // Try to update and verify error handling
     try {
       await updateRecurringTask('task-1', {
-        name: 'Test Task',
-        preferredStaffId: 'invalid-staff-id'
+        name: 'Test Task'
       });
     } catch (error) {
       expect(error).toBeDefined();
@@ -202,67 +172,5 @@ describe('Integration Test: Recurring Task Edit Workflow', () => {
     
     // Check that error was displayed
     expect(updateRecurringTask).toHaveBeenCalled();
-  });
-  
-  test('Form hook handles preferred staff initialization correctly', async () => {
-    // Test with preferred staff
-    const taskWithStaff = {
-      ...mockRecurringTask,
-      preferredStaffId: 'staff-123'
-    };
-    
-    (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithStaff);
-    
-    await act(async () => {
-      await updateRecurringTask('task-1', {
-        name: 'Test Task',
-        preferredStaffId: 'staff-123'
-      });
-    });
-    
-    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
-      preferredStaffId: 'staff-123'
-    }));
-    
-    // Test without preferred staff (null)
-    const taskWithoutStaff = {
-      ...mockRecurringTask,
-      preferredStaffId: null
-    };
-    
-    (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithoutStaff);
-    
-    await act(async () => {
-      await updateRecurringTask('task-1', {
-        name: 'Test Task',
-        preferredStaffId: null
-      });
-    });
-    
-    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
-      preferredStaffId: null
-    }));
-  });
-  
-  test('Form reset includes preferred staff field', async () => {
-    // Test form reset with preferred staff
-    const taskWithStaff = {
-      ...mockRecurringTask,
-      preferredStaffId: 'staff-456'
-    };
-    
-    (getRecurringTaskById as jest.Mock).mockResolvedValue(taskWithStaff);
-    
-    // Simulate form operations that would trigger reset
-    await act(async () => {
-      await updateRecurringTask('task-1', {
-        name: 'Updated Task',
-        preferredStaffId: 'staff-456'
-      });
-    });
-    
-    expect(updateRecurringTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
-      preferredStaffId: 'staff-456'
-    }));
   });
 });

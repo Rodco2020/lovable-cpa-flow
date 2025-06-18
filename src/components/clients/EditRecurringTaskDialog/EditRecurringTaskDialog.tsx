@@ -29,7 +29,9 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
     form,
     isSaving,
     formError,
+    selectedSkills,
     skillsError,
+    toggleSkill,
     onSubmit
   } = useEditTaskForm({
     task,
@@ -130,7 +132,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
                             step="0.25"
                             min="0.25"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0.25)}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
                           />
                         </FormControl>
                         <FormMessage />
@@ -189,14 +191,15 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
                   )}
                 />
 
-                {/* Preferred Staff Field */}
+                {/* Add Preferred Staff Field */}
                 <PreferredStaffField form={form} />
               </div>
 
               {/* Skills and Recurrence */}
               <div className="space-y-4">
                 <SkillsSelection
-                  form={form}
+                  selectedSkills={selectedSkills}
+                  toggleSkill={toggleSkill}
                   error={skillsError}
                 />
                 

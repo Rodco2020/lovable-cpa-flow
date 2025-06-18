@@ -1,8 +1,7 @@
 
 import { useState } from 'react';
-import { TaskTemplate, RecurringTask } from '@/types/task';
+import { TaskTemplate, RecurringTask, SkillType } from '@/types/task';
 import { createRecurringTask, createAdHocTask } from '@/services/taskService';
-import { skillValidationService } from '@/services/skillValidationService';
 import { toast } from 'sonner';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -67,22 +66,12 @@ export const useTaskSubmission = ({
         isRecurring ? "Creating recurring task..." : "Creating ad-hoc task..."
       );
       
-      // Validate required skills against database
-      const skillValidation = await skillValidationService.validateSkillIds(taskForm.requiredSkills);
-      
-      if (skillValidation.invalid.length > 0) {
-        toast.dismiss(loadingToastId);
-        toast.error(
-          "Some selected skills are invalid",
-          {
-            description: `Invalid skills found. Please refresh the page and try again.`,
-            icon: <AlertCircle className="h-5 w-5 text-red-500" />
-          }
-        );
-        return;
-      }
-      
       let newTask;
+      
+      // Convert string[] to SkillType[] - ensuring the values are valid SkillType values
+      const requiredSkills = taskForm.requiredSkills.filter((skill): skill is SkillType => {
+        return ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'].includes(skill);
+      });
       
       if (isRecurring) {
         // Create recurring task
@@ -94,7 +83,7 @@ export const useTaskSubmission = ({
           name: taskForm.name,
           description: taskForm.description,
           estimatedHours: taskForm.estimatedHours,
-          requiredSkills: skillValidation.valid, // Use validated skill IDs
+          requiredSkills, // Using the filtered SkillType array
           priority: taskForm.priority,
           category: taskForm.category,
           dueDate: new Date(taskForm.dueDate),
@@ -108,7 +97,7 @@ export const useTaskSubmission = ({
           name: taskForm.name,
           description: taskForm.description,
           estimatedHours: taskForm.estimatedHours,
-          requiredSkills: skillValidation.valid, // Use validated skill IDs
+          requiredSkills, // Using the filtered SkillType array
           priority: taskForm.priority,
           category: taskForm.category,
           dueDate: new Date(taskForm.dueDate)

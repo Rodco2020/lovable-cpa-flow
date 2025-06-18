@@ -1,72 +1,116 @@
 
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Copy, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import ClientRecurringTaskList from './ClientRecurringTaskList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClientAdHocTaskList from './ClientAdHocTaskList';
-import TaskAssignmentWizard from './TaskWizard/TaskAssignmentWizard';
+import ClientRecurringTaskList from './ClientRecurringTaskList';
+import CopyClientTasksDialog from './CopyClientTasksDialog';
+import { TaskAssignmentWizard } from './TaskWizard/TaskAssignmentWizard';
 
 interface ClientTasksSectionProps {
   clientId: string;
-  clientName?: string;
-  onTaskUpdate?: () => void;
-  onRefreshClient?: () => Promise<void>;
+  clientName: string;
+  onRefreshClient: () => Promise<void>;
 }
 
+/**
+ * Component that handles displaying and managing client tasks
+ * Enhanced with proper copy workflow integration and validation
+ */
 const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({ 
   clientId, 
   clientName,
-  onTaskUpdate,
-  onRefreshClient
+  onRefreshClient 
 }) => {
-  const [showTaskWizard, setShowTaskWizard] = useState(false);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
-  const handleTaskUpdate = () => {
-    onTaskUpdate?.();
-    onRefreshClient?.();
+  // Validate required props
+  if (!clientId || !clientName) {
+    console.warn('ClientTasksSection: Missing required props (clientId or clientName)');
+    return null;
+  }
+
+  const handleCopyDialogClose = () => {
+    setIsCopyDialogOpen(false);
   };
 
+  const handleCopySuccess = async () => {
+    // Refresh client data after successful copy operation
+    try {
+      await onRefreshClient();
+      console.log('Client data refreshed after copy operation');
+    } catch (error) {
+      console.error('Failed to refresh client data after copy:', error);
+    }
+  };
+  
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Task Management</CardTitle>
-          <div className="flex space-x-2">
-            <Dialog open={showTaskWizard} onOpenChange={setShowTaskWizard}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  Task Wizard
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl">
-                <TaskAssignmentWizard />
-              </DialogContent>
-            </Dialog>
-          </div>
+    <div className="mt-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">Client Tasks</h3>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsCopyDialogOpen(true)}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Copy Tasks
+          </Button>
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={() => setIsWizardOpen(true)}
+          >
+            <Wand2 className="h-4 w-4 mr-2" />
+            Task Wizard
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="recurring" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
-            <TabsTrigger value="adhoc">Ad-hoc Tasks</TabsTrigger>
-          </TabsList>
-          <TabsContent value="recurring" className="space-y-4">
-            <ClientRecurringTaskList 
-              clientId={clientId} 
-            />
-          </TabsContent>
-          <TabsContent value="adhoc" className="space-y-4">
-            <ClientAdHocTaskList 
-              clientId={clientId} 
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+      </div>
+
+      <Tabs defaultValue="adhoc" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="adhoc">Ad-hoc Tasks</TabsTrigger>
+          <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="adhoc">
+          <ClientAdHocTaskList 
+            clientId={clientId} 
+            onTasksChanged={onRefreshClient} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="recurring">
+          <ClientRecurringTaskList 
+            clientId={clientId}
+            onRefreshNeeded={onRefreshClient}
+          />
+        </TabsContent>
+      </Tabs>
+      
+      {/* Enhanced Copy Dialog - Always start with source selection step */}
+      <CopyClientTasksDialog 
+        open={isCopyDialogOpen}
+        onOpenChange={(open) => {
+          setIsCopyDialogOpen(open);
+          if (!open) {
+            // Trigger refresh when dialog closes after successful operation
+            handleCopySuccess();
+          }
+        }}
+        sourceClientName={clientName}
+      />
+      
+      {/* New Task Assignment Wizard */}
+      <TaskAssignmentWizard
+        open={isWizardOpen}
+        onOpenChange={setIsWizardOpen}
+        initialClientId={clientId}
+      />
+    </div>
   );
 };
 

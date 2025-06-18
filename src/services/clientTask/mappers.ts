@@ -1,27 +1,69 @@
 
 import { RecurringTask, RecurringTaskDB } from '@/types/task';
-import { 
-  transformDatabaseToApplication, 
-  transformApplicationToDatabase 
-} from '../taskService/dataTransformationService';
-
-/**
- * Enhanced Mappers using the unified data transformation service
- * 
- * These mappers now delegate to the centralized transformation service
- * for consistent data handling across the application.
- */
 
 /**
  * Map database recurring task to application-level RecurringTask
  */
 export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTask => {
-  return transformDatabaseToApplication(dbTask);
+  return {
+    id: dbTask.id,
+    templateId: dbTask.template_id,
+    clientId: dbTask.client_id,
+    name: dbTask.name,
+    description: dbTask.description || '',
+    estimatedHours: Number(dbTask.estimated_hours),
+    requiredSkills: dbTask.required_skills || [],
+    priority: dbTask.priority,
+    category: dbTask.category,
+    status: dbTask.status,
+    dueDate: dbTask.due_date ? new Date(dbTask.due_date) : null,
+    preferredStaffId: dbTask.preferred_staff_id, // Add preferred staff mapping
+    recurrencePattern: {
+      type: dbTask.recurrence_type as any,
+      interval: dbTask.recurrence_interval || undefined,
+      weekdays: dbTask.weekdays || undefined,
+      dayOfMonth: dbTask.day_of_month || undefined,
+      monthOfYear: dbTask.month_of_year || undefined,
+      endDate: dbTask.end_date ? new Date(dbTask.end_date) : undefined,
+      customOffsetDays: dbTask.custom_offset_days || undefined
+    },
+    lastGeneratedDate: dbTask.last_generated_date ? new Date(dbTask.last_generated_date) : null,
+    isActive: dbTask.is_active,
+    createdAt: new Date(dbTask.created_at),
+    updatedAt: new Date(dbTask.updated_at),
+    notes: dbTask.notes || undefined
+  };
 };
 
 /**
  * Map application-level RecurringTask to database format for updates
  */
 export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
-  return transformApplicationToDatabase(task);
+  const dbUpdate: any = {};
+  
+  if (task.name !== undefined) dbUpdate.name = task.name;
+  if (task.description !== undefined) dbUpdate.description = task.description;
+  if (task.estimatedHours !== undefined) dbUpdate.estimated_hours = task.estimatedHours;
+  if (task.requiredSkills !== undefined) dbUpdate.required_skills = task.requiredSkills;
+  if (task.priority !== undefined) dbUpdate.priority = task.priority;
+  if (task.category !== undefined) dbUpdate.category = task.category;
+  if (task.dueDate !== undefined) dbUpdate.due_date = task.dueDate?.toISOString() || null;
+  if (task.preferredStaffId !== undefined) dbUpdate.preferred_staff_id = task.preferredStaffId; // Add preferred staff mapping
+  if (task.isActive !== undefined) dbUpdate.is_active = task.isActive;
+  
+  // Handle recurrence pattern
+  if (task.recurrencePattern) {
+    const pattern = task.recurrencePattern;
+    if (pattern.type !== undefined) dbUpdate.recurrence_type = pattern.type;
+    if (pattern.interval !== undefined) dbUpdate.recurrence_interval = pattern.interval;
+    if (pattern.weekdays !== undefined) dbUpdate.weekdays = pattern.weekdays;
+    if (pattern.dayOfMonth !== undefined) dbUpdate.day_of_month = pattern.dayOfMonth;
+    if (pattern.monthOfYear !== undefined) dbUpdate.month_of_year = pattern.monthOfYear;
+    if (pattern.endDate !== undefined) dbUpdate.end_date = pattern.endDate?.toISOString() || null;
+    if (pattern.customOffsetDays !== undefined) dbUpdate.custom_offset_days = pattern.customOffsetDays;
+  }
+  
+  dbUpdate.updated_at = new Date().toISOString();
+  
+  return dbUpdate;
 };
