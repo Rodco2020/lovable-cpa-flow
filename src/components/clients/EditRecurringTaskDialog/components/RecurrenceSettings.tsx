@@ -14,7 +14,7 @@ import { EditTaskFormValues } from '../types';
 
 export interface RecurrenceSettingsProps {
   form: UseFormReturn<EditTaskFormValues>;
-  recurrenceType: string;
+  recurrenceType: EditTaskFormValues['recurrenceType'];
 }
 
 export const RecurrenceSettings: React.FC<RecurrenceSettingsProps> = ({ 
@@ -62,7 +62,7 @@ export const RecurrenceSettings: React.FC<RecurrenceSettingsProps> = ({
                 type="number"
                 min="1"
                 {...field}
-                onChange={(e) => field.onChange(parseInt(e.target.value))}
+                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                 placeholder="Every X periods"
               />
             </FormControl>
@@ -84,9 +84,43 @@ export const RecurrenceSettings: React.FC<RecurrenceSettingsProps> = ({
                   min="1"
                   max="31"
                   {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {recurrenceType === 'Annually' && (
+        <FormField
+          control={form.control}
+          name="monthOfYear"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Month of Year</FormLabel>
+              <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="1">January</SelectItem>
+                  <SelectItem value="2">February</SelectItem>
+                  <SelectItem value="3">March</SelectItem>
+                  <SelectItem value="4">April</SelectItem>
+                  <SelectItem value="5">May</SelectItem>
+                  <SelectItem value="6">June</SelectItem>
+                  <SelectItem value="7">July</SelectItem>
+                  <SelectItem value="8">August</SelectItem>
+                  <SelectItem value="9">September</SelectItem>
+                  <SelectItem value="10">October</SelectItem>
+                  <SelectItem value="11">November</SelectItem>
+                  <SelectItem value="12">December</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -134,6 +168,27 @@ export const RecurrenceSettings: React.FC<RecurrenceSettingsProps> = ({
           </FormItem>
         )}
       />
+
+      {recurrenceType === 'Custom' && (
+        <FormField
+          control={form.control}
+          name="customOffsetDays"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Custom Offset Days</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  {...field}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                  placeholder="Number of days offset"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </div>
   );
 };

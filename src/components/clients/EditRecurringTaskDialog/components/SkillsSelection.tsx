@@ -5,10 +5,11 @@ import { supabase } from '@/lib/supabaseClient';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { UseFormReturn } from 'react-hook-form';
+import { EditTaskFormValues } from '../types';
 
 export interface SkillsSelectionProps {
-  selectedSkills: string[]; // These are skill IDs (UUIDs)
-  toggleSkill: (skillId: string) => void;
+  form: UseFormReturn<EditTaskFormValues>;
   error: string | null;
 }
 
@@ -19,10 +20,11 @@ interface Skill {
 }
 
 export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
-  selectedSkills,
-  toggleSkill,
+  form,
   error
 }) => {
+  const selectedSkills = form.watch('requiredSkills') || [];
+
   const { data: skills = [], isLoading } = useQuery({
     queryKey: ['skills'],
     queryFn: async (): Promise<Skill[]> => {
@@ -35,6 +37,15 @@ export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
       return data || [];
     },
   });
+
+  const toggleSkill = (skillId: string) => {
+    const currentSkills = form.getValues('requiredSkills') || [];
+    const newSkills = currentSkills.includes(skillId) 
+      ? currentSkills.filter(id => id !== skillId)
+      : [...currentSkills, skillId];
+    
+    form.setValue('requiredSkills', newSkills, { shouldValidate: true });
+  };
 
   if (isLoading) {
     return (
@@ -59,7 +70,7 @@ export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
               type="button"
               variant={selectedSkills.includes(skill.id) ? "default" : "outline"}
               size="sm"
-              onClick={() => toggleSkill(skill.id)} // Pass skill ID, not name
+              onClick={() => toggleSkill(skill.id)}
               className="justify-start"
             >
               {skill.name}
@@ -75,9 +86,16 @@ export const SkillsSelection: React.FC<SkillsSelectionProps> = ({
       {error && (
         <p className="text-sm text-destructive">{error}</p>
       )}
-      <p className="text-xs text-muted-foreground">
-        Select at least one skill required for this task
-      </p>
+      {selectedSkills.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Select at least one skill required for this task
+        </p>
+      )}
+      {selectedSkills.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {selectedSkills.length} skill{selectedSkills.length > 1 ? 's' : ''} selected
+        </p>
+      )}
     </div>
   );
 };
