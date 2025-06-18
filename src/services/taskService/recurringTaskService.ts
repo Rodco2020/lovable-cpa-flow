@@ -5,10 +5,7 @@ import { mapDatabaseToRecurringTask, mapRecurringTaskToDatabase } from '../clien
 import { skillValidationService } from '../skillValidationService';
 
 /**
- * Recurring Task Service - Enhanced for unified type system
- * 
- * Handles CRUD operations for recurring tasks with proper data transformation
- * and validation integration.
+ * Recurring Task Service - Enhanced with critical preferred staff fix
  */
 
 export class RecurringTaskServiceError extends Error {
@@ -54,20 +51,20 @@ export const getRecurringTaskById = async (taskId: string): Promise<RecurringTas
 };
 
 /**
- * Update a recurring task with comprehensive validation and data transformation
+ * Update a recurring task with CRITICAL FIX for preferred staff persistence
  */
 export const updateRecurringTask = async (
   taskId: string, 
   updates: Partial<RecurringTask>
 ): Promise<RecurringTask | null> => {
   try {
-    console.log(`[RecurringTaskService] ============= UPDATE PROCESS START =============`);
+    console.log(`[RecurringTaskService] ================= UPDATE PROCESS START =================`);
     console.log(`[RecurringTaskService] Updating task ${taskId}`);
     console.log(`[RecurringTaskService] Update data received:`, JSON.stringify(updates, null, 2));
     
-    // CRITICAL: Log preferred staff specifically
+    // CRITICAL: Enhanced preferred staff logging
     if ('preferredStaffId' in updates) {
-      console.log(`[RecurringTaskService] PREFERRED STAFF UPDATE DETECTED:`);
+      console.log(`[RecurringTaskService] 🔥 PREFERRED STAFF UPDATE DETECTED:`);
       console.log(`[RecurringTaskService] - Value: ${updates.preferredStaffId}`);
       console.log(`[RecurringTaskService] - Type: ${typeof updates.preferredStaffId}`);
       console.log(`[RecurringTaskService] - Is null: ${updates.preferredStaffId === null}`);
@@ -88,7 +85,6 @@ export const updateRecurringTask = async (
         );
       }
       
-      // Use validated skills in the update
       updates.requiredSkills = skillValidation.valid;
       console.log(`[RecurringTaskService] Skills validated successfully`);
     }
@@ -96,26 +92,37 @@ export const updateRecurringTask = async (
     // Transform application data to database format
     console.log(`[RecurringTaskService] Transforming application data to database format`);
     const dbUpdates = mapRecurringTaskToDatabase(updates);
-
-    // Ensure preferred_staff_id is included when explicitly provided
-    if (
-      updates.preferredStaffId !== undefined &&
-      !('preferred_staff_id' in dbUpdates)
-    ) {
-      dbUpdates.preferred_staff_id = updates.preferredStaffId || null;
-    }
     console.log(`[RecurringTaskService] Database updates after transformation:`, JSON.stringify(dbUpdates, null, 2));
     
-    // CRITICAL: Verify preferred staff is in the update
-    if ('preferred_staff_id' in dbUpdates) {
-      console.log(`[RecurringTaskService] VERIFIED: preferred_staff_id is in database updates`);
-      console.log(`[RecurringTaskService] - Database preferred_staff_id value: ${dbUpdates.preferred_staff_id}`);
-    } else {
-      console.warn(`[RecurringTaskService] WARNING: preferred_staff_id NOT found in database updates!`);
+    // CRITICAL FIX: Explicit preferred_staff_id verification and fallback
+    if ('preferredStaffId' in updates) {
+      console.log(`[RecurringTaskService] 🔥 CRITICAL FIX: Explicit preferred_staff_id handling`);
+      
+      // Double-check transformation worked
+      if ('preferred_staff_id' in dbUpdates) {
+        console.log(`[RecurringTaskService] ✅ Transformation successful: preferred_staff_id = ${dbUpdates.preferred_staff_id}`);
+      } else {
+        console.log(`[RecurringTaskService] ⚠️ Transformation failed, applying direct mapping`);
+        // Direct fallback mapping
+        if (updates.preferredStaffId === null || updates.preferredStaffId === '' || updates.preferredStaffId === undefined) {
+          dbUpdates.preferred_staff_id = null;
+        } else {
+          dbUpdates.preferred_staff_id = String(updates.preferredStaffId).trim();
+        }
+        console.log(`[RecurringTaskService] ✅ Direct mapping applied: preferred_staff_id = ${dbUpdates.preferred_staff_id}`);
+      }
     }
     
-    // Perform the update
-    console.log(`[RecurringTaskService] Executing database update for task ${taskId}`);
+    // IMMEDIATE VERIFICATION: Log exact Supabase call parameters
+    console.log(`[RecurringTaskService] ================= SUPABASE CALL VERIFICATION =================`);
+    console.log(`[RecurringTaskService] Task ID: ${taskId}`);
+    console.log(`[RecurringTaskService] Database updates object for Supabase:`, JSON.stringify(dbUpdates, null, 2));
+    console.log(`[RecurringTaskService] preferred_staff_id in updates: ${dbUpdates.preferred_staff_id}`);
+    console.log(`[RecurringTaskService] Has preferred_staff_id key: ${'preferred_staff_id' in dbUpdates}`);
+    console.log(`[RecurringTaskService] ================= SUPABASE CALL VERIFICATION END =================`);
+    
+    // Perform the database update with enhanced logging
+    console.log(`[RecurringTaskService] Executing Supabase update for task ${taskId}`);
     const { data, error } = await supabase
       .from('recurring_tasks')
       .update(dbUpdates)
@@ -124,27 +131,32 @@ export const updateRecurringTask = async (
       .single();
       
     if (error) {
-      console.error('[RecurringTaskService] Database update error:', error);
+      console.error('[RecurringTaskService] ❌ Database update error:', error);
       throw new RecurringTaskServiceError(`Failed to update task: ${error.message}`, error.code);
     }
     
-    console.log(`[RecurringTaskService] Database update successful, returned data:`, JSON.stringify(data, null, 2));
+    console.log(`[RecurringTaskService] ✅ Database update successful, returned data:`, JSON.stringify(data, null, 2));
     
-    // CRITICAL: Verify the update actually happened
+    // CRITICAL: Enhanced verification of the update
     if ('preferred_staff_id' in dbUpdates) {
-      console.log(`[RecurringTaskService] VERIFICATION: Database returned preferred_staff_id: ${data.preferred_staff_id}`);
+      console.log(`[RecurringTaskService] ================= UPDATE VERIFICATION =================`);
+      console.log(`[RecurringTaskService] Expected preferred_staff_id: ${dbUpdates.preferred_staff_id}`);
+      console.log(`[RecurringTaskService] Actual preferred_staff_id: ${data.preferred_staff_id}`);
+      console.log(`[RecurringTaskService] Updated timestamp: ${data.updated_at}`);
+      
       if (data.preferred_staff_id === dbUpdates.preferred_staff_id) {
         console.log(`[RecurringTaskService] ✅ VERIFICATION PASSED: preferred_staff_id update successful`);
       } else {
         console.error(`[RecurringTaskService] ❌ VERIFICATION FAILED: Expected ${dbUpdates.preferred_staff_id}, got ${data.preferred_staff_id}`);
       }
+      console.log(`[RecurringTaskService] ================= UPDATE VERIFICATION END =================`);
     }
     
     // Transform database response back to application format
     const updatedTask = mapDatabaseToRecurringTask(data);
     console.log(`[RecurringTaskService] Final transformed task:`, JSON.stringify(updatedTask, null, 2));
     console.log(`[RecurringTaskService] Final preferredStaffId: ${updatedTask.preferredStaffId}`);
-    console.log(`[RecurringTaskService] ============= UPDATE PROCESS END =============`);
+    console.log(`[RecurringTaskService] ================= UPDATE PROCESS END =================`);
     
     return updatedTask;
   } catch (error) {

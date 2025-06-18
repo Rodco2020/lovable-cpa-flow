@@ -73,11 +73,11 @@ export const transformDatabaseToApplication = (dbTask: RecurringTaskDB): Recurri
 
 /**
  * Transform application recurring task to database format
- * Handles partial updates and all edge cases with enhanced logging
+ * Enhanced with explicit preferred_staff_id mapping and comprehensive logging
  */
 export const transformApplicationToDatabase = (appTask: Partial<RecurringTask>) => {
   try {
-    console.log('[DataTransformation] Starting transformation to database format');
+    console.log('[DataTransformation] ============= TRANSFORMATION START =============');
     console.log('[DataTransformation] Input data:', JSON.stringify(appTask, null, 2));
     
     const dbUpdate: any = {};
@@ -130,24 +130,29 @@ export const transformApplicationToDatabase = (appTask: Partial<RecurringTask>) 
       console.log('[DataTransformation] Setting due_date:', appTask.dueDate);
     }
     
-    // CRITICAL FIX: Handle preferred staff with explicit logging and proper null handling
+    // CRITICAL FIX: Enhanced preferred staff mapping with explicit field handling
     if (appTask.preferredStaffId !== undefined) {
-      console.log('[DataTransformation] PREFERRED STAFF PROCESSING:');
-      console.log('[DataTransformation] - Input preferredStaffId:', appTask.preferredStaffId);
-      console.log('[DataTransformation] - Type:', typeof appTask.preferredStaffId);
-      console.log('[DataTransformation] - Is null:', appTask.preferredStaffId === null);
-      console.log('[DataTransformation] - Is empty string:', appTask.preferredStaffId === '');
+      console.log('[DataTransformation] ============= PREFERRED STAFF MAPPING =============');
+      console.log('[DataTransformation] Input preferredStaffId:', appTask.preferredStaffId);
+      console.log('[DataTransformation] Input type:', typeof appTask.preferredStaffId);
+      console.log('[DataTransformation] Is null:', appTask.preferredStaffId === null);
+      console.log('[DataTransformation] Is empty string:', appTask.preferredStaffId === '');
       
-      // Handle both null and empty string as null in database
-      if (appTask.preferredStaffId === null || appTask.preferredStaffId === '') {
+      // Explicit mapping with comprehensive null/empty handling
+      if (appTask.preferredStaffId === null || appTask.preferredStaffId === '' || appTask.preferredStaffId === undefined) {
         dbUpdate.preferred_staff_id = null;
-        console.log('[DataTransformation] - Setting preferred_staff_id to null');
+        console.log('[DataTransformation] ✅ MAPPED: preferred_staff_id = null');
       } else {
-        dbUpdate.preferred_staff_id = appTask.preferredStaffId;
-        console.log('[DataTransformation] - Setting preferred_staff_id to:', appTask.preferredStaffId);
+        dbUpdate.preferred_staff_id = String(appTask.preferredStaffId).trim();
+        console.log('[DataTransformation] ✅ MAPPED: preferred_staff_id =', dbUpdate.preferred_staff_id);
       }
+      
+      // Verification logging
+      console.log('[DataTransformation] VERIFICATION: preferred_staff_id in dbUpdate =', dbUpdate.preferred_staff_id);
+      console.log('[DataTransformation] VERIFICATION: Has preferred_staff_id key =', 'preferred_staff_id' in dbUpdate);
+      console.log('[DataTransformation] ============= PREFERRED STAFF MAPPING END =============');
     } else {
-      console.log('[DataTransformation] - preferredStaffId not provided in update (undefined)');
+      console.log('[DataTransformation] preferredStaffId not provided in update (undefined)');
     }
     
     // Handle recurrence pattern with comprehensive mapping
@@ -181,8 +186,11 @@ export const transformApplicationToDatabase = (appTask: Partial<RecurringTask>) 
     // Always update the timestamp
     dbUpdate.updated_at = new Date().toISOString();
     
-    console.log('[DataTransformation] Final database update object:', JSON.stringify(dbUpdate, null, 2));
-    console.log('[DataTransformation] CRITICAL - preferred_staff_id in final object:', dbUpdate.preferred_staff_id);
+    console.log('[DataTransformation] ============= FINAL DATABASE OBJECT =============');
+    console.log('[DataTransformation] Complete database update object:', JSON.stringify(dbUpdate, null, 2));
+    console.log('[DataTransformation] CRITICAL CHECK - preferred_staff_id value:', dbUpdate.preferred_staff_id);
+    console.log('[DataTransformation] CRITICAL CHECK - preferred_staff_id exists:', 'preferred_staff_id' in dbUpdate);
+    console.log('[DataTransformation] ============= TRANSFORMATION END =============');
     
     return dbUpdate;
   } catch (error) {
