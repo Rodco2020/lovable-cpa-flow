@@ -16,7 +16,7 @@ export class ServiceValidationError extends Error {
   }
 }
 
-interface ValidationResult {
+export interface ValidationResult {
   success: boolean;
   field: string;
   operation: string;
@@ -27,7 +27,7 @@ interface ValidationResult {
   details?: any;
 }
 
-interface ServiceValidationReport {
+export interface ServiceValidationReport {
   testId: string;
   timestamp: string;
   totalTests: number;

@@ -1,4 +1,3 @@
-
 /**
  * Unit Tests for Data Transformation Service
  * 
@@ -13,7 +12,35 @@ import {
   sanitizeTaskData,
   DataTransformationError
 } from '@/services/taskService/dataTransformationService';
-import { RecurringTask, RecurringTaskDB, TaskPriority, TaskCategory } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
+
+// Mock types for testing
+interface RecurringTaskDB {
+  id: string;
+  template_id: string;
+  client_id: string;
+  name: string;
+  description: string | null;
+  estimated_hours: number;
+  required_skills: string[];
+  priority: TaskPriority;
+  category: TaskCategory;
+  status: string;
+  due_date: string | null;
+  preferred_staff_id: string | null;
+  recurrence_type: string;
+  recurrence_interval: number;
+  weekdays: number[] | null;
+  day_of_month: number | null;
+  month_of_year: number | null;
+  end_date: string | null;
+  custom_offset_days: number | null;
+  last_generated_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  notes: string | null;
+}
 
 describe('Data Transformation Service Unit Tests', () => {
   const mockDatabaseTask: RecurringTaskDB = {

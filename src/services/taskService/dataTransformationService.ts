@@ -1,4 +1,3 @@
-
 import { RecurringTask } from '@/types/task';
 
 /**
@@ -13,6 +12,12 @@ export class DataTransformationError extends Error {
     super(`DataTransformation: ${message}`);
     this.name = 'DataTransformationError';
   }
+}
+
+export interface ValidationReport {
+  isValid: boolean;
+  errors: string[];
+  warnings?: string[];
 }
 
 interface TransformationTrace {
@@ -231,23 +236,63 @@ export const transformDatabaseToApplication = (dbData: any): RecurringTask => {
 /**
  * Validate task data before transformation
  */
-export const validateTaskData = (data: Partial<RecurringTask>): string[] => {
+export const validateTaskData = (data: Partial<RecurringTask>): ValidationReport => {
   const errors: string[] = [];
   
   // Add validation rules as needed
-  if (data.estimatedHours !== undefined && (data.estimatedHours < 0 || isNaN(data.estimatedHours))) {
-    errors.push('Estimated hours must be a non-negative number');
+  if (data.estimatedHours !== undefined && (data.estimatedHours <= 0 || isNaN(data.estimatedHours))) {
+    errors.push('Estimated hours must be a positive number');
   }
   
   if (data.requiredSkills && !Array.isArray(data.requiredSkills)) {
     errors.push('Required skills must be an array');
   }
   
+  if (data.requiredSkills && Array.isArray(data.requiredSkills) && data.requiredSkills.length === 0) {
+    errors.push('At least one skill is required');
+  }
+  
   if (data.preferredStaffId === '') {
     errors.push('Preferred staff ID cannot be empty string (use null instead)');
   }
   
-  return errors;
+  // Validate recurrence pattern
+  if (data.recurrencePattern) {
+    const pattern = data.recurrencePattern;
+    
+    if (pattern.interval !== undefined && (pattern.interval <= 0 || !Number.isInteger(pattern.interval))) {
+      errors.push('Recurrence interval must be a positive integer');
+    }
+    
+    if (pattern.dayOfMonth !== undefined && (pattern.dayOfMonth < 1 || pattern.dayOfMonth > 31)) {
+      errors.push('Day of month must be between 1 and 31');
+    }
+    
+    if (pattern.monthOfYear !== undefined && (pattern.monthOfYear < 1 || pattern.monthOfYear > 12)) {
+      errors.push('Month of year must be between 1 and 12');
+    }
+    
+    if (pattern.weekdays && Array.isArray(pattern.weekdays)) {
+      const invalidWeekdays = pattern.weekdays.filter(day => day < 0 || day > 6);
+      if (invalidWeekdays.length > 0) {
+        errors.push('Weekdays must be between 0 (Sunday) and 6 (Saturday)');
+      }
+    }
+    
+    if (pattern.endDate && !(pattern.endDate instanceof Date) && typeof pattern.endDate !== 'string') {
+      errors.push('End date must be a valid Date object');
+    }
+  }
+  
+  // Validate dates
+  if (data.dueDate && !(data.dueDate instanceof Date) && typeof data.dueDate !== 'string') {
+    errors.push('Due date must be a valid Date object');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 };
 
 /**
@@ -264,6 +309,20 @@ export const sanitizeTaskData = (data: Partial<RecurringTask>): Partial<Recurrin
   // Ensure requiredSkills is an array
   if (sanitized.requiredSkills && !Array.isArray(sanitized.requiredSkills)) {
     sanitized.requiredSkills = [];
+  }
+  
+  // Sanitize estimated hours
+  if (sanitized.estimatedHours && (typeof sanitized.estimatedHours === 'string' || isNaN(sanitized.estimatedHours))) {
+    sanitized.estimatedHours = 0.25; // Default minimum
+  }
+  
+  // Sanitize string fields
+  if (typeof sanitized.name === 'string') {
+    sanitized.name = sanitized.name.trim();
+  }
+  
+  if (typeof sanitized.description === 'string') {
+    sanitized.description = sanitized.description.trim();
   }
   
   return sanitized;
