@@ -96,6 +96,14 @@ export const updateRecurringTask = async (
     // Transform application data to database format
     console.log(`[RecurringTaskService] Transforming application data to database format`);
     const dbUpdates = mapRecurringTaskToDatabase(updates);
+
+    // Ensure preferred_staff_id is included when explicitly provided
+    if (
+      updates.preferredStaffId !== undefined &&
+      !('preferred_staff_id' in dbUpdates)
+    ) {
+      dbUpdates.preferred_staff_id = updates.preferredStaffId || null;
+    }
     console.log(`[RecurringTaskService] Database updates after transformation:`, JSON.stringify(dbUpdates, null, 2));
     
     // CRITICAL: Verify preferred staff is in the update
