@@ -12,15 +12,24 @@ import TaskForm from '../tasks/TaskForm';
 
 interface ClientTasksSectionProps {
   clientId: string;
+  clientName?: string;
   onTaskUpdate?: () => void;
+  onRefreshClient?: () => Promise<void>;
 }
 
 const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({ 
   clientId, 
-  onTaskUpdate 
+  clientName,
+  onTaskUpdate,
+  onRefreshClient
 }) => {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showTaskWizard, setShowTaskWizard] = useState(false);
+
+  const handleTaskUpdate = () => {
+    onTaskUpdate?.();
+    onRefreshClient?.();
+  };
 
   return (
     <Card>
@@ -37,11 +46,10 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <TaskForm 
-                  clientId={clientId} 
                   onClose={() => setShowTaskForm(false)}
                   onTaskCreated={() => {
                     setShowTaskForm(false);
-                    onTaskUpdate?.();
+                    handleTaskUpdate();
                   }}
                 />
               </DialogContent>
@@ -69,13 +77,11 @@ const ClientTasksSection: React.FC<ClientTasksSectionProps> = ({
           <TabsContent value="recurring" className="space-y-4">
             <ClientRecurringTaskList 
               clientId={clientId} 
-              onTaskUpdate={onTaskUpdate}
             />
           </TabsContent>
           <TabsContent value="adhoc" className="space-y-4">
             <ClientAdHocTaskList 
               clientId={clientId} 
-              onTaskUpdate={onTaskUpdate}
             />
           </TabsContent>
         </Tabs>
