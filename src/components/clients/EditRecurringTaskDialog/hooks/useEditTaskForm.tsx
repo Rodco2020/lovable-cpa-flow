@@ -1,3 +1,4 @@
+
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect } from 'react';
@@ -39,10 +40,13 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
   // Initialize form with task data - proper mapping from RecurringTask interface to form values
   useEffect(() => {
     if (task) {
-      console.log('[useEditTaskForm] Initializing form with task data:', task);
+      console.log('[useEditTaskForm] ============= FORM INITIALIZATION START =============');
+      console.log('[useEditTaskForm] Initializing form with task data:', JSON.stringify(task, null, 2));
+      console.log('[useEditTaskForm] Task preferredStaffId:', task.preferredStaffId);
+      console.log('[useEditTaskForm] Task preferredStaffId type:', typeof task.preferredStaffId);
       
       // Map RecurringTask properties to form values using consistent interface
-      form.reset({
+      const formValues = {
         name: task.name,
         description: task.description || '',
         estimatedHours: Number(task.estimatedHours),
@@ -61,9 +65,16 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
         endDate: task.recurrencePattern?.endDate || null,
         customOffsetDays: task.recurrencePattern?.customOffsetDays,
         dueDate: task.dueDate || undefined,
-      });
+      };
       
-      console.log('[useEditTaskForm] Form initialized with values');
+      console.log('[useEditTaskForm] Form values to be set:', JSON.stringify(formValues, null, 2));
+      console.log('[useEditTaskForm] Form preferredStaffId value:', formValues.preferredStaffId);
+      
+      form.reset(formValues);
+      
+      console.log('[useEditTaskForm] Form values after reset:', JSON.stringify(form.getValues(), null, 2));
+      console.log('[useEditTaskForm] Form preferredStaffId after reset:', form.getValues('preferredStaffId'));
+      console.log('[useEditTaskForm] ============= FORM INITIALIZATION END =============');
     }
   }, [task, form]);
 
@@ -94,7 +105,10 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
       return;
     }
 
-    console.log('[useEditTaskForm] Starting form submission with data:', formData);
+    console.log('[useEditTaskForm] ============= FORM SUBMISSION START =============');
+    console.log('[useEditTaskForm] Starting form submission with data:', JSON.stringify(formData, null, 2));
+    console.log('[useEditTaskForm] Form preferredStaffId:', formData.preferredStaffId);
+    console.log('[useEditTaskForm] Form preferredStaffId type:', typeof formData.preferredStaffId);
 
     // Validate that at least one skill is selected
     if (!formData.requiredSkills || formData.requiredSkills.length === 0) {
@@ -129,7 +143,7 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
         priority: formData.priority,
         category: formData.category,
         requiredSkills: skillValidation.valid, // Use validated skill IDs
-        preferredStaffId: formData.preferredStaffId,
+        preferredStaffId: formData.preferredStaffId, // CRITICAL: Ensure this is included
         
         // Map recurrence pattern back to RecurringTask format
         recurrencePattern: {
@@ -144,12 +158,14 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
         dueDate: formData.dueDate || null,
       };
 
-      console.log('[useEditTaskForm] Calling onSave with update data:', updateData);
+      console.log('[useEditTaskForm] Update data prepared:', JSON.stringify(updateData, null, 2));
+      console.log('[useEditTaskForm] CRITICAL - preferredStaffId in update data:', updateData.preferredStaffId);
 
       // Call the parent's onSave function which will handle the actual service call
       await onSave(updateData);
       
       console.log('[useEditTaskForm] Update successful');
+      console.log('[useEditTaskForm] ============= FORM SUBMISSION END =============');
       toast.success('Task updated successfully');
       onSuccess();
     } catch (error) {

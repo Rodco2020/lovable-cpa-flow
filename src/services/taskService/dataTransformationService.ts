@@ -21,13 +21,15 @@ export class DataTransformationError extends Error {
  */
 export const transformDatabaseToApplication = (dbTask: RecurringTaskDB): RecurringTask => {
   try {
+    console.log('[DataTransformation] Transforming database to application:', dbTask);
+    
     // Validate required fields
     if (!dbTask.id) throw new DataTransformationError('Missing task ID', 'id');
     if (!dbTask.name) throw new DataTransformationError('Missing task name', 'name');
     if (!dbTask.template_id) throw new DataTransformationError('Missing template ID', 'template_id');
     if (!dbTask.client_id) throw new DataTransformationError('Missing client ID', 'client_id');
 
-    return {
+    const transformed = {
       id: dbTask.id,
       templateId: dbTask.template_id,
       clientId: dbTask.client_id,
@@ -55,6 +57,11 @@ export const transformDatabaseToApplication = (dbTask: RecurringTaskDB): Recurri
       updatedAt: new Date(dbTask.updated_at),
       notes: dbTask.notes || undefined
     };
+    
+    console.log('[DataTransformation] Transformed to application format:', transformed);
+    console.log('[DataTransformation] Preferred staff ID mapped to:', transformed.preferredStaffId);
+    
+    return transformed;
   } catch (error) {
     console.error('[DataTransformation] Error transforming database to application:', error);
     if (error instanceof DataTransformationError) {
@@ -66,39 +73,87 @@ export const transformDatabaseToApplication = (dbTask: RecurringTaskDB): Recurri
 
 /**
  * Transform application recurring task to database format
- * Handles partial updates and all edge cases
+ * Handles partial updates and all edge cases with enhanced logging
  */
 export const transformApplicationToDatabase = (appTask: Partial<RecurringTask>) => {
   try {
+    console.log('[DataTransformation] Starting transformation to database format');
+    console.log('[DataTransformation] Input data:', JSON.stringify(appTask, null, 2));
+    
     const dbUpdate: any = {};
     
     // Handle basic fields with proper null/undefined handling
-    if (appTask.name !== undefined) dbUpdate.name = appTask.name;
-    if (appTask.description !== undefined) dbUpdate.description = appTask.description || null;
-    if (appTask.estimatedHours !== undefined) dbUpdate.estimated_hours = Number(appTask.estimatedHours);
-    if (appTask.priority !== undefined) dbUpdate.priority = appTask.priority;
-    if (appTask.category !== undefined) dbUpdate.category = appTask.category;
-    if (appTask.status !== undefined) dbUpdate.status = appTask.status;
-    if (appTask.isActive !== undefined) dbUpdate.is_active = Boolean(appTask.isActive);
+    if (appTask.name !== undefined) {
+      dbUpdate.name = appTask.name;
+      console.log('[DataTransformation] Setting name:', appTask.name);
+    }
+    
+    if (appTask.description !== undefined) {
+      dbUpdate.description = appTask.description || null;
+      console.log('[DataTransformation] Setting description:', appTask.description);
+    }
+    
+    if (appTask.estimatedHours !== undefined) {
+      dbUpdate.estimated_hours = Number(appTask.estimatedHours);
+      console.log('[DataTransformation] Setting estimated_hours:', appTask.estimatedHours);
+    }
+    
+    if (appTask.priority !== undefined) {
+      dbUpdate.priority = appTask.priority;
+      console.log('[DataTransformation] Setting priority:', appTask.priority);
+    }
+    
+    if (appTask.category !== undefined) {
+      dbUpdate.category = appTask.category;
+      console.log('[DataTransformation] Setting category:', appTask.category);
+    }
+    
+    if (appTask.status !== undefined) {
+      dbUpdate.status = appTask.status;
+      console.log('[DataTransformation] Setting status:', appTask.status);
+    }
+    
+    if (appTask.isActive !== undefined) {
+      dbUpdate.is_active = Boolean(appTask.isActive);
+      console.log('[DataTransformation] Setting is_active:', appTask.isActive);
+    }
     
     // Handle arrays with proper validation
     if (appTask.requiredSkills !== undefined) {
       dbUpdate.required_skills = Array.isArray(appTask.requiredSkills) ? appTask.requiredSkills : [];
+      console.log('[DataTransformation] Setting required_skills:', appTask.requiredSkills);
     }
     
     // Handle date fields with proper ISO string conversion
     if (appTask.dueDate !== undefined) {
       dbUpdate.due_date = appTask.dueDate ? appTask.dueDate.toISOString() : null;
+      console.log('[DataTransformation] Setting due_date:', appTask.dueDate);
     }
     
-    // Handle preferred staff with proper null handling
+    // CRITICAL FIX: Handle preferred staff with explicit logging and proper null handling
     if (appTask.preferredStaffId !== undefined) {
-      dbUpdate.preferred_staff_id = appTask.preferredStaffId || null;
+      console.log('[DataTransformation] PREFERRED STAFF PROCESSING:');
+      console.log('[DataTransformation] - Input preferredStaffId:', appTask.preferredStaffId);
+      console.log('[DataTransformation] - Type:', typeof appTask.preferredStaffId);
+      console.log('[DataTransformation] - Is null:', appTask.preferredStaffId === null);
+      console.log('[DataTransformation] - Is empty string:', appTask.preferredStaffId === '');
+      
+      // Handle both null and empty string as null in database
+      if (appTask.preferredStaffId === null || appTask.preferredStaffId === '') {
+        dbUpdate.preferred_staff_id = null;
+        console.log('[DataTransformation] - Setting preferred_staff_id to null');
+      } else {
+        dbUpdate.preferred_staff_id = appTask.preferredStaffId;
+        console.log('[DataTransformation] - Setting preferred_staff_id to:', appTask.preferredStaffId);
+      }
+    } else {
+      console.log('[DataTransformation] - preferredStaffId not provided in update (undefined)');
     }
     
     // Handle recurrence pattern with comprehensive mapping
     if (appTask.recurrencePattern) {
       const pattern = appTask.recurrencePattern;
+      console.log('[DataTransformation] Processing recurrence pattern:', pattern);
       
       if (pattern.type !== undefined) dbUpdate.recurrence_type = pattern.type;
       if (pattern.interval !== undefined) dbUpdate.recurrence_interval = pattern.interval;
@@ -125,6 +180,9 @@ export const transformApplicationToDatabase = (appTask: Partial<RecurringTask>) 
     
     // Always update the timestamp
     dbUpdate.updated_at = new Date().toISOString();
+    
+    console.log('[DataTransformation] Final database update object:', JSON.stringify(dbUpdate, null, 2));
+    console.log('[DataTransformation] CRITICAL - preferred_staff_id in final object:', dbUpdate.preferred_staff_id);
     
     return dbUpdate;
   } catch (error) {
