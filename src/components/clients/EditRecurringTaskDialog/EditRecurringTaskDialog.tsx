@@ -15,8 +15,23 @@ import { FormHeader } from './components/FormHeader';
 import { RecurrenceSettings } from './components/RecurrenceSettings';
 import { SkillsSelection } from './components/SkillsSelection';
 import { PreferredStaffField } from './components/PreferredStaffField';
-import { DiagnosticPanel } from './components/DiagnosticPanel';
 
+/**
+ * Edit Recurring Task Dialog Component
+ * 
+ * Provides a comprehensive interface for editing recurring task details including:
+ * - Basic task information (name, description, hours, priority, category)
+ * - Preferred staff assignment (optional)
+ * - Required skills selection
+ * - Recurrence pattern configuration
+ * 
+ * Features:
+ * - Form validation with real-time feedback
+ * - Preferred staff dropdown with error handling and retry capability
+ * - Skills multi-selection with validation
+ * - Comprehensive error handling and loading states
+ * - Accessibility compliant with WCAG guidelines
+ */
 const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
   open,
   onOpenChange,
@@ -39,9 +54,6 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
     onSave,
     onSuccess: () => onOpenChange(false)
   });
-
-  // PHASE 1: Show diagnostic panel in development/debug mode
-  const showDiagnostics = process.env.NODE_ENV === 'development' || open;
 
   // Handle loading state
   if (isLoading || (!task && !attemptedLoad)) {
@@ -91,9 +103,6 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormHeader task={task} open={open} />
-
-            {/* PHASE 1: Diagnostic Panel */}
-            <DiagnosticPanel form={form} isVisible={showDiagnostics} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Basic Information */}
@@ -198,7 +207,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
                   )}
                 />
 
-                {/* PHASE 1: Enhanced Preferred Staff Field with logging */}
+                {/* Preferred Staff Field - Production Ready */}
                 <PreferredStaffField form={form} />
               </div>
 

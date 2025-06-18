@@ -15,12 +15,40 @@ interface PreferredStaffFieldProps {
   form: UseFormReturn<EditTaskFormValues>;
 }
 
+/**
+ * Preferred Staff Field Component
+ * 
+ * Provides a dropdown selector for assigning a preferred staff member to a task.
+ * This is an optional field that allows clients to request specific staff members
+ * for their recurring tasks while maintaining the flexibility to choose "No preference"
+ * for automatic assignment.
+ * 
+ * Features:
+ * - Fetches active staff members from the database
+ * - Handles loading, error, and retry states gracefully
+ * - Validates staff selections and provides feedback
+ * - Supports "No preference" option for automatic assignment
+ * - Auto-recovery for invalid selections
+ * - Accessibility compliant with proper ARIA labels
+ * - Real-time form integration with react-hook-form
+ * 
+ * Value Handling:
+ * - Form stores null for "No preference" (automatic assignment)
+ * - Form stores staff UUID string for specific staff selections
+ * - Component normalizes values for Select component compatibility
+ * - Validates selections against current staff list
+ * 
+ * Error Recovery:
+ * - Automatically resets invalid staff IDs to last valid selection or null
+ * - Provides retry functionality for network failures
+ * - Graceful degradation when staff data is unavailable
+ */
 export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }) => {
   const [retryAttempts, setRetryAttempts] = React.useState(0);
   const [userHasInteracted, setUserHasInteracted] = React.useState(false);
   const [lastValidSelection, setLastValidSelection] = React.useState<string | null>(null);
 
-  // Fetch active staff members with enhanced error handling
+  // Fetch active staff members with enhanced error handling and caching
   const { 
     data: staffOptions = [], 
     isLoading, 
@@ -36,7 +64,10 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
-  // PHASE 4: Enhanced value handling with better error recovery
+  /**
+   * Normalizes form values for Select component compatibility
+   * Converts null/undefined to "none" string for Select component
+   */
   const normalizeValue = (value: string | null | undefined): string => {
     if (value === null || value === undefined || value === '') {
       return "none";
@@ -44,6 +75,10 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
     return value;
   };
 
+  /**
+   * Denormalizes Select values back to form values
+   * Converts "none" string back to null for form storage
+   */
   const denormalizeValue = (selectValue: string): string | null => {
     if (selectValue === "none" || selectValue === '' || selectValue === undefined) {
       return null;
@@ -51,7 +86,10 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
     return selectValue;
   };
 
-  // PHASE 4: Enhanced validation with better error feedback
+  /**
+   * Validates staff ID against current staff list
+   * Returns validation result with error message if invalid
+   */
   const validateStaffId = (staffId: string | null): { isValid: boolean; errorMessage?: string } => {
     if (staffId === null) return { isValid: true }; // null is valid (no preference)
     
@@ -70,38 +108,32 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
     return { isValid: true };
   };
 
-  // PHASE 4: Retry handler with user feedback
+  /**
+   * Retry handler for network failures
+   * Increments retry counter and refetches data
+   */
   const handleRetry = async () => {
-    console.log('🔄 [PreferredStaffField] Retrying staff data fetch:', {
-      attempt: retryAttempts + 1,
-      timestamp: new Date().toISOString()
-    });
-    
     setRetryAttempts(prev => prev + 1);
     await refetch();
   };
 
-  // PHASE 4: Enhanced effect for auto-recovery and persistence
+  /**
+   * Effect for tracking valid selections and auto-recovery
+   * Maintains last valid selection for recovery purposes
+   */
   React.useEffect(() => {
     const currentValue = form.getValues('preferredStaffId');
-    console.log('🔍 [PreferredStaffField] PHASE 4 - Component state updated:', {
-      currentFormValue: currentValue,
-      normalizedValue: normalizeValue(currentValue),
-      staffOptionsCount: staffOptions.length,
-      isLoading,
-      error: error?.message,
-      userHasInteracted,
-      lastValidSelection,
-      timestamp: new Date().toISOString()
-    });
-
+    
     // Track last valid selection for recovery
     if (currentValue && validateStaffId(currentValue).isValid) {
       setLastValidSelection(currentValue);
     }
   }, [form, staffOptions, isLoading, error, userHasInteracted, lastValidSelection]);
 
-  // PHASE 4: Get staff name for better user feedback
+  /**
+   * Gets staff display name by ID
+   * Returns staff name or null if not found
+   */
   const getStaffName = (staffId: string | null): string | null => {
     if (!staffId) return null;
     const staff = staffOptions.find(s => s.id === staffId);
@@ -118,26 +150,12 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
         const validation = validateStaffId(currentValue);
         const selectedStaffName = getStaffName(currentValue);
 
-        console.log('🎯 [PreferredStaffField] Field render - PHASE 4:', {
-          fieldValue: currentValue,
-          normalizedSelectValue,
-          validation,
-          selectedStaffName,
-          isLoading,
-          error: error?.message,
-          timestamp: new Date().toISOString()
-        });
-
-        // PHASE 4: Auto-recovery for invalid selections
+        /**
+         * Auto-recovery effect for invalid selections
+         * Automatically resets to last valid selection or null
+         */
         React.useEffect(() => {
           if (!isLoading && currentValue !== null && !validation.isValid && userHasInteracted) {
-            console.log('⚠️ [PreferredStaffField] PHASE 4 - Auto-recovery triggered:', {
-              invalidValue: currentValue,
-              lastValidSelection,
-              willResetTo: lastValidSelection || null,
-              timestamp: new Date().toISOString()
-            });
-            
             // Try to recover with last valid selection, otherwise reset to null
             field.onChange(lastValidSelection || null);
           }
@@ -155,7 +173,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               )}
             </FormLabel>
 
-            {/* PHASE 4: Error state with retry functionality */}
+            {/* Error state with retry functionality */}
             {error && (
               <Alert variant="destructive" className="mb-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -180,7 +198,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               </Alert>
             )}
 
-            {/* PHASE 4: Validation error feedback */}
+            {/* Validation error feedback */}
             {!validation.isValid && validation.errorMessage && (
               <Alert variant="destructive" className="mb-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -206,49 +224,20 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
 
             <Select
               onValueChange={(value) => {
-                console.log('🔄 [PreferredStaffField] PHASE 4 - Select onValueChange:', {
-                  selectValue: value,
-                  willDenormalizeTo: denormalizeValue(value),
-                  previousFieldValue: currentValue,
-                  isValidSelection: value === "none" || staffOptions.some(s => s.id === value),
-                  timestamp: new Date().toISOString()
-                });
-                
                 setUserHasInteracted(true);
                 const denormalizedValue = denormalizeValue(value);
                 
-                // PHASE 4: Enhanced validation before setting value
+                // Validate selection before updating form
                 if (denormalizedValue !== null && !staffOptions.some(s => s.id === denormalizedValue)) {
-                  console.error('❌ [PreferredStaffField] PHASE 4 - Invalid staff selection attempted:', {
-                    attemptedValue: denormalizedValue,
-                    availableOptions: staffOptions.map(s => s.id),
-                    timestamp: new Date().toISOString()
-                  });
                   return; // Don't update if invalid
                 }
                 
                 field.onChange(denormalizedValue);
                 
-                // PHASE 4: Update last valid selection
+                // Update last valid selection
                 if (denormalizedValue && validateStaffId(denormalizedValue).isValid) {
                   setLastValidSelection(denormalizedValue);
                 }
-                
-                // PHASE 4: Enhanced verification with user feedback
-                setTimeout(() => {
-                  const updatedValue = form.getValues('preferredStaffId');
-                  const changeSuccessful = updatedValue === denormalizedValue;
-                  console.log('✅ [PreferredStaffField] PHASE 4 - Value change verification:', {
-                    expectedValue: denormalizedValue,
-                    actualFormValue: updatedValue,
-                    changeSuccessful,
-                    timestamp: new Date().toISOString()
-                  });
-                  
-                  if (!changeSuccessful) {
-                    console.error('💥 [PreferredStaffField] PHASE 4 - Form value update failed!');
-                  }
-                }, 0);
               }}
               value={normalizedSelectValue}
               disabled={isLoading || !!error}
@@ -279,12 +268,6 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
                 </SelectItem>
                 {staffOptions.map((staff) => {
                   const isCurrentSelection = staff.id === currentValue;
-                  console.log('📋 [PreferredStaffField] PHASE 4 - Staff option rendered:', {
-                    id: staff.id,
-                    name: staff.full_name,
-                    isCurrentSelection,
-                    idType: typeof staff.id
-                  });
                   
                   return (
                     <SelectItem key={staff.id} value={staff.id}>
@@ -300,7 +283,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               </SelectContent>
             </Select>
 
-            {/* PHASE 4: Enhanced help text and status feedback */}
+            {/* Help text and status feedback */}
             <div className="text-xs text-muted-foreground mt-1 space-y-1">
               <p>Select a staff member to handle this task, or choose "No preference" for automatic assignment.</p>
               
@@ -324,7 +307,6 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               )}
             </div>
 
-            {/* PHASE 4: Enhanced form validation message */}
             <FormMessage />
           </FormItem>
         );

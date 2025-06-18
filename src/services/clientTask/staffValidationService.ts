@@ -1,58 +1,52 @@
 
-import { supabase } from '@/lib/supabaseClient';
-
 /**
- * Staff Validation Service for Client Task Operations
+ * Staff Validation Service
  * 
- * Provides validation functions to ensure staff IDs exist before database operations
+ * Provides validation utilities for staff-related operations in client tasks.
+ * Ensures data integrity and provides detailed validation feedback.
+ * 
+ * @module StaffValidationService
  */
 
+import { supabase } from '@/integrations/supabase/client';
+
+/**
+ * Result of staff validation operation
+ */
 export interface StaffValidationResult {
+  /** Whether staff member is valid (exists and is active) */
   isValid: boolean;
+  /** Whether staff member exists in database */
   exists: boolean;
+  /** Whether staff member is active (if exists) */
+  isActive?: boolean;
+  /** Display name of staff member (if exists) */
   staffName?: string;
-  error?: string;
 }
 
 /**
- * Check if a staff member exists in the database
+ * Validates that a specific staff member exists and is active
+ * 
+ * Performs comprehensive validation including existence check,
+ * status verification, and returns detailed feedback for error handling.
+ * 
+ * @param staffId - UUID of staff member to validate
+ * @returns Promise<StaffValidationResult> Detailed validation result
+ * 
+ * @example
+ * ```typescript
+ * const result = await validateStaffExists('staff-uuid');
+ * if (result.isValid) {
+ *   // Staff member is active and can be assigned
+ * } else if (!result.exists) {
+ *   // Staff member doesn't exist
+ * } else {
+ *   // Staff member exists but is inactive
+ * }
+ * ```
  */
-export const validateStaffExists = async (staffId: string | null): Promise<StaffValidationResult> => {
-  console.log('🔍 [validateStaffExists] PHASE 3 - Starting staff validation:', {
-    staffId,
-    staffIdType: typeof staffId,
-    timestamp: new Date().toISOString()
-  });
-
-  // Handle null case - this is valid (no preference)
-  if (staffId === null) {
-    console.log('✅ [validateStaffExists] PHASE 3 - Null staff ID is valid (no preference)');
-    return {
-      isValid: true,
-      exists: true // null is considered "existing" in our context
-    };
-  }
-
-  // Validate UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(staffId)) {
-    console.error('❌ [validateStaffExists] PHASE 3 - Invalid UUID format:', {
-      staffId,
-      timestamp: new Date().toISOString()
-    });
-    return {
-      isValid: false,
-      exists: false,
-      error: `Invalid staff ID format: ${staffId}`
-    };
-  }
-
+export const validateStaffExists = async (staffId: string): Promise<StaffValidationResult> => {
   try {
-    console.log('📡 [validateStaffExists] PHASE 3 - Querying database for staff:', {
-      staffId,
-      timestamp: new Date().toISOString()
-    });
-
     const { data, error } = await supabase
       .from('staff')
       .select('id, full_name, status')
@@ -60,95 +54,86 @@ export const validateStaffExists = async (staffId: string | null): Promise<Staff
       .maybeSingle();
 
     if (error) {
-      console.error('💥 [validateStaffExists] PHASE 3 - Database query failed:', {
-        staffId,
-        error,
-        timestamp: new Date().toISOString()
-      });
-      return {
-        isValid: false,
-        exists: false,
-        error: `Database error: ${error.message}`
-      };
+      throw new Error(`Database error during staff validation: ${error.message}`);
     }
 
     if (!data) {
-      console.warn('⚠️ [validateStaffExists] PHASE 3 - Staff not found:', {
-        staffId,
-        timestamp: new Date().toISOString()
-      });
       return {
         isValid: false,
-        exists: false,
-        error: `Staff member with ID ${staffId} not found`
+        exists: false
       };
     }
 
-    // Check if staff is active
-    if (data.status !== 'active') {
-      console.warn('⚠️ [validateStaffExists] PHASE 3 - Staff is inactive:', {
-        staffId,
-        status: data.status,
-        staffName: data.full_name,
-        timestamp: new Date().toISOString()
-      });
-      return {
-        isValid: false,
-        exists: true,
-        staffName: data.full_name,
-        error: `Staff member ${data.full_name} is not active (status: ${data.status})`
-      };
-    }
-
-    console.log('✅ [validateStaffExists] PHASE 3 - Staff validation successful:', {
-      staffId,
-      staffName: data.full_name,
-      status: data.status,
-      timestamp: new Date().toISOString()
-    });
-
+    const isActive = data.status === 'active';
+    
     return {
-      isValid: true,
+      isValid: isActive,
       exists: true,
+      isActive,
       staffName: data.full_name
     };
   } catch (error) {
-    console.error('💥 [validateStaffExists] PHASE 3 - Unexpected error:', {
-      staffId,
-      error,
-      timestamp: new Date().toISOString()
-    });
-    return {
-      isValid: false,
-      exists: false,
-      error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
-    };
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to validate staff existence: ${errorMessage}`);
   }
 };
 
 /**
- * Batch validate multiple staff IDs
+ * Validates multiple staff members in a single database operation
+ * 
+ * Efficiently validates multiple staff IDs while maintaining order
+ * and providing detailed results for each staff member.
+ * 
+ * @param staffIds - Array of staff UUIDs to validate
+ * @returns Promise<StaffValidationResult[]> Array of validation results in same order
+ * 
+ * @example
+ * ```typescript
+ * const results = await validateMultipleStaff(['staff-1', 'staff-2']);
+ * const validStaff = results.filter(r => r.isValid);
+ * const invalidStaff = results.filter(r => !r.isValid);
+ * ```
  */
-export const validateMultipleStaff = async (staffIds: (string | null)[]): Promise<Map<string | null, StaffValidationResult>> => {
-  console.log('🔍 [validateMultipleStaff] PHASE 3 - Starting batch validation:', {
-    staffIds,
-    count: staffIds.length,
-    timestamp: new Date().toISOString()
-  });
-
-  const results = new Map<string | null, StaffValidationResult>();
-  
-  // Process each staff ID
-  for (const staffId of staffIds) {
-    const result = await validateStaffExists(staffId);
-    results.set(staffId, result);
+export const validateMultipleStaff = async (staffIds: string[]): Promise<StaffValidationResult[]> => {
+  if (staffIds.length === 0) {
+    return [];
   }
 
-  console.log('✅ [validateMultipleStaff] PHASE 3 - Batch validation completed:', {
-    totalProcessed: results.size,
-    validCount: Array.from(results.values()).filter(r => r.isValid).length,
-    timestamp: new Date().toISOString()
-  });
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, full_name, status')
+      .in('id', staffIds);
 
-  return results;
+    if (error) {
+      throw new Error(`Database error during bulk staff validation: ${error.message}`);
+    }
+
+    // Create a map for efficient lookups
+    const staffMap = new Map(data?.map(staff => [staff.id, staff]) || []);
+
+    // Return results in the same order as input
+    return staffIds.map(staffId => {
+      const staff = staffMap.get(staffId);
+      
+      if (!staff) {
+        return {
+          isValid: false,
+          exists: false
+        };
+      }
+
+      const isActive = staff.status === 'active';
+      
+      return {
+        isValid: isActive,
+        exists: true,
+        isActive,
+        staffName: staff.full_name
+      };
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to validate multiple staff members: ${errorMessage}`);
+  }
 };
