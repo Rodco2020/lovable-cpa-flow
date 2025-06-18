@@ -175,7 +175,7 @@ export const updateRecurringTask = async (
           validationError: staffValidation.error,
           timestamp: new Date().toISOString()
         });
-        throw new Error(`Invalid preferred staff: ${staffValidation.error}`);
+        throw new Error(`Invalid preferred staff: ${staffValidation.error || 'Validation failed'}`);
       }
 
       console.log('✅ [updateRecurringTask] PHASE 3 - Staff validation passed:', {
@@ -310,7 +310,7 @@ export const createRecurringTask = async (
           validationError: staffValidation.error,
           timestamp: new Date().toISOString()
         });
-        throw new Error(`Invalid preferred staff: ${staffValidation.error}`);
+        throw new Error(`Invalid preferred staff: ${staffValidation.error || 'Validation failed'}`);
       }
     }
 

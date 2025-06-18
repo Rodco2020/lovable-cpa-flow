@@ -1,4 +1,3 @@
-
 /**
  * Staff Validation Service
  * 
@@ -22,6 +21,8 @@ export interface StaffValidationResult {
   isActive?: boolean;
   /** Display name of staff member (if exists) */
   staffName?: string;
+  /** Error message if validation fails */
+  error?: string;
 }
 
 /**
@@ -45,7 +46,15 @@ export interface StaffValidationResult {
  * }
  * ```
  */
-export const validateStaffExists = async (staffId: string): Promise<StaffValidationResult> => {
+export const validateStaffExists = async (staffId: string | null): Promise<StaffValidationResult> => {
+  // Handle null staffId (no preference)
+  if (staffId === null) {
+    return {
+      isValid: true,
+      exists: true
+    };
+  }
+
   try {
     const { data, error } = await supabase
       .from('staff')
@@ -54,13 +63,18 @@ export const validateStaffExists = async (staffId: string): Promise<StaffValidat
       .maybeSingle();
 
     if (error) {
-      throw new Error(`Database error during staff validation: ${error.message}`);
+      return {
+        isValid: false,
+        exists: false,
+        error: `Database error during staff validation: ${error.message}`
+      };
     }
 
     if (!data) {
       return {
         isValid: false,
-        exists: false
+        exists: false,
+        error: 'Staff member not found'
       };
     }
 
@@ -70,11 +84,16 @@ export const validateStaffExists = async (staffId: string): Promise<StaffValidat
       isValid: isActive,
       exists: true,
       isActive,
-      staffName: data.full_name
+      staffName: data.full_name,
+      error: isActive ? undefined : 'Staff member is inactive'
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    throw new Error(`Failed to validate staff existence: ${errorMessage}`);
+    return {
+      isValid: false,
+      exists: false,
+      error: `Failed to validate staff existence: ${errorMessage}`
+    };
   }
 };
 
@@ -119,7 +138,8 @@ export const validateMultipleStaff = async (staffIds: string[]): Promise<StaffVa
       if (!staff) {
         return {
           isValid: false,
-          exists: false
+          exists: false,
+          error: 'Staff member not found'
         };
       }
 
@@ -129,7 +149,8 @@ export const validateMultipleStaff = async (staffIds: string[]): Promise<StaffVa
         isValid: isActive,
         exists: true,
         isActive,
-        staffName: staff.full_name
+        staffName: staff.full_name,
+        error: isActive ? undefined : 'Staff member is inactive'
       };
     });
   } catch (error) {
