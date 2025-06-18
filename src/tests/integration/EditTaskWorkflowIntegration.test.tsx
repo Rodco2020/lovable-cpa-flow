@@ -13,6 +13,8 @@ import '@testing-library/jest-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import EditRecurringTaskDialog from '@/components/clients/EditRecurringTaskDialog/EditRecurringTaskDialog';
 import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
+import { SkillCategory } from '@/types/skill';
+import { StaffStatus } from '@/types/staff';
 import { updateRecurringTask, getRecurringTaskById } from '@/services/taskService';
 import { skillValidationService } from '@/services/skillValidationService';
 import { getAllSkills } from '@/services/skillService';
@@ -60,14 +62,59 @@ describe('Edit Task Workflow Integration Tests', () => {
   };
 
   const mockSkills = [
-    { id: 'tax-preparation', name: 'Tax Preparation', category: 'Tax' },
-    { id: 'document-review', name: 'Document Review', category: 'General' },
-    { id: 'audit-support', name: 'Audit Support', category: 'Audit' }
+    { 
+      id: 'tax-preparation', 
+      name: 'Tax Preparation', 
+      category: 'Tax' as SkillCategory,
+      description: 'Tax preparation skills',
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01'
+    },
+    { 
+      id: 'document-review', 
+      name: 'Document Review', 
+      category: 'Administrative' as SkillCategory,
+      description: 'Document review skills',
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01'
+    },
+    { 
+      id: 'audit-support', 
+      name: 'Audit Support', 
+      category: 'Audit' as SkillCategory,
+      description: 'Audit support skills',
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01'
+    }
   ];
 
   const mockStaff = [
-    { id: 'staff-1', fullName: 'John Smith', email: 'john@example.com' },
-    { id: 'staff-2', fullName: 'Jane Doe', email: 'jane@example.com' }
+    { 
+      id: 'staff-1', 
+      fullName: 'John Smith', 
+      email: 'john@example.com',
+      roleTitle: 'Senior Tax Specialist',
+      skills: ['tax-preparation'],
+      assignedSkills: ['tax-preparation'],
+      costPerHour: 75,
+      phone: '555-0101',
+      status: 'active' as StaffStatus,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01')
+    },
+    { 
+      id: 'staff-2', 
+      fullName: 'Jane Doe', 
+      email: 'jane@example.com',
+      roleTitle: 'Document Specialist',
+      skills: ['document-review'],
+      assignedSkills: ['document-review'],
+      costPerHour: 65,
+      phone: '555-0102',
+      status: 'active' as StaffStatus,
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01')
+    }
   ];
 
   beforeEach(() => {

@@ -16,6 +16,7 @@ import ClientDetail from '@/components/clients/ClientDetail';
 import { getRecurringTasks, updateRecurringTask, deactivateRecurringTask } from '@/services/taskService';
 import { getClientById } from '@/services/clientService';
 import { RecurringTask } from '@/types/task';
+import { IndustryType, PaymentTerms, BillingFrequency, ClientStatus } from '@/types/client';
 
 // Mock services
 jest.mock('@/services/taskService');
@@ -37,12 +38,12 @@ describe('Existing Functionality Regression Tests', () => {
     primaryContact: 'John Doe',
     email: 'john@test.com',
     phone: '555-1234',
-    status: 'Active',
-    industry: 'Technology',
+    status: 'Active' as ClientStatus,
+    industry: 'Technology' as IndustryType,
     billingAddress: '123 Main St',
     expectedMonthlyRevenue: 5000,
-    paymentTerms: 'Net 30',
-    billingFrequency: 'Monthly',
+    paymentTerms: 'Net30' as PaymentTerms,
+    billingFrequency: 'Monthly' as BillingFrequency,
     defaultTaskPriority: 'Medium',
     createdAt: new Date(),
     updatedAt: new Date(),
