@@ -1,6 +1,7 @@
 
 import { z } from 'zod';
 import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
+import { UseFormReturn } from 'react-hook-form';
 
 // Unified Form Schema - Single source of truth for all edit task form validation
 // This schema aligns with the RecurringTask interface and includes ALL required properties
@@ -73,7 +74,7 @@ export interface UseEditTaskFormOptions {
 }
 
 export interface UseEditTaskFormReturn {
-  form: any; // Will be properly typed in next phase
+  form: UseFormReturn<EditTaskFormValues>;
   isSaving: boolean;
   formError: string | null;
   selectedSkills: string[];

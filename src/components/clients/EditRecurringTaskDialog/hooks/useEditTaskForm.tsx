@@ -1,4 +1,3 @@
-
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect } from 'react';
@@ -11,7 +10,6 @@ import { EditTaskSchema, EditTaskFormValues, UseEditTaskFormOptions } from '../t
 export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOptions) => {
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [skillsError, setSkillsError] = useState<string | null>(null);
 
   const form = useForm<EditTaskFormValues>({
@@ -36,10 +34,13 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
     },
   });
 
-  // Initialize form with task data - mapping from RecurringTask interface to form values
+  // Watch requiredSkills to keep it in sync
+  const selectedSkills = form.watch('requiredSkills') || [];
+
+  // Initialize form with task data - proper mapping from RecurringTask interface to form values
   useEffect(() => {
     if (task) {
-      // Map RecurringTask properties to form values using the consistent interface
+      // Map RecurringTask properties to form values using consistent interface
       form.reset({
         name: task.name,
         description: task.description || '',
@@ -60,28 +61,26 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
         customOffsetDays: task.recurrencePattern?.customOffsetDays,
         dueDate: task.dueDate || undefined,
       });
-      
-      // Set selected skills (these are already skill IDs from the database)
-      setSelectedSkills(task.requiredSkills || []);
     }
   }, [task, form]);
 
+  const setSelectedSkills = (skills: string[]) => {
+    form.setValue('requiredSkills', skills);
+    setSkillsError(null);
+  };
+
   const toggleSkill = (skillId: string) => {
-    setSelectedSkills(prev => {
-      const newSkills = prev.includes(skillId) 
-        ? prev.filter(id => id !== skillId)
-        : [...prev, skillId];
-      
-      // Update form field as well
-      form.setValue('requiredSkills', newSkills);
-      return newSkills;
-    });
+    const currentSkills = form.getValues('requiredSkills') || [];
+    const newSkills = currentSkills.includes(skillId) 
+      ? currentSkills.filter(id => id !== skillId)
+      : [...currentSkills, skillId];
+    
+    form.setValue('requiredSkills', newSkills);
     setSkillsError(null);
   };
 
   const resetForm = () => {
     form.reset();
-    setSelectedSkills([]);
     setFormError(null);
     setSkillsError(null);
   };
@@ -90,7 +89,7 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
     if (!task) return;
 
     // Validate that at least one skill is selected
-    if (selectedSkills.length === 0) {
+    if (!formData.requiredSkills || formData.requiredSkills.length === 0) {
       setSkillsError('At least one skill must be selected');
       return;
     }
@@ -100,14 +99,14 @@ export const useEditTaskForm = ({ task, onSave, onSuccess }: UseEditTaskFormOpti
 
     try {
       // Validate selected skills against database
-      const skillValidation = await skillValidationService.validateSkillIds(selectedSkills);
+      const skillValidation = await skillValidationService.validateSkillIds(formData.requiredSkills);
       
       if (skillValidation.invalid.length > 0) {
         setSkillsError('Some selected skills are invalid. Please refresh and try again.');
         return;
       }
 
-      // Prepare update data - mapping form values back to the service layer format
+      // Map form values back to database schema format using PROPERTY_MAPPING
       const updateData = {
         name: formData.name,
         description: formData.description,
