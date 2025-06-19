@@ -9,7 +9,10 @@ export class DataValidator {
   /**
    * Validate recurring tasks with comprehensive skill resolution logging
    */
-  static async validateRecurringTasks(tasks: RecurringTaskDB[]): Promise<{
+  static async validateRecurringTasks(
+    tasks: RecurringTaskDB[],
+    options: { permissive?: boolean } = {}
+  ): Promise<{
     validTasks: RecurringTaskDB[];
     invalidTasks: Array<{ task: RecurringTaskDB; errors: string[] }>;
     resolvedTasks: RecurringTaskDB[];
@@ -18,6 +21,8 @@ export class DataValidator {
       totalTasks: tasks.length
     });
 
+    const { permissive = false } = options;
+
     const validTasks: RecurringTaskDB[] = [];
     const invalidTasks: Array<{ task: RecurringTaskDB; errors: string[] }> = [];
     const resolvedTasks: RecurringTaskDB[] = [];
@@ -25,6 +30,7 @@ export class DataValidator {
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       const errors: string[] = [];
+      let taskToPush: RecurringTaskDB = task;
 
       console.log(`📋 [DATA VALIDATOR] Validating task ${i + 1}/${tasks.length}:`, {
         id: task.id,
@@ -90,6 +96,7 @@ export class DataValidator {
                   required_skills: validSkills
                 };
                 resolvedTasks.push(taskWithResolvedSkills);
+                taskToPush = taskWithResolvedSkills;
                 
                 if (invalidSkills.length > 0) {
                   console.warn(`⚠️ [DATA VALIDATOR] Some skills could not be resolved for task ${task.id}:`, invalidSkills);
@@ -114,11 +121,16 @@ export class DataValidator {
         }
 
         if (errors.length === 0) {
-          validTasks.push(task);
+          validTasks.push(taskToPush);
           console.log(`✅ [DATA VALIDATOR] Task ${task.id} passed validation`);
         } else {
           invalidTasks.push({ task, errors });
           console.warn(`❌ [DATA VALIDATOR] Task ${task.id} failed validation:`, errors);
+
+          if (permissive) {
+            console.warn(`ℹ️ [DATA VALIDATOR] Permissive mode enabled - keeping task ${task.id} despite errors`);
+            validTasks.push(taskToPush);
+          }
         }
 
       } catch (error) {
