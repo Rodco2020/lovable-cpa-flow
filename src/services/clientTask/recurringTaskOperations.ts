@@ -142,6 +142,92 @@ export const getClientRecurringTasks = async (clientId: string): Promise<Recurri
 };
 
 /**
+ * Enhanced verification function to re-fetch and validate persistence
+ */
+const verifyUpdatePersistence = async (taskId: string, expectedUpdates: any): Promise<boolean> => {
+  try {
+    console.log('🔍 [verifyUpdatePersistence] Starting persistence verification:', {
+      taskId,
+      expectedUpdates,
+      timestamp: new Date().toISOString()
+    });
+
+    // Re-fetch the record to verify persistence
+    const { data: verificationData, error: verificationError } = await supabase
+      .from('recurring_tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+
+    if (verificationError) {
+      console.error('❌ [verifyUpdatePersistence] Failed to re-fetch record for verification:', {
+        taskId,
+        verificationError,
+        timestamp: new Date().toISOString()
+      });
+      return false;
+    }
+
+    console.log('📋 [verifyUpdatePersistence] Re-fetched record for verification:', {
+      taskId,
+      verificationData,
+      actualPreferredStaffId: verificationData.preferred_staff_id,
+      timestamp: new Date().toISOString()
+    });
+
+    // Verify each field that was updated
+    let allFieldsMatch = true;
+    const verificationResults: any = {};
+
+    Object.keys(expectedUpdates).forEach(field => {
+      const expectedValue = expectedUpdates[field];
+      const actualValue = verificationData[field];
+      const matches = expectedValue === actualValue;
+      
+      verificationResults[field] = {
+        expected: expectedValue,
+        actual: actualValue,
+        matches
+      };
+
+      if (!matches) {
+        allFieldsMatch = false;
+        console.error(`❌ [verifyUpdatePersistence] Field '${field}' persistence failed:`, {
+          taskId,
+          field,
+          expected: expectedValue,
+          actual: actualValue,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        console.log(`✅ [verifyUpdatePersistence] Field '${field}' persisted correctly:`, {
+          taskId,
+          field,
+          value: actualValue,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    console.log('📊 [verifyUpdatePersistence] Complete verification results:', {
+      taskId,
+      allFieldsMatch,
+      verificationResults,
+      timestamp: new Date().toISOString()
+    });
+
+    return allFieldsMatch;
+  } catch (error) {
+    console.error('💥 [verifyUpdatePersistence] Verification process failed:', {
+      taskId,
+      error,
+      timestamp: new Date().toISOString()
+    });
+    return false;
+  }
+};
+
+/**
  * Update a recurring task with enhanced validation and persistence tracking
  */
 export const updateRecurringTask = async (
@@ -149,7 +235,7 @@ export const updateRecurringTask = async (
   updates: Partial<RecurringTask>
 ): Promise<RecurringTask | null> => {
   try {
-    console.log('🔄 [updateRecurringTask] PHASE 3 - Starting enhanced update operation:', {
+    console.log('🔄 [updateRecurringTask] PHASE 4 - Starting enhanced update operation:', {
       taskId,
       updates,
       preferredStaffId: updates.preferredStaffId,
@@ -158,9 +244,9 @@ export const updateRecurringTask = async (
       timestamp: new Date().toISOString()
     });
 
-    // PHASE 3: Validate preferred staff exists before attempting update
+    // PHASE 4: Validate preferred staff exists before attempting update
     if ('preferredStaffId' in updates) {
-      console.log('🔍 [updateRecurringTask] PHASE 3 - Validating preferred staff:', {
+      console.log('🔍 [updateRecurringTask] PHASE 4 - Validating preferred staff:', {
         taskId,
         preferredStaffId: updates.preferredStaffId,
         timestamp: new Date().toISOString()
@@ -169,7 +255,7 @@ export const updateRecurringTask = async (
       const staffValidation = await validateStaffExists(updates.preferredStaffId);
       
       if (!staffValidation.isValid) {
-        console.error('❌ [updateRecurringTask] PHASE 3 - Staff validation failed:', {
+        console.error('❌ [updateRecurringTask] PHASE 4 - Staff validation failed:', {
           taskId,
           preferredStaffId: updates.preferredStaffId,
           validationError: staffValidation.error,
@@ -178,7 +264,7 @@ export const updateRecurringTask = async (
         throw new Error(`Invalid preferred staff: ${staffValidation.error || 'Validation failed'}`);
       }
 
-      console.log('✅ [updateRecurringTask] PHASE 3 - Staff validation passed:', {
+      console.log('✅ [updateRecurringTask] PHASE 4 - Staff validation passed:', {
         taskId,
         preferredStaffId: updates.preferredStaffId,
         staffName: staffValidation.staffName,
@@ -189,7 +275,7 @@ export const updateRecurringTask = async (
     // Map application data to database format
     const dbUpdates = mapRecurringTaskToDatabase(updates);
     
-    console.log('🗂️ [updateRecurringTask] PHASE 3 - Database updates prepared:', {
+    console.log('🗂️ [updateRecurringTask] PHASE 4 - Database updates prepared:', {
       taskId,
       dbUpdates,
       preferredStaffId: dbUpdates.preferred_staff_id,
@@ -197,11 +283,23 @@ export const updateRecurringTask = async (
       hasPreferredStaffUpdate: 'preferred_staff_id' in dbUpdates,
       timestamp: new Date().toISOString()
     });
+
+    // PHASE 4: Enhanced pre-update logging - log exact object being sent to Supabase
+    console.log('📤 [updateRecurringTask] PHASE 4 - EXACT Supabase update payload:', {
+      taskId,
+      table: 'recurring_tasks',
+      updatePayload: JSON.stringify(dbUpdates, null, 2),
+      updateKeys: Object.keys(dbUpdates),
+      containsPreferredStaffId: 'preferred_staff_id' in dbUpdates,
+      preferredStaffIdValue: dbUpdates.preferred_staff_id,
+      sqlCondition: `id = '${taskId}'`,
+      timestamp: new Date().toISOString()
+    });
     
     // Log the exact SQL operation being performed
     logSQLOperation('UPDATE', 'recurring_tasks', dbUpdates, { id: taskId });
     
-    console.log('📤 [updateRecurringTask] PHASE 3 - Executing database update:', {
+    console.log('📤 [updateRecurringTask] PHASE 4 - Executing database update:', {
       taskId,
       table: 'recurring_tasks',
       updateData: dbUpdates,
@@ -217,7 +315,7 @@ export const updateRecurringTask = async (
       .single();
       
     if (error) {
-      console.error('❌ [updateRecurringTask] PHASE 3 - Database update failed:', {
+      console.error('❌ [updateRecurringTask] PHASE 4 - Database update failed:', {
         taskId,
         error,
         dbUpdates,
@@ -228,7 +326,7 @@ export const updateRecurringTask = async (
       throw new Error(`Database update failed: ${error.message}`);
     }
 
-    console.log('📋 [updateRecurringTask] PHASE 3 - Database update successful - raw response:', {
+    console.log('📋 [updateRecurringTask] PHASE 4 - Database update successful - raw response:', {
       taskId,
       dbResponse: data,
       preferredStaffId: data.preferred_staff_id,
@@ -237,46 +335,69 @@ export const updateRecurringTask = async (
       timestamp: new Date().toISOString()
     });
 
-    // PHASE 3: Verify the update was persisted correctly
+    // PHASE 4: Enhanced persistence verification with re-fetch sanity check
+    console.log('🔍 [updateRecurringTask] PHASE 4 - Starting comprehensive persistence verification...');
+    
+    const persistenceVerified = await verifyUpdatePersistence(taskId, dbUpdates);
+    
+    if (!persistenceVerified) {
+      console.error('💥 [updateRecurringTask] PHASE 4 - CRITICAL: Persistence verification failed!', {
+        taskId,
+        dbUpdates,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error('Critical persistence verification failed - data may not have been saved correctly');
+    }
+
+    // PHASE 4: Additional focused verification for preferred_staff_id
     if ('preferred_staff_id' in dbUpdates) {
       const expectedValue = dbUpdates.preferred_staff_id;
       const actualValue = data.preferred_staff_id;
       const persistenceVerified = expectedValue === actualValue;
 
-      console.log('🔍 [updateRecurringTask] PHASE 3 - Persistence verification:', {
+      console.log('🔍 [updateRecurringTask] PHASE 4 - Focused preferred_staff_id verification:', {
         taskId,
         expectedPreferredStaffId: expectedValue,
         actualPreferredStaffId: actualValue,
         persistenceVerified,
         valuesMatch: expectedValue === actualValue,
+        bothAreNull: expectedValue === null && actualValue === null,
+        bothAreStrings: typeof expectedValue === 'string' && typeof actualValue === 'string',
         timestamp: new Date().toISOString()
       });
 
       if (!persistenceVerified) {
-        console.error('💥 [updateRecurringTask] PHASE 3 - Persistence verification failed!', {
+        console.error('💥 [updateRecurringTask] PHASE 4 - Preferred staff persistence verification failed!', {
           taskId,
           expected: expectedValue,
           actual: actualValue,
           timestamp: new Date().toISOString()
         });
-        throw new Error(`Persistence verification failed: expected ${expectedValue}, got ${actualValue}`);
+        throw new Error(`Preferred staff persistence verification failed: expected ${expectedValue}, got ${actualValue}`);
       }
+
+      console.log('✅ [updateRecurringTask] PHASE 4 - Preferred staff persistence verified successfully!', {
+        taskId,
+        preferredStaffId: actualValue,
+        timestamp: new Date().toISOString()
+      });
     }
     
     const mappedResult = mapDatabaseToRecurringTask(data);
     
-    console.log('✅ [updateRecurringTask] PHASE 3 - Update operation completed successfully:', {
+    console.log('✅ [updateRecurringTask] PHASE 4 - Update operation completed successfully:', {
       taskId,
       mappedResult,
       preferredStaffId: mappedResult.preferredStaffId,
       preferredStaffIdType: typeof mappedResult.preferredStaffId,
       updateSuccess: true,
+      persistenceVerified: true,
       timestamp: new Date().toISOString()
     });
     
     return mappedResult;
   } catch (error) {
-    console.error('💥 [updateRecurringTask] PHASE 3 - Update operation failed:', {
+    console.error('💥 [updateRecurringTask] PHASE 4 - Update operation failed:', {
       taskId,
       error,
       updates,
