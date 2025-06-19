@@ -48,7 +48,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
                 roleTitle: 'Senior CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             },
             {
@@ -116,7 +116,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
                 roleTitle: 'Senior CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             }]
           },
@@ -140,7 +140,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-2',
                 staffName: 'Bob Smith',
                 roleTitle: 'Advisor',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             }]
           }
@@ -220,7 +220,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
                 roleTitle: 'Senior CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             },
             {
@@ -301,7 +301,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
                 roleTitle: 'Senior CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             },
             {
@@ -398,7 +398,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
                 roleTitle: 'Senior CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             },
             {
@@ -414,7 +414,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
                 roleTitle: 'Senior CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             },
             {
@@ -430,7 +430,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                 staffId: 'staff-2',
                 staffName: 'Bob Smith',
                 roleTitle: 'CPA',
-                assignmentType: 'preferred' as const
+                assignmentType: 'preferred'
               }
             }
           ]
@@ -498,7 +498,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                   staffId: 'staff-1',
                   staffName: 'Alice Johnson',
                   roleTitle: 'Senior CPA',
-                  assignmentType: 'preferred' as const
+                  assignmentType: 'preferred'
                 }
               },
               {
@@ -514,7 +514,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                   staffId: 'staff-2',
                   staffName: 'Bob Smith',
                   roleTitle: 'CPA',
-                  assignmentType: 'preferred' as const
+                  assignmentType: 'preferred'
                 }
               }
             ]
@@ -540,7 +540,7 @@ describe('Preferred Staff User Acceptance Tests', () => {
                   staffId: 'staff-1',
                   staffName: 'Alice Johnson',
                   roleTitle: 'Senior CPA',
-                  assignmentType: 'preferred' as const
+                  assignmentType: 'preferred'
                 }
               }
             ]
