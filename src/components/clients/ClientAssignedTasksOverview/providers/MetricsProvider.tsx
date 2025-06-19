@@ -3,7 +3,6 @@ import React, { createContext, useContext, useMemo, useState, useCallback } from
 import { FormattedTask } from '../types';
 import { TaskMetricsService } from '../services/taskMetricsService';
 import { EnhancedMetricsService, TrendMetrics } from '../services/enhancedMetricsService';
-import { MetricsErrorBoundary } from '../components/MetricsErrorBoundary';
 
 interface MetricsContextType {
   taskMetrics: ReturnType<typeof TaskMetricsService.calculateTaskMetrics> | null;
@@ -21,69 +20,54 @@ interface MetricsProviderProps {
 }
 
 /**
- * Enhanced MetricsProvider with Error Protection
+ * MetricsProvider Component
  * 
  * Provides centralized metrics calculation with performance optimization
- * and comprehensive error handling to prevent application crashes.
+ * Features:
+ * - Memoized calculations to prevent unnecessary recalculations
+ * - Loading states for better UX
+ * - Error handling for metrics calculations
+ * - Centralized metrics state management
  */
 export const MetricsProvider: React.FC<MetricsProviderProps> = ({ children, tasks }) => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Safe task metrics calculation with error handling
+  // Memoized task metrics calculation
   const taskMetrics = useMemo(() => {
     try {
       if (!tasks || tasks.length === 0) return null;
-      
       setIsCalculating(true);
-      setError(null);
-      
       const metrics = TaskMetricsService.calculateTaskMetrics(tasks);
-      console.log('✅ [MetricsProvider] Task metrics calculated successfully');
+      setError(null);
       return metrics;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown metrics calculation error';
-      console.error('💥 [MetricsProvider] Error calculating task metrics:', err);
-      setError(`Task metrics calculation failed: ${errorMessage}`);
+      console.error('Error calculating task metrics:', err);
+      setError('Failed to calculate task metrics');
       return null;
     } finally {
       setIsCalculating(false);
     }
   }, [tasks]);
 
-  // Safe trend metrics calculation with error handling
+  // Memoized trend metrics calculation
   const trendMetrics = useMemo(() => {
     try {
       if (!tasks || tasks.length === 0) return null;
-      
-      const trends = EnhancedMetricsService.calculateTrendMetrics(tasks);
-      console.log('✅ [MetricsProvider] Trend metrics calculated successfully');
-      return trends;
+      return EnhancedMetricsService.calculateTrendMetrics(tasks);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown trend calculation error';
-      console.error('💥 [MetricsProvider] Error calculating trend metrics:', err);
-      setError(`Trend metrics calculation failed: ${errorMessage}`);
+      console.error('Error calculating trend metrics:', err);
+      setError('Failed to calculate trend metrics');
       return null;
     }
   }, [tasks]);
 
-  // Manual recalculation with error handling
+  // Manual recalculation callback
   const recalculateMetrics = useCallback((newTasks: FormattedTask[]) => {
-    try {
-      setIsCalculating(true);
-      setError(null);
-      console.log('🔄 [MetricsProvider] Manual recalculation triggered');
-      
-      // Force recalculation by triggering a state update
-      setTimeout(() => {
-        setIsCalculating(false);
-        console.log('✅ [MetricsProvider] Manual recalculation completed');
-      }, 100);
-    } catch (err) {
-      console.error('💥 [MetricsProvider] Error during manual recalculation:', err);
-      setError('Failed to recalculate metrics');
-      setIsCalculating(false);
-    }
+    setIsCalculating(true);
+    setError(null);
+    // Force recalculation by triggering a state update
+    setTimeout(() => setIsCalculating(false), 100);
   }, []);
 
   const contextValue = useMemo(() => ({
@@ -95,26 +79,13 @@ export const MetricsProvider: React.FC<MetricsProviderProps> = ({ children, task
   }), [taskMetrics, trendMetrics, isCalculating, error, recalculateMetrics]);
 
   return (
-    <MetricsErrorBoundary
-      fallback={
-        <div className="p-4 text-center text-muted-foreground">
-          <p>Metrics temporarily unavailable</p>
-          <p className="text-xs mt-2">Please refresh the page to try again</p>
-        </div>
-      }
-      onError={(error, errorInfo) => {
-        console.error('🚨 [MetricsProvider] Error boundary caught error:', error, errorInfo);
-        setError(`Metrics system error: ${error.message}`);
-      }}
-    >
-      <MetricsContext.Provider value={contextValue}>
-        {children}
-      </MetricsContext.Provider>
-    </MetricsErrorBoundary>
+    <MetricsContext.Provider value={contextValue}>
+      {children}
+    </MetricsContext.Provider>
   );
 };
 
-// Custom hook to use metrics context with error handling
+// Custom hook to use metrics context
 export const useMetricsContext = () => {
   const context = useContext(MetricsContext);
   if (context === undefined) {

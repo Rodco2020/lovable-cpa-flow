@@ -1,7 +1,7 @@
+
 import { supabase } from '@/lib/supabaseClient';
 import { Staff } from "@/types/staff";
 import { mapStaffFromDbRecord, mapStaffToDbRecord } from "./staffMapper";
-import { clearStaffOptionsCache } from './staffDropdownService';
 
 /**
  * Core Staff CRUD Operations
@@ -131,6 +131,7 @@ export const createStaff = async (staffData: Omit<Staff, 'id' | 'createdAt' | 'u
     }
     
     // Clear cache when new staff member is created
+    const { clearStaffOptionsCache } = await import('./staffDropdownService');
     clearStaffOptionsCache();
     
     return mapStaffFromDbRecord(data);
@@ -163,6 +164,7 @@ export const updateStaff = async (id: string, staffData: Partial<Omit<Staff, "id
   }
   
   // Clear cache when staff member is updated
+  const { clearStaffOptionsCache } = await import('./staffDropdownService');
   clearStaffOptionsCache();
   
   return mapStaffFromDbRecord(data);
@@ -185,6 +187,7 @@ export const deleteStaff = async (id: string): Promise<boolean> => {
   }
   
   // Clear cache when staff member is deleted
+  const { clearStaffOptionsCache } = await import('./staffDropdownService');
   clearStaffOptionsCache();
   
   return true;

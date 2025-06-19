@@ -26,7 +26,61 @@ export const createMockRecurringTask = (overrides: Partial<RecurringTaskDB> = {}
     end_date: null,
     custom_offset_days: null,
     last_generated_date: null,
-    preferred_staff_id: null, // Add preferred staff field to mock data
+    preferred_staff_id: null,
     ...overrides
   };
+};
+
+/**
+ * Create mock recurring task with preferred staff assigned
+ */
+export const createMockRecurringTaskWithStaff = (staffId: string, overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    preferred_staff_id: staffId,
+    ...overrides
+  });
+};
+
+/**
+ * Create mock recurring task with validation test data
+ */
+export const createMockRecurringTaskForValidation = (overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    name: 'Validation Test Task',
+    estimated_hours: 2.5,
+    priority: 'High',
+    category: 'Advisory',
+    required_skills: ['Skill1', 'Skill2'],
+    preferred_staff_id: 'staff-123',
+    ...overrides
+  });
+};
+
+/**
+ * Create mock recurring task for form testing scenarios
+ */
+export const createMockRecurringTaskForFormTesting = (overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    name: 'Form Test Task',
+    description: 'Task for testing form functionality',
+    estimated_hours: 5,
+    priority: 'High',
+    category: 'Advisory',
+    required_skills: ['Form Testing Skill'],
+    preferred_staff_id: 'form-test-staff-123',
+    recurrence_type: 'Weekly',
+    recurrence_interval: 2,
+    weekdays: [1, 3, 5], // Monday, Wednesday, Friday
+    ...overrides
+  });
+};
+
+/**
+ * Create mock recurring task without preferred staff (explicitly null)
+ */
+export const createMockRecurringTaskWithoutStaff = (overrides: Partial<RecurringTaskDB> = {}): RecurringTaskDB => {
+  return createMockRecurringTask({
+    preferred_staff_id: null,
+    ...overrides
+  });
 };

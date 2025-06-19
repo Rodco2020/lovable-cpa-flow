@@ -1,51 +1,51 @@
 
 import { z } from 'zod';
-import { UseFormReturn } from 'react-hook-form';
-import { RecurringTask, TaskPriority, TaskCategory } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 
-// PHASE 2: Enhanced schema with better preferred staff validation
+// Form schema for validation
 export const EditTaskSchema = z.object({
   name: z.string().min(1, 'Task name is required'),
   description: z.string().optional(),
-  estimatedHours: z.number().min(0.25, 'Estimated hours must be at least 0.25'),
-  priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
-  category: z.enum(['Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping', 'Other']),
+  estimatedHours: z.number().positive('Hours must be greater than 0').min(0.25, 'Minimum hours is 0.25'),
+  priority: z.enum(['Low', 'Medium', 'High', 'Urgent'] as const),
+  category: z.enum(['Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping', 'Other'] as const),
   dueDate: z.date().optional(),
   isRecurring: z.boolean(),
   requiredSkills: z.array(z.string()).min(1, 'At least one skill is required'),
-  // PHASE 2: Enhanced preferred staff validation - null or valid UUID string
-  preferredStaffId: z.string().uuid().nullable().optional().or(z.literal(null)),
-  recurrenceType: z.enum(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'Custom']).optional(),
-  interval: z.number().min(1).optional(),
+  preferredStaffId: z.string().uuid('Invalid staff ID').optional().nullable()
+    .refine(
+      (value) => value === null || value === undefined || (typeof value === 'string' && value.trim() !== ''),
+      { message: 'Preferred staff ID cannot be empty string' }
+    ),
+  recurrenceType: z.enum(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'Custom'] as const).optional(),
+  interval: z.number().positive('Interval must be positive').min(1, 'Minimum interval is 1').optional(),
   weekdays: z.array(z.number().min(0).max(6)).optional(),
-  dayOfMonth: z.number().min(1).max(31).optional(),
-  monthOfYear: z.number().min(1).max(12).optional(),
-  endDate: z.date().nullable().optional(),
+  dayOfMonth: z.number().min(1, 'Day must be between 1-31').max(31, 'Day must be between 1-31').optional(),
+  monthOfYear: z.number().min(1, 'Month must be between 1-12').max(12, 'Month must be between 1-12').optional(),
+  endDate: z.date().optional().nullable(),
   customOffsetDays: z.number().optional()
-}).refine((data) => {
-  // PHASE 2: Enhanced validation - if preferredStaffId is provided, it must be a valid UUID or null
-  if (data.preferredStaffId !== null && data.preferredStaffId !== undefined) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(data.preferredStaffId);
-  }
-  return true;
-}, {
-  message: "Preferred staff ID must be a valid UUID or null",
-  path: ["preferredStaffId"]
 });
 
 export type EditTaskFormValues = z.infer<typeof EditTaskSchema>;
 
-// PHASE 2: Enhanced interface with stricter typing
+export interface EditRecurringTaskDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task: RecurringTask | null;
+  onSave: (updatedTask: Partial<RecurringTask>) => Promise<void>;
+  isLoading?: boolean; 
+  loadError?: string | null;
+  attemptedLoad?: boolean;
+}
+
 export interface UseEditTaskFormOptions {
   task: RecurringTask | null;
-  onSave: (task: Partial<RecurringTask>) => Promise<void>;
+  onSave: (updatedTask: Partial<RecurringTask>) => Promise<void>;
   onSuccess: () => void;
 }
 
-// PHASE 2: Enhanced return type with better type safety
 export interface UseEditTaskFormReturn {
-  form: UseFormReturn<EditTaskFormValues>;
+  form: any;
   isSaving: boolean;
   formError: string | null;
   selectedSkills: string[];
@@ -53,39 +53,5 @@ export interface UseEditTaskFormReturn {
   skillsError: string | null;
   toggleSkill: (skillId: string) => void;
   onSubmit: (data: EditTaskFormValues) => Promise<void>;
+  resetForm: () => void; // Add resetForm function to return type
 }
-
-export interface EditRecurringTaskDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  task: RecurringTask | null;
-  onSave: (task: Partial<RecurringTask>) => Promise<void>;
-  isLoading?: boolean;
-  loadError?: string | null;
-  attemptedLoad?: boolean;
-}
-
-// PHASE 2: Enhanced type guard for preferred staff validation
-export const isValidPreferredStaffId = (value: unknown): value is string | null => {
-  if (value === null || value === undefined) return true;
-  if (typeof value !== 'string') return false;
-  
-  // Validate UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(value);
-};
-
-// PHASE 2: Helper type for ensuring null safety
-export type NullableString = string | null;
-
-// PHASE 2: Type assertion helper for form values
-export const assertValidFormValues = (data: EditTaskFormValues): EditTaskFormValues => {
-  // Ensure preferredStaffId is properly typed
-  if (data.preferredStaffId !== null && data.preferredStaffId !== undefined) {
-    if (!isValidPreferredStaffId(data.preferredStaffId)) {
-      throw new Error(`Invalid preferred staff ID: ${data.preferredStaffId}`);
-    }
-  }
-  
-  return data;
-};

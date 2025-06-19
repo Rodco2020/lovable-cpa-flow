@@ -16,22 +16,6 @@ import { RecurrenceSettings } from './components/RecurrenceSettings';
 import { SkillsSelection } from './components/SkillsSelection';
 import { PreferredStaffField } from './components/PreferredStaffField';
 
-/**
- * Edit Recurring Task Dialog Component
- * 
- * Provides a comprehensive interface for editing recurring task details including:
- * - Basic task information (name, description, hours, priority, category)
- * - Preferred staff assignment (optional)
- * - Required skills selection
- * - Recurrence pattern configuration
- * 
- * Features:
- * - Form validation with real-time feedback
- * - Preferred staff dropdown with error handling and retry capability
- * - Skills multi-selection with validation
- * - Comprehensive error handling and loading states
- * - Accessibility compliant with WCAG guidelines
- */
 const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
   open,
   onOpenChange,
@@ -53,23 +37,6 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
     task,
     onSave,
     onSuccess: () => onOpenChange(false)
-  });
-
-  // Enhanced handleSubmit with comprehensive logging
-  const handleSubmit = form.handleSubmit(async (data) => {
-    console.log('🚀 [EditRecurringTaskDialog] Form submission initiated');
-    console.log('📋 [EditRecurringTaskDialog] Complete form values:', form.getValues());
-    console.log('📝 [EditRecurringTaskDialog] Submitted data:', data);
-    console.log('👤 [EditRecurringTaskDialog] Preferred Staff ID:', data.preferredStaffId);
-    console.log('🏷️ [EditRecurringTaskDialog] Preferred Staff Type:', typeof data.preferredStaffId);
-    console.log('✅ [EditRecurringTaskDialog] Is Valid Staff ID:', data.preferredStaffId === null || (typeof data.preferredStaffId === 'string' && data.preferredStaffId.length > 0));
-    
-    try {
-      await onSubmit(data);
-      console.log('✅ [EditRecurringTaskDialog] Form submission completed successfully');
-    } catch (error) {
-      console.error('❌ [EditRecurringTaskDialog] Form submission failed:', error);
-    }
   });
 
   // Handle loading state
@@ -118,7 +85,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormHeader task={task} open={open} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -224,7 +191,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
                   )}
                 />
 
-                {/* Preferred Staff Field - Production Ready */}
+                {/* Preferred Staff Field - positioned after basic information fields */}
                 <PreferredStaffField form={form} />
               </div>
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -10,30 +11,17 @@ import {
   UserCog,
   Database,
   LogOut,
-  FileBarChart,
-  CheckCircle,
-  XCircle
+  FileBarChart // Adding for reports icon
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface PageShellProps {
   children: React.ReactNode;
 }
 
 const PageShell: React.FC<PageShellProps> = ({ children }) => {
-  const { user, session, isLoading, signOut } = useAuth();
-
-  console.log('🏠 [PageShell] Render state:', {
-    isLoading,
-    hasUser: !!user,
-    userEmail: user?.email || 'No email',
-    hasSession: !!session,
-    sessionValid: session ? 'Valid' : 'Invalid',
-    timestamp: new Date().toISOString()
-  });
+  const { user, signOut, isLoading } = useAuth();
 
   // Show loading state while auth is being determined
   if (isLoading) {
@@ -56,7 +44,6 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
           <p className="text-slate-400 text-sm">Management System</p>
         </div>
         
-        {/* Navigation */}
         <nav className="space-y-1 flex-grow">
           <NavLink 
             to="/" 
@@ -163,94 +150,30 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
           </NavLink>
         </nav>
         
-        {/* Enhanced User Section */}
         <div className="mt-auto pt-4 border-t border-slate-700">
           {user ? (
             <div className="space-y-3">
-              {/* Enhanced User Profile Card */}
-              <div className="bg-slate-800 rounded-lg p-4 border border-slate-600">
-                <div className="flex items-start gap-3">
-                  {/* User Avatar */}
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarFallback className="bg-slate-700 text-white text-sm font-medium">
-                      {user.email?.charAt(0)?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  {/* User Information */}
-                  <div className="flex-1 min-w-0">
-                    {/* Email Display */}
-                    <div className="font-medium text-white text-sm mb-1 truncate" title={user.email || 'Unknown user'}>
-                      {user.email || 'No email available'}
-                    </div>
-                    
-                    {/* Authentication Status Badge */}
-                    <div className="flex items-center gap-2">
-                      {session ? (
-                        <Badge variant="success" className="text-xs px-2 py-0.5">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Authenticated
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="text-xs px-2 py-0.5">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Session Expired
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {/* User ID (Development Only) */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <div className="text-xs text-slate-400 mt-1">
-                        ID: {user.id?.slice(0, 8)}...
-                      </div>
-                    )}
-                  </div>
+              <div className="flex items-center gap-3 px-3 py-2">
+                <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center">
+                  <User className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{user.email}</div>
+                  <div className="text-xs text-slate-400">Staff Member</div>
                 </div>
               </div>
-
-              {/* Sign Out Button */}
               <Button 
                 variant="ghost" 
-                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                onClick={async () => {
-                  console.log('🔓 [PageShell] Sign out initiated');
-                  try {
-                    await signOut();
-                    console.log('✅ [PageShell] Sign out completed');
-                  } catch (error) {
-                    console.error('❌ [PageShell] Sign out failed:', error);
-                  }
-                }}
+                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={signOut}
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign out
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Unauthenticated State */}
-              <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-red-800/30 flex items-center justify-center flex-shrink-0">
-                    <XCircle className="h-5 w-5 text-red-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-red-200 font-medium text-sm">Not Authenticated</div>
-                    <div className="text-red-300 text-xs">Please sign in to continue</div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Debug info in development */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-slate-500 bg-slate-800 p-2 rounded">
-                  <div>Auth Debug:</div>
-                  <div>User: {user ? 'Present' : 'Null'}</div>
-                  <div>Session: {session ? 'Present' : 'Null'}</div>
-                  <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
-                </div>
-              )}
+            <div className="text-center">
+              <p className="text-slate-400 text-sm mb-2">Not authenticated</p>
             </div>
           )}
         </div>
