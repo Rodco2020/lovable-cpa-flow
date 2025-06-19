@@ -49,8 +49,8 @@ export class DataFetcher {
       const { data, error } = await supabase
         .from('recurring_tasks')
         .select(`
-          *, 
-          clients!inner(id, legal_name, expected_monthly_revenue),
+          *,
+          clients(id, legal_name, expected_monthly_revenue),
           preferred_staff:staff!recurring_tasks_preferred_staff_id_fkey(id, full_name, role_title)
         `)
         .eq('is_active', true)
@@ -77,11 +77,14 @@ export class DataFetcher {
         preferred_staff: task.preferred_staff
       }));
 
-      // Apply validation and skill resolution
-      const { validTasks } = await DataValidator.validateRecurringTasks(typedData);
-      
-      // Now resolve skills for all valid tasks
-      const tasksWithResolvedSkills = await this.resolveTaskSkills(validTasks);
+      // Apply validation in permissive mode so unresolved skills don't block processing
+      const { validTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(typedData, { permissive: true });
+
+      // Use tasks with resolved skills when available
+      const tasksForResolution = resolvedTasks.length > 0 ? resolvedTasks : validTasks;
+
+      // Resolve skills for the tasks we are keeping
+      const tasksWithResolvedSkills = await this.resolveTaskSkills(tasksForResolution);
       
       debugLog(`Data validation and skill resolution complete: ${tasksWithResolvedSkills.length}/${typedData.length} tasks processed`);
       return tasksWithResolvedSkills;
@@ -154,8 +157,8 @@ export class DataFetcher {
       let query = supabase
         .from('recurring_tasks')
         .select(`
-          *, 
-          clients!inner(id, legal_name, expected_monthly_revenue),
+          *,
+          clients(id, legal_name, expected_monthly_revenue),
           preferred_staff:staff!recurring_tasks_preferred_staff_id_fkey(id, full_name, role_title)
         `)
         .eq('is_active', true)
@@ -200,10 +203,11 @@ export class DataFetcher {
       }));
 
       // Enhanced validation and cleaning with skill resolution
-      const { validTasks, invalidTasks } = await DataValidator.validateRecurringTasks(typedData);
+      const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(typedData, { permissive: true });
 
-      // Apply skill resolution to valid tasks
-      const resolvedTasks = await this.resolveTaskSkills(validTasks);
+      // Apply skill resolution to valid tasks (or resolved tasks if available)
+      const tasksForResolution = resolvedTasks.length > 0 ? resolvedTasks : validTasks;
+      const resolvedTasksFinal = await this.resolveTaskSkills(tasksForResolution);
 
       // Provide detailed feedback about data quality
       if (invalidTasks.length > 0) {
@@ -214,10 +218,10 @@ export class DataFetcher {
         console.warn('Validation error summary:', errorSummary);
       }
 
-      const successRate = ((resolvedTasks.length / typedData.length) * 100).toFixed(1);
-      debugLog(`Data validation and skill resolution complete: ${resolvedTasks.length}/${typedData.length} tasks valid (${successRate}%)`);
-      
-      return resolvedTasks;
+      const successRate = ((resolvedTasksFinal.length / typedData.length) * 100).toFixed(1);
+      debugLog(`Data validation and skill resolution complete: ${resolvedTasksFinal.length}/${typedData.length} tasks valid (${successRate}%)`);
+
+      return resolvedTasksFinal;
 
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);

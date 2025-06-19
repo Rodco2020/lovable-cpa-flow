@@ -122,7 +122,7 @@ export class SkillCalculatorCore {
 
       // Validate tasks with performance monitoring
       const taskValidationStart = performance.now();
-      const { validTasks, invalidTasks } = await DataValidator.validateRecurringTasks(tasks);
+      const { validTasks, invalidTasks } = await DataValidator.validateRecurringTasks(tasks, { permissive: true });
       const taskValidationTime = performance.now() - taskValidationStart;
       
       console.log('✅ [SKILL CALCULATOR] Task validation results:', {
