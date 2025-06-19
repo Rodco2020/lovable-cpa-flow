@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -12,11 +11,13 @@ import {
   Database,
   LogOut,
   FileBarChart,
-  AlertCircle
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface PageShellProps {
   children: React.ReactNode;
@@ -166,37 +167,52 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
         <div className="mt-auto pt-4 border-t border-slate-700">
           {user ? (
             <div className="space-y-3">
-              {/* User Display Card */}
-              <div className="bg-slate-800 rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
-                    <User className="h-4 w-4 text-slate-300" />
-                  </div>
+              {/* Enhanced User Profile Card */}
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-600">
+                <div className="flex items-start gap-3">
+                  {/* User Avatar */}
+                  <Avatar className="h-10 w-10 flex-shrink-0">
+                    <AvatarFallback className="bg-slate-700 text-white text-sm font-medium">
+                      {user.email?.charAt(0)?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  {/* User Information */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate" title={user.email || 'Unknown user'}>
+                    {/* Email Display */}
+                    <div className="font-medium text-white text-sm mb-1 truncate" title={user.email || 'Unknown user'}>
                       {user.email || 'No email available'}
                     </div>
-                    <div className="text-xs text-slate-400">
-                      {session ? 'Authenticated' : 'Session expired'}
+                    
+                    {/* Authentication Status Badge */}
+                    <div className="flex items-center gap-2">
+                      {session ? (
+                        <Badge variant="success" className="text-xs px-2 py-0.5">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Authenticated
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="text-xs px-2 py-0.5">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Session Expired
+                        </Badge>
+                      )}
                     </div>
+                    
+                    {/* User ID (Development Only) */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="text-xs text-slate-400 mt-1">
+                        ID: {user.id?.slice(0, 8)}...
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                {/* Debug info in development */}
-                {process.env.NODE_ENV === 'development' && (
-                  <div className="mt-2 pt-2 border-t border-slate-600">
-                    <div className="text-xs text-slate-500 space-y-1">
-                      <div>ID: {user.id?.slice(0, 8)}...</div>
-                      <div>Session: {session ? '✓' : '✗'}</div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Sign Out Button */}
               <Button 
                 variant="ghost" 
-                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800"
+                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                 onClick={async () => {
                   console.log('🔓 [PageShell] Sign out initiated');
                   try {
@@ -213,18 +229,23 @@ const PageShell: React.FC<PageShellProps> = ({ children }) => {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* No User State */}
-              <Alert variant="destructive" className="bg-red-900/20 border-red-800">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-red-200">
-                  Not authenticated
-                </AlertDescription>
-              </Alert>
+              {/* Unauthenticated State */}
+              <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-red-800/30 flex items-center justify-center flex-shrink-0">
+                    <XCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-red-200 font-medium text-sm">Not Authenticated</div>
+                    <div className="text-red-300 text-xs">Please sign in to continue</div>
+                  </div>
+                </div>
+              </div>
               
               {/* Debug info in development */}
               {process.env.NODE_ENV === 'development' && (
                 <div className="text-xs text-slate-500 bg-slate-800 p-2 rounded">
-                  <div>Auth State Debug:</div>
+                  <div>Auth Debug:</div>
                   <div>User: {user ? 'Present' : 'Null'}</div>
                   <div>Session: {session ? 'Present' : 'Null'}</div>
                   <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
