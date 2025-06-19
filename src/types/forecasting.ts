@@ -1,4 +1,3 @@
-
 export interface ForecastData {
   month: string;
   skillBreakdown: SkillBreakdown[];
@@ -8,8 +7,8 @@ export interface ForecastData {
   utilizationRate: number;
   // Added missing properties for legacy compatibility
   period?: string;
-  demand?: number;
-  capacity?: number;
+  demand?: any;
+  capacity?: any;
   demandHours?: number;
   capacityHours?: number;
   projectedRevenue?: number;
@@ -17,7 +16,7 @@ export interface ForecastData {
   projectedProfit?: number;
   financialProjections?: FinancialProjection[];
   timeSeriesData?: any[];
-  skillDistribution?: SkillData[];
+  skillDistribution?: any[];
   gapAnalysis?: any[];
 }
 
@@ -29,14 +28,14 @@ export interface SkillBreakdown {
   utilizationRate: number;
 }
 
-// Added missing type exports
-export type SkillType = string;
-export type ForecastMode = 'demand-only' | 'capacity-vs-demand' | 'virtual' | 'actual';
-
+// Enhanced SkillData interface with id property
 export interface SkillData {
   skill: string;
   value: number;
   percentage?: number;
+  id?: string;
+  name?: string;
+  color?: string;
 }
 
 export interface FinancialProjection {
@@ -45,9 +44,44 @@ export interface FinancialProjection {
   cost: number;
   profit: number;
   margin: number;
+  period?: string; // Added for backward compatibility
 }
 
-// Added missing ForecastParameters type (alias for DemandForecastParameters)
+// Added missing type exports
+export type SkillType = string;
+export type ForecastMode = 'demand-only' | 'capacity-vs-demand' | 'virtual' | 'actual';
+
+// Add missing ForecastResult export
+export interface ForecastResult {
+  data: ForecastData[];
+  summary: {
+    totalDemand: number;
+    totalCapacity: number;
+    gap: number;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+  };
+  financials: FinancialProjection[];
+}
+
+// Enhanced DemandForecastParameters to include mode
+export interface DemandForecastParameters {
+  timeHorizon: 'quarter' | 'half-year' | 'year' | 'custom';
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+  includeSkills: string[] | 'all';
+  includeClients: string[] | 'all';
+  granularity: 'daily' | 'weekly' | 'monthly';
+  mode?: ForecastMode; // Added mode property
+  timeframe?: string; // Added for compatibility
+  includeRevenueCalculations?: boolean;
+  useClientExpectedRevenue?: boolean;
+}
+
+// Alias for backward compatibility
 export type ForecastParameters = DemandForecastParameters;
 
 import { RecurringTaskDB } from './task';
@@ -229,20 +263,6 @@ export interface TaskBreakdownItem {
   monthlyHours: number;
   /** NEW: Revenue information for task breakdown */
   suggestedRevenue?: number;
-}
-
-export interface DemandForecastParameters {
-  timeHorizon: 'quarter' | 'half-year' | 'year' | 'custom';
-  dateRange: {
-    startDate: Date;
-    endDate: Date;
-  };
-  includeSkills: string[] | 'all';
-  includeClients: string[] | 'all';
-  granularity: 'daily' | 'weekly' | 'monthly';
-  /** NEW: Revenue calculation options */
-  includeRevenueCalculations?: boolean;
-  useClientExpectedRevenue?: boolean;
 }
 
 export interface DemandForecastResult {

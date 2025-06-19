@@ -17,7 +17,8 @@ export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTa
     category: dbTask.category,
     status: dbTask.status,
     dueDate: dbTask.due_date ? new Date(dbTask.due_date) : null,
-    preferredStaffId: dbTask.preferred_staff_id, // Add preferred staff mapping
+    preferredStaffId: dbTask.preferred_staff_id,
+    recurrenceType: dbTask.recurrence_type as any, // Added missing recurrenceType
     recurrencePattern: {
       type: dbTask.recurrence_type as any,
       interval: dbTask.recurrence_interval || undefined,
@@ -48,7 +49,7 @@ export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
   if (task.priority !== undefined) dbUpdate.priority = task.priority;
   if (task.category !== undefined) dbUpdate.category = task.category;
   if (task.dueDate !== undefined) dbUpdate.due_date = task.dueDate?.toISOString() || null;
-  if (task.preferredStaffId !== undefined) dbUpdate.preferred_staff_id = task.preferredStaffId; // Add preferred staff mapping
+  if (task.preferredStaffId !== undefined) dbUpdate.preferred_staff_id = task.preferredStaffId;
   if (task.isActive !== undefined) dbUpdate.is_active = task.isActive;
   
   // Handle recurrence pattern

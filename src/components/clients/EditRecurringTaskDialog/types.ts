@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory, SkillType, RecurrenceType } from '@/types/task';
 
 // Form schema for validation
 export const EditTaskSchema = z.object({

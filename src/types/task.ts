@@ -3,16 +3,17 @@ export type TaskPriority = 'Urgent' | 'High' | 'Medium' | 'Low';
 export type TaskCategory = 'Client Work' | 'Internal' | 'Admin' | 'Sales' | 'Other' | 'Tax' | 'Audit' | 'Advisory' | 'Compliance' | 'Bookkeeping';
 export type TaskStatus = 'Unscheduled' | 'Scheduled' | 'In Progress' | 'Completed' | 'Blocked' | 'Cancelled' | 'Canceled';
 export type SkillType = string; // Define as string for now, can be made more specific later
+export type RecurrenceType = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annually' | 'Custom';
 
 export interface RecurrencePattern {
-  type: string;
+  type: RecurrenceType;
   interval?: number;
   frequency?: number;
   weekdays?: number[];
   dayOfMonth?: number;
   monthOfYear?: number;
   customOffsetDays?: number;
-  endDate?: Date; // Added missing endDate property
+  endDate?: Date;
 }
 
 export interface Task {
@@ -49,6 +50,10 @@ export interface TaskInstance {
   recurringTaskId: string;
   notes?: string;
   templateId?: string;
+  completedAt?: Date;
+  assignedStaffId?: string;
+  scheduledStartTime?: Date;
+  scheduledEndTime?: Date;
 }
 
 export interface RecurringTask {
@@ -61,7 +66,7 @@ export interface RecurringTask {
   priority: TaskPriority;
   category: TaskCategory;
   status: TaskStatus;
-  recurrenceType: string; // Added missing recurrenceType property
+  recurrenceType: RecurrenceType;
   recurrenceInterval?: number;
   nextDueDate?: Date | null;
   isActive: boolean;
@@ -111,10 +116,11 @@ export interface RecurringTaskDB {
   due_date?: string;
   notes?: string;
   last_generated_date?: string;
-  // Added missing database fields for recurrence pattern
   weekdays?: number[];
   day_of_month?: number;
   month_of_year?: number;
+  end_date?: string;
+  custom_offset_days?: number;
   clients?: {
     id: string;
     legal_name: string;
