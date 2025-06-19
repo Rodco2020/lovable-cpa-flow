@@ -58,8 +58,8 @@ export class DataFetcher {
         throw new Error(`Database query failed: ${error.message}`);
       }
 
-      if (!data) {
-        console.warn('⚠️ [DATA FETCHER] Query returned null data');
+      if (!data || !Array.isArray(data)) {
+        console.warn('⚠️ [DATA FETCHER] Query returned null or invalid data');
         return [];
       }
 
@@ -72,7 +72,7 @@ export class DataFetcher {
       });
 
       // Step 4: Validate and process results
-      const validTasks = data.filter(task => {
+      const validTasks = data.filter((task: any): task is RecurringTaskDB => {
         const isValid = task && 
           task.id && 
           task.name && 

@@ -17,12 +17,12 @@ vi.mock('@/services/forecasting/demandMatrixService', () => ({
   }
 }));
 
-describe('Preferred Staff Scenarios', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+export const runBasicPreferredStaffDisplayTests = () => {
+  describe('Basic Preferred Staff Display', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
 
-  describe('Task Creation with Preferred Staff', () => {
     it('should create tasks with preferred staff assignment', () => {
       const testData = createPreferredStaffTestData();
       
@@ -39,8 +39,14 @@ describe('Preferred Staff Scenarios', () => {
       expect(task.name).toBe('Test Task');
     });
   });
+};
 
-  describe('Demand Matrix Integration', () => {
+export const runStaffFilteringTests = () => {
+  describe('Staff Filtering Functionality', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
     it('should process preferred staff data in demand matrix', () => {
       const testData = createPreferredStaffTestData();
       
@@ -49,4 +55,44 @@ describe('Preferred Staff Scenarios', () => {
       expect(testData.staff).toHaveLength(2);
     });
   });
-});
+};
+
+export const runUnassignedTaskTests = () => {
+  describe('Unassigned Task Handling', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('should handle unassigned tasks correctly', () => {
+      const task = createMockRecurringTask({ preferred_staff_id: null });
+      expect(task.preferred_staff_id).toBeNull();
+    });
+  });
+};
+
+export const runStaffWorkloadAnalysisTests = () => {
+  describe('Staff Workload Analysis', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('should analyze staff workload distribution', () => {
+      const testData = createPreferredStaffTestData();
+      const assignedTasks = testData.tasks.filter(t => t.preferred_staff_id !== null);
+      expect(assignedTasks).toHaveLength(2);
+    });
+  });
+};
+
+export const runMultiSkillStaffTests = () => {
+  describe('Multi-Skill Staff Assignments', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('should handle multi-skill staff assignments', () => {
+      const testData = createPreferredStaffTestData();
+      expect(testData.staff).toHaveLength(2);
+    });
+  });
+};
