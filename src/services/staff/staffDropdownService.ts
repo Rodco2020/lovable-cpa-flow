@@ -7,6 +7,7 @@ import { StaffOption } from '@/types/staffOption';
  * 
  * Specialized service for retrieving staff data optimized for dropdown components.
  * Provides efficient data fetching with caching and filtering for active staff members.
+ * Enhanced to support preferred staff filtering scenarios.
  */
 
 /**
@@ -17,10 +18,23 @@ let cacheTimestamp: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 /**
+ * NEW: Cache for preferred staff from demand data
+ */
+let preferredStaffCache: Map<string, { id: string; name: string }[]> = new Map();
+let preferredStaffCacheTimestamp: number = 0;
+
+/**
  * Check if cache is still valid
  */
 const isCacheValid = (): boolean => {
   return staffOptionsCache !== null && (Date.now() - cacheTimestamp) < CACHE_DURATION;
+};
+
+/**
+ * NEW: Check if preferred staff cache is valid
+ */
+const isPreferredStaffCacheValid = (): boolean => {
+  return (Date.now() - preferredStaffCacheTimestamp) < CACHE_DURATION;
 };
 
 /**
@@ -29,6 +43,9 @@ const isCacheValid = (): boolean => {
 export const clearStaffOptionsCache = (): void => {
   staffOptionsCache = null;
   cacheTimestamp = 0;
+  // NEW: Also clear preferred staff cache
+  preferredStaffCache.clear();
+  preferredStaffCacheTimestamp = 0;
 };
 
 /**
@@ -83,8 +100,8 @@ export const getActiveStaffForDropdown = async (): Promise<StaffOption[]> => {
 };
 
 /**
- * Get staff member details by ID for task editing workflow
- * Includes role information for validation purposes
+ * NEW: Get staff member details by ID for task editing workflow
+ * Enhanced to support preferred staff resolution
  */
 export const getStaffMemberForTaskAssignment = async (staffId: string): Promise<{
   id: string;
@@ -117,6 +134,57 @@ export const getStaffMemberForTaskAssignment = async (staffId: string): Promise<
 };
 
 /**
+ * NEW: Get preferred staff options from demand data with caching
+ * Optimized for demand matrix filtering scenarios
+ */
+export const getPreferredStaffFromDemandData = async (
+  demandDataPoints: any[]
+): Promise<{ id: string; name: string }[]> => {
+  try {
+    const cacheKey = `demand_${demandDataPoints.length}_${JSON.stringify(demandDataPoints.slice(0, 3))}`;
+    
+    // Check cache first
+    if (isPreferredStaffCacheValid() && preferredStaffCache.has(cacheKey)) {
+      console.log('Using cached preferred staff from demand data');
+      return preferredStaffCache.get(cacheKey)!;
+    }
+
+    console.log('Processing preferred staff from demand data');
+    
+    // Extract unique preferred staff from demand data
+    const preferredStaffSet = new Set<string>();
+    const staffInfoMap = new Map<string, string>();
+    
+    demandDataPoints.forEach(point => {
+      if (point.taskBreakdown) {
+        point.taskBreakdown.forEach((task: any) => {
+          if (task.preferredStaffId && task.preferredStaffName) {
+            preferredStaffSet.add(task.preferredStaffId);
+            staffInfoMap.set(task.preferredStaffId, task.preferredStaffName);
+          }
+        });
+      }
+    });
+    
+    // Convert to array format
+    const preferredStaffOptions = Array.from(preferredStaffSet).map(staffId => ({
+      id: staffId,
+      name: staffInfoMap.get(staffId) || 'Unknown Staff'
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Update cache
+    preferredStaffCache.set(cacheKey, preferredStaffOptions);
+    preferredStaffCacheTimestamp = Date.now();
+    
+    console.log(`Extracted ${preferredStaffOptions.length} preferred staff from demand data`);
+    return preferredStaffOptions;
+  } catch (error) {
+    console.error('Error in getPreferredStaffFromDemandData:', error);
+    return [];
+  }
+};
+
+/**
  * Validate if a staff member is active and available for task assignment
  */
 export const validateStaffForTaskAssignment = async (staffId: string): Promise<boolean> => {
@@ -136,4 +204,21 @@ export const validateStaffForTaskAssignment = async (staffId: string): Promise<b
 export const refreshStaffOptionsCache = async (): Promise<StaffOption[]> => {
   clearStaffOptionsCache();
   return await getActiveStaffForDropdown();
+};
+
+/**
+ * NEW: Get cache statistics including preferred staff cache
+ */
+export const getStaffCacheStatistics = (): {
+  staffOptionsCount: number;
+  preferredStaffCacheEntries: number;
+  cacheAge: number;
+  preferredStaffCacheAge: number;
+} => {
+  return {
+    staffOptionsCount: staffOptionsCache?.length || 0,
+    preferredStaffCacheEntries: preferredStaffCache.size,
+    cacheAge: cacheTimestamp > 0 ? Date.now() - cacheTimestamp : 0,
+    preferredStaffCacheAge: preferredStaffCacheTimestamp > 0 ? Date.now() - preferredStaffCacheTimestamp : 0
+  };
 };

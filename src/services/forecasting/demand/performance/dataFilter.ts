@@ -10,15 +10,20 @@ import { FilteringOptions } from './types';
 import { PERFORMANCE_OPERATIONS } from './constants';
 import { PerformanceMonitor } from './performanceMonitor';
 
+// NEW: Extended DemandFilters interface for preferred staff
+interface ExtendedDemandFilters extends DemandFilters {
+  preferredStaff?: string[];
+}
+
 export class DataFilter {
   private static performanceMonitor = new PerformanceMonitor();
 
   /**
-   * FIXED: Efficient data filtering with corrected "no active filters" logic
+   * Enhanced data filtering with preferred staff support
    */
   static optimizeFiltering(
     data: DemandMatrixData,
-    filters: DemandFilters,
+    filters: ExtendedDemandFilters, // NEW: Use extended filters
     options: FilteringOptions = {}
   ): DemandMatrixData {
     const { enableEarlyExit = true, enablePreCalculation = true, enableLogging = true } = options;
@@ -27,11 +32,12 @@ export class DataFilter {
     console.log(`🔍 [DATA FILTER] Starting optimization with filters:`, {
       skillsFilter: filters.skills?.length === 0 ? 'NONE (show all)' : filters.skills,
       clientsFilter: filters.clients?.length === 0 ? 'NONE (show all)' : filters.clients,
+      preferredStaffFilter: filters.preferredStaff?.length === 0 ? 'NONE (show all)' : filters.preferredStaff, // NEW
       hasTimeHorizon: !!filters.timeHorizon,
       includeInactive: filters.includeInactive
     });
 
-    // FIXED: Early exit for no filters - check correctly for empty arrays
+    // Early exit for no filters - check correctly for empty arrays including preferred staff
     if (enableEarlyExit && this.hasNoActiveFilters(filters)) {
       const processingTime = performance.now() - startTime;
       this.performanceMonitor.recordPerformance(PERFORMANCE_OPERATIONS.FILTERING_NO_OP, processingTime);
@@ -43,23 +49,25 @@ export class DataFilter {
     // Pre-calculate filter sets for efficiency
     const skillSet = enablePreCalculation && filters.skills && filters.skills.length > 0 ? new Set(filters.skills) : null;
     const clientSet = enablePreCalculation && filters.clients && filters.clients.length > 0 ? new Set(filters.clients) : null;
+    const preferredStaffSet = enablePreCalculation && filters.preferredStaff && filters.preferredStaff.length > 0 ? new Set(filters.preferredStaff) : null; // NEW
     
     console.log(`🎯 [DATA FILTER] Filter sets prepared:`, {
       skillSetSize: skillSet?.size || 0,
       clientSetSize: clientSet?.size || 0,
+      preferredStaffSetSize: preferredStaffSet?.size || 0, // NEW
       willFilterBySkills: !!skillSet,
-      willFilterByClients: !!clientSet
+      willFilterByClients: !!clientSet,
+      willFilterByPreferredStaff: !!preferredStaffSet // NEW
     });
     
     // Filter data points efficiently
     const filteredDataPoints = data.dataPoints.filter(point => {
-      // FIXED: Skill filter - only apply if we have an active skill filter
+      // Skill filter - only apply if we have an active skill filter
       if (skillSet && skillSet.size > 0) {
         if (!skillSet.has(point.skillType)) {
           return false;
         }
       }
-      // If no skillSet, include all skills (no filtering)
       
       // Time horizon filter
       if (filters.timeHorizon) {
@@ -69,7 +77,7 @@ export class DataFilter {
         }
       }
       
-      // FIXED: Client filter - only apply if we have an active client filter
+      // Client filter - only apply if we have an active client filter
       if (clientSet && clientSet.size > 0) {
         const hasMatchingClient = point.taskBreakdown?.some(task => 
           clientSet.has(task.clientId)
@@ -78,7 +86,16 @@ export class DataFilter {
           return false;
         }
       }
-      // If no clientSet, include all clients (no filtering)
+      
+      // NEW: Preferred staff filter - only apply if we have an active preferred staff filter
+      if (preferredStaffSet && preferredStaffSet.size > 0) {
+        const hasMatchingPreferredStaff = point.taskBreakdown?.some(task => 
+          task.preferredStaffId && preferredStaffSet.has(task.preferredStaffId)
+        );
+        if (!hasMatchingPreferredStaff) {
+          return false;
+        }
+      }
       
       return true;
     });
@@ -113,7 +130,8 @@ export class DataFilter {
         remainingMonths: result.months.length,
         totalDemand: result.totalDemand.toFixed(1),
         totalTasks: result.totalTasks,
-        totalClients: result.totalClients
+        totalClients: result.totalClients,
+        preferredStaffFiltered: !!preferredStaffSet // NEW
       });
     }
     
@@ -121,19 +139,21 @@ export class DataFilter {
   }
 
   /**
-   * FIXED: Check if filters are effectively empty - corrected logic for empty arrays
+   * Check if filters are effectively empty - updated to include preferred staff
    */
-  private static hasNoActiveFilters(filters: DemandFilters): boolean {
+  private static hasNoActiveFilters(filters: ExtendedDemandFilters): boolean {
     const hasNoSkillFilter = !filters.skills || filters.skills.length === 0;
     const hasNoClientFilter = !filters.clients || filters.clients.length === 0;
+    const hasNoPreferredStaffFilter = !filters.preferredStaff || filters.preferredStaff.length === 0; // NEW
     const hasNoTimeHorizon = !filters.timeHorizon;
     const hasNoInactiveFilter = !filters.includeInactive;
 
-    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoTimeHorizon && hasNoInactiveFilter;
+    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoPreferredStaffFilter && hasNoTimeHorizon && hasNoInactiveFilter; // NEW: Include preferred staff
     
     console.log(`🔍 [DATA FILTER] Active filters check:`, {
       hasNoSkillFilter,
-      hasNoClientFilter, 
+      hasNoClientFilter,
+      hasNoPreferredStaffFilter, // NEW
       hasNoTimeHorizon,
       hasNoInactiveFilter,
       noActiveFilters
