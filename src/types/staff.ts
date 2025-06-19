@@ -1,4 +1,6 @@
 
+export type StaffStatus = 'active' | 'inactive';
+
 export interface Staff {
   id: string;
   fullName: string;
@@ -8,7 +10,7 @@ export interface Staff {
   costPerHour: number;
   email: string;
   phone: string;
-  status: 'active' | 'inactive';
+  status: StaffStatus;
   createdAt: Date;
   updatedAt: Date;
 }

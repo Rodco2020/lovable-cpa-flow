@@ -12,6 +12,7 @@ export interface RecurrencePattern {
   dayOfMonth?: number;
   monthOfYear?: number;
   customOffsetDays?: number;
+  endDate?: Date; // Added missing endDate property
 }
 
 export interface Task {
@@ -60,7 +61,7 @@ export interface RecurringTask {
   priority: TaskPriority;
   category: TaskCategory;
   status: TaskStatus;
-  recurrenceType: string;
+  recurrenceType: string; // Added missing recurrenceType property
   recurrenceInterval?: number;
   nextDueDate?: Date | null;
   isActive: boolean;
@@ -110,6 +111,10 @@ export interface RecurringTaskDB {
   due_date?: string;
   notes?: string;
   last_generated_date?: string;
+  // Added missing database fields for recurrence pattern
+  weekdays?: number[];
+  day_of_month?: number;
+  month_of_year?: number;
   clients?: {
     id: string;
     legal_name: string;

@@ -39,12 +39,9 @@ export const useTaskSubmission = ({
    * Validates form, creates task via API, and shows appropriate notifications
    */
   const handleSubmit = async () => {
-    // Validate the form
     if (!validateForm()) {
-      // Show a toast for validation errors
       toast.error("Please fix the form errors before submitting");
       
-      // Scroll to the first error if any
       const firstErrorField = Object.keys(formErrors)[0];
       const errorElement = document.getElementById(firstErrorField);
       if (errorElement) {
@@ -61,20 +58,17 @@ export const useTaskSubmission = ({
     setIsSubmitting(true);
     
     try {
-      // Show in-progress toast with ID for later reference
       const loadingToastId = toast.loading(
         isRecurring ? "Creating recurring task..." : "Creating ad-hoc task..."
       );
       
       let newTask;
       
-      // Convert string[] to SkillType[] - ensuring the values are valid SkillType values
       const requiredSkills = taskForm.requiredSkills.filter((skill): skill is SkillType => {
         return ['Junior', 'Senior', 'CPA', 'Tax Specialist', 'Audit', 'Advisory', 'Bookkeeping'].includes(skill);
       });
       
       if (isRecurring) {
-        // Create recurring task
         const recurrencePattern = buildRecurrencePattern();
         
         newTask = await createRecurringTask({
@@ -83,32 +77,31 @@ export const useTaskSubmission = ({
           name: taskForm.name,
           description: taskForm.description,
           estimatedHours: taskForm.estimatedHours,
-          requiredSkills, // Using the filtered SkillType array
+          requiredSkills,
           priority: taskForm.priority,
           category: taskForm.category,
           dueDate: new Date(taskForm.dueDate),
+          recurrenceType: taskForm.recurrenceType, // Added missing recurrenceType
           recurrencePattern
         });
       } else {
-        // Create ad-hoc task
         newTask = await createAdHocTask({
           templateId: selectedTemplate.id,
           clientId: taskForm.clientId,
           name: taskForm.name,
           description: taskForm.description,
           estimatedHours: taskForm.estimatedHours,
-          requiredSkills, // Using the filtered SkillType array
+          requiredSkills,
           priority: taskForm.priority,
           category: taskForm.category,
-          dueDate: new Date(taskForm.dueDate)
+          dueDate: new Date(taskForm.dueDate),
+          recurringTaskId: 'temp-id' // Added missing required field
         });
       }
       
-      // Dismiss loading toast
       toast.dismiss(loadingToastId);
       
       if (newTask) {
-        // Show success toast with checkmark icon
         toast.success(
           isRecurring ? "Recurring task created successfully!" : "Ad-hoc task created successfully!",
           {
@@ -116,12 +109,10 @@ export const useTaskSubmission = ({
           }
         );
         
-        // Call onSuccess if provided
         if (onSuccess && isRecurring) {
           onSuccess(newTask as RecurringTask);
         }
         
-        // Reset form and close dialog
         resetForm();
         onClose();
       } else {
@@ -130,9 +121,8 @@ export const useTaskSubmission = ({
     } catch (error) {
       console.error('Error creating task:', error);
       toast.error(
-        "An error occurred while creating the task", 
-        { 
-          description: error instanceof Error ? error.message : "Please try again or contact support",
+        "Failed to create task. Please try again.",
+        {
           icon: <AlertCircle className="h-5 w-5 text-red-500" />
         }
       );

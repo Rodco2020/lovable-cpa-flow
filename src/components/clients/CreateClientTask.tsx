@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -93,20 +92,16 @@ const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) =>
     setError(null);
     
     try {
-      // Show in-progress toast
       toast.loading("Creating recurring task...");
       
-      // Create the recurrence pattern based on form data
       const recurrencePattern: any = {
         type: data.recurrenceType,
       };
       
-      // Add dayOfMonth for monthly/quarterly/annually recurrence types
       if (["Monthly", "Quarterly", "Annually"].includes(data.recurrenceType) && data.dayOfMonth) {
         recurrencePattern.dayOfMonth = data.dayOfMonth;
       }
       
-      // Create the task using the service
       const newTask = await createRecurringTask({
         templateId: data.templateId,
         clientId: clientId,
@@ -116,11 +111,11 @@ const CreateClientTask = ({ clientId, onTaskCreated }: CreateClientTaskProps) =>
         requiredSkills: selectedTemplate.requiredSkills,
         priority: data.priority,
         category: selectedTemplate.category,
-        dueDate: new Date(), // Default to today, can be improved
+        dueDate: new Date(),
+        recurrenceType: data.recurrenceType,
         recurrencePattern: recurrencePattern,
       });
       
-      // Dismiss loading toast
       toast.dismiss();
       
       if (newTask) {

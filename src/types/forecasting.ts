@@ -1,3 +1,4 @@
+
 export interface ForecastData {
   month: string;
   skillBreakdown: SkillBreakdown[];
@@ -5,6 +6,19 @@ export interface ForecastData {
   totalCapacityHours: number;
   gapHours: number;
   utilizationRate: number;
+  // Added missing properties for legacy compatibility
+  period?: string;
+  demand?: number;
+  capacity?: number;
+  demandHours?: number;
+  capacityHours?: number;
+  projectedRevenue?: number;
+  projectedCost?: number;
+  projectedProfit?: number;
+  financialProjections?: FinancialProjection[];
+  timeSeriesData?: any[];
+  skillDistribution?: SkillData[];
+  gapAnalysis?: any[];
 }
 
 export interface SkillBreakdown {
@@ -14,6 +28,27 @@ export interface SkillBreakdown {
   gapHours: number;
   utilizationRate: number;
 }
+
+// Added missing type exports
+export type SkillType = string;
+export type ForecastMode = 'demand-only' | 'capacity-vs-demand' | 'virtual' | 'actual';
+
+export interface SkillData {
+  skill: string;
+  value: number;
+  percentage?: number;
+}
+
+export interface FinancialProjection {
+  month: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+}
+
+// Added missing ForecastParameters type (alias for DemandForecastParameters)
+export type ForecastParameters = DemandForecastParameters;
 
 import { RecurringTaskDB } from './task';
 
