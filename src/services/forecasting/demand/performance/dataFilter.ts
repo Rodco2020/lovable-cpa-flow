@@ -1,7 +1,7 @@
 
 /**
  * Data Filtering Optimizer
- * Phase 1: Enhanced with preferred staff filtering support
+ * Handles efficient data filtering with early exit conditions
  */
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
@@ -14,7 +14,7 @@ export class DataFilter {
   private static performanceMonitor = new PerformanceMonitor();
 
   /**
-   * Phase 1: Enhanced efficient data filtering with preferred staff support
+   * FIXED: Efficient data filtering with corrected "no active filters" logic
    */
   static optimizeFiltering(
     data: DemandMatrixData,
@@ -27,12 +27,11 @@ export class DataFilter {
     console.log(`🔍 [DATA FILTER] Starting optimization with filters:`, {
       skillsFilter: filters.skills?.length === 0 ? 'NONE (show all)' : filters.skills,
       clientsFilter: filters.clients?.length === 0 ? 'NONE (show all)' : filters.clients,
-      preferredStaffFilter: filters.preferredStaffIds?.length === 0 ? 'NONE (show all)' : filters.preferredStaffIds, // Phase 1: NEW
       hasTimeHorizon: !!filters.timeHorizon,
       includeInactive: filters.includeInactive
     });
 
-    // Phase 1: Enhanced early exit for no filters - includes preferred staff check
+    // FIXED: Early exit for no filters - check correctly for empty arrays
     if (enableEarlyExit && this.hasNoActiveFilters(filters)) {
       const processingTime = performance.now() - startTime;
       this.performanceMonitor.recordPerformance(PERFORMANCE_OPERATIONS.FILTERING_NO_OP, processingTime);
@@ -44,27 +43,23 @@ export class DataFilter {
     // Pre-calculate filter sets for efficiency
     const skillSet = enablePreCalculation && filters.skills && filters.skills.length > 0 ? new Set(filters.skills) : null;
     const clientSet = enablePreCalculation && filters.clients && filters.clients.length > 0 ? new Set(filters.clients) : null;
-    // Phase 1: NEW - Preferred staff filter set
-    const preferredStaffSet = enablePreCalculation && filters.preferredStaffIds && filters.preferredStaffIds.length > 0 
-      ? new Set(filters.preferredStaffIds) : null;
     
     console.log(`🎯 [DATA FILTER] Filter sets prepared:`, {
       skillSetSize: skillSet?.size || 0,
       clientSetSize: clientSet?.size || 0,
-      preferredStaffSetSize: preferredStaffSet?.size || 0, // Phase 1: NEW
       willFilterBySkills: !!skillSet,
-      willFilterByClients: !!clientSet,
-      willFilterByPreferredStaff: !!preferredStaffSet // Phase 1: NEW
+      willFilterByClients: !!clientSet
     });
     
     // Filter data points efficiently
     const filteredDataPoints = data.dataPoints.filter(point => {
-      // Skill filter
+      // FIXED: Skill filter - only apply if we have an active skill filter
       if (skillSet && skillSet.size > 0) {
         if (!skillSet.has(point.skillType)) {
           return false;
         }
       }
+      // If no skillSet, include all skills (no filtering)
       
       // Time horizon filter
       if (filters.timeHorizon) {
@@ -74,7 +69,7 @@ export class DataFilter {
         }
       }
       
-      // Client filter
+      // FIXED: Client filter - only apply if we have an active client filter
       if (clientSet && clientSet.size > 0) {
         const hasMatchingClient = point.taskBreakdown?.some(task => 
           clientSet.has(task.clientId)
@@ -83,58 +78,24 @@ export class DataFilter {
           return false;
         }
       }
-      
-      // Phase 1: NEW - Preferred staff filter
-      if (preferredStaffSet && preferredStaffSet.size > 0) {
-        const hasMatchingPreferredStaff = point.taskBreakdown?.some(task => 
-          task.preferredStaffId && preferredStaffSet.has(task.preferredStaffId)
-        );
-        if (!hasMatchingPreferredStaff) {
-          return false;
-        }
-      }
+      // If no clientSet, include all clients (no filtering)
       
       return true;
     });
 
-    // Phase 1: Enhanced filtering with preferred staff breakdown preservation
-    const enhancedFilteredDataPoints = filteredDataPoints.map(point => {
-      // If we have preferred staff filters, also filter the task breakdown within each data point
-      if (preferredStaffSet && preferredStaffSet.size > 0 && point.taskBreakdown) {
-        const filteredTaskBreakdown = point.taskBreakdown.filter(task => 
-          !task.preferredStaffId || preferredStaffSet.has(task.preferredStaffId)
-        );
-        
-        // Recalculate metrics based on filtered breakdown
-        const filteredTaskCount = filteredTaskBreakdown.length;
-        const filteredClientCount = new Set(filteredTaskBreakdown.map(task => task.clientId)).size;
-        const filteredDemandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
-        
-        return {
-          ...point,
-          taskBreakdown: filteredTaskBreakdown,
-          taskCount: filteredTaskCount,
-          clientCount: filteredClientCount,
-          demandHours: filteredDemandHours
-        };
-      }
-      
-      return point;
-    });
-
     // Filter skills and months based on remaining data
-    const remainingSkills = new Set(enhancedFilteredDataPoints.map(p => p.skillType));
-    const remainingMonths = new Set(enhancedFilteredDataPoints.map(p => p.month));
+    const remainingSkills = new Set(filteredDataPoints.map(p => p.skillType));
+    const remainingMonths = new Set(filteredDataPoints.map(p => p.month));
     
     const result = {
       ...data,
       skills: data.skills.filter(skill => remainingSkills.has(skill)),
       months: data.months.filter(month => remainingMonths.has(month.key)),
-      dataPoints: enhancedFilteredDataPoints,
-      totalDemand: enhancedFilteredDataPoints.reduce((sum, point) => sum + point.demandHours, 0),
-      totalTasks: enhancedFilteredDataPoints.reduce((sum, point) => sum + point.taskCount, 0),
+      dataPoints: filteredDataPoints,
+      totalDemand: filteredDataPoints.reduce((sum, point) => sum + point.demandHours, 0),
+      totalTasks: filteredDataPoints.reduce((sum, point) => sum + point.taskCount, 0),
       totalClients: new Set(
-        enhancedFilteredDataPoints.flatMap(point => 
+        filteredDataPoints.flatMap(point => 
           point.taskBreakdown?.map(task => task.clientId) || []
         )
       ).size
@@ -160,21 +121,19 @@ export class DataFilter {
   }
 
   /**
-   * Phase 1: Enhanced check if filters are effectively empty - includes preferred staff check
+   * FIXED: Check if filters are effectively empty - corrected logic for empty arrays
    */
   private static hasNoActiveFilters(filters: DemandFilters): boolean {
     const hasNoSkillFilter = !filters.skills || filters.skills.length === 0;
     const hasNoClientFilter = !filters.clients || filters.clients.length === 0;
-    const hasNoPreferredStaffFilter = !filters.preferredStaffIds || filters.preferredStaffIds.length === 0; // Phase 1: NEW
     const hasNoTimeHorizon = !filters.timeHorizon;
     const hasNoInactiveFilter = !filters.includeInactive;
 
-    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoPreferredStaffFilter && hasNoTimeHorizon && hasNoInactiveFilter;
+    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoTimeHorizon && hasNoInactiveFilter;
     
     console.log(`🔍 [DATA FILTER] Active filters check:`, {
       hasNoSkillFilter,
       hasNoClientFilter, 
-      hasNoPreferredStaffFilter, // Phase 1: NEW
       hasNoTimeHorizon,
       hasNoInactiveFilter,
       noActiveFilters

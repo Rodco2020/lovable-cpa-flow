@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { RecurringTask, TaskPriority, TaskCategory, SkillType, RecurrenceType } from '@/types/task';
+import { RecurringTask, TaskPriority, TaskCategory, SkillType } from '@/types/task';
 
 // Form schema for validation
 export const EditTaskSchema = z.object({
@@ -8,7 +8,7 @@ export const EditTaskSchema = z.object({
   description: z.string().optional(),
   estimatedHours: z.number().positive('Hours must be greater than 0').min(0.25, 'Minimum hours is 0.25'),
   priority: z.enum(['Low', 'Medium', 'High', 'Urgent'] as const),
-  category: z.enum(['Client Work', 'Internal', 'Admin', 'Sales', 'Other', 'Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping'] as const),
+  category: z.enum(['Tax', 'Audit', 'Advisory', 'Compliance', 'Bookkeeping', 'Other'] as const),
   dueDate: z.date().optional(),
   isRecurring: z.boolean(),
   requiredSkills: z.array(z.string()).min(1, 'At least one skill is required'),
@@ -53,5 +53,5 @@ export interface UseEditTaskFormReturn {
   skillsError: string | null;
   toggleSkill: (skillId: string) => void;
   onSubmit: (data: EditTaskFormValues) => Promise<void>;
-  resetForm: () => void;
+  resetForm: () => void; // Add resetForm function to return type
 }

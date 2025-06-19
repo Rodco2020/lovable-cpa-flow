@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import useAppEvent from '@/hooks/useAppEvent';
@@ -23,7 +22,7 @@ import {
 
 export const useForecastDashboard = () => {
   const [forecastWindow, setForecastWindow] = useState<string>('next-30-days');
-  const [forecastType, setForecastType] = useState<ForecastMode>('virtual'); // FIXED: Use ForecastMode type
+  const [forecastType, setForecastType] = useState<ForecastMode>('virtual');
   const [showCapacity, setShowCapacity] = useState<boolean>(true);
   const [showDemand, setShowDemand] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -36,13 +35,13 @@ export const useForecastDashboard = () => {
 
   // Available skills definition - moved from component to hook
   const availableSkills: SkillData[] = [
-    { skill: 'Junior', value: 0, name: 'Junior', color: '#9b87f5' },
-    { skill: 'Senior', value: 0, name: 'Senior', color: '#7E69AB' },
-    { skill: 'CPA', value: 0, name: 'CPA', color: '#6E59A5' },
-    { skill: 'Tax Specialist', value: 0, name: 'Tax Specialist', color: '#D946EF' },
-    { skill: 'Audit', value: 0, name: 'Audit', color: '#0EA5E9' },
-    { skill: 'Advisory', value: 0, name: 'Advisory', color: '#F97316' },
-    { skill: 'Bookkeeping', value: 0, name: 'Bookkeeping', color: '#33C3F0' }
+    { id: 'Junior' as SkillType, name: 'Junior', color: '#9b87f5' },
+    { id: 'Senior' as SkillType, name: 'Senior', color: '#7E69AB' },
+    { id: 'CPA' as SkillType, name: 'CPA', color: '#6E59A5' },
+    { id: 'Tax Specialist' as SkillType, name: 'Tax Specialist', color: '#D946EF' },
+    { id: 'Audit' as SkillType, name: 'Audit', color: '#0EA5E9' },
+    { id: 'Advisory' as SkillType, name: 'Advisory', color: '#F97316' },
+    { id: 'Bookkeeping' as SkillType, name: 'Bookkeeping', color: '#33C3F0' }
   ];
   
   // Time window options
@@ -67,14 +66,14 @@ export const useForecastDashboard = () => {
       
       // Create forecast parameters
       const params: ForecastParameters = {
-        timeHorizon: 'custom',
+        mode: forecastType,
+        timeframe: 'custom',
         dateRange: {
           startDate: new Date(),
           endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000)
         },
         granularity: 'weekly',
-        includeSkills: 'all',
-        includeClients: 'all'
+        includeSkills: 'all'
       };
       
       // Get forecast data
@@ -82,12 +81,6 @@ export const useForecastDashboard = () => {
       
       // Process the result into the format expected by components
       const processedData: ForecastData = {
-        month: 'current',
-        skillBreakdown: [],
-        totalDemandHours: result.summary.totalDemand,
-        totalCapacityHours: result.summary.totalCapacity,
-        gapHours: result.summary.gap,
-        utilizationRate: result.summary.totalCapacity > 0 ? (result.summary.totalDemand / result.summary.totalCapacity) * 100 : 0,
         period: 'current',
         demand: result.data.flatMap(d => d.demand),
         capacity: result.data.flatMap(d => d.capacity),
@@ -101,6 +94,7 @@ export const useForecastDashboard = () => {
         // Summary data
         demandHours: result.summary.totalDemand,
         capacityHours: result.summary.totalCapacity,
+        gapHours: result.summary.gap,
         projectedRevenue: result.summary.totalRevenue,
         projectedCost: result.summary.totalCost,
         projectedProfit: result.summary.totalProfit
@@ -228,7 +222,7 @@ export const useForecastDashboard = () => {
     forecastWindow,
     setForecastWindow,
     forecastType,
-    setForecastType: (type: ForecastMode) => setForecastType(type), // FIXED: Proper type function
+    setForecastType,
     showCapacity,
     setShowCapacity,
     showDemand,
