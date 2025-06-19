@@ -1,75 +1,70 @@
 
-import { DemandDataPoint } from '@/types/demand';
-import { SkillType } from '@/types/task';
-import { MatrixTotals, SkillSummary } from './types';
-
 /**
- * Utility functions for matrix calculations and summaries
+ * Utility functions for matrix calculations
  */
 export class CalculationUtils {
   /**
-   * Calculate totals safely
+   * Calculate totals from data points
    */
-  static calculateTotals(dataPoints: DemandDataPoint[]): MatrixTotals {
-    try {
-      if (!Array.isArray(dataPoints)) {
-        return { totalDemand: 0, totalTasks: 0, totalClients: 0 };
+  static calculateTotals(dataPoints: any[]): {
+    totalDemand: number;
+    totalTasks: number;
+    totalClients: number;
+  } {
+    const totalDemand = dataPoints.reduce((sum, point) => sum + (point.demandHours || 0), 0);
+    const totalTasks = dataPoints.reduce((sum, point) => sum + (point.taskCount || 0), 0);
+    
+    const allClientIds = new Set<string>();
+    dataPoints.forEach(point => {
+      if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+        point.taskBreakdown.forEach((task: any) => {
+          if (task.clientId) {
+            allClientIds.add(task.clientId);
+          }
+        });
       }
+    });
 
-      const totalDemand = dataPoints.reduce((sum, point) => {
-        const hours = typeof point.demandHours === 'number' ? point.demandHours : 0;
-        return sum + Math.max(0, hours);
-      }, 0);
-
-      const totalTasks = dataPoints.reduce((sum, point) => {
-        const tasks = typeof point.taskCount === 'number' ? point.taskCount : 0;
-        return sum + Math.max(0, tasks);
-      }, 0);
-
-      const allClientIds = new Set<string>();
-      dataPoints.forEach(point => {
-        if (Array.isArray(point.taskBreakdown)) {
-          point.taskBreakdown.forEach(task => {
-            if (task && typeof task.clientId === 'string') {
-              allClientIds.add(task.clientId);
-            }
-          });
-        }
-      });
-
-      const totalClients = allClientIds.size;
-
-      return { totalDemand, totalTasks, totalClients };
-    } catch (error) {
-      console.error('Error calculating totals:', error);
-      return { totalDemand: 0, totalTasks: 0, totalClients: 0 };
-    }
+    return {
+      totalDemand,
+      totalTasks,
+      totalClients: allClientIds.size
+    };
   }
 
   /**
-   * Generate skill summary safely
+   * Generate skill summary from data points
    */
-  static generateSkillSummary(dataPoints: DemandDataPoint[]): SkillSummary {
-    try {
-      const summary: SkillSummary = {};
+  static generateSkillSummary(dataPoints: any[]): Record<string, any> {
+    const skillSummary: Record<string, any> = {};
 
-      for (const point of dataPoints) {
-        if (!point || typeof point.skillType !== 'string') continue;
-
-        const skill = point.skillType;
-        if (!summary[skill]) {
-          summary[skill] = { totalHours: 0, taskCount: 0, clientCount: 0 };
-        }
-
-        summary[skill].totalHours += Math.max(0, point.demandHours || 0);
-        summary[skill].taskCount += Math.max(0, point.taskCount || 0);
-        summary[skill].clientCount += Math.max(0, point.clientCount || 0);
+    dataPoints.forEach(point => {
+      const skill = point.skillType;
+      if (!skillSummary[skill]) {
+        skillSummary[skill] = {
+          totalDemand: 0,
+          totalTasks: 0,
+          totalClients: new Set()
+        };
       }
 
-      return summary;
-    } catch (error) {
-      console.error('Error generating skill summary:', error);
-      return {};
-    }
+      skillSummary[skill].totalDemand += point.demandHours || 0;
+      skillSummary[skill].totalTasks += point.taskCount || 0;
+      
+      if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+        point.taskBreakdown.forEach((task: any) => {
+          if (task.clientId) {
+            skillSummary[skill].totalClients.add(task.clientId);
+          }
+        });
+      }
+    });
+
+    // Convert Sets to counts
+    Object.keys(skillSummary).forEach(skill => {
+      skillSummary[skill].totalClients = skillSummary[skill].totalClients.size;
+    });
+
+    return skillSummary;
   }
 }

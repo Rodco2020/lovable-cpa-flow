@@ -1,3 +1,4 @@
+
 /**
  * Real-time Updates Integration Tests for Demand Matrix
  * Tests for handling dynamic data changes and real-time scenarios
@@ -122,14 +123,17 @@ describe('Real-time Updates Integration Tests', () => {
           taskBreakdown: [{
             clientId: 'client-1',
             clientName: 'Test Client',
+            recurringTaskId: 'task-1',
             taskName: 'Assigned Task',
             skillType: 'Advisory',
             estimatedHours: 30,
             monthlyHours: 30,
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
             preferredStaff: {
               staffId: 'staff-1',
               staffName: 'Bob Smith',
-              roleTitle: 'Advisor'
+              roleTitle: 'Advisor',
+              assignmentType: 'preferred' as const
             }
           }]
         }],
@@ -199,14 +203,17 @@ describe('Real-time Updates Integration Tests', () => {
           taskBreakdown: [{
             clientId: 'client-1',
             clientName: 'Test Client',
+            recurringTaskId: 'task-1',
             taskName: 'Audit Task',
             skillType: 'Audit',
             estimatedHours: 40,
             monthlyHours: 40,
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
             preferredStaff: {
               staffId: 'staff-1',
               staffName: 'Carol Davis',
-              roleTitle: 'Senior Auditor'
+              roleTitle: 'Senior Auditor',
+              assignmentType: 'preferred' as const
             }
           }]
         }],
@@ -226,7 +233,8 @@ describe('Real-time Updates Integration Tests', () => {
             preferredStaff: {
               staffId: 'staff-2',
               staffName: 'David Wilson',
-              roleTitle: 'Junior Auditor'
+              roleTitle: 'Junior Auditor',
+              assignmentType: 'preferred' as const
             }
           }]
         }]
@@ -283,14 +291,17 @@ describe('Real-time Updates Integration Tests', () => {
             taskBreakdown: [{
               clientId: 'client-1',
               clientName: 'Tax Client',
+              recurringTaskId: 'task-1',
               taskName: 'Tax Task',
               skillType: 'Tax Preparation',
               estimatedHours: 50,
               monthlyHours: 50,
+              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
               preferredStaff: {
                 staffId: 'staff-1',
                 staffName: 'Tax Specialist',
-                roleTitle: 'CPA'
+                roleTitle: 'CPA',
+                assignmentType: 'preferred' as const
               }
             }]
           },
@@ -304,14 +315,17 @@ describe('Real-time Updates Integration Tests', () => {
             taskBreakdown: [{
               clientId: 'client-2',
               clientName: 'Advisory Client',
+              recurringTaskId: 'task-2',
               taskName: 'Advisory Task',
               skillType: 'Advisory',
               estimatedHours: 30,
               monthlyHours: 30,
+              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
               preferredStaff: {
                 staffId: 'staff-2',
                 staffName: 'Advisory Specialist',
-                roleTitle: 'Advisor'
+                roleTitle: 'Advisor',
+                assignmentType: 'preferred' as const
               }
             }]
           }
@@ -388,23 +402,28 @@ describe('Real-time Updates Integration Tests', () => {
             {
               clientId: 'client-1',
               clientName: 'Test Client',
+              recurringTaskId: 'task-1',
               taskName: 'Task 1',
               skillType: 'Tax Preparation',
               estimatedHours: 50,
               monthlyHours: 50,
+              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
               preferredStaff: {
                 staffId: 'staff-1',
                 staffName: 'Alice Johnson',
-                roleTitle: 'CPA'
+                roleTitle: 'CPA',
+                assignmentType: 'preferred' as const
               }
             },
             {
               clientId: 'client-1',
               clientName: 'Test Client',
+              recurringTaskId: 'task-2',
               taskName: 'Task 2',
               skillType: 'Tax Preparation',
               estimatedHours: 50,
-              monthlyHours: 50
+              monthlyHours: 50,
+              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
               // No preferred staff
             }
           ]
@@ -427,7 +446,8 @@ describe('Real-time Updates Integration Tests', () => {
               preferredStaff: {
                 staffId: 'staff-2',
                 staffName: 'Bob Smith',
-                roleTitle: 'Junior CPA'
+                roleTitle: 'Junior CPA',
+                assignmentType: 'preferred' as const
               }
             }
           ]
@@ -484,7 +504,16 @@ describe('Real-time Updates Integration Tests', () => {
           demandHours: 50,
           taskCount: 1,
           clientCount: 1,
-          taskBreakdown: []
+          taskBreakdown: [{
+            clientId: 'client-1',
+            clientName: 'Test Client',
+            recurringTaskId: 'task-1',
+            taskName: 'Test Task',
+            skillType: 'Tax Preparation',
+            estimatedHours: 50,
+            monthlyHours: 50,
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
+          }]
         }],
         totalDemand: 50,
         totalTasks: 1,
@@ -532,7 +561,16 @@ describe('Real-time Updates Integration Tests', () => {
           demandHours: 30,
           taskCount: 1,
           clientCount: 1,
-          taskBreakdown: []
+          taskBreakdown: [{
+            clientId: 'client-1',
+            clientName: 'Test Client',
+            recurringTaskId: 'task-1',
+            taskName: 'Test Task',
+            skillType: 'Advisory',
+            estimatedHours: 30,
+            monthlyHours: 30,
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
+          }]
         }],
         totalDemand: 30,
         totalTasks: 1,
@@ -599,7 +637,16 @@ describe('Real-time Updates Integration Tests', () => {
           demandHours: 50,
           taskCount: 1,
           clientCount: 1,
-          taskBreakdown: []
+          taskBreakdown: [{
+            clientId: 'client-1',
+            clientName: 'Test Client',
+            recurringTaskId: 'task-1',
+            taskName: 'Test Task',
+            skillType: 'Tax Preparation',
+            estimatedHours: 50,
+            monthlyHours: 50,
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
+          }]
         }],
         totalDemand: 50,
         totalTasks: 1,
