@@ -34,7 +34,6 @@ export const createMockRecurringTask = (overrides: Partial<RecurringTaskDB> = {}
     end_date: null,
     last_generated_date: null,
     notes: null,
-    weekdays_for_daily: null,
     custom_offset_days: null,
     clients: null,
     preferred_staff: null,
