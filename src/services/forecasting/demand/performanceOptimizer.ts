@@ -1,103 +1,174 @@
 
-/**
- * Legacy Performance Optimizer - Refactored
- * 
- * This file maintains backward compatibility while delegating to the new modular performance system.
- * All functionality remains exactly the same, but the code is now better organized.
- */
-
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { debugLog } from '../logger';
-import { 
-  DataProcessor, 
-  DataFilter, 
-  CacheManager, 
-  PerformanceMonitor,
-  PerformanceStats 
-} from './performance';
 
 /**
- * Performance Optimizer for Demand Matrix
- * Handles large datasets, caching, and performance monitoring
- * 
- * @deprecated Use the individual classes from './performance' for new code
+ * Demand Performance Optimizer
+ * Optimizes filtering and processing of demand matrix data
  */
 export class DemandPerformanceOptimizer {
-  // Re-export constants for backward compatibility
-  private static readonly CHUNK_SIZE = 100;
-  private static readonly CACHE_SIZE_LIMIT = 50;
-  private static readonly PERFORMANCE_THRESHOLD_MS = 1000;
-
   /**
-   * Optimize large dataset processing with chunking
-   * @deprecated Use DataProcessor.optimizeDataProcessing instead
+   * Optimize filtering for demand matrix data with preferred staff support
    */
-  static optimizeDataProcessing<T, R>(
-    data: T[],
-    processor: (chunk: T[]) => R[],
-    chunkSize: number = this.CHUNK_SIZE
-  ): R[] {
-    return DataProcessor.optimizeDataProcessing(data, processor, { chunkSize });
+  static optimizeFiltering(matrixData: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
+    debugLog('Optimizing demand matrix filtering with preferred staff support', { filters });
+
+    let filteredData = { ...matrixData };
+
+    // Apply skill filters
+    if (filters.skills && filters.skills.length > 0) {
+      filteredData = this.applySkillFilter(filteredData, filters.skills);
+    }
+
+    // Apply client filters
+    if (filters.clients && filters.clients.length > 0) {
+      filteredData = this.applyClientFilter(filteredData, filters.clients);
+    }
+
+    // Apply preferred staff filters
+    if (filters.preferredStaff) {
+      filteredData = this.applyPreferredStaffFilter(filteredData, filters.preferredStaff);
+    }
+
+    // Apply time horizon filters
+    if (filters.timeHorizon) {
+      filteredData = this.applyTimeHorizonFilter(filteredData, filters.timeHorizon);
+    }
+
+    // Recalculate totals after filtering
+    filteredData = this.recalculateTotals(filteredData);
+
+    debugLog('Filtering optimization complete', {
+      originalDataPoints: matrixData.dataPoints.length,
+      filteredDataPoints: filteredData.dataPoints.length,
+      originalTotalDemand: matrixData.totalDemand,
+      filteredTotalDemand: filteredData.totalDemand
+    });
+
+    return filteredData;
   }
 
   /**
-   * Efficient data filtering with early exit conditions
-   * @deprecated Use DataFilter.optimizeFiltering instead
+   * Apply skill filter to matrix data
    */
-  static optimizeFiltering(
-    data: DemandMatrixData,
-    filters: DemandFilters
+  private static applySkillFilter(matrixData: DemandMatrixData, skills: string[]): DemandMatrixData {
+    const filteredDataPoints = matrixData.dataPoints.filter(point =>
+      skills.includes(point.skillType)
+    );
+
+    return {
+      ...matrixData,
+      dataPoints: filteredDataPoints,
+      skills: matrixData.skills.filter(skill => skills.includes(skill))
+    };
+  }
+
+  /**
+   * Apply client filter to matrix data
+   */
+  private static applyClientFilter(matrixData: DemandMatrixData, clients: string[]): DemandMatrixData {
+    const filteredDataPoints = matrixData.dataPoints.map(point => ({
+      ...point,
+      taskBreakdown: point.taskBreakdown?.filter(task =>
+        clients.includes(task.clientId)
+      ) || []
+    })).filter(point => point.taskBreakdown.length > 0);
+
+    return {
+      ...matrixData,
+      dataPoints: filteredDataPoints
+    };
+  }
+
+  /**
+   * Apply preferred staff filter to matrix data
+   */
+  private static applyPreferredStaffFilter(
+    matrixData: DemandMatrixData, 
+    preferredStaffFilter: NonNullable<DemandFilters['preferredStaff']>
   ): DemandMatrixData {
-    return DataFilter.optimizeFiltering(data, filters);
+    const { staffIds, includeUnassigned, showOnlyPreferred } = preferredStaffFilter;
+
+    const filteredDataPoints = matrixData.dataPoints.map(point => {
+      let filteredTaskBreakdown = point.taskBreakdown || [];
+
+      if (showOnlyPreferred) {
+        // Show only tasks with preferred staff assignments
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task =>
+          task.preferredStaff?.staffId
+        );
+      }
+
+      if (staffIds && staffIds.length > 0) {
+        // Filter by specific staff IDs
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const hasMatchingStaff = task.preferredStaff?.staffId && staffIds.includes(task.preferredStaff.staffId);
+          const isUnassigned = !task.preferredStaff?.staffId;
+          
+          return hasMatchingStaff || (includeUnassigned && isUnassigned);
+        });
+      } else if (!includeUnassigned) {
+        // If no specific staff IDs but not including unassigned, show only assigned tasks
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task =>
+          task.preferredStaff?.staffId
+        );
+      }
+
+      return {
+        ...point,
+        taskBreakdown: filteredTaskBreakdown
+      };
+    }).filter(point => point.taskBreakdown.length > 0);
+
+    return {
+      ...matrixData,
+      dataPoints: filteredDataPoints
+    };
   }
 
   /**
-   * Memory-efficient matrix transformation
-   * @deprecated Use DataProcessor.optimizeMatrixTransformation instead
+   * Apply time horizon filter to matrix data
    */
-  static optimizeMatrixTransformation(rawData: any[]): any[] {
-    return DataProcessor.optimizeMatrixTransformation(rawData);
+  private static applyTimeHorizonFilter(
+    matrixData: DemandMatrixData,
+    timeHorizon: { start: Date; end: Date }
+  ): DemandMatrixData {
+    const filteredMonths = matrixData.months.filter(month => {
+      const monthDate = new Date(month.key + '-01');
+      return monthDate >= timeHorizon.start && monthDate <= timeHorizon.end;
+    });
+
+    const filteredDataPoints = matrixData.dataPoints.filter(point =>
+      filteredMonths.some(month => month.key === point.month)
+    );
+
+    return {
+      ...matrixData,
+      months: filteredMonths,
+      dataPoints: filteredDataPoints
+    };
   }
 
   /**
-   * Intelligent cache management with LRU eviction
-   * @deprecated Use CacheManager.manageCacheSize instead
+   * Recalculate totals after filtering
    */
-  static manageCacheSize<T>(cache: Map<string, T>, maxSize: number = this.CACHE_SIZE_LIMIT): void {
-    CacheManager.manageCacheSize(cache, { maxSize });
-  }
+  private static recalculateTotals(matrixData: DemandMatrixData): DemandMatrixData {
+    const totalDemand = matrixData.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
+    const totalTasks = matrixData.dataPoints.reduce((sum, point) => sum + point.taskCount, 0);
+    
+    // Count unique clients across all data points
+    const uniqueClients = new Set<string>();
+    matrixData.dataPoints.forEach(point => {
+      point.taskBreakdown?.forEach(task => {
+        uniqueClients.add(task.clientId);
+      });
+    });
 
-  /**
-   * Performance monitoring and alerts
-   * @deprecated Use PerformanceMonitor.recordPerformance instead
-   */
-  static recordPerformance(operation: string, timeMs: number): void {
-    const monitor = new PerformanceMonitor();
-    monitor.recordPerformance(operation, timeMs);
-  }
-
-  /**
-   * Memory usage tracking
-   * @deprecated Use PerformanceMonitor.recordMemoryUsage instead
-   */
-  static recordMemoryUsage(deltaBytes: number): void {
-    const monitor = new PerformanceMonitor();
-    monitor.recordMemoryUsage(deltaBytes);
-  }
-
-  /**
-   * Get performance statistics
-   * @deprecated Use PerformanceMonitor.getPerformanceStats instead
-   */
-  static getPerformanceStats(): PerformanceStats {
-    return PerformanceMonitor.getPerformanceStats();
-  }
-
-  /**
-   * Clear performance data (for cleanup)
-   * @deprecated Use PerformanceMonitor.clearPerformanceData instead
-   */
-  static clearPerformanceData(): void {
-    PerformanceMonitor.clearPerformanceData();
+    return {
+      ...matrixData,
+      totalDemand,
+      totalTasks,
+      totalClients: uniqueClients.size
+    };
   }
 }

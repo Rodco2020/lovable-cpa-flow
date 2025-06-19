@@ -1,13 +1,93 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
 import { RecurringTaskDB, TaskPriority, TaskCategory, TaskStatus } from '@/types/task';
 import { DataValidator } from './dataValidator';
+import { startOfYear, addMonths, format } from 'date-fns';
 
 /**
  * Enhanced Data Fetcher Service with validation, error handling, skill resolution, and preferred staff support
  */
 export class DataFetcher {
+  /**
+   * Fetch forecast data for demand matrix generation
+   */
+  static async fetchForecastData(startDate: Date = startOfYear(new Date())): Promise<any[]> {
+    debugLog('Fetching forecast data for demand matrix generation', { startDate });
+
+    try {
+      // Generate 12 months of forecast periods starting from startDate
+      const forecastPeriods = Array.from({ length: 12 }, (_, index) => {
+        const periodDate = addMonths(startDate, index);
+        return {
+          period: format(periodDate, 'yyyy-MM'),
+          periodLabel: format(periodDate, 'MMM yyyy'),
+          demand: [],
+          capacity: [],
+          demandHours: 0,
+          capacityHours: 0
+        };
+      });
+
+      debugLog(`Generated ${forecastPeriods.length} forecast periods`);
+      return forecastPeriods;
+
+    } catch (error) {
+      console.error('Error fetching forecast data:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch recurring tasks for matrix generation
+   */
+  static async fetchRecurringTasks(): Promise<RecurringTaskDB[]> {
+    debugLog('Fetching recurring tasks for matrix generation');
+
+    try {
+      const { data, error } = await supabase
+        .from('recurring_tasks')
+        .select(`
+          *, 
+          clients!inner(id, legal_name, expected_monthly_revenue),
+          preferred_staff:staff!recurring_tasks_preferred_staff_id_fkey(id, full_name, role_title)
+        `)
+        .eq('is_active', true)
+        .range(0, 999);
+
+      if (error) {
+        console.error('Database query failed:', error);
+        throw new Error(`Database query failed: ${error.message}`);
+      }
+
+      if (!data) {
+        debugLog('No recurring tasks found in database');
+        return [];
+      }
+
+      debugLog(`Fetched ${data.length} recurring tasks from database`);
+
+      // Type-cast and validate the data
+      const typedData: RecurringTaskDB[] = data.map(task => ({
+        ...task,
+        priority: task.priority as TaskPriority,
+        category: task.category as TaskCategory,
+        status: task.status as TaskStatus,
+        preferred_staff: task.preferred_staff
+      }));
+
+      const { validTasks } = await DataValidator.validateRecurringTasks(typedData);
+      
+      debugLog(`Data validation complete: ${validTasks.length}/${typedData.length} tasks valid`);
+      return validTasks;
+
+    } catch (error) {
+      console.error('Error fetching recurring tasks:', error);
+      return [];
+    }
+  }
+
   /**
    * Fetch client-assigned tasks with comprehensive validation, error recovery, and preferred staff information
    */

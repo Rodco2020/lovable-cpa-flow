@@ -87,6 +87,13 @@ export class DemandMatrixService {
   }
 
   /**
+   * Get demand matrix cache key (for compatibility with existing code)
+   */
+  static getDemandMatrixCacheKey(forecastType: string, startDate: Date): string {
+    return `demand_matrix_${forecastType}_${startDate.toISOString().split('T')[0]}`;
+  }
+
+  /**
    * Enhanced cache management
    */
   private static buildCacheKey(forecastType: string, startDate: Date, filters?: DemandFilters): string {
