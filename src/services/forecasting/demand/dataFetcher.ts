@@ -6,31 +6,34 @@ import { RecurringTaskDB, TaskPriority, TaskCategory, TaskStatus } from '@/types
 import { DataValidator } from './dataValidator';
 
 /**
- * Enhanced Data Fetcher Service with validation, error handling, and skill resolution
+ * Enhanced Data Fetcher Service with validation, error handling, skill resolution, and preferred staff filtering
+ * Phase 1: Added preferred staff member filtering capabilities
  */
 export class DataFetcher {
   /**
-   * Fetch client-assigned tasks with comprehensive validation and error recovery
+   * Phase 1: Enhanced fetch client-assigned tasks with preferred staff filtering
    */
   static async fetchClientAssignedTasks(filters: DemandFilters = { 
     skills: [], 
     clients: [], 
     timeHorizon: { start: new Date(), end: new Date() } 
   }): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching client-assigned tasks with enhanced validation', { filters });
+    debugLog('Fetching client-assigned tasks with enhanced validation and preferred staff filtering', { filters });
 
     try {
-      // Build query with proper error handling
+      // Phase 1: Build query with preferred staff filtering support
       let query = supabase
         .from('recurring_tasks')
-        .select('*, clients!inner(id, legal_name, expected_monthly_revenue)')
+        .select(`
+          *, 
+          clients!inner(id, legal_name, expected_monthly_revenue),
+          staff(id, full_name)
+        `)
         .eq('is_active', true)
-        // Explicit range to avoid default 10 row limit in some environments
         .range(0, 999);
 
-      // Apply filters safely
+      // Apply client filters
       if (filters.clients && filters.clients.length > 0) {
-        // Validate client IDs
         const validClientIds = filters.clients.filter(id => 
           typeof id === 'string' && id.length > 0
         );
@@ -40,7 +43,19 @@ export class DataFetcher {
         }
       }
 
-      // Execute query with timeout and retry logic - REMOVED LIMIT
+      // Phase 1: NEW - Apply preferred staff filters
+      if (filters.preferredStaffIds && filters.preferredStaffIds.length > 0) {
+        const validStaffIds = filters.preferredStaffIds.filter(id => 
+          typeof id === 'string' && id.length > 0
+        );
+        
+        if (validStaffIds.length > 0) {
+          console.log(`🎯 [DataFetcher] Applying preferred staff filter for ${validStaffIds.length} staff members`);
+          query = query.in('preferred_staff_id', validStaffIds);
+        }
+      }
+
+      // Execute query with timeout and retry logic
       const { data, error } = await query;
 
       if (error) {
@@ -53,14 +68,16 @@ export class DataFetcher {
         return [];
       }
 
-      debugLog(`Fetched ${data.length} recurring tasks from database`);
+      debugLog(`Fetched ${data.length} recurring tasks from database (with preferred staff filter applied)`);
 
       // Type-cast the raw data to ensure proper typing
       const typedData: RecurringTaskDB[] = data.map(task => ({
         ...task,
         priority: task.priority as TaskPriority,
         category: task.category as TaskCategory,
-        status: task.status as TaskStatus
+        status: task.status as TaskStatus,
+        // Phase 1: Preserve preferred staff information
+        preferred_staff_name: task.staff?.full_name || null
       }));
 
       // Enhanced validation and cleaning with skill resolution
@@ -70,7 +87,6 @@ export class DataFetcher {
       if (invalidTasks.length > 0) {
         console.warn(`Data quality issues: ${invalidTasks.length}/${typedData.length} tasks excluded`);
         
-        // Group errors for better reporting
         const errorSummary = this.summarizeValidationErrors(invalidTasks);
         console.warn('Validation error summary:', errorSummary);
       }
@@ -78,6 +94,10 @@ export class DataFetcher {
       if (resolvedTasks.length > 0) {
         console.log(`Successfully resolved skill references for ${resolvedTasks.length} tasks`);
       }
+
+      // Phase 1: Log preferred staff filtering results
+      const tasksWithPreferredStaff = validTasks.filter(task => task.preferred_staff_id);
+      console.log(`✅ [DataFetcher] Filtering complete: ${validTasks.length} valid tasks, ${tasksWithPreferredStaff.length} with preferred staff assigned`);
 
       const successRate = ((validTasks.length / typedData.length) * 100).toFixed(1);
       debugLog(`Data validation complete: ${validTasks.length}/${typedData.length} tasks valid (${successRate}%)`);
@@ -87,7 +107,7 @@ export class DataFetcher {
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
       
-      // Instead of returning empty array, try a fallback approach
+      // Attempt fallback data fetch
       return this.attemptFallbackDataFetch();
     }
   }

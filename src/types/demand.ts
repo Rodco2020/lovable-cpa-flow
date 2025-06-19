@@ -1,3 +1,4 @@
+
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
@@ -29,6 +30,10 @@ export interface ClientTaskDemand {
   estimatedHours: number;
   recurrencePattern: RecurrencePattern;
   monthlyHours: number;
+  /** NEW: Preferred staff member ID for this task */
+  preferredStaffId?: string;
+  /** NEW: Preferred staff member name for this task */
+  preferredStaffName?: string;
   /** 
    * NEW: Suggested revenue for this specific task
    * Calculated using task hours × skill fee rate
@@ -93,6 +98,8 @@ export interface DemandMatrixData {
 export interface DemandFilters {
   skills: string[];
   clients: string[];
+  /** NEW: Phase 1 - Preferred Staff Member Filter */
+  preferredStaffIds?: string[];
   timeHorizon: {
     start: Date;
     end: Date;
