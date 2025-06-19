@@ -1,9 +1,9 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
 import { RecurringTaskDB, TaskPriority, TaskCategory, TaskStatus } from '@/types/task';
 import { DataValidator } from './dataValidator';
+import { SkillResolutionService } from './skillResolutionService';
 import { startOfYear, addMonths, format } from 'date-fns';
 
 /**
@@ -40,10 +40,10 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch recurring tasks for matrix generation
+   * Fetch recurring tasks for matrix generation with skill resolution
    */
   static async fetchRecurringTasks(): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching recurring tasks for matrix generation');
+    debugLog('Fetching recurring tasks with skill resolution for matrix generation');
 
     try {
       const { data, error } = await supabase
@@ -77,14 +77,67 @@ export class DataFetcher {
         preferred_staff: task.preferred_staff
       }));
 
+      // Apply validation and skill resolution
       const { validTasks } = await DataValidator.validateRecurringTasks(typedData);
       
-      debugLog(`Data validation complete: ${validTasks.length}/${typedData.length} tasks valid`);
-      return validTasks;
+      // Now resolve skills for all valid tasks
+      const tasksWithResolvedSkills = await this.resolveTaskSkills(validTasks);
+      
+      debugLog(`Data validation and skill resolution complete: ${tasksWithResolvedSkills.length}/${typedData.length} tasks processed`);
+      return tasksWithResolvedSkills;
 
     } catch (error) {
       console.error('Error fetching recurring tasks:', error);
       return [];
+    }
+  }
+
+  /**
+   * Resolve skill UUIDs to names for tasks
+   */
+  private static async resolveTaskSkills(tasks: RecurringTaskDB[]): Promise<RecurringTaskDB[]> {
+    try {
+      debugLog('Starting skill resolution for tasks...');
+
+      const resolvedTasks = await Promise.all(
+        tasks.map(async (task) => {
+          if (!Array.isArray(task.required_skills) || task.required_skills.length === 0) {
+            return task; // No skills to resolve
+          }
+
+          try {
+            // Get the resolved skill names
+            const resolvedSkillNames = await SkillResolutionService.getSkillNames(task.required_skills);
+            
+            // Create resolved task with updated skills
+            const resolvedTask = {
+              ...task,
+              required_skills: resolvedSkillNames,
+              // Keep original UUIDs for reference if needed
+              _original_skill_ids: task.required_skills
+            };
+
+            return resolvedTask;
+
+          } catch (skillError) {
+            console.warn(`Could not resolve skills for task ${task.id}:`, skillError);
+            // Return task with original skills as fallback
+            return task;
+          }
+        })
+      );
+
+      const resolvedCount = resolvedTasks.filter(task => 
+        task._original_skill_ids && task._original_skill_ids.length > 0
+      ).length;
+
+      debugLog(`Skill resolution completed: ${resolvedCount}/${tasks.length} tasks had skills resolved`);
+      
+      return resolvedTasks;
+
+    } catch (error) {
+      console.error('Error in skill resolution process:', error);
+      return tasks; // Return original tasks as fallback
     }
   }
 
@@ -149,7 +202,10 @@ export class DataFetcher {
       }));
 
       // Enhanced validation and cleaning with skill resolution
-      const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(typedData);
+      const { validTasks, invalidTasks } = await DataValidator.validateRecurringTasks(typedData);
+
+      // Apply skill resolution to valid tasks
+      const resolvedTasks = await this.resolveTaskSkills(validTasks);
 
       // Provide detailed feedback about data quality
       if (invalidTasks.length > 0) {
@@ -160,14 +216,10 @@ export class DataFetcher {
         console.warn('Validation error summary:', errorSummary);
       }
 
-      if (resolvedTasks.length > 0) {
-        console.log(`Successfully resolved skill references for ${resolvedTasks.length} tasks`);
-      }
-
-      const successRate = ((validTasks.length / typedData.length) * 100).toFixed(1);
-      debugLog(`Data validation complete: ${validTasks.length}/${typedData.length} tasks valid (${successRate}%)`);
+      const successRate = ((resolvedTasks.length / typedData.length) * 100).toFixed(1);
+      debugLog(`Data validation and skill resolution complete: ${resolvedTasks.length}/${typedData.length} tasks valid (${successRate}%)`);
       
-      return validTasks;
+      return resolvedTasks;
 
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
@@ -217,8 +269,11 @@ export class DataFetcher {
           preferred_staff: task.preferred_staff
         }));
 
-      console.log(`Fallback fetch recovered ${fallbackTasks.length} tasks`);
-      return fallbackTasks;
+      // Apply skill resolution even in fallback
+      const resolvedFallbackTasks = await this.resolveTaskSkills(fallbackTasks);
+
+      console.log(`Fallback fetch with skill resolution recovered ${resolvedFallbackTasks.length} tasks`);
+      return resolvedFallbackTasks;
 
     } catch (fallbackError) {
       console.error('Fallback data fetch failed:', fallbackError);
@@ -251,33 +306,15 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch available skills with validation
+   * Fetch available skills with validation and resolution
    */
   static async fetchAvailableSkills(): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('skills')
-        .select('id, name')
-        .order('name')
-        .range(0, 999);
-
-      if (error) {
-        console.error('Error fetching skills:', error);
-        return [];
-      }
-
-      if (!Array.isArray(data)) {
-        console.warn('Skills data is not an array');
-        return [];
-      }
-
-      // Validate and extract skill names
-      const validSkills = data
-        .filter(skill => skill && typeof skill.name === 'string' && skill.name.trim().length > 0)
-        .map(skill => skill.name.trim());
-
-      debugLog(`Fetched ${validSkills.length} valid skills`);
-      return validSkills;
+      // Use the skill resolution service to get all skill names
+      const skillNames = await SkillResolutionService.getAllSkillNames();
+      
+      debugLog(`Fetched ${skillNames.length} available skills via resolution service`);
+      return skillNames;
 
     } catch (error) {
       console.error('Error fetching skills:', error);
