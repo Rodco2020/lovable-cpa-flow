@@ -294,3 +294,78 @@ export interface EnhancedTransformationInput extends TransformationInput {
   }>;
   preferredStaffResolutionContext: StaffResolutionContext;
 }
+
+/**
+ * NEW: Missing type exports that were causing TypeScript errors
+ */
+
+export interface MatrixTotals {
+  totalDemand: number;
+  totalTasks: number;
+  totalClients: number;
+}
+
+export interface SkillSummary {
+  [key: string]: {
+    totalHours: number;
+    taskCount: number;
+    clientCount: number;
+    /**
+     * NEW: Optional preferred staff summary for skills
+     */
+    preferredStaffSummary?: {
+      totalTasksWithPreferredStaff: number;
+      uniquePreferredStaff: number;
+      topPreferredStaff: Array<{
+        staffId: string;
+        staffName: string;
+        taskCount: number;
+        totalHours: number;
+      }>;
+    };
+  };
+}
+
+export interface SkillMappingResult {
+  skills: string[];
+  skillMapping: Map<string, string>;
+}
+
+export interface DataPointGenerationContext {
+  forecastData: any[];
+  tasks: RecurringTaskDB[];
+  skills: string[];
+  skillMapping: Map<string, string>;
+}
+
+export interface RevenueEnhancedDataPointContext extends DataPointGenerationContext {
+  revenueContext?: {
+    includeRevenueCalculations: boolean;
+    skillFeeRates: Map<string, number>;
+    clientRevenueData: Map<string, any>;
+    useClientExpectedRevenue: boolean;
+  };
+  revenueCalculationConfig?: {
+    enabled: boolean;
+    useSkillFeeRates: boolean;
+    useClientExpectedRevenue: boolean;
+    fallbackToDefaultRates: boolean;
+    includeProfitabilityAnalysis: boolean;
+    cacheResults: boolean;
+    batchSize: number;
+  };
+}
+
+export interface MatrixRevenueCalculationResult {
+  clientSuggestedRevenue: Map<string, number>;
+  clientExpectedLessSuggested: Map<string, number>;
+  totalSuggestedRevenue: number;
+  totalExpectedRevenue: number;
+  totalExpectedLessSuggested: number;
+  calculationMetadata: {
+    processingTime: number;
+    clientsProcessed: number;
+    errorsEncountered: number;
+    fallbackRatesUsed: number;
+  };
+}

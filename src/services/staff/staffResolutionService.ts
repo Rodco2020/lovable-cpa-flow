@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../forecasting/logger';
 
@@ -67,15 +66,14 @@ export class StaffResolutionService {
       let query = supabase
         .from('staff')
         .select('id, full_name, role_title, assigned_skills, cost_per_hour, status')
-        .eq('id', staffId)
-        .single();
+        .eq('id', staffId);
 
       // Filter by status unless including inactive staff
       if (!options.includeInactiveStaff) {
         query = query.eq('status', 'active');
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.single();
 
       if (error) {
         console.error('Error resolving staff by ID:', error);
