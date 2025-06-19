@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/context/AuthContext';
+import { SupabaseProvider } from '@/contexts/SupabaseContext';
 import PrivateRoute from '@/components/auth/PrivateRoute';
 import MainLayout from '@/layouts/MainLayout';
 
@@ -29,40 +30,42 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  console.log('🚀 [App] Application initializing');
+  console.log('🚀 [App] Application initializing with enhanced auth and RLS support');
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public auth routes */}
-            <Route path="/auth/*" element={<Auth />} />
-            
-            {/* Protected routes with layout */}
-            <Route path="/" element={
-              <PrivateRoute>
-                <MainLayout />
-              </PrivateRoute>
-            }>
-              <Route index element={<Index />} />
-              <Route path="dashboard" element={<DashboardModule />} />
-              <Route path="clients/*" element={<ClientModule />} />
-              <Route path="tasks/*" element={<TaskModule />} />
-              <Route path="staff/*" element={<StaffModule />} />
-              <Route path="skills/*" element={<SkillsModule />} />
-              <Route path="scheduler/*" element={<SchedulerModule />} />
-              <Route path="forecasting/*" element={<ForecastingModule />} />
-              <Route path="reports/*" element={<ReportsModule />} />
-            </Route>
-            
-            {/* 404 fallback */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Router>
-        <Toaster />
-      </AuthProvider>
-    </QueryClientProvider>
+    <SupabaseProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              {/* Public auth routes */}
+              <Route path="/auth/*" element={<Auth />} />
+              
+              {/* Protected routes with layout */}
+              <Route path="/" element={
+                <PrivateRoute>
+                  <MainLayout />
+                </PrivateRoute>
+              }>
+                <Route index element={<Index />} />
+                <Route path="dashboard" element={<DashboardModule />} />
+                <Route path="clients/*" element={<ClientModule />} />
+                <Route path="tasks/*" element={<TaskModule />} />
+                <Route path="staff/*" element={<StaffModule />} />
+                <Route path="skills/*" element={<SkillsModule />} />
+                <Route path="scheduler/*" element={<SchedulerModule />} />
+                <Route path="forecasting/*" element={<ForecastingModule />} />
+                <Route path="reports/*" element={<ReportsModule />} />
+              </Route>
+              
+              {/* 404 fallback */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+          <Toaster />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SupabaseProvider>
   );
 }
 

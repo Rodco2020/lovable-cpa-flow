@@ -3,11 +3,9 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import PageShell from '@/components/layout/PageShell';
 
-/**
- * Main layout component that wraps all pages
- * Uses PageShell for sidebar and header, and Outlet from react-router for nested routes
- */
 const MainLayout: React.FC = () => {
+  console.log('🏗️ [MainLayout] Rendering layout');
+  
   return (
     <PageShell>
       <Outlet />

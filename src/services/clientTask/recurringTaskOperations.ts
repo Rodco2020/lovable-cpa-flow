@@ -1,4 +1,3 @@
-
 /**
  * Client Task Service - Recurring Task Operations
  * 
@@ -9,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { RecurringTask } from '@/types/task';
 import { mapDatabaseToRecurringTask, mapRecurringTaskToDatabase } from './mappers';
 import { validateStaffExists } from './staffValidationService';
+import { debugAuthAndRLS, logOperationWithRLSContext } from './debugUtils';
 
 /**
  * Enhanced SQL execution logging for database operations
@@ -24,14 +24,17 @@ const logSQLOperation = (operation: string, table: string, data: any, conditions
 };
 
 /**
- * Get a recurring task by ID
+ * Get a recurring task by ID with enhanced RLS debugging
  */
 export const getRecurringTaskById = async (taskId: string): Promise<RecurringTask | null> => {
   try {
-    console.log('🔍 [getRecurringTaskById] PHASE 3 - Fetching task:', {
+    console.log('🔍 [getRecurringTaskById] PHASE 4 - Starting with RLS debugging:', {
       taskId,
       timestamp: new Date().toISOString()
     });
+
+    // Enhanced RLS debugging
+    await logOperationWithRLSContext('getRecurringTaskById', { taskId });
 
     logSQLOperation('SELECT', 'recurring_tasks', '*', { id: taskId });
 
@@ -43,14 +46,27 @@ export const getRecurringTaskById = async (taskId: string): Promise<RecurringTas
       
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log('ℹ️ [getRecurringTaskById] PHASE 3 - No task found:', {
+        console.log('ℹ️ [getRecurringTaskById] PHASE 4 - No task found:', {
           taskId,
           error: error.code,
           timestamp: new Date().toISOString()
         });
         return null;
       }
-      console.error('❌ [getRecurringTaskById] PHASE 3 - Database error:', {
+      
+      // Enhanced error logging for RLS issues
+      if (error.code === 'PGRST301' || error.message?.includes('row-level security')) {
+        console.error('🔒 [getRecurringTaskById] PHASE 4 - RLS policy blocked access:', {
+          taskId,
+          error,
+          errorCode: error.code,
+          errorMessage: error.message,
+          timestamp: new Date().toISOString()
+        });
+        await debugAuthAndRLS('getRecurringTaskById_rls_error');
+      }
+      
+      console.error('❌ [getRecurringTaskById] PHASE 4 - Database error:', {
         taskId,
         error,
         timestamp: new Date().toISOString()
@@ -58,7 +74,7 @@ export const getRecurringTaskById = async (taskId: string): Promise<RecurringTas
       throw error;
     }
 
-    console.log('📋 [getRecurringTaskById] PHASE 3 - Raw database response:', {
+    console.log('📋 [getRecurringTaskById] PHASE 4 - Raw database response:', {
       taskId,
       dbData: data,
       preferredStaffId: data.preferred_staff_id,
@@ -68,7 +84,7 @@ export const getRecurringTaskById = async (taskId: string): Promise<RecurringTas
     
     const mappedTask = mapDatabaseToRecurringTask(data);
     
-    console.log('✅ [getRecurringTaskById] PHASE 3 - Task retrieval completed:', {
+    console.log('✅ [getRecurringTaskById] PHASE 4 - Task retrieval completed successfully:', {
       taskId,
       mappedTask,
       preferredStaffId: mappedTask.preferredStaffId,
@@ -78,7 +94,7 @@ export const getRecurringTaskById = async (taskId: string): Promise<RecurringTas
     
     return mappedTask;
   } catch (error) {
-    console.error('💥 [getRecurringTaskById] PHASE 3 - Unexpected error:', {
+    console.error('💥 [getRecurringTaskById] PHASE 4 - Unexpected error:', {
       taskId,
       error,
       timestamp: new Date().toISOString()
@@ -235,7 +251,7 @@ export const updateRecurringTask = async (
   updates: Partial<RecurringTask>
 ): Promise<RecurringTask | null> => {
   try {
-    console.log('🔄 [updateRecurringTask] PHASE 4 - Starting enhanced update operation:', {
+    console.log('🔄 [updateRecurringTask] PHASE 5 - Starting enhanced update with RLS debugging:', {
       taskId,
       updates,
       preferredStaffId: updates.preferredStaffId,
@@ -244,9 +260,12 @@ export const updateRecurringTask = async (
       timestamp: new Date().toISOString()
     });
 
-    // PHASE 4: Validate preferred staff exists before attempting update
+    // Enhanced RLS debugging before operation
+    await logOperationWithRLSContext('updateRecurringTask', { taskId, updates });
+
+    // PHASE 5: Validate preferred staff exists before attempting update
     if ('preferredStaffId' in updates) {
-      console.log('🔍 [updateRecurringTask] PHASE 4 - Validating preferred staff:', {
+      console.log('🔍 [updateRecurringTask] PHASE 5 - Validating preferred staff:', {
         taskId,
         preferredStaffId: updates.preferredStaffId,
         timestamp: new Date().toISOString()
@@ -255,7 +274,7 @@ export const updateRecurringTask = async (
       const staffValidation = await validateStaffExists(updates.preferredStaffId);
       
       if (!staffValidation.isValid) {
-        console.error('❌ [updateRecurringTask] PHASE 4 - Staff validation failed:', {
+        console.error('❌ [updateRecurringTask] PHASE 5 - Staff validation failed:', {
           taskId,
           preferredStaffId: updates.preferredStaffId,
           validationError: staffValidation.error,
@@ -264,7 +283,7 @@ export const updateRecurringTask = async (
         throw new Error(`Invalid preferred staff: ${staffValidation.error || 'Validation failed'}`);
       }
 
-      console.log('✅ [updateRecurringTask] PHASE 4 - Staff validation passed:', {
+      console.log('✅ [updateRecurringTask] PHASE 5 - Staff validation passed:', {
         taskId,
         preferredStaffId: updates.preferredStaffId,
         staffName: staffValidation.staffName,
@@ -275,7 +294,7 @@ export const updateRecurringTask = async (
     // Map application data to database format
     const dbUpdates = mapRecurringTaskToDatabase(updates);
     
-    console.log('🗂️ [updateRecurringTask] PHASE 4 - Database updates prepared:', {
+    console.log('🗂️ [updateRecurringTask] PHASE 5 - Database updates prepared:', {
       taskId,
       dbUpdates,
       preferredStaffId: dbUpdates.preferred_staff_id,
@@ -284,22 +303,10 @@ export const updateRecurringTask = async (
       timestamp: new Date().toISOString()
     });
 
-    // PHASE 4: Enhanced pre-update logging - log exact object being sent to Supabase
-    console.log('📤 [updateRecurringTask] PHASE 4 - EXACT Supabase update payload:', {
-      taskId,
-      table: 'recurring_tasks',
-      updatePayload: JSON.stringify(dbUpdates, null, 2),
-      updateKeys: Object.keys(dbUpdates),
-      containsPreferredStaffId: 'preferred_staff_id' in dbUpdates,
-      preferredStaffIdValue: dbUpdates.preferred_staff_id,
-      sqlCondition: `id = '${taskId}'`,
-      timestamp: new Date().toISOString()
-    });
-    
     // Log the exact SQL operation being performed
     logSQLOperation('UPDATE', 'recurring_tasks', dbUpdates, { id: taskId });
     
-    console.log('📤 [updateRecurringTask] PHASE 4 - Executing database update:', {
+    console.log('📤 [updateRecurringTask] PHASE 5 - Executing database update with RLS:', {
       taskId,
       table: 'recurring_tasks',
       updateData: dbUpdates,
@@ -315,7 +322,21 @@ export const updateRecurringTask = async (
       .single();
       
     if (error) {
-      console.error('❌ [updateRecurringTask] PHASE 4 - Database update failed:', {
+      // Enhanced RLS error handling
+      if (error.code === 'PGRST301' || error.message?.includes('row-level security')) {
+        console.error('🔒 [updateRecurringTask] PHASE 5 - RLS policy blocked update:', {
+          taskId,
+          error,
+          errorCode: error.code,
+          errorMessage: error.message,
+          dbUpdates,
+          timestamp: new Date().toISOString()
+        });
+        await debugAuthAndRLS('updateRecurringTask_rls_error');
+        throw new Error(`Access denied: Unable to update task. Please ensure you are properly authenticated and have permission to modify this task.`);
+      }
+      
+      console.error('❌ [updateRecurringTask] PHASE 5 - Database update failed:', {
         taskId,
         error,
         dbUpdates,
@@ -326,7 +347,7 @@ export const updateRecurringTask = async (
       throw new Error(`Database update failed: ${error.message}`);
     }
 
-    console.log('📋 [updateRecurringTask] PHASE 4 - Database update successful - raw response:', {
+    console.log('📋 [updateRecurringTask] PHASE 5 - Database update successful - raw response:', {
       taskId,
       dbResponse: data,
       preferredStaffId: data.preferred_staff_id,
@@ -335,13 +356,13 @@ export const updateRecurringTask = async (
       timestamp: new Date().toISOString()
     });
 
-    // PHASE 4: Enhanced persistence verification with re-fetch sanity check
-    console.log('🔍 [updateRecurringTask] PHASE 4 - Starting comprehensive persistence verification...');
+    // Enhanced persistence verification
+    console.log('🔍 [updateRecurringTask] PHASE 5 - Starting comprehensive persistence verification...');
     
     const persistenceVerified = await verifyUpdatePersistence(taskId, dbUpdates);
     
     if (!persistenceVerified) {
-      console.error('💥 [updateRecurringTask] PHASE 4 - CRITICAL: Persistence verification failed!', {
+      console.error('💥 [updateRecurringTask] PHASE 5 - CRITICAL: Persistence verification failed!', {
         taskId,
         dbUpdates,
         timestamp: new Date().toISOString()
@@ -349,13 +370,13 @@ export const updateRecurringTask = async (
       throw new Error('Critical persistence verification failed - data may not have been saved correctly');
     }
 
-    // PHASE 4: Additional focused verification for preferred_staff_id
+    // Additional focused verification for preferred_staff_id
     if ('preferred_staff_id' in dbUpdates) {
       const expectedValue = dbUpdates.preferred_staff_id;
       const actualValue = data.preferred_staff_id;
       const persistenceVerified = expectedValue === actualValue;
 
-      console.log('🔍 [updateRecurringTask] PHASE 4 - Focused preferred_staff_id verification:', {
+      console.log('🔍 [updateRecurringTask] PHASE 5 - Focused preferred_staff_id verification:', {
         taskId,
         expectedPreferredStaffId: expectedValue,
         actualPreferredStaffId: actualValue,
@@ -367,7 +388,7 @@ export const updateRecurringTask = async (
       });
 
       if (!persistenceVerified) {
-        console.error('💥 [updateRecurringTask] PHASE 4 - Preferred staff persistence verification failed!', {
+        console.error('💥 [updateRecurringTask] PHASE 5 - Preferred staff persistence verification failed!', {
           taskId,
           expected: expectedValue,
           actual: actualValue,
@@ -376,7 +397,7 @@ export const updateRecurringTask = async (
         throw new Error(`Preferred staff persistence verification failed: expected ${expectedValue}, got ${actualValue}`);
       }
 
-      console.log('✅ [updateRecurringTask] PHASE 4 - Preferred staff persistence verified successfully!', {
+      console.log('✅ [updateRecurringTask] PHASE 5 - Preferred staff persistence verified successfully!', {
         taskId,
         preferredStaffId: actualValue,
         timestamp: new Date().toISOString()
@@ -385,7 +406,7 @@ export const updateRecurringTask = async (
     
     const mappedResult = mapDatabaseToRecurringTask(data);
     
-    console.log('✅ [updateRecurringTask] PHASE 4 - Update operation completed successfully:', {
+    console.log('✅ [updateRecurringTask] PHASE 5 - Update operation completed successfully with RLS:', {
       taskId,
       mappedResult,
       preferredStaffId: mappedResult.preferredStaffId,
@@ -397,7 +418,7 @@ export const updateRecurringTask = async (
     
     return mappedResult;
   } catch (error) {
-    console.error('💥 [updateRecurringTask] PHASE 4 - Update operation failed:', {
+    console.error('💥 [updateRecurringTask] PHASE 5 - Update operation failed:', {
       taskId,
       error,
       updates,
