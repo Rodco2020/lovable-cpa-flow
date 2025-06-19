@@ -1,99 +1,100 @@
+export type TaskPriority = 'Urgent' | 'High' | 'Medium' | 'Low';
+export type TaskCategory = 'Client Work' | 'Internal' | 'Admin' | 'Sales' | 'Other';
+export type TaskStatus = 'Unscheduled' | 'Scheduled' | 'In Progress' | 'Completed' | 'Blocked' | 'Cancelled';
 
-export type SkillType = string;
-export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
-export type TaskCategory = "Tax" | "Audit" | "Advisory" | "Compliance" | "Bookkeeping" | "Other";
-export type TaskStatus = "Unscheduled" | "Scheduled" | "In Progress" | "Completed" | "Canceled";
-
-// Recurrence patterns for recurring tasks
-export type RecurrencePattern = {
-  type: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Annually" | "Custom";
-  interval?: number; // Every X days/weeks/months/etc.
-  weekdays?: number[]; // 0-6, where 0 is Sunday
-  dayOfMonth?: number; // 1-31
-  monthOfYear?: number; // 1-12
-  endDate?: Date | null;
-  customOffsetDays?: number; // For custom patterns (e.g., X days after month-end)
-};
-
-// Task Template definition
-export interface TaskTemplate {
+export interface Task {
   id: string;
   name: string;
-  description: string;
-  defaultEstimatedHours: number;
-  requiredSkills: SkillType[];
-  defaultPriority: TaskPriority;
+  description?: string;
+  estimatedHours: number;
+  requiredSkills: string[];
+  priority: TaskPriority;
   category: TaskCategory;
-  isArchived: boolean;
+  status: TaskStatus;
+  dueDate?: Date | null;
+  clientId?: string;
+  staffId?: string;
   createdAt: Date;
   updatedAt: Date;
-  version: number;
 }
 
-// Base task interface (shared properties)
-export interface BaseTask {
+export interface TaskInstance {
   id: string;
-  templateId: string;
+  name: string;
+  description?: string;
+  estimatedHours: number;
+  requiredSkills: string[];
+  priority: TaskPriority;
+  category: TaskCategory;
+  status: TaskStatus;
+  dueDate?: Date | null;
+  clientId?: string;
+  staffId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  recurringTaskId: string;
+}
+
+export interface RecurringTask {
+  id: string;
   clientId: string;
   name: string;
-  description: string;
+  description?: string;
   estimatedHours: number;
-  requiredSkills: SkillType[];
+  requiredSkills: string[];
   priority: TaskPriority;
   category: TaskCategory;
   status: TaskStatus;
-  dueDate: Date | null;
+  recurrenceType: string;
+  recurrenceInterval?: number;
+  nextDueDate?: Date | null;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  notes?: string;
-  preferredStaffId?: string | null; // Add preferred staff field
+  preferredStaffId?: string;
 }
 
-// Database-level recurring task (matches actual database schema)
 export interface RecurringTaskDB {
   id: string;
-  template_id: string;
   client_id: string;
   name: string;
-  description: string | null;
+  description?: string;
   estimated_hours: number;
-  required_skills: SkillType[];
+  required_skills: string[];
   priority: TaskPriority;
   category: TaskCategory;
   status: TaskStatus;
-  due_date: string | null;
   recurrence_type: string;
-  recurrence_interval: number | null;
-  weekdays: number[] | null;
-  day_of_month: number | null;
-  month_of_year: number | null;
-  end_date: string | null;
-  custom_offset_days: number | null;
-  last_generated_date: string | null;
+  recurrence_interval?: number;
+  next_due_date?: string;
   is_active: boolean;
-  preferred_staff_id: string | null; // Add preferred staff field
   created_at: string;
   updated_at: string;
-  notes: string | null;
-  // Join data from clients table
+  preferred_staff_id?: string;
+  preferred_staff_name?: string; // Added this property
   clients?: {
     id: string;
     legal_name: string;
+    expected_monthly_revenue?: number;
+  };
+  staff?: {
+    id: string;
+    full_name: string;
   };
 }
 
-// Client-assigned recurring task (application-level interface)
-export interface RecurringTask extends BaseTask {
-  recurrencePattern: RecurrencePattern;
-  lastGeneratedDate: Date | null;
-  isActive: boolean;
+export interface TaskFilter {
+  skill?: string;
+  client?: string;
+  taskName?: string;
+  dueDate?: Date;
+  priority?: string;
+  category?: string;
+  status?: string;
 }
 
-// Individual task instance (can be from recurring or ad-hoc)
-export interface TaskInstance extends BaseTask {
-  recurringTaskId?: string; // If generated from a recurring task
-  completedAt?: Date;
-  assignedStaffId?: string;
-  scheduledStartTime?: Date;
-  scheduledEndTime?: Date;
+export interface TaskBreakdownItem {
+  task: RecurringTaskDB;
+  monthlyHours: number;
+  suggestedRevenue?: number;
 }
