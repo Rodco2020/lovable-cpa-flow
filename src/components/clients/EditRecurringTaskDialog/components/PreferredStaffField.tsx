@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
@@ -15,23 +16,13 @@ interface PreferredStaffFieldProps {
 }
 
 /**
- * Simplified Preferred Staff Field Component
- * 
- * Uses React-Hook-Form Controller for direct form binding without complex value normalization.
- * Handles null values directly in the Select component for cleaner state management.
- * 
- * Form Value Logic:
- * - null = "No preference" (automatic assignment)
- * - string UUID = Specific staff member selection
- * 
- * Select Value Logic:
- * - "no-preference" = "No preference" option (fixes Radix UI empty string error)
- * - string UUID = Staff member option
+ * Simplified Preferred Staff Field Component with Enhanced Error Handling
  */
 export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }) => {
   const [retryAttempts, setRetryAttempts] = React.useState(0);
+  const [isFieldReady, setIsFieldReady] = React.useState(false);
 
-  // Fetch active staff members with enhanced error handling and caching
+  // Fetch active staff members with enhanced error handling
   const { 
     data: staffOptions = [], 
     isLoading, 
@@ -44,33 +35,73 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
     staleTime: 5 * 60 * 1000, // 5 minutes cache
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: (failureCount) => failureCount < 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  /**
-   * Retry handler for network failures
-   */
-  const handleRetry = async () => {
+  // Initialize field readiness after data loads
+  React.useEffect(() => {
+    if (!isLoading && !error) {
+      setIsFieldReady(true);
+    }
+  }, [isLoading, error]);
+
+  const handleRetry = React.useCallback(async () => {
     setRetryAttempts(prev => prev + 1);
     await refetch();
-  };
+  }, [refetch]);
 
-  /**
-   * Gets staff display name by ID
-   */
-  const getStaffName = (staffId: string | null): string | null => {
+  const getStaffName = React.useCallback((staffId: string | null): string | null => {
     if (!staffId) return null;
     const staff = staffOptions.find(s => s.id === staffId);
     return staff?.full_name || null;
-  };
+  }, [staffOptions]);
 
-  /**
-   * Validates if staff ID exists in current options
-   */
-  const isValidStaffId = (staffId: string | null): boolean => {
-    if (staffId === null) return true; // null is always valid (no preference)
+  const isValidStaffId = React.useCallback((staffId: string | null): boolean => {
+    if (staffId === null) return true;
     return staffOptions.some(staff => staff.id === staffId);
-  };
+  }, [staffOptions]);
+
+  // Show loading state while initializing
+  if (!isFieldReady && isLoading) {
+    return (
+      <FormItem>
+        <FormLabel>Preferred Staff Member (Optional)</FormLabel>
+        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading staff options...</span>
+        </div>
+      </FormItem>
+    );
+  }
+
+  // Show error state if data failed to load
+  if (error && !isFieldReady) {
+    return (
+      <FormItem>
+        <FormLabel>Preferred Staff Member (Optional)</FormLabel>
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>Failed to load staff data: {error.message}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              disabled={isRefetching}
+            >
+              {isRefetching ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <RotateCcw className="h-3 w-3 mr-1" />
+              )}
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </FormItem>
+    );
+  }
 
   return (
     <Controller
@@ -81,64 +112,27 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
         const selectedStaffName = getStaffName(currentValue);
         const isValidSelection = isValidStaffId(currentValue);
 
-        // Debug logging for form state tracking
-        console.log('🔍 [PreferredStaffField] Form state debug:', {
-          fieldValue: field.value,
-          fieldValueType: typeof field.value,
-          selectedStaffName,
-          isValidSelection,
-          staffOptionsCount: staffOptions.length,
-          timestamp: new Date().toISOString()
-        });
-
         // Auto-recovery for invalid selections
         React.useEffect(() => {
-          if (!isLoading && currentValue !== null && !isValidSelection) {
+          if (currentValue !== null && !isValidSelection && staffOptions.length > 0) {
             console.log('⚠️ [PreferredStaffField] Auto-recovering invalid selection:', {
               invalidValue: currentValue,
-              resettingToNull: true,
-              timestamp: new Date().toISOString()
+              resettingToNull: true
             });
             field.onChange(null);
           }
-        }, [currentValue, isValidSelection, isLoading, field]);
+        }, [currentValue, isValidSelection, staffOptions.length, field]);
 
         return (
           <FormItem>
             <FormLabel className="flex items-center gap-2">
               Preferred Staff Member (Optional)
-              {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
               {selectedStaffName && (
                 <span className="text-xs text-green-600 font-normal">
                   ✓ {selectedStaffName} selected
                 </span>
               )}
             </FormLabel>
-
-            {/* Error state with retry functionality */}
-            {error && (
-              <Alert variant="destructive" className="mb-2">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="flex items-center justify-between">
-                  <span>Failed to load staff data: {error.message}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRetry}
-                    disabled={isRefetching}
-                    className="ml-2"
-                  >
-                    {isRefetching ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <RotateCcw className="h-3 w-3 mr-1" />
-                    )}
-                    Retry
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
 
             {/* Validation error feedback */}
             {!isValidSelection && currentValue !== null && (
@@ -163,16 +157,13 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               onValueChange={(value) => {
                 console.log('📝 [PreferredStaffField] Select onChange:', {
                   selectedValue: value,
-                  selectedValueType: typeof value,
-                  willSetFormTo: value === "no-preference" ? null : value,
-                  timestamp: new Date().toISOString()
+                  willSetFormTo: value === "no-preference" ? null : value
                 });
                 
-                // Convert "no-preference" to null, keep UUIDs as strings
                 const formValue = value === "no-preference" ? null : value;
                 field.onChange(formValue);
               }}
-              value={currentValue || "no-preference"} // Convert null to "no-preference" for Select
+              value={currentValue || "no-preference"}
               disabled={isLoading || !!error}
             >
               <FormControl>
@@ -182,13 +173,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
                   ${selectedStaffName ? 'border-green-500' : ''}
                 `}>
                   <SelectValue 
-                    placeholder={
-                      isLoading 
-                        ? "Loading staff..." 
-                        : error 
-                        ? "Failed to load staff" 
-                        : "Select preferred staff member"
-                    } 
+                    placeholder="Select preferred staff member"
                   />
                 </SelectTrigger>
               </FormControl>
@@ -219,40 +204,20 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               </SelectContent>
             </Select>
 
-            {/* Help text and status feedback */}
-            <div className="text-xs text-muted-foreground mt-1 space-y-1">
+            <div className="text-xs text-muted-foreground mt-1">
               <p>Select a staff member to handle this task, or choose "No preference" for automatic assignment.</p>
               
-              {isLoading && (
-                <p className="text-blue-600 flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading available staff members...
-                </p>
-              )}
-              
               {retryAttempts > 0 && !error && (
-                <p className="text-green-600">
+                <p className="text-green-600 mt-1">
                   ✓ Reconnected after {retryAttempts} attempt{retryAttempts > 1 ? 's' : ''}
                 </p>
               )}
               
               {currentValue && isValidSelection && selectedStaffName && (
-                <p className="text-green-600">
+                <p className="text-green-600 mt-1">
                   ✓ {selectedStaffName} will be preferred for this task
                 </p>
               )}
-
-              {/* Debug information */}
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground">Debug Info</summary>
-                <div className="mt-1 p-2 bg-muted rounded text-xs">
-                  <p>Form Value: {JSON.stringify(currentValue)}</p>
-                  <p>Form Value Type: {typeof currentValue}</p>
-                  <p>Select Value: {JSON.stringify(currentValue || "no-preference")}</p>
-                  <p>Valid Selection: {isValidSelection.toString()}</p>
-                  <p>Staff Options Count: {staffOptions.length}</p>
-                </div>
-              </details>
             </div>
 
             <FormMessage />
