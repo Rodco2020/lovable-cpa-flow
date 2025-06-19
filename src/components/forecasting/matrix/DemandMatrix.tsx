@@ -123,22 +123,26 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     isEnabled: !isLoading && !error
   });
 
-  // Demand-specific controls
+  // Demand-specific controls - Updated to include preferred staff
   const {
     selectedSkills,
     selectedClients,
+    selectedPreferredStaff,
     monthRange,
     handleSkillToggle,
     handleClientToggle,
+    handlePreferredStaffToggle,
     handleMonthRangeChange,
     handleReset,
     handleExport,
     availableSkills,
     availableClients,
+    availablePreferredStaff,
     skillsLoading,
     clientsLoading,
     isAllSkillsSelected,
-    isAllClientsSelected
+    isAllClientsSelected,
+    isAllPreferredStaffSelected
   } = useDemandMatrixControls({
     demandData,
     groupingMode
@@ -227,8 +231,11 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
       availableSkillsCount: availableSkills.length,
       selectedClientsCount: selectedClients.length,
       availableClientsCount: availableClients.length,
+      selectedPreferredStaffCount: selectedPreferredStaff.length,
+      availablePreferredStaffCount: availablePreferredStaff.length,
       isAllSkillsSelected,
       isAllClientsSelected,
+      isAllPreferredStaffSelected,
       monthRange
     });
 
@@ -240,6 +247,8 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
       skills: isAllSkillsSelected ? [] : selectedSkills,
       // Only include clients filter if we're NOT selecting all clients  
       clients: isAllClientsSelected ? [] : selectedClients,
+      // Only include preferred staff filter if we're NOT selecting all preferred staff
+      preferredStaff: isAllPreferredStaffSelected ? [] : selectedPreferredStaff,
       timeHorizon: {
         start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
         end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
@@ -249,6 +258,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
       skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
       clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
+      preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL PREFERRED STAFF (no filter)' : filters.preferredStaff,
       timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
     });
 
@@ -344,14 +354,16 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
                 onCustomDateRangeChange={setCustomDateRange}
               />
               
-              {/* Standard Controls Panel */}
+              {/* Standard Controls Panel - FIXED: Added all required preferred staff props */}
               <DemandMatrixControlsPanel
                 isControlsExpanded={isControlsExpanded}
                 onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
                 selectedSkills={selectedSkills}
                 selectedClients={selectedClients}
+                selectedPreferredStaff={selectedPreferredStaff}
                 onSkillToggle={handleSkillToggle}
                 onClientToggle={handleClientToggle}
+                onPreferredStaffToggle={handlePreferredStaffToggle}
                 monthRange={monthRange}
                 onMonthRangeChange={handleMonthRangeChange}
                 onExport={handleShowExport}
@@ -359,6 +371,10 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
                 groupingMode={groupingMode}
                 availableSkills={availableSkills}
                 availableClients={availableClients}
+                availablePreferredStaff={availablePreferredStaff}
+                isAllSkillsSelected={isAllSkillsSelected}
+                isAllClientsSelected={isAllClientsSelected}
+                isAllPreferredStaffSelected={isAllPreferredStaffSelected}
                 onPrintExport={handleShowPrintExport}
               />
             </div>
@@ -416,17 +432,30 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
           data={drillDownData}
         />
 
-        {/* Export Dialog */}
+        {/* Export Dialog - FIXED: Using correct prop interface */}
         {demandData && (
           <DemandMatrixExportDialog
-            isOpen={showExportDialog}
-            onClose={() => setShowExportDialog(false)}
-            demandData={demandData}
+            onExport={(config) => {
+              // Handle export configuration
+              handleExport(config);
+              setShowExportDialog(false);
+            }}
+            groupingMode={groupingMode}
             selectedSkills={selectedSkills}
             selectedClients={selectedClients}
+            selectedPreferredStaff={selectedPreferredStaff}
             monthRange={monthRange}
-            groupingMode={groupingMode}
-          />
+            availableSkills={availableSkills}
+            availableClients={availableClients}
+            availablePreferredStaff={availablePreferredStaff}
+            isAllSkillsSelected={isAllSkillsSelected}
+            isAllClientsSelected={isAllClientsSelected}
+            isAllPreferredStaffSelected={isAllPreferredStaffSelected}
+          >
+            {showExportDialog && (
+              <div className="hidden">Export Trigger</div>
+            )}
+          </DemandMatrixExportDialog>
         )}
 
         {/* Print/Export Dialog */}
