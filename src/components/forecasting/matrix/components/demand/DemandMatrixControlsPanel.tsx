@@ -16,14 +16,17 @@ import {
   FileText, 
   Printer 
 } from 'lucide-react';
+import { PreferredStaffFilter } from './components/PreferredStaffFilter';
 
 interface DemandMatrixControlsPanelProps {
   isControlsExpanded: boolean;
   onToggleControls: () => void;
   selectedSkills: string[];
   selectedClients: string[];
+  selectedPreferredStaff: string[];
   onSkillToggle: (skill: string) => void;
   onClientToggle: (client: string) => void;
+  onPreferredStaffToggle: (staffId: string) => void;
   monthRange: { start: number; end: number };
   onMonthRangeChange: (range: { start: number; end: number }) => void;
   onExport: () => void;
@@ -31,7 +34,11 @@ interface DemandMatrixControlsPanelProps {
   groupingMode: 'skill' | 'client';
   availableSkills: string[];
   availableClients: Array<{ id: string; name: string }>;
-  onPrintExport?: () => void; // NEW: Optional print/export handler
+  availablePreferredStaff: Array<{ id: string; name: string }>;
+  isAllSkillsSelected: boolean;
+  isAllClientsSelected: boolean;
+  isAllPreferredStaffSelected: boolean;
+  onPrintExport?: () => void;
 }
 
 export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps> = ({
@@ -39,8 +46,10 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   onToggleControls,
   selectedSkills,
   selectedClients,
+  selectedPreferredStaff,
   onSkillToggle,
   onClientToggle,
+  onPreferredStaffToggle,
   monthRange,
   onMonthRangeChange,
   onExport,
@@ -48,15 +57,16 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   groupingMode,
   availableSkills,
   availableClients,
-  onPrintExport // NEW: Print/export handler
+  availablePreferredStaff,
+  isAllSkillsSelected,
+  isAllClientsSelected,
+  isAllPreferredStaffSelected,
+  onPrintExport
 }) => {
   const monthNames = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
-
-  const isAllSkillsSelected = selectedSkills.length === 0 || selectedSkills.length === availableSkills.length;
-  const isAllClientsSelected = selectedClients.length === 0 || selectedClients.length === availableClients.length;
 
   const handleSkillSelectAll = () => {
     if (isAllSkillsSelected) {
@@ -75,12 +85,12 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   const handleClientSelectAll = () => {
     if (isAllClientsSelected) {
       // If all are selected, deselect all
-      availableClients.forEach(client => onClientToggle(client.name));
+      availableClients.forEach(client => onClientToggle(client.id));
     } else {
       // If not all are selected, select all remaining
       availableClients.forEach(client => {
-        if (!selectedClients.includes(client.name)) {
-          onClientToggle(client.name);
+        if (!selectedClients.includes(client.id)) {
+          onClientToggle(client.id);
         }
       });
     }
@@ -232,8 +242,8 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
                 <div key={client.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`client-${client.id}`}
-                    checked={isAllClientsSelected || selectedClients.includes(client.name)}
-                    onCheckedChange={() => onClientToggle(client.name)}
+                    checked={isAllClientsSelected || selectedClients.includes(client.id)}
+                    onCheckedChange={() => onClientToggle(client.id)}
                   />
                   <label 
                     htmlFor={`client-${client.id}`} 
@@ -256,9 +266,32 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
 
         <Separator />
 
+        {/* NEW: Preferred Staff Filter */}
+        {availablePreferredStaff.length > 0 && (
+          <>
+            <div>
+              <PreferredStaffFilter
+                availablePreferredStaff={availablePreferredStaff}
+                selectedPreferredStaff={selectedPreferredStaff}
+                onPreferredStaffToggle={onPreferredStaffToggle}
+                isAllPreferredStaffSelected={isAllPreferredStaffSelected}
+              />
+              
+              {!isControlsExpanded && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {isAllPreferredStaffSelected 
+                    ? 'All preferred staff visible' 
+                    : `${selectedPreferredStaff.length}/${availablePreferredStaff.length} preferred staff selected`
+                  }
+                </div>
+              )}
+            </div>
+            <Separator />
+          </>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-2">
-          {/* NEW: Print/Export Button */}
           {onPrintExport && (
             <Button 
               onClick={onPrintExport} 
@@ -300,6 +333,9 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
             <div>
               Filters: {isAllSkillsSelected ? 'All skills' : `${selectedSkills.length} skills`}, {' '}
               {isAllClientsSelected ? 'All clients' : `${selectedClients.length} clients`}
+              {availablePreferredStaff.length > 0 && (
+                <>, {isAllPreferredStaffSelected ? 'All preferred staff' : `${selectedPreferredStaff.length} preferred staff`}</>
+              )}
             </div>
           </div>
         </div>
