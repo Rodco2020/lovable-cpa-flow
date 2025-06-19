@@ -1,6 +1,17 @@
+
 /**
  * User Acceptance Tests for Preferred Staff Scenarios
  * Tests real-world scenarios involving preferred staff assignments and filtering
+ * 
+ * Test Structure:
+ * - Scenario 1: Basic preferred staff display
+ * - Scenario 2: Staff filtering functionality
+ * - Scenario 3: Unassigned task handling
+ * - Scenario 4: Staff workload analysis
+ * - Scenario 5: Multi-skill staff assignments
+ * 
+ * Each scenario validates specific user workflows and UI interactions
+ * without modifying the underlying business logic or visual appearance.
  */
 
 import React from 'react';
@@ -14,6 +25,76 @@ import { DemandMatrixService } from '@/services/forecasting/demandMatrixService'
 // Mock the service
 vi.mock('@/services/forecasting/demandMatrixService');
 
+/**
+ * Test Data Factory
+ * Creates consistent mock data for different test scenarios
+ */
+const createMockTaskBreakdown = (overrides = {}) => ({
+  clientId: 'client-1',
+  clientName: 'ABC Corp',
+  recurringTaskId: 'task-1',
+  taskName: 'Monthly Tax Prep',
+  skillType: 'Tax Preparation',
+  estimatedHours: 20,
+  monthlyHours: 20,
+  recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
+  ...overrides
+});
+
+const createMockPreferredStaff = (overrides = {}) => ({
+  staffId: 'staff-1',
+  staffName: 'Alice Johnson',
+  roleTitle: 'Senior CPA',
+  assignmentType: 'preferred',
+  ...overrides
+});
+
+const createMockDataPoint = (overrides = {}) => ({
+  skillType: 'Tax Preparation',
+  month: '2025-01',
+  monthLabel: 'Jan 2025',
+  demandHours: 40,
+  taskCount: 2,
+  clientCount: 1,
+  taskBreakdown: [],
+  ...overrides
+});
+
+const createMockMatrixData = (overrides = {}) => ({
+  months: [{ key: '2025-01', label: 'Jan 2025' }],
+  skills: ['Tax Preparation'],
+  dataPoints: [],
+  totalDemand: 40,
+  totalTasks: 2,
+  totalClients: 1,
+  skillSummary: {},
+  ...overrides
+});
+
+/**
+ * Test Helper Functions
+ * Reusable functions for common test operations
+ */
+const setupMockService = (mockData) => {
+  vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValue({
+    matrixData: mockData
+  });
+};
+
+const renderDemandMatrix = () => {
+  return render(
+    <TestWrapper>
+      <DemandMatrix groupingMode="skill" />
+    </TestWrapper>
+  );
+};
+
+const waitForMatrixToLoad = async () => {
+  await waitFor(() => {
+    expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
+  });
+};
+
 describe('Preferred Staff User Acceptance Tests', () => {
   const user = userEvent.setup();
 
@@ -24,67 +105,28 @@ describe('Preferred Staff User Acceptance Tests', () => {
 
   describe('Scenario 1: Viewing Tasks with Preferred Staff Assignments', () => {
     test('should display preferred staff information in matrix cells', async () => {
-      const mockData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation'],
-        dataPoints: [{
-          skillType: 'Tax Preparation',
-          month: '2025-01',
-          monthLabel: 'Jan 2025',
-          demandHours: 40,
-          taskCount: 2,
-          clientCount: 1,
-          taskBreakdown: [
-            {
-              clientId: 'client-1',
-              clientName: 'ABC Corp',
-              recurringTaskId: 'task-1',
-              taskName: 'Monthly Tax Prep',
-              skillType: 'Tax Preparation',
-              estimatedHours: 20,
-              monthlyHours: 20,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-1',
-                staffName: 'Alice Johnson',
-                roleTitle: 'Senior CPA',
-                assignmentType: 'preferred'
-              }
-            },
-            {
-              clientId: 'client-1',
-              clientName: 'ABC Corp',
-              recurringTaskId: 'task-2',
-              taskName: 'Tax Review',
-              skillType: 'Tax Preparation',
-              estimatedHours: 20,
-              monthlyHours: 20,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
-              // No preferred staff assigned
-            }
-          ]
-        }],
-        totalDemand: 40,
-        totalTasks: 2,
-        totalClients: 1,
-        skillSummary: {}
-      };
-
-      vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValue({
-        matrixData: mockData
+      const taskWithPreferredStaff = createMockTaskBreakdown({
+        preferredStaff: createMockPreferredStaff()
       });
 
-      render(
-        <TestWrapper>
-          <DemandMatrix groupingMode="skill" />
-        </TestWrapper>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
+      const taskWithoutPreferredStaff = createMockTaskBreakdown({
+        recurringTaskId: 'task-2',
+        taskName: 'Tax Review',
+        preferredStaff: undefined
       });
 
-      // Should show preferred staff name in the matrix
+      const dataPoint = createMockDataPoint({
+        taskBreakdown: [taskWithPreferredStaff, taskWithoutPreferredStaff]
+      });
+
+      const mockData = createMockMatrixData({
+        dataPoints: [dataPoint]
+      });
+
+      setupMockService(mockData);
+      renderDemandMatrix();
+      await waitForMatrixToLoad();
+
       expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
       expect(screen.getByText('Senior CPA')).toBeInTheDocument();
     });
@@ -92,93 +134,65 @@ describe('Preferred Staff User Acceptance Tests', () => {
 
   describe('Scenario 2: Filtering by Preferred Staff', () => {
     test('should filter matrix to show only tasks assigned to specific staff', async () => {
-      const mockData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation', 'Advisory'],
-        dataPoints: [
-          {
-            skillType: 'Tax Preparation',
-            month: '2025-01',
-            monthLabel: 'Jan 2025',
-            demandHours: 20,
-            taskCount: 1,
-            clientCount: 1,
-            taskBreakdown: [{
-              clientId: 'client-1',
-              clientName: 'ABC Corp',
-              recurringTaskId: 'task-1',
-              taskName: 'Tax Task',
-              skillType: 'Tax Preparation',
-              estimatedHours: 20,
-              monthlyHours: 20,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-1',
-                staffName: 'Alice Johnson',
-                roleTitle: 'Senior CPA',
-                assignmentType: 'preferred'
-              }
-            }]
-          },
-          {
-            skillType: 'Advisory',
-            month: '2025-01',
-            monthLabel: 'Jan 2025',
-            demandHours: 30,
-            taskCount: 1,
-            clientCount: 1,
-            taskBreakdown: [{
-              clientId: 'client-2',
-              clientName: 'XYZ Inc',
-              recurringTaskId: 'task-2',
-              taskName: 'Advisory Task',
-              skillType: 'Advisory',
-              estimatedHours: 30,
-              monthlyHours: 30,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-2',
-                staffName: 'Bob Smith',
-                roleTitle: 'Advisor',
-                assignmentType: 'preferred'
-              }
-            }]
-          }
-        ],
-        totalDemand: 50,
-        totalTasks: 2,
-        totalClients: 2,
-        skillSummary: {}
-      };
-
-      // Mock unfiltered data first
-      vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValueOnce({
-        matrixData: mockData
+      const aliceTask = createMockTaskBreakdown({
+        taskName: 'Tax Task',
+        preferredStaff: createMockPreferredStaff()
       });
 
-      render(
-        <TestWrapper>
-          <DemandMatrix groupingMode="skill" />
-        </TestWrapper>
-      );
+      const bobTask = createMockTaskBreakdown({
+        clientId: 'client-2',
+        clientName: 'XYZ Inc',
+        recurringTaskId: 'task-2',
+        taskName: 'Advisory Task',
+        skillType: 'Advisory',
+        estimatedHours: 30,
+        monthlyHours: 30,
+        preferredStaff: createMockPreferredStaff({
+          staffId: 'staff-2',
+          staffName: 'Bob Smith',
+          roleTitle: 'Advisor'
+        })
+      });
+
+      const taxDataPoint = createMockDataPoint({
+        demandHours: 20,
+        taskCount: 1,
+        taskBreakdown: [aliceTask]
+      });
+
+      const advisoryDataPoint = createMockDataPoint({
+        skillType: 'Advisory',
+        demandHours: 30,
+        taskCount: 1,
+        clientCount: 1,
+        taskBreakdown: [bobTask]
+      });
+
+      const mockData = createMockMatrixData({
+        skills: ['Tax Preparation', 'Advisory'],
+        dataPoints: [taxDataPoint, advisoryDataPoint],
+        totalDemand: 50,
+        totalTasks: 2,
+        totalClients: 2
+      });
+
+      setupMockService(mockData);
+      renderDemandMatrix();
 
       await waitFor(() => {
         expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
         expect(screen.getByText('Bob Smith')).toBeInTheDocument();
       });
 
-      // Apply preferred staff filter
       const filterToggle = screen.getByText('Filter');
       await user.click(filterToggle);
 
-      // Mock filtered data (only Alice Johnson's tasks)
-      const filteredData = {
-        ...mockData,
-        dataPoints: [mockData.dataPoints[0]], // Only Tax Preparation with Alice
+      const filteredData = createMockMatrixData({
+        dataPoints: [taxDataPoint],
         totalDemand: 20,
         totalTasks: 1,
         totalClients: 1
-      };
+      });
 
       vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValueOnce({
         matrixData: filteredData
@@ -196,167 +210,100 @@ describe('Preferred Staff User Acceptance Tests', () => {
 
   describe('Scenario 3: Including Unassigned Tasks', () => {
     test('should show both assigned and unassigned tasks when filter is enabled', async () => {
-      const mockData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation'],
-        dataPoints: [{
-          skillType: 'Tax Preparation',
-          month: '2025-01',
-          monthLabel: 'Jan 2025',
-          demandHours: 50,
-          taskCount: 3,
-          clientCount: 2,
-          taskBreakdown: [
-            {
-              clientId: 'client-1',
-              clientName: 'ABC Corp',
-              recurringTaskId: 'task-1',
-              taskName: 'Assigned Task',
-              skillType: 'Tax Preparation',
-              estimatedHours: 20,
-              monthlyHours: 20,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-1',
-                staffName: 'Alice Johnson',
-                roleTitle: 'Senior CPA',
-                assignmentType: 'preferred'
-              }
-            },
-            {
-              clientId: 'client-2',
-              clientName: 'XYZ Inc',
-              recurringTaskId: 'task-2',
-              taskName: 'Unassigned Task 1',
-              skillType: 'Tax Preparation',
-              estimatedHours: 15,
-              monthlyHours: 15,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
-              // No preferred staff
-            },
-            {
-              clientId: 'client-2',
-              clientName: 'XYZ Inc',
-              recurringTaskId: 'task-3',
-              taskName: 'Unassigned Task 2',
-              skillType: 'Tax Preparation',
-              estimatedHours: 15,
-              monthlyHours: 15,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
-              // No preferred staff
-            }
-          ]
-        }],
+      const assignedTask = createMockTaskBreakdown({
+        taskName: 'Assigned Task',
+        preferredStaff: createMockPreferredStaff()
+      });
+
+      const unassignedTask1 = createMockTaskBreakdown({
+        clientId: 'client-2',
+        clientName: 'XYZ Inc',
+        recurringTaskId: 'task-2',
+        taskName: 'Unassigned Task 1',
+        estimatedHours: 15,
+        monthlyHours: 15,
+        preferredStaff: undefined
+      });
+
+      const unassignedTask2 = createMockTaskBreakdown({
+        clientId: 'client-2',
+        clientName: 'XYZ Inc',
+        recurringTaskId: 'task-3',
+        taskName: 'Unassigned Task 2',
+        estimatedHours: 15,
+        monthlyHours: 15,
+        preferredStaff: undefined
+      });
+
+      const dataPoint = createMockDataPoint({
+        demandHours: 50,
+        taskCount: 3,
+        clientCount: 2,
+        taskBreakdown: [assignedTask, unassignedTask1, unassignedTask2]
+      });
+
+      const mockData = createMockMatrixData({
+        dataPoints: [dataPoint],
         totalDemand: 50,
         totalTasks: 3,
-        totalClients: 2,
-        skillSummary: {}
-      };
-
-      vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValue({
-        matrixData: mockData
+        totalClients: 2
       });
 
-      render(
-        <TestWrapper>
-          <DemandMatrix groupingMode="skill" />
-        </TestWrapper>
-      );
+      setupMockService(mockData);
+      renderDemandMatrix();
+      await waitForMatrixToLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
-      });
-
-      // Should show both assigned and unassigned tasks
       expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
       expect(screen.getByText('Unassigned Task 1')).toBeInTheDocument();
       expect(screen.getByText('Unassigned Task 2')).toBeInTheDocument();
-
-      // Total should include all tasks
-      expect(screen.getByText('50')).toBeInTheDocument(); // Total hours
+      expect(screen.getByText('50')).toBeInTheDocument();
     });
 
     test('should allow filtering to show only unassigned tasks', async () => {
-      const allTasksData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation'],
-        dataPoints: [{
-          skillType: 'Tax Preparation',
-          month: '2025-01',
-          monthLabel: 'Jan 2025',
-          demandHours: 50,
-          taskCount: 3,
-          clientCount: 2,
-          taskBreakdown: [
-            {
-              clientId: 'client-1',
-              clientName: 'ABC Corp',
-              recurringTaskId: 'task-1',
-              taskName: 'Assigned Task',
-              skillType: 'Tax Preparation',
-              estimatedHours: 20,
-              monthlyHours: 20,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-1',
-                staffName: 'Alice Johnson',
-                roleTitle: 'Senior CPA',
-                assignmentType: 'preferred'
-              }
-            },
-            {
-              clientId: 'client-2',
-              clientName: 'XYZ Inc',
-              recurringTaskId: 'task-2',
-              taskName: 'Unassigned Task',
-              skillType: 'Tax Preparation',
-              estimatedHours: 30,
-              monthlyHours: 30,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
-              // No preferred staff
-            }
-          ]
-        }],
-        totalDemand: 50,
-        totalTasks: 3,
-        totalClients: 2,
-        skillSummary: {}
-      };
-
-      // Initial render with all tasks
-      vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValueOnce({
-        matrixData: allTasksData
+      const assignedTask = createMockTaskBreakdown({
+        taskName: 'Assigned Task',
+        preferredStaff: createMockPreferredStaff()
       });
 
-      render(
-        <TestWrapper>
-          <DemandMatrix groupingMode="skill" />
-        </TestWrapper>
-      );
+      const unassignedTask = createMockTaskBreakdown({
+        clientId: 'client-2',
+        clientName: 'XYZ Inc',
+        recurringTaskId: 'task-2',
+        taskName: 'Unassigned Task',
+        estimatedHours: 30,
+        monthlyHours: 30,
+        preferredStaff: undefined
+      });
+
+      const allTasksData = createMockMatrixData({
+        dataPoints: [createMockDataPoint({
+          taskBreakdown: [assignedTask, unassignedTask]
+        })],
+        totalTasks: 3
+      });
+
+      setupMockService(allTasksData);
+      renderDemandMatrix();
 
       await waitFor(() => {
         expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
         expect(screen.getByText('Unassigned Task')).toBeInTheDocument();
       });
 
-      // Apply unassigned-only filter
       const filterToggle = screen.getByText('Filter');
       await user.click(filterToggle);
 
-      // Mock filtered data (only unassigned tasks)
-      const unassignedOnlyData = {
-        ...allTasksData,
-        dataPoints: [{
-          ...allTasksData.dataPoints[0],
-          taskBreakdown: [allTasksData.dataPoints[0].taskBreakdown[1]], // Only unassigned task
+      const unassignedOnlyData = createMockMatrixData({
+        dataPoints: [createMockDataPoint({
+          taskBreakdown: [unassignedTask],
           demandHours: 30,
           taskCount: 1,
           clientCount: 1
-        }],
+        })],
         totalDemand: 30,
         totalTasks: 1,
         totalClients: 1
-      };
+      });
 
       vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValueOnce({
         matrixData: unassignedOnlyData
@@ -374,98 +321,58 @@ describe('Preferred Staff User Acceptance Tests', () => {
 
   describe('Scenario 4: Staff Workload Analysis', () => {
     test('should allow drill-down to view specific staff workload', async () => {
-      const mockData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation'],
-        dataPoints: [{
-          skillType: 'Tax Preparation',
-          month: '2025-01',
-          monthLabel: 'Jan 2025',
-          demandHours: 60,
-          taskCount: 3,
-          clientCount: 2,
-          taskBreakdown: [
-            {
-              clientId: 'client-1',
-              clientName: 'ABC Corp',
-              recurringTaskId: 'task-1',
-              taskName: 'Tax Prep - ABC',
-              skillType: 'Tax Preparation',
-              estimatedHours: 25,
-              monthlyHours: 25,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-1',
-                staffName: 'Alice Johnson',
-                roleTitle: 'Senior CPA',
-                assignmentType: 'preferred'
-              }
-            },
-            {
-              clientId: 'client-2',
-              clientName: 'XYZ Inc',
-              recurringTaskId: 'task-2',
-              taskName: 'Tax Review - XYZ',
-              skillType: 'Tax Preparation',
-              estimatedHours: 20,
-              monthlyHours: 20,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-1',
-                staffName: 'Alice Johnson',
-                roleTitle: 'Senior CPA',
-                assignmentType: 'preferred'
-              }
-            },
-            {
-              clientId: 'client-2',
-              clientName: 'XYZ Inc',
-              recurringTaskId: 'task-3',
-              taskName: 'Complex Tax Analysis',
-              skillType: 'Tax Preparation',
-              estimatedHours: 15,
-              monthlyHours: 15,
-              recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-              preferredStaff: {
-                staffId: 'staff-2',
-                staffName: 'Bob Smith',
-                roleTitle: 'CPA',
-                assignmentType: 'preferred'
-              }
-            }
-          ]
-        }],
+      const aliceTask1 = createMockTaskBreakdown({
+        taskName: 'Tax Prep - ABC',
+        estimatedHours: 25,
+        monthlyHours: 25,
+        preferredStaff: createMockPreferredStaff()
+      });
+
+      const aliceTask2 = createMockTaskBreakdown({
+        clientId: 'client-2',
+        clientName: 'XYZ Inc',
+        recurringTaskId: 'task-2',
+        taskName: 'Tax Review - XYZ',
+        preferredStaff: createMockPreferredStaff()
+      });
+
+      const bobTask = createMockTaskBreakdown({
+        clientId: 'client-2',
+        clientName: 'XYZ Inc',
+        recurringTaskId: 'task-3',
+        taskName: 'Complex Tax Analysis',
+        estimatedHours: 15,
+        monthlyHours: 15,
+        preferredStaff: createMockPreferredStaff({
+          staffId: 'staff-2',
+          staffName: 'Bob Smith',
+          roleTitle: 'CPA'
+        })
+      });
+
+      const dataPoint = createMockDataPoint({
+        demandHours: 60,
+        taskCount: 3,
+        taskBreakdown: [aliceTask1, aliceTask2, bobTask]
+      });
+
+      const mockData = createMockMatrixData({
+        dataPoints: [dataPoint],
         totalDemand: 60,
-        totalTasks: 3,
-        totalClients: 2,
-        skillSummary: {}
-      };
-
-      vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValue({
-        matrixData: mockData
+        totalTasks: 3
       });
 
-      render(
-        <TestWrapper>
-          <DemandMatrix groupingMode="skill" />
-        </TestWrapper>
-      );
+      setupMockService(mockData);
+      renderDemandMatrix();
+      await waitForMatrixToLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
-      });
-
-      // Should show both staff members and their workloads
       expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
       expect(screen.getByText('Bob Smith')).toBeInTheDocument();
 
-      // Click on cell to see drill-down (mocked interaction)
-      const taxPrepCell = screen.getByText('60'); // Total hours cell
+      const taxPrepCell = screen.getByText('60');
       await user.click(taxPrepCell);
 
-      // Should show detailed breakdown (this would open a drill-down dialog)
       await waitFor(() => {
-        // Verify that the correct data is being displayed
         expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
     });
@@ -473,129 +380,85 @@ describe('Preferred Staff User Acceptance Tests', () => {
 
   describe('Scenario 5: Multi-Skill Staff Assignment', () => {
     test('should handle staff assigned to multiple skill types', async () => {
-      const mockData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation', 'Advisory'],
-        dataPoints: [
-          {
-            skillType: 'Tax Preparation',
-            month: '2025-01',
-            monthLabel: 'Jan 2025',
-            demandHours: 30,
-            taskCount: 2,
-            clientCount: 1,
-            taskBreakdown: [
-              {
-                clientId: 'client-1',
-                clientName: 'ABC Corp',
-                recurringTaskId: 'task-1',
-                taskName: 'Tax Prep',
-                skillType: 'Tax Preparation',
-                estimatedHours: 20,
-                monthlyHours: 20,
-                recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-                preferredStaff: {
-                  staffId: 'staff-1',
-                  staffName: 'Alice Johnson',
-                  roleTitle: 'Senior CPA',
-                  assignmentType: 'preferred'
-                }
-              },
-              {
-                clientId: 'client-1',
-                clientName: 'ABC Corp',
-                recurringTaskId: 'task-2',
-                taskName: 'Tax Review',
-                skillType: 'Tax Preparation',
-                estimatedHours: 10,
-                monthlyHours: 10,
-                recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-                preferredStaff: {
-                  staffId: 'staff-2',
-                  staffName: 'Bob Smith',
-                  roleTitle: 'CPA',
-                  assignmentType: 'preferred'
-                }
-              }
-            ]
-          },
-          {
-            skillType: 'Advisory',
-            month: '2025-01',
-            monthLabel: 'Jan 2025',
-            demandHours: 25,
-            taskCount: 1,
-            clientCount: 1,
-            taskBreakdown: [
-              {
-                clientId: 'client-1',
-                clientName: 'ABC Corp',
-                recurringTaskId: 'task-3',
-                taskName: 'Financial Advisory',
-                skillType: 'Advisory',
-                estimatedHours: 25,
-                monthlyHours: 25,
-                recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-                preferredStaff: {
-                  staffId: 'staff-1',
-                  staffName: 'Alice Johnson',
-                  roleTitle: 'Senior CPA',
-                  assignmentType: 'preferred'
-                }
-              }
-            ]
-          }
-        ],
-        totalDemand: 55,
-        totalTasks: 3,
-        totalClients: 1,
-        skillSummary: {}
-      };
-
-      vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValue({
-        matrixData: mockData
+      const aliceTaxTask = createMockTaskBreakdown({
+        taskName: 'Tax Prep',
+        preferredStaff: createMockPreferredStaff()
       });
 
-      render(
-        <TestWrapper>
-          <DemandMatrix groupingMode="skill" />
-        </TestWrapper>
-      );
+      const bobTaxTask = createMockTaskBreakdown({
+        recurringTaskId: 'task-2',
+        taskName: 'Tax Review',
+        estimatedHours: 10,
+        monthlyHours: 10,
+        preferredStaff: createMockPreferredStaff({
+          staffId: 'staff-2',
+          staffName: 'Bob Smith',
+          roleTitle: 'CPA'
+        })
+      });
+
+      const aliceAdvisoryTask = createMockTaskBreakdown({
+        recurringTaskId: 'task-3',
+        taskName: 'Financial Advisory',
+        skillType: 'Advisory',
+        estimatedHours: 25,
+        monthlyHours: 25,
+        preferredStaff: createMockPreferredStaff()
+      });
+
+      const taxDataPoint = createMockDataPoint({
+        demandHours: 30,
+        taskCount: 2,
+        taskBreakdown: [aliceTaxTask, bobTaxTask]
+      });
+
+      const advisoryDataPoint = createMockDataPoint({
+        skillType: 'Advisory',
+        demandHours: 25,
+        taskCount: 1,
+        taskBreakdown: [aliceAdvisoryTask]
+      });
+
+      const mockData = createMockMatrixData({
+        skills: ['Tax Preparation', 'Advisory'],
+        dataPoints: [taxDataPoint, advisoryDataPoint],
+        totalDemand: 55,
+        totalTasks: 3
+      });
+
+      setupMockService(mockData);
+      renderDemandMatrix();
 
       await waitFor(() => {
         expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
         expect(screen.getByText('Advisory')).toBeInTheDocument();
       });
 
-      // Alice Johnson should appear in both skill categories
       const aliceElements = screen.getAllByText('Alice Johnson');
       expect(aliceElements.length).toBeGreaterThan(1);
 
-      // Filter by Alice Johnson to see her total workload across skills
       const filterToggle = screen.getByText('Filter');
       await user.click(filterToggle);
 
-      // Mock filtered data showing only Alice's tasks
-      const aliceOnlyData = {
-        ...mockData,
+      const aliceOnlyData = createMockMatrixData({
+        skills: ['Tax Preparation', 'Advisory'],
         dataPoints: [
-          {
-            ...mockData.dataPoints[0],
-            taskBreakdown: [mockData.dataPoints[0].taskBreakdown[0]], // Only Alice's tax task
+          createMockDataPoint({
+            taskBreakdown: [aliceTaxTask],
             demandHours: 20,
             taskCount: 1
-          },
-          {
-            ...mockData.dataPoints[1],
-            // Keep Alice's advisory task as is
+          }),
+          createMockDataPoint({
+            skillType: 'Advisory',
             demandHours: 25,
-            taskCount: 1
-          }
+            taskCount: 1,
+            taskBreakdown: [aliceAdvisoryTask]
+          })
         ],
         totalDemand: 45,
         totalTasks: 2,
         totalClients: 1
-      };
+      });
 
       vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValueOnce({
         matrixData: aliceOnlyData
@@ -605,15 +468,17 @@ describe('Preferred Staff User Acceptance Tests', () => {
       await user.click(aliceFilter);
 
       await waitFor(() => {
-        // Should show Alice's total workload across both skills
-        expect(screen.getByText('45')).toBeInTheDocument(); // Total demand for Alice
+        expect(screen.getByText('45')).toBeInTheDocument();
         expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
       });
     });
   });
 });
 
-// Helper function for date formatting (simplified for tests)
+/**
+ * Helper function for date formatting (simplified for tests)
+ * Provides consistent date formatting across all test scenarios
+ */
 function format(date: Date, formatString: string): string {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
