@@ -73,14 +73,19 @@ export class DataFetcher {
 
       // Step 4: Validate and process results
       const validTasks = data.filter((task: any): task is RecurringTaskDB => {
-        const isValid = task && 
-          task.id && 
+        // Type guard to ensure we have valid task data
+        if (!task || typeof task !== 'object') {
+          console.warn('⚠️ [DATA FETCHER] Invalid task object filtered out:', task);
+          return false;
+        }
+
+        const isValid = task.id && 
           task.name && 
           task.client_id && 
           task.is_active === true;
         
         if (!isValid) {
-          console.warn('⚠️ [DATA FETCHER] Invalid task filtered out:', task?.id);
+          console.warn('⚠️ [DATA FETCHER] Invalid task filtered out:', task?.id || 'unknown');
         }
         
         return isValid;
