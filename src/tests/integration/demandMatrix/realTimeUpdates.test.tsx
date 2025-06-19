@@ -1,4 +1,3 @@
-
 /**
  * Real-time Updates Integration Tests for Demand Matrix
  * Tests for handling dynamic data changes and real-time scenarios
@@ -42,10 +41,12 @@ describe('Real-time Updates Integration Tests', () => {
           taskBreakdown: [{
             clientId: 'client-1',
             clientName: 'Test Client',
+            recurringTaskId: 'task-1',
             taskName: 'Unassigned Task',
             skillType: 'Tax Preparation',
             estimatedHours: 50,
-            monthlyHours: 50
+            monthlyHours: 50,
+            recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
             // No preferredStaff
           }]
         }],
@@ -65,7 +66,8 @@ describe('Real-time Updates Integration Tests', () => {
             preferredStaff: {
               staffId: 'staff-1',
               staffName: 'Alice Johnson',
-              roleTitle: 'Senior CPA'
+              roleTitle: 'Senior CPA',
+              assignmentType: 'preferred' as const
             }
           }]
         }]

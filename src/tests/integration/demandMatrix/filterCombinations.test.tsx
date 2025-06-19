@@ -28,23 +28,28 @@ const mockMatrixData = {
         {
           clientId: 'client-1',
           clientName: 'Client A',
+          recurringTaskId: 'task-1',
           taskName: 'Tax Return',
           skillType: 'Tax Preparation',
           estimatedHours: 20,
           monthlyHours: 20,
+          recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
           preferredStaff: {
             staffId: 'staff-1',
             staffName: 'Alice Johnson',
-            roleTitle: 'Senior CPA'
+            roleTitle: 'Senior CPA',
+            assignmentType: 'preferred' as const
           }
         },
         {
           clientId: 'client-2',
           clientName: 'Client B',
+          recurringTaskId: 'task-2',
           taskName: 'Tax Advisory',
           skillType: 'Tax Preparation',
           estimatedHours: 15,
-          monthlyHours: 15
+          monthlyHours: 15,
+          recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 }
           // No preferred staff
         }
       ]

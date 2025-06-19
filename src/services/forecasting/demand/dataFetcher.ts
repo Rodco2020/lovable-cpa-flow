@@ -112,9 +112,7 @@ export class DataFetcher {
             // Create resolved task with updated skills
             const resolvedTask = {
               ...task,
-              required_skills: resolvedSkillNames,
-              // Keep original UUIDs for reference if needed
-              _original_skill_ids: task.required_skills
+              required_skills: resolvedSkillNames
             };
 
             return resolvedTask;
@@ -128,7 +126,7 @@ export class DataFetcher {
       );
 
       const resolvedCount = resolvedTasks.filter(task => 
-        task._original_skill_ids && task._original_skill_ids.length > 0
+        Array.isArray(task.required_skills) && task.required_skills.length > 0
       ).length;
 
       debugLog(`Skill resolution completed: ${resolvedCount}/${tasks.length} tasks had skills resolved`);

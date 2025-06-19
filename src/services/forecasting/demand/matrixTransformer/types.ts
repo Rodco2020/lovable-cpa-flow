@@ -24,3 +24,28 @@ export interface MatrixDataPoint {
   clientCount: number;
   taskBreakdown: any[];
 }
+
+export interface MatrixTotals {
+  totalDemand: number;
+  totalTasks: number;
+  totalClients: number;
+}
+
+export interface SkillSummary {
+  [skillName: string]: {
+    totalHours: number;
+    taskCount: number;
+    clientCount: number;
+  };
+}
+
+export interface RevenueEnhancedDataPointContext {
+  skillType: string;
+  month: string;
+  monthLabel: string;
+  demandHours: number;
+  taskCount: number;
+  clientCount: number;
+  taskBreakdown: any[];
+  revenueData?: any;
+}

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 
@@ -242,5 +241,27 @@ export class SkillResolutionService {
     }
 
     return { valid, invalid, resolved };
+  }
+
+  /**
+   * Resolve skill references (backward compatibility method)
+   */
+  static async resolveSkillReferences(skillRefs: string[]): Promise<{
+    validSkills: string[];
+    invalidSkills: string[];
+  }> {
+    try {
+      const { valid, invalid, resolved } = await this.validateSkillReferences(skillRefs);
+      return {
+        validSkills: resolved,
+        invalidSkills: invalid
+      };
+    } catch (error) {
+      console.error('Error resolving skill references:', error);
+      return {
+        validSkills: [],
+        invalidSkills: skillRefs
+      };
+    }
   }
 }

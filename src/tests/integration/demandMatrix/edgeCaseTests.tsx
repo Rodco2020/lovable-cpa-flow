@@ -37,7 +37,8 @@ const createMockMatrixData = (): DemandMatrixData => ({
           preferredStaff: {
             staffId: 'staff-1',
             staffName: 'Alice Johnson',
-            roleTitle: 'Senior CPA'
+            roleTitle: 'Senior CPA',
+            assignmentType: 'preferred' as const
           }
         }
       ]
