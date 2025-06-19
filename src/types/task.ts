@@ -1,6 +1,18 @@
+
 export type TaskPriority = 'Urgent' | 'High' | 'Medium' | 'Low';
-export type TaskCategory = 'Client Work' | 'Internal' | 'Admin' | 'Sales' | 'Other';
-export type TaskStatus = 'Unscheduled' | 'Scheduled' | 'In Progress' | 'Completed' | 'Blocked' | 'Cancelled';
+export type TaskCategory = 'Client Work' | 'Internal' | 'Admin' | 'Sales' | 'Other' | 'Tax' | 'Audit' | 'Advisory' | 'Compliance' | 'Bookkeeping';
+export type TaskStatus = 'Unscheduled' | 'Scheduled' | 'In Progress' | 'Completed' | 'Blocked' | 'Cancelled' | 'Canceled';
+export type SkillType = string; // Define as string for now, can be made more specific later
+
+export interface RecurrencePattern {
+  type: string;
+  interval?: number;
+  frequency?: number;
+  weekdays?: number[];
+  dayOfMonth?: number;
+  monthOfYear?: number;
+  customOffsetDays?: number;
+}
 
 export interface Task {
   id: string;
@@ -16,6 +28,7 @@ export interface Task {
   staffId?: string;
   createdAt: Date;
   updatedAt: Date;
+  notes?: string;
 }
 
 export interface TaskInstance {
@@ -33,6 +46,8 @@ export interface TaskInstance {
   createdAt: Date;
   updatedAt: Date;
   recurringTaskId: string;
+  notes?: string;
+  templateId?: string;
 }
 
 export interface RecurringTask {
@@ -52,6 +67,25 @@ export interface RecurringTask {
   createdAt: Date;
   updatedAt: Date;
   preferredStaffId?: string;
+  dueDate?: Date | null;
+  recurrencePattern?: RecurrencePattern;
+  notes?: string;
+  templateId?: string;
+  lastGeneratedDate?: Date;
+}
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  defaultEstimatedHours: number;
+  requiredSkills: string[];
+  defaultPriority: TaskPriority;
+  category: TaskCategory;
+  version?: number;
+  isArchived?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface RecurringTaskDB {
@@ -71,7 +105,11 @@ export interface RecurringTaskDB {
   created_at: string;
   updated_at: string;
   preferred_staff_id?: string;
-  preferred_staff_name?: string; // Added this property
+  preferred_staff_name?: string;
+  template_id?: string;
+  due_date?: string;
+  notes?: string;
+  last_generated_date?: string;
   clients?: {
     id: string;
     legal_name: string;
