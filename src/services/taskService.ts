@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabaseClient';
 import { getAllSkills } from '@/services/skillService';
@@ -277,6 +278,7 @@ const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
     category: validateCategory(data.category),
     status: data.status as TaskStatus,
     dueDate: data.due_date ? new Date(data.due_date) : null,
+    preferredStaffId: data.preferred_staff_id, // Add the missing preferred staff mapping
     recurrencePattern,
     lastGeneratedDate: data.last_generated_date ? new Date(data.last_generated_date) : null,
     isActive: data.is_active,
