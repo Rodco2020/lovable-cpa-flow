@@ -25,7 +25,7 @@ interface PreferredStaffFieldProps {
  * - string UUID = Specific staff member selection
  * 
  * Select Value Logic:
- * - "" = "No preference" option
+ * - "no-preference" = "No preference" option (fixes Radix UI empty string error)
  * - string UUID = Staff member option
  */
 export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }) => {
@@ -164,15 +164,15 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
                 console.log('📝 [PreferredStaffField] Select onChange:', {
                   selectedValue: value,
                   selectedValueType: typeof value,
-                  willSetFormTo: value === "" ? null : value,
+                  willSetFormTo: value === "no-preference" ? null : value,
                   timestamp: new Date().toISOString()
                 });
                 
-                // Convert empty string to null, keep UUIDs as strings
-                const formValue = value === "" ? null : value;
+                // Convert "no-preference" to null, keep UUIDs as strings
+                const formValue = value === "no-preference" ? null : value;
                 field.onChange(formValue);
               }}
-              value={currentValue || ""} // Convert null to empty string for Select
+              value={currentValue || "no-preference"} // Convert null to "no-preference" for Select
               disabled={isLoading || !!error}
             >
               <FormControl>
@@ -194,7 +194,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
               </FormControl>
               <SelectContent className="z-50 bg-background">
                 {/* No preference option */}
-                <SelectItem value="" className="font-medium">
+                <SelectItem value="no-preference" className="font-medium">
                   <div className="flex items-center gap-2">
                     <Info className="h-3 w-3 text-muted-foreground" />
                     No preference
@@ -248,7 +248,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
                 <div className="mt-1 p-2 bg-muted rounded text-xs">
                   <p>Form Value: {JSON.stringify(currentValue)}</p>
                   <p>Form Value Type: {typeof currentValue}</p>
-                  <p>Select Value: {JSON.stringify(currentValue || "")}</p>
+                  <p>Select Value: {JSON.stringify(currentValue || "no-preference")}</p>
                   <p>Valid Selection: {isValidSelection.toString()}</p>
                   <p>Staff Options Count: {staffOptions.length}</p>
                 </div>
