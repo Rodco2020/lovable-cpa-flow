@@ -55,6 +55,23 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
     onSuccess: () => onOpenChange(false)
   });
 
+  // Enhanced handleSubmit with comprehensive logging
+  const handleSubmit = form.handleSubmit(async (data) => {
+    console.log('🚀 [EditRecurringTaskDialog] Form submission initiated');
+    console.log('📋 [EditRecurringTaskDialog] Complete form values:', form.getValues());
+    console.log('📝 [EditRecurringTaskDialog] Submitted data:', data);
+    console.log('👤 [EditRecurringTaskDialog] Preferred Staff ID:', data.preferredStaffId);
+    console.log('🏷️ [EditRecurringTaskDialog] Preferred Staff Type:', typeof data.preferredStaffId);
+    console.log('✅ [EditRecurringTaskDialog] Is Valid Staff ID:', data.preferredStaffId === null || (typeof data.preferredStaffId === 'string' && data.preferredStaffId.length > 0));
+    
+    try {
+      await onSubmit(data);
+      console.log('✅ [EditRecurringTaskDialog] Form submission completed successfully');
+    } catch (error) {
+      console.error('❌ [EditRecurringTaskDialog] Form submission failed:', error);
+    }
+  });
+
   // Handle loading state
   if (isLoading || (!task && !attemptedLoad)) {
     return (
@@ -101,7 +118,7 @@ const EditRecurringTaskDialog: React.FC<EditRecurringTaskDialogProps> = ({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <FormHeader task={task} open={open} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

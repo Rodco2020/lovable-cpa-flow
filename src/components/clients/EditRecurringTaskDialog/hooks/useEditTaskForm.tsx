@@ -129,12 +129,22 @@ export const useEditTaskForm = ({
     });
   }, [form]);
   
-  // Enhanced form submission with better error handling
+  // Enhanced form submission with comprehensive logging
   const onSubmit = useCallback(async (data: EditTaskFormValues) => {
     console.log('🚀 [useEditTaskForm] Form submission started:', {
       formData: data,
       preferredStaffId: data.preferredStaffId,
       timestamp: new Date().toISOString()
+    });
+    
+    // Log detailed preferred staff information
+    console.log('👤 [useEditTaskForm] Preferred Staff Details:', {
+      value: data.preferredStaffId,
+      type: typeof data.preferredStaffId,
+      isNull: data.preferredStaffId === null,
+      isString: typeof data.preferredStaffId === 'string',
+      length: data.preferredStaffId ? data.preferredStaffId.length : 0,
+      isValidUUID: data.preferredStaffId ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.preferredStaffId) : false
     });
 
     if (!task) {
@@ -192,9 +202,10 @@ export const useEditTaskForm = ({
         isActive: task.isActive
       };
 
-      console.log('📤 [useEditTaskForm] Sending update:', {
+      console.log('📤 [useEditTaskForm] Sending API update:', {
         taskId: task.id,
         updatedTask,
+        preferredStaffBeingSubmitted: updatedTask.preferredStaffId,
         timestamp: new Date().toISOString()
       });
 
@@ -202,6 +213,7 @@ export const useEditTaskForm = ({
       onSuccess();
       
       console.log('✅ [useEditTaskForm] Task update completed successfully');
+      console.log('🎉 [useEditTaskForm] Final submitted preferred staff:', updatedTask.preferredStaffId);
       
       toast.success("Task updated successfully", {
         description: data.preferredStaffId 
