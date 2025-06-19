@@ -1,3 +1,4 @@
+
 export interface ForecastData {
   month: string;
   skillBreakdown: SkillBreakdown[];
@@ -7,8 +8,8 @@ export interface ForecastData {
   utilizationRate: number;
   // Added missing properties for legacy compatibility
   period?: string;
-  demand?: any;
-  capacity?: any;
+  demand?: SkillHours[];
+  capacity?: SkillHours[];
   demandHours?: number;
   capacityHours?: number;
   projectedRevenue?: number;
@@ -38,6 +39,40 @@ export interface SkillData {
   color?: string;
 }
 
+// NEW: Add missing SkillHours interface
+export interface SkillHours {
+  skill: string;
+  hours: number;
+}
+
+// NEW: Add missing DateRange interface
+export interface DateRange {
+  startDate: Date;
+  endDate: Date;
+}
+
+// NEW: Add missing GranularityType
+export type GranularityType = 'daily' | 'weekly' | 'monthly';
+
+// NEW: Add missing ForecastTimeframe
+export type ForecastTimeframe = 'quarter' | 'half-year' | 'year' | 'custom';
+
+// NEW: Add missing SkillAllocationStrategy
+export type SkillAllocationStrategy = 'even-split' | 'primary-skill' | 'weighted';
+
+// NEW: Add missing ClientTaskBreakdown
+export interface ClientTaskBreakdown {
+  clientId: string;
+  clientName: string;
+  tasks: Array<{
+    taskId: string;
+    taskName: string;
+    hours: number;
+    skill: string;
+  }>;
+  totalHours: number;
+}
+
 export interface FinancialProjection {
   month: string;
   revenue: number;
@@ -51,7 +86,7 @@ export interface FinancialProjection {
 export type SkillType = string;
 export type ForecastMode = 'demand-only' | 'capacity-vs-demand' | 'virtual' | 'actual';
 
-// Add missing ForecastResult export
+// Add missing ForecastResult export - ENHANCED with missing properties
 export interface ForecastResult {
   data: ForecastData[];
   summary: {
@@ -63,9 +98,12 @@ export interface ForecastResult {
     totalProfit: number;
   };
   financials: FinancialProjection[];
+  // NEW: Add missing properties
+  parameters?: DemandForecastParameters;
+  generatedAt?: Date;
 }
 
-// Enhanced DemandForecastParameters to include mode
+// Enhanced DemandForecastParameters to include missing properties
 export interface DemandForecastParameters {
   timeHorizon: 'quarter' | 'half-year' | 'year' | 'custom';
   dateRange: {
@@ -79,6 +117,8 @@ export interface DemandForecastParameters {
   timeframe?: string; // Added for compatibility
   includeRevenueCalculations?: boolean;
   useClientExpectedRevenue?: boolean;
+  // NEW: Add missing skillAllocationStrategy
+  skillAllocationStrategy?: SkillAllocationStrategy;
 }
 
 // Alias for backward compatibility

@@ -23,7 +23,7 @@ import {
 
 export const useForecastDashboard = () => {
   const [forecastWindow, setForecastWindow] = useState<string>('next-30-days');
-  const [forecastType, setForecastType] = useState<'virtual' | 'actual'>('virtual');
+  const [forecastType, setForecastType] = useState<ForecastMode>('virtual'); // FIXED: Use ForecastMode type
   const [showCapacity, setShowCapacity] = useState<boolean>(true);
   const [showDemand, setShowDemand] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -228,7 +228,7 @@ export const useForecastDashboard = () => {
     forecastWindow,
     setForecastWindow,
     forecastType,
-    setForecastType,
+    setForecastType: (type: ForecastMode) => setForecastType(type), // FIXED: Proper type function
     showCapacity,
     setShowCapacity,
     showDemand,

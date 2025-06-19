@@ -1,4 +1,5 @@
 
+
 export type TaskPriority = 'Urgent' | 'High' | 'Medium' | 'Low';
 export type TaskCategory = 'Client Work' | 'Internal' | 'Admin' | 'Sales' | 'Other' | 'Tax' | 'Audit' | 'Advisory' | 'Compliance' | 'Bookkeeping';
 export type TaskStatus = 'Unscheduled' | 'Scheduled' | 'In Progress' | 'Completed' | 'Blocked' | 'Cancelled' | 'Canceled';
@@ -47,7 +48,7 @@ export interface TaskInstance {
   staffId?: string;
   createdAt: Date;
   updatedAt: Date;
-  recurringTaskId: string;
+  recurringTaskId?: string; // FIXED: Made optional instead of required
   notes?: string;
   templateId?: string;
   completedAt?: Date;
