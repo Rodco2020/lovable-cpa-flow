@@ -1,9 +1,8 @@
 
-import { SkillType, RecurringTask } from './task';
-import { ClientTaskDemand } from './demand';
+import { SkillType } from './task';
 
 /**
- * Demand-specific drill-down types extending existing analytics types
+ * Enhanced demand drill-down types with preferred staff support
  */
 export interface DemandDrillDownData {
   skill: SkillType;
@@ -12,15 +11,11 @@ export interface DemandDrillDownData {
   totalDemandHours: number;
   taskCount: number;
   clientCount: number;
-  
-  // Demand-specific breakdowns
   clientBreakdown: DemandClientBreakdown[];
   taskBreakdown: DemandTaskBreakdown[];
   recurrencePatternSummary: RecurrencePatternSummary[];
-  
-  // Trend analysis for demand
   trends: {
-    demandTrend: number; // Month-over-month change %
+    demandTrend: number;
     taskGrowth: number;
     clientGrowth: number;
   };
@@ -33,9 +28,12 @@ export interface DemandClientBreakdown {
   taskCount: number;
   recurringTasks: number;
   adhocTasks: number;
-  averageTaskSize: number; // hours
+  averageTaskSize: number;
 }
 
+/**
+ * Enhanced task breakdown with preferred staff information
+ */
 export interface DemandTaskBreakdown {
   taskId: string;
   taskName: string;
@@ -47,10 +45,14 @@ export interface DemandTaskBreakdown {
   recurrenceType: string;
   recurrenceFrequency: number;
   isRecurring: boolean;
+  // NEW: Preferred staff fields
+  preferredStaffId?: string;
+  preferredStaffName?: string;
+  preferredStaffRole?: string;
 }
 
 export interface RecurrencePatternSummary {
-  pattern: string; // "Monthly", "Quarterly", "Weekly", etc.
+  pattern: string;
   taskCount: number;
   totalHours: number;
   percentage: number;

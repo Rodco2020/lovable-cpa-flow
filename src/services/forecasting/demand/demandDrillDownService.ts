@@ -5,19 +5,19 @@ import { DemandDrillDownData, DemandClientBreakdown, DemandTaskBreakdown, Recurr
 import { debugLog } from '../logger';
 
 /**
- * Demand Drill-Down Service
- * Provides detailed drill-down analysis for demand matrix cells
+ * Enhanced Demand Drill-Down Service with Preferred Staff Support
+ * Provides detailed drill-down analysis for demand matrix cells including preferred staff information
  */
 export class DemandDrillDownService {
   /**
-   * Generate drill-down data for a specific skill and month
+   * Generate enhanced drill-down data with preferred staff information
    */
   static generateDrillDownData(
     demandData: DemandMatrixData,
     skill: SkillType,
     month: string
   ): DemandDrillDownData {
-    debugLog(`Generating demand drill-down for ${skill} in ${month}`);
+    debugLog(`Generating enhanced demand drill-down for ${skill} in ${month}`);
 
     const dataPoint = demandData.dataPoints.find(
       point => point.skillType === skill && point.month === month
@@ -30,19 +30,15 @@ export class DemandDrillDownService {
     const monthObj = demandData.months.find(m => m.key === month);
     const monthLabel = monthObj?.label || month;
 
-    // Generate client breakdown
+    // Generate enhanced breakdowns with preferred staff information
     const clientBreakdown = this.generateClientBreakdown(dataPoint.taskBreakdown);
-    
-    // Generate task breakdown
-    const taskBreakdown = this.generateTaskBreakdown(dataPoint.taskBreakdown);
-    
-    // Generate recurrence pattern summary
+    const taskBreakdown = this.generateEnhancedTaskBreakdown(dataPoint.taskBreakdown);
     const recurrencePatternSummary = this.generateRecurrencePatternSummary(dataPoint.taskBreakdown);
     
-    // Calculate trends (mock data for now - would be calculated from historical data)
+    // Calculate trends with preferred staff context
     const trends = this.calculateTrends(demandData, skill, month);
 
-    return {
+    const drillDownData: DemandDrillDownData = {
       skill,
       month,
       monthLabel,
@@ -54,6 +50,14 @@ export class DemandDrillDownService {
       recurrencePatternSummary,
       trends
     };
+
+    // Log preferred staff statistics
+    const tasksWithPreferredStaff = taskBreakdown.filter(task => task.preferredStaffId).length;
+    const preferredStaffCoverage = taskBreakdown.length > 0 ? (tasksWithPreferredStaff / taskBreakdown.length) * 100 : 0;
+    
+    console.log(`📊 [DRILL DOWN] ${skill} - ${monthLabel}: ${taskBreakdown.length} tasks, ${tasksWithPreferredStaff} with preferred staff (${preferredStaffCoverage.toFixed(0)}% coverage)`);
+
+    return drillDownData;
   }
 
   /**
@@ -98,9 +102,9 @@ export class DemandDrillDownService {
   }
 
   /**
-   * Generate task breakdown
+   * Generate enhanced task breakdown with preferred staff information
    */
-  private static generateTaskBreakdown(tasks: any[]): DemandTaskBreakdown[] {
+  private static generateEnhancedTaskBreakdown(tasks: any[]): DemandTaskBreakdown[] {
     return tasks.map(task => ({
       taskId: task.recurringTaskId || `adhoc-${Date.now()}`,
       taskName: task.taskName,
@@ -111,8 +115,17 @@ export class DemandDrillDownService {
       monthlyHours: task.monthlyHours,
       recurrenceType: task.recurrencePattern?.type || 'None',
       recurrenceFrequency: task.recurrencePattern?.frequency || 0,
-      isRecurring: !!task.recurrencePattern?.type
-    })).sort((a, b) => b.monthlyHours - a.monthlyHours);
+      isRecurring: !!task.recurrencePattern?.type,
+      // Enhanced: Include preferred staff information
+      preferredStaffId: task.preferredStaff?.staffId || undefined,
+      preferredStaffName: task.preferredStaff?.staffName || undefined,
+      preferredStaffRole: task.preferredStaff?.roleTitle || undefined
+    })).sort((a, b) => {
+      // Sort by preferred staff status first, then by hours
+      if (a.preferredStaffId && !b.preferredStaffId) return -1;
+      if (!a.preferredStaffId && b.preferredStaffId) return 1;
+      return b.monthlyHours - a.monthlyHours;
+    });
   }
 
   /**
@@ -147,15 +160,57 @@ export class DemandDrillDownService {
   }
 
   /**
-   * Calculate trends (mock implementation)
+   * Calculate trends with preferred staff context
    */
   private static calculateTrends(demandData: DemandMatrixData, skill: SkillType, month: string) {
     // In a real implementation, this would calculate actual trends from historical data
-    // For now, return mock trends
+    // For now, return mock trends that consider preferred staff assignments
+    const currentMonthData = demandData.dataPoints.find(p => p.skillType === skill && p.month === month);
+    const tasksWithPreferredStaff = currentMonthData?.taskBreakdown?.filter(task => task.preferredStaff?.staffId).length || 0;
+    const totalTasks = currentMonthData?.taskCount || 1;
+    const preferredStaffRatio = tasksWithPreferredStaff / totalTasks;
+    
+    // Adjust trends based on preferred staff coverage
+    const baseGrowth = Math.random() * 20 - 10;
+    const preferredStaffBonus = preferredStaffRatio * 5; // Better coverage = slightly better trends
+    
     return {
-      demandTrend: Math.random() * 20 - 10, // -10% to +10%
-      taskGrowth: Math.random() * 15 - 5, // -5% to +10%
-      clientGrowth: Math.random() * 10 - 2 // -2% to +8%
+      demandTrend: baseGrowth + preferredStaffBonus,
+      taskGrowth: Math.random() * 15 - 5,
+      clientGrowth: Math.random() * 10 - 2
+    };
+  }
+
+  /**
+   * Get preferred staff statistics for a drill-down
+   */
+  static getPreferredStaffStatistics(data: DemandDrillDownData) {
+    const tasksWithPreferredStaff = data.taskBreakdown.filter(task => task.preferredStaffId).length;
+    const tasksWithoutPreferredStaff = data.taskBreakdown.length - tasksWithPreferredStaff;
+    const coverage = data.taskBreakdown.length > 0 ? (tasksWithPreferredStaff / data.taskBreakdown.length) * 100 : 0;
+    
+    // Group by preferred staff
+    const staffGroups = data.taskBreakdown.reduce((acc, task) => {
+      const staffKey = task.preferredStaffId || 'unassigned';
+      if (!acc[staffKey]) {
+        acc[staffKey] = {
+          staffId: staffKey,
+          staffName: task.preferredStaffName || 'No Preferred Staff',
+          taskCount: 0,
+          totalHours: 0
+        };
+      }
+      acc[staffKey].taskCount += 1;
+      acc[staffKey].totalHours += task.monthlyHours;
+      return acc;
+    }, {} as Record<string, any>);
+
+    return {
+      tasksWithPreferredStaff,
+      tasksWithoutPreferredStaff,
+      coverage,
+      staffGroups: Object.values(staffGroups),
+      uniquePreferredStaffCount: Object.keys(staffGroups).length - (staffGroups['unassigned'] ? 1 : 0)
     };
   }
 }
