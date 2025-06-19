@@ -43,7 +43,7 @@ export class SkillResolutionService {
 
     // Filter out null, undefined, and empty string values
     const validSkillIds = skillIds.filter(id => 
-      id !== null && id !== undefined && typeof id === string && id.trim().length > 0
+      id !== null && id !== undefined && typeof id === 'string' && id.trim().length > 0
     );
 
     if (validSkillIds.length === 0) {
