@@ -35,7 +35,6 @@ describe('Demand Matrix Performance Tests', () => {
 
     test('large dataset processing performance', async () => {
       // Create large mock dataset
-      const largeTaskCount = 1000;
       const startTime = performance.now();
       
       try {
@@ -43,6 +42,10 @@ describe('Demand Matrix Performance Tests', () => {
         const filters: DemandFilters = {
           skills: ['Tax Preparation', 'Advisory', 'Audit'],
           clients: Array.from({ length: 100 }, (_, i) => `client-${i + 1}`),
+          timeHorizon: {
+            start: new Date('2025-01-01'),
+            end: new Date('2025-12-31')
+          },
           preferredStaff: {
             staffIds: Array.from({ length: 50 }, (_, i) => `staff-${i + 1}`),
             includeUnassigned: true,
@@ -69,7 +72,12 @@ describe('Demand Matrix Performance Tests', () => {
       // Create multiple concurrent requests
       const requests = Array.from({ length: 5 }, (_, i) => 
         DemandMatrixService.generateDemandMatrix('demand-only', new Date(), {
-          skills: [`skill-${i + 1}`]
+          skills: [`skill-${i + 1}`],
+          clients: [],
+          timeHorizon: {
+            start: new Date('2025-01-01'),
+            end: new Date('2025-12-31')
+          }
         }).catch(() => ({})) // Catch errors to test performance
       );
       
@@ -108,7 +116,8 @@ describe('Demand Matrix Performance Tests', () => {
           preferredStaff: Math.random() > 0.5 ? {
             staffId: `staff-${Math.floor(Math.random() * 50) + 1}`,
             staffName: `Staff ${Math.floor(Math.random() * 50) + 1}`,
-            roleTitle: 'CPA'
+            roleTitle: 'CPA',
+            assignmentType: 'preferred' as const
           } : undefined
         }))
       })),
@@ -121,7 +130,12 @@ describe('Demand Matrix Performance Tests', () => {
     test('skill filtering performance', () => {
       const largeData = createLargeMatrixData();
       const filters: DemandFilters = {
-        skills: ['Skill 1', 'Skill 5', 'Skill 10']
+        skills: ['Skill 1', 'Skill 5', 'Skill 10'],
+        clients: [],
+        timeHorizon: {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-12-31')
+        }
       };
       
       const startTime = performance.now();
@@ -137,7 +151,12 @@ describe('Demand Matrix Performance Tests', () => {
     test('client filtering performance', () => {
       const largeData = createLargeMatrixData();
       const filters: DemandFilters = {
-        clients: Array.from({ length: 50 }, (_, i) => `client-${i + 1}`)
+        skills: [],
+        clients: Array.from({ length: 50 }, (_, i) => `client-${i + 1}`),
+        timeHorizon: {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-12-31')
+        }
       };
       
       const startTime = performance.now();
@@ -153,6 +172,12 @@ describe('Demand Matrix Performance Tests', () => {
     test('preferred staff filtering performance', () => {
       const largeData = createLargeMatrixData();
       const filters: DemandFilters = {
+        skills: [],
+        clients: [],
+        timeHorizon: {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-12-31')
+        },
         preferredStaff: {
           staffIds: Array.from({ length: 25 }, (_, i) => `staff-${i + 1}`),
           includeUnassigned: true,
@@ -175,6 +200,10 @@ describe('Demand Matrix Performance Tests', () => {
       const filters: DemandFilters = {
         skills: ['Skill 1', 'Skill 2', 'Skill 3'],
         clients: Array.from({ length: 20 }, (_, i) => `client-${i + 1}`),
+        timeHorizon: {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-12-31')
+        },
         preferredStaff: {
           staffIds: Array.from({ length: 10 }, (_, i) => `staff-${i + 1}`),
           includeUnassigned: false,
@@ -228,7 +257,12 @@ describe('Demand Matrix Performance Tests', () => {
       // Generate multiple cache entries
       const promises = Array.from({ length: 10 }, (_, i) => 
         DemandMatrixService.generateDemandMatrix('demand-only', new Date(), {
-          skills: [`skill-${i}`]
+          skills: [`skill-${i}`],
+          clients: [],
+          timeHorizon: {
+            start: new Date('2025-01-01'),
+            end: new Date('2025-12-31')
+          }
         }).catch(() => ({}))
       );
       

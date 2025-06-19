@@ -170,9 +170,9 @@ export interface DemandMatrixData {
 }
 
 export interface DemandFilters {
-  skills: string[];
-  clients: string[];
-  timeHorizon: {
+  skills?: string[];
+  clients?: string[];
+  timeHorizon?: {
     start: Date;
     end: Date;
   };
