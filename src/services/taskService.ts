@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabaseClient';
 import { getAllSkills } from '@/services/skillService';
@@ -255,6 +254,12 @@ export const archiveTaskTemplate = async (id: string): Promise<boolean> => {
 
 // Helper function to map Supabase recurring task to our RecurringTask type
 const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
+  console.log('🔄 [taskService] Mapping Supabase data to RecurringTask:', {
+    id: data.id,
+    name: data.name,
+    preferred_staff_id: data.preferred_staff_id
+  });
+  
   // Create recurrence pattern object from individual fields
   const recurrencePattern: RecurrencePattern = {
     type: data.recurrence_type as RecurrencePattern['type'],
@@ -266,7 +271,7 @@ const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
     customOffsetDays: data.custom_offset_days || undefined,
   };
 
-  return {
+  const mappedTask = {
     id: data.id,
     templateId: data.template_id,
     clientId: data.client_id,
@@ -278,7 +283,7 @@ const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
     category: validateCategory(data.category),
     status: data.status as TaskStatus,
     dueDate: data.due_date ? new Date(data.due_date) : null,
-    preferredStaffId: data.preferred_staff_id, // Add the missing preferred staff mapping
+    preferredStaffId: data.preferred_staff_id, // Mapped preferred staff field
     recurrencePattern,
     lastGeneratedDate: data.last_generated_date ? new Date(data.last_generated_date) : null,
     isActive: data.is_active,
@@ -286,6 +291,14 @@ const mapSupabaseToRecurringTask = (data: any): RecurringTask => {
     updatedAt: new Date(data.updated_at),
     notes: data.notes || undefined
   };
+  
+  console.log('✅ [taskService] Mapped task result:', {
+    id: mappedTask.id,
+    name: mappedTask.name,
+    preferredStaffId: mappedTask.preferredStaffId
+  });
+  
+  return mappedTask;
 };
 
 // Helper function to map RecurringTask to Supabase format
@@ -431,6 +444,16 @@ export const createRecurringTask = async (task: Omit<RecurringTask, 'id' | 'crea
 
 export const updateRecurringTask = async (id: string, updates: Partial<Omit<RecurringTask, 'id' | 'createdAt'>>): Promise<RecurringTask | null> => {
   try {
+    console.log('💾 [taskService] Starting updateRecurringTask:', {
+      taskId: id,
+      updates: {
+        name: updates.name,
+        preferredStaffId: updates.preferredStaffId,
+        estimatedHours: updates.estimatedHours,
+        priority: updates.priority
+      }
+    });
+    
     // Prepare the update data for Supabase
     const updateData: any = {};
     
@@ -446,6 +469,15 @@ export const updateRecurringTask = async (id: string, updates: Partial<Omit<Recu
     if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate ? updates.dueDate.toISOString() : null;
     if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
+    
+    // Handle preferred staff ID updates - this is critical for persistence
+    if (updates.preferredStaffId !== undefined) {
+      updateData.preferred_staff_id = updates.preferredStaffId;
+      console.log('📝 [taskService] Setting preferred_staff_id in update data:', {
+        preferredStaffId: updates.preferredStaffId,
+        updateDataValue: updateData.preferred_staff_id
+      });
+    }
     
     // Handle recurrence pattern updates
     if (updates.recurrencePattern) {
@@ -465,6 +497,16 @@ export const updateRecurringTask = async (id: string, updates: Partial<Omit<Recu
       updateData.last_generated_date = updates.lastGeneratedDate ? updates.lastGeneratedDate.toISOString() : null;
     }
     
+    console.log('🚀 [taskService] Executing Supabase update with data:', {
+      taskId: id,
+      updateData: {
+        name: updateData.name,
+        preferred_staff_id: updateData.preferred_staff_id,
+        estimated_hours: updateData.estimated_hours,
+        priority: updateData.priority
+      }
+    });
+    
     const { data, error } = await supabase
       .from('recurring_tasks')
       .update(updateData)
@@ -472,14 +514,33 @@ export const updateRecurringTask = async (id: string, updates: Partial<Omit<Recu
       .select()
       .single();
     
-    if (error || !data) {
-      console.error('Error updating recurring task:', error);
+    if (error) {
+      console.error('❌ [taskService] Supabase update error:', error);
       return null;
     }
     
-    return mapSupabaseToRecurringTask(data);
+    if (!data) {
+      console.error('❌ [taskService] No data returned from update');
+      return null;
+    }
+    
+    console.log('✅ [taskService] Supabase update successful, raw data:', {
+      id: data.id,
+      name: data.name,
+      preferred_staff_id: data.preferred_staff_id
+    });
+    
+    const mappedResult = mapSupabaseToRecurringTask(data);
+    
+    console.log('🎯 [taskService] Final mapped result:', {
+      id: mappedResult.id,
+      name: mappedResult.name,
+      preferredStaffId: mappedResult.preferredStaffId
+    });
+    
+    return mappedResult;
   } catch (err) {
-    console.error('Unexpected error updating recurring task:', err);
+    console.error('💥 [taskService] Unexpected error updating recurring task:', err);
     return null;
   }
 };

@@ -19,6 +19,12 @@ export const useEditTaskForm = ({
   // Helper function to get default form values
   const getDefaultFormValues = (taskData?: RecurringTask | null): EditTaskFormValues => {
     if (taskData) {
+      console.log('🔍 [useEditTaskForm] Building form values from task data:', {
+        taskId: taskData.id,
+        preferredStaffId: taskData.preferredStaffId,
+        taskName: taskData.name
+      });
+      
       return {
         name: taskData.name,
         description: taskData.description || '',
@@ -67,10 +73,17 @@ export const useEditTaskForm = ({
   // Initialize selected skills and form when task changes
   useEffect(() => {
     if (task) {
-      console.log('Initializing form with task:', task);
-      console.log('Task preferred staff ID:', task.preferredStaffId);
+      console.log('🔄 [useEditTaskForm] Task changed, initializing form with task:', {
+        taskId: task.id,
+        preferredStaffId: task.preferredStaffId,
+        taskName: task.name
+      });
       
       const formValues = getDefaultFormValues(task);
+      console.log('📝 [useEditTaskForm] Form values to be set:', {
+        preferredStaffId: formValues.preferredStaffId,
+        name: formValues.name
+      });
       
       // Reset form with new values
       form.reset(formValues);
@@ -82,7 +95,7 @@ export const useEditTaskForm = ({
       setFormError(null);
       setSkillsError(null);
       
-      console.log('Form initialized with preferred staff ID:', formValues.preferredStaffId);
+      console.log('✅ [useEditTaskForm] Form initialized successfully');
     }
   }, [task, form]);
 
@@ -121,6 +134,16 @@ export const useEditTaskForm = ({
       return;
     }
     
+    console.log('🚀 [useEditTaskForm] Form submission started with data:', {
+      taskId: task.id,
+      formData: {
+        name: data.name,
+        preferredStaffId: data.preferredStaffId,
+        estimatedHours: data.estimatedHours,
+        priority: data.priority
+      }
+    });
+    
     if (selectedSkills.length === 0) {
       setSkillsError('At least one skill is required');
       return;
@@ -130,9 +153,6 @@ export const useEditTaskForm = ({
     setFormError(null);
     
     try {
-      console.log('Form submission data:', data);
-      console.log('Preferred staff ID in submission:', data.preferredStaffId);
-      
       // Validate preferred staff ID if provided
       if (data.preferredStaffId !== null && data.preferredStaffId !== undefined) {
         if (typeof data.preferredStaffId === 'string' && data.preferredStaffId.trim() === '') {
@@ -167,14 +187,19 @@ export const useEditTaskForm = ({
         isActive: task.isActive
       };
 
-      console.log('Updated task object:', updatedTask);
-      console.log('Final preferred staff ID:', updatedTask.preferredStaffId);
+      console.log('📤 [useEditTaskForm] Calling onSave with updated task:', {
+        taskId: updatedTask.id,
+        preferredStaffId: updatedTask.preferredStaffId,
+        name: updatedTask.name
+      });
 
       await onSave(updatedTask);
+      
+      console.log('✅ [useEditTaskForm] onSave completed successfully');
       onSuccess();
       toast.success("Task updated successfully");
     } catch (error) {
-      console.error("Error saving task:", error);
+      console.error("❌ [useEditTaskForm] Error saving task:", error);
       setFormError(error instanceof Error ? error.message : "Failed to update task");
       toast.error("Failed to update task");
     } finally {
@@ -190,7 +215,7 @@ export const useEditTaskForm = ({
       setSelectedSkills(task.requiredSkills || []);
       setFormError(null);
       setSkillsError(null);
-      console.log('Form manually reset with preferred staff ID:', formValues.preferredStaffId);
+      console.log('🔄 [useEditTaskForm] Form manually reset with preferred staff ID:', formValues.preferredStaffId);
     }
   };
 

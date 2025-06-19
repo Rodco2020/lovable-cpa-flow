@@ -26,26 +26,29 @@ export function EditRecurringTaskContainer({
   // Fetch task data when dialog opens and taskId is available
   useEffect(() => {
     if (open && taskId) {
+      console.log('🔍 [EditRecurringTaskContainer] Fetching task data for ID:', taskId);
       setIsLoading(true);
       setError(null);
       
       const fetchTask = async () => {
         try {
-          console.log(`Fetching task with ID: ${taskId}`);
           const taskData = await getRecurringTaskById(taskId);
           
           if (taskData) {
-            console.log('Task loaded successfully:', taskData);
+            console.log('✅ [EditRecurringTaskContainer] Task loaded successfully:', {
+              taskId: taskData.id,
+              preferredStaffId: taskData.preferredStaffId,
+              name: taskData.name
+            });
             setTask(taskData);
-            // Reset error state in case there was a previous error
             setError(null);
           } else {
-            console.error(`Task with ID ${taskId} not found`);
+            console.error(`❌ [EditRecurringTaskContainer] Task with ID ${taskId} not found`);
             setError(`Task with ID ${taskId} not found`);
             toast.error("Failed to load task data");
           }
         } catch (err) {
-          console.error("Error fetching task:", err);
+          console.error("❌ [EditRecurringTaskContainer] Error fetching task:", err);
           setError("An error occurred while loading task data");
           toast.error("Failed to load task data");
         } finally {
@@ -78,19 +81,37 @@ export function EditRecurringTaskContainer({
       throw new Error("Task ID is required for updating");
     }
     
+    console.log('💾 [EditRecurringTaskContainer] Starting save operation:', {
+      taskId: updatedTask.id,
+      preferredStaffId: updatedTask.preferredStaffId,
+      name: updatedTask.name
+    });
+    
     try {
-      console.log("Updating task:", updatedTask);
-      await updateRecurringTask(updatedTask.id, updatedTask);
+      const result = await updateRecurringTask(updatedTask.id, updatedTask);
       
-      // Display success message
-      toast.success("Task updated successfully");
-      
-      // Call the onSaveComplete callback to trigger refresh in parent components
-      if (onSaveComplete) {
-        onSaveComplete();
+      if (result) {
+        console.log('✅ [EditRecurringTaskContainer] Task updated successfully in database:', {
+          taskId: result.id,
+          preferredStaffId: result.preferredStaffId,
+          name: result.name
+        });
+        
+        // Update local task state to reflect changes
+        setTask(result);
+        
+        toast.success("Task updated successfully");
+        
+        // Call the onSaveComplete callback to trigger refresh in parent components
+        if (onSaveComplete) {
+          console.log('🔄 [EditRecurringTaskContainer] Calling onSaveComplete callback');
+          onSaveComplete();
+        }
+      } else {
+        throw new Error("Update operation returned null result");
       }
     } catch (err) {
-      console.error("Error updating task:", err);
+      console.error("❌ [EditRecurringTaskContainer] Error updating task:", err);
       
       // Format error message for display
       const errorMessage = err instanceof Error 
