@@ -27,16 +27,28 @@ export * from './types/legacyTypes';
 // Enhanced types
 export * from './types/enhancedTypes';
 
-// Re-export key types for backward compatibility
+// Re-export key types for backward compatibility (importing from correct modules)
 export type {
   TransformationInput,
-  TransformationOptions,
-  TransformationResult,
   TaskPeriodData,
   SkillMonthData,
-  ClientRevenueInfo,
+  ClientRevenueInfo
+} from './types/coreTypes';
+
+export type {
+  TransformationOptions
+} from './types/optionsTypes';
+
+export type {
+  TransformationResult
+} from './types/resultTypes';
+
+export type {
   PreferredStaffProcessingResult,
-  StaffResolutionContext,
+  StaffResolutionContext
+} from './types/preferredStaffTypes';
+
+export type {
   TransformationMetrics,
   ValidationResult
-} from './types/coreTypes';
+} from './types/performanceTypes';

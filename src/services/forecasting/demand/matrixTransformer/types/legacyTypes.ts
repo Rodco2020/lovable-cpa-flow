@@ -1,6 +1,7 @@
 
 import { RecurringTaskDB } from '@/types/task';
-import { TransformationInput, TransformationOptions } from './coreTypes';
+import { TransformationInput } from './coreTypes';
+import { TransformationOptions } from './optionsTypes';
 
 /**
  * Legacy support and migration types
