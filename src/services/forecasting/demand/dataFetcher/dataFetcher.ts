@@ -50,7 +50,7 @@ export class DataFetcher {
       });
 
       console.log('🔍 [DATA FETCHER] Executing database query...');
-      const { data, error, count } = await query;
+      const { data: queryData, error, count } = await query;
 
       // Step 3: Handle query results
       if (error) {
@@ -58,49 +58,47 @@ export class DataFetcher {
         throw new Error(`Database query failed: ${error.message}`);
       }
 
-      if (!data || !Array.isArray(data)) {
+      if (!queryData || !Array.isArray(queryData)) {
         console.warn('⚠️ [DATA FETCHER] Query returned null or invalid data');
         return [];
       }
 
       const queryTime = Date.now() - startTime;
       console.log('📈 [DATA FETCHER] Query completed successfully:', {
-        taskCount: data.length,
+        taskCount: queryData.length,
         totalCount: count,
         queryTime: `${queryTime}ms`,
         hasFilters: !FilterProcessor.areFiltersEmpty(filters)
       });
 
-      // Step 4: Validate and process results
-      const validTasks = data.filter((task: any): task is RecurringTaskDB => {
+      // Step 4: Validate and process results with proper typing
+      const validTasks: RecurringTaskDB[] = [];
+      
+      for (const task of queryData) {
         // Type guard to ensure we have valid task data
         if (!task || typeof task !== 'object') {
           console.warn('⚠️ [DATA FETCHER] Invalid task object filtered out:', task);
-          return false;
+          continue;
         }
 
-        const isValid = task.id && 
-          task.name && 
-          task.client_id && 
-          task.is_active === true;
-        
-        if (!isValid) {
-          console.warn('⚠️ [DATA FETCHER] Invalid task filtered out:', task?.id || 'unknown');
+        // Check if this looks like a RecurringTaskDB object
+        if (this.isValidRecurringTask(task)) {
+          validTasks.push(task as RecurringTaskDB);
+        } else {
+          console.warn('⚠️ [DATA FETCHER] Invalid task filtered out:', (task as any)?.id || 'unknown');
         }
-        
-        return isValid;
-      });
+      }
 
       console.log('✅ [DATA FETCHER] Task validation completed:', {
-        originalCount: data.length,
+        originalCount: queryData.length,
         validCount: validTasks.length,
-        filteredOut: data.length - validTasks.length
+        filteredOut: queryData.length - validTasks.length
       });
 
       // Step 5: Debug task details for troubleshooting
       if (validTasks.length === 0) {
         console.warn('🔍 [DATA FETCHER] ZERO TASKS FOUND - Debugging information:');
-        console.warn('  - Total rows in query result:', data.length);
+        console.warn('  - Total rows in query result:', queryData.length);
         console.warn('  - Applied filters:', processedFilters);
         console.warn('  - Query included clients:', true);
         console.warn('  - Query included preferred staff:', true);
@@ -134,6 +132,19 @@ export class DataFetcher {
       // Return empty array instead of throwing to prevent cascade failures
       return [];
     }
+  }
+
+  /**
+   * Type guard to check if an object is a valid RecurringTaskDB
+   */
+  private static isValidRecurringTask(task: any): task is RecurringTaskDB {
+    return task &&
+      typeof task === 'object' &&
+      typeof task.id === 'string' &&
+      typeof task.name === 'string' &&
+      typeof task.client_id === 'string' &&
+      typeof task.is_active === 'boolean' &&
+      task.is_active === true;
   }
 
   /**
