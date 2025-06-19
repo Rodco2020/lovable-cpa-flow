@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DemandMatrixData } from '@/types/demand';
@@ -241,14 +242,18 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
 
     const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
     
-    // FIXED: Create filters with correct "no active filtering" logic
+    // FIXED: Create filters with correct "no active filtering" logic and proper preferredStaff structure
     const filters = {
       // Only include skills filter if we're NOT selecting all skills
       skills: isAllSkillsSelected ? [] : selectedSkills,
       // Only include clients filter if we're NOT selecting all clients  
       clients: isAllClientsSelected ? [] : selectedClients,
-      // Only include preferred staff filter if we're NOT selecting all preferred staff
-      preferredStaff: isAllPreferredStaffSelected ? [] : selectedPreferredStaff,
+      // FIXED: Use proper preferredStaff object structure instead of array
+      preferredStaff: {
+        staffIds: isAllPreferredStaffSelected ? [] : selectedPreferredStaff,
+        includeUnassigned: false,
+        showOnlyPreferred: false
+      },
       timeHorizon: {
         start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
         end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
@@ -258,7 +263,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
       skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
       clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
-      preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL PREFERRED STAFF (no filter)' : filters.preferredStaff,
+      preferredStaffFilter: filters.preferredStaff.staffIds?.length === 0 ? 'ALL PREFERRED STAFF (no filter)' : filters.preferredStaff.staffIds,
       timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
     });
 
