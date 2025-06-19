@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import { UseFormReturn, Controller } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { getActiveStaffForDropdown } from '@/services/staff/staffDropdownService';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
@@ -16,37 +15,21 @@ interface PreferredStaffFieldProps {
 }
 
 /**
- * Preferred Staff Field Component
+ * Simplified Preferred Staff Field Component
  * 
- * Provides a dropdown selector for assigning a preferred staff member to a task.
- * This is an optional field that allows clients to request specific staff members
- * for their recurring tasks while maintaining the flexibility to choose "No preference"
- * for automatic assignment.
+ * Uses React-Hook-Form Controller for direct form binding without complex value normalization.
+ * Handles null values directly in the Select component for cleaner state management.
  * 
- * Features:
- * - Fetches active staff members from the database
- * - Handles loading, error, and retry states gracefully
- * - Validates staff selections and provides feedback
- * - Supports "No preference" option for automatic assignment
- * - Auto-recovery for invalid selections
- * - Accessibility compliant with proper ARIA labels
- * - Real-time form integration with react-hook-form
+ * Form Value Logic:
+ * - null = "No preference" (automatic assignment)
+ * - string UUID = Specific staff member selection
  * 
- * Value Handling:
- * - Form stores null for "No preference" (automatic assignment)
- * - Form stores staff UUID string for specific staff selections
- * - Component normalizes values for Select component compatibility
- * - Validates selections against current staff list
- * 
- * Error Recovery:
- * - Automatically resets invalid staff IDs to last valid selection or null
- * - Provides retry functionality for network failures
- * - Graceful degradation when staff data is unavailable
+ * Select Value Logic:
+ * - "" = "No preference" option
+ * - string UUID = Staff member option
  */
 export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }) => {
   const [retryAttempts, setRetryAttempts] = React.useState(0);
-  const [userHasInteracted, setUserHasInteracted] = React.useState(false);
-  const [lastValidSelection, setLastValidSelection] = React.useState<string | null>(null);
 
   // Fetch active staff members with enhanced error handling and caching
   const { 
@@ -65,52 +48,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
   });
 
   /**
-   * Normalizes form values for Select component compatibility
-   * Converts null/undefined to "none" string for Select component
-   */
-  const normalizeValue = (value: string | null | undefined): string => {
-    if (value === null || value === undefined || value === '') {
-      return "none";
-    }
-    return value;
-  };
-
-  /**
-   * Denormalizes Select values back to form values
-   * Converts "none" string back to null for form storage
-   */
-  const denormalizeValue = (selectValue: string): string | null => {
-    if (selectValue === "none" || selectValue === '' || selectValue === undefined) {
-      return null;
-    }
-    return selectValue;
-  };
-
-  /**
-   * Validates staff ID against current staff list
-   * Returns validation result with error message if invalid
-   */
-  const validateStaffId = (staffId: string | null): { isValid: boolean; errorMessage?: string } => {
-    if (staffId === null) return { isValid: true }; // null is valid (no preference)
-    
-    if (staffOptions.length === 0 && !isLoading) {
-      return { isValid: false, errorMessage: "Staff data is not available" };
-    }
-    
-    const staffExists = staffOptions.some(staff => staff.id === staffId);
-    if (!staffExists) {
-      return { 
-        isValid: false, 
-        errorMessage: "Selected staff member is no longer available" 
-      };
-    }
-    
-    return { isValid: true };
-  };
-
-  /**
    * Retry handler for network failures
-   * Increments retry counter and refetches data
    */
   const handleRetry = async () => {
     setRetryAttempts(prev => prev + 1);
@@ -118,21 +56,7 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
   };
 
   /**
-   * Effect for tracking valid selections and auto-recovery
-   * Maintains last valid selection for recovery purposes
-   */
-  React.useEffect(() => {
-    const currentValue = form.getValues('preferredStaffId');
-    
-    // Track last valid selection for recovery
-    if (currentValue && validateStaffId(currentValue).isValid) {
-      setLastValidSelection(currentValue);
-    }
-  }, [form, staffOptions, isLoading, error, userHasInteracted, lastValidSelection]);
-
-  /**
    * Gets staff display name by ID
-   * Returns staff name or null if not found
    */
   const getStaffName = (staffId: string | null): string | null => {
     if (!staffId) return null;
@@ -140,26 +64,44 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
     return staff?.full_name || null;
   };
 
-  return (
-    <FormField
-      control={form.control}
-      name="preferredStaffId"
-      render={({ field }) => {
-        const currentValue = field.value;
-        const normalizedSelectValue = normalizeValue(currentValue);
-        const validation = validateStaffId(currentValue);
-        const selectedStaffName = getStaffName(currentValue);
+  /**
+   * Validates if staff ID exists in current options
+   */
+  const isValidStaffId = (staffId: string | null): boolean => {
+    if (staffId === null) return true; // null is always valid (no preference)
+    return staffOptions.some(staff => staff.id === staffId);
+  };
 
-        /**
-         * Auto-recovery effect for invalid selections
-         * Automatically resets to last valid selection or null
-         */
+  return (
+    <Controller
+      name="preferredStaffId"
+      control={form.control}
+      render={({ field, fieldState }) => {
+        const currentValue = field.value;
+        const selectedStaffName = getStaffName(currentValue);
+        const isValidSelection = isValidStaffId(currentValue);
+
+        // Debug logging for form state tracking
+        console.log('🔍 [PreferredStaffField] Form state debug:', {
+          fieldValue: field.value,
+          fieldValueType: typeof field.value,
+          selectedStaffName,
+          isValidSelection,
+          staffOptionsCount: staffOptions.length,
+          timestamp: new Date().toISOString()
+        });
+
+        // Auto-recovery for invalid selections
         React.useEffect(() => {
-          if (!isLoading && currentValue !== null && !validation.isValid && userHasInteracted) {
-            // Try to recover with last valid selection, otherwise reset to null
-            field.onChange(lastValidSelection || null);
+          if (!isLoading && currentValue !== null && !isValidSelection) {
+            console.log('⚠️ [PreferredStaffField] Auto-recovering invalid selection:', {
+              invalidValue: currentValue,
+              resettingToNull: true,
+              timestamp: new Date().toISOString()
+            });
+            field.onChange(null);
           }
-        }, [currentValue, validation.isValid, isLoading, field, lastValidSelection, userHasInteracted]);
+        }, [currentValue, isValidSelection, isLoading, field]);
 
         return (
           <FormItem>
@@ -199,47 +141,38 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
             )}
 
             {/* Validation error feedback */}
-            {!validation.isValid && validation.errorMessage && (
+            {!isValidSelection && currentValue !== null && (
               <Alert variant="destructive" className="mb-2">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  {validation.errorMessage}
-                  {lastValidSelection && (
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      onClick={() => {
-                        field.onChange(lastValidSelection);
-                        setUserHasInteracted(true);
-                      }}
-                      className="ml-2 p-0 h-auto"
-                    >
-                      Restore previous selection
-                    </Button>
-                  )}
+                  Selected staff member is no longer available
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => field.onChange(null)}
+                    className="ml-2 p-0 h-auto"
+                  >
+                    Reset to "No preference"
+                  </Button>
                 </AlertDescription>
               </Alert>
             )}
 
             <Select
               onValueChange={(value) => {
-                setUserHasInteracted(true);
-                const denormalizedValue = denormalizeValue(value);
+                console.log('📝 [PreferredStaffField] Select onChange:', {
+                  selectedValue: value,
+                  selectedValueType: typeof value,
+                  willSetFormTo: value === "" ? null : value,
+                  timestamp: new Date().toISOString()
+                });
                 
-                // Validate selection before updating form
-                if (denormalizedValue !== null && !staffOptions.some(s => s.id === denormalizedValue)) {
-                  return; // Don't update if invalid
-                }
-                
-                field.onChange(denormalizedValue);
-                
-                // Update last valid selection
-                if (denormalizedValue && validateStaffId(denormalizedValue).isValid) {
-                  setLastValidSelection(denormalizedValue);
-                }
+                // Convert empty string to null, keep UUIDs as strings
+                const formValue = value === "" ? null : value;
+                field.onChange(formValue);
               }}
-              value={normalizedSelectValue}
+              value={currentValue || ""} // Convert null to empty string for Select
               disabled={isLoading || !!error}
             >
               <FormControl>
@@ -260,12 +193,15 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
                 </SelectTrigger>
               </FormControl>
               <SelectContent className="z-50 bg-background">
-                <SelectItem value="none" className="font-medium">
+                {/* No preference option */}
+                <SelectItem value="" className="font-medium">
                   <div className="flex items-center gap-2">
                     <Info className="h-3 w-3 text-muted-foreground" />
                     No preference
                   </div>
                 </SelectItem>
+                
+                {/* Staff options */}
                 {staffOptions.map((staff) => {
                   const isCurrentSelection = staff.id === currentValue;
                   
@@ -300,11 +236,23 @@ export const PreferredStaffField: React.FC<PreferredStaffFieldProps> = ({ form }
                 </p>
               )}
               
-              {currentValue && validation.isValid && selectedStaffName && (
+              {currentValue && isValidSelection && selectedStaffName && (
                 <p className="text-green-600">
                   ✓ {selectedStaffName} will be preferred for this task
                 </p>
               )}
+
+              {/* Debug information */}
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground">Debug Info</summary>
+                <div className="mt-1 p-2 bg-muted rounded text-xs">
+                  <p>Form Value: {JSON.stringify(currentValue)}</p>
+                  <p>Form Value Type: {typeof currentValue}</p>
+                  <p>Select Value: {JSON.stringify(currentValue || "")}</p>
+                  <p>Valid Selection: {isValidSelection.toString()}</p>
+                  <p>Staff Options Count: {staffOptions.length}</p>
+                </div>
+              </details>
             </div>
 
             <FormMessage />
