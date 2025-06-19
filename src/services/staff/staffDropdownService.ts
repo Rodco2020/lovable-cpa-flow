@@ -18,7 +18,7 @@ let cacheTimestamp: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 /**
- * NEW: Cache for preferred staff from demand data
+ * Cache for preferred staff from demand data
  */
 let preferredStaffCache: Map<string, { id: string; name: string }[]> = new Map();
 let preferredStaffCacheTimestamp: number = 0;
@@ -31,7 +31,7 @@ const isCacheValid = (): boolean => {
 };
 
 /**
- * NEW: Check if preferred staff cache is valid
+ * Check if preferred staff cache is valid
  */
 const isPreferredStaffCacheValid = (): boolean => {
   return (Date.now() - preferredStaffCacheTimestamp) < CACHE_DURATION;
@@ -43,7 +43,7 @@ const isPreferredStaffCacheValid = (): boolean => {
 export const clearStaffOptionsCache = (): void => {
   staffOptionsCache = null;
   cacheTimestamp = 0;
-  // NEW: Also clear preferred staff cache
+  // Also clear preferred staff cache
   preferredStaffCache.clear();
   preferredStaffCacheTimestamp = 0;
 };
@@ -100,7 +100,7 @@ export const getActiveStaffForDropdown = async (): Promise<StaffOption[]> => {
 };
 
 /**
- * NEW: Get staff member details by ID for task editing workflow
+ * Get staff member details by ID for task editing workflow
  * Enhanced to support preferred staff resolution
  */
 export const getStaffMemberForTaskAssignment = async (staffId: string): Promise<{
@@ -134,7 +134,7 @@ export const getStaffMemberForTaskAssignment = async (staffId: string): Promise<
 };
 
 /**
- * NEW: Get preferred staff options from demand data with caching
+ * Get preferred staff options from demand data with caching
  * Optimized for demand matrix filtering scenarios
  */
 export const getPreferredStaffFromDemandData = async (
@@ -158,9 +158,9 @@ export const getPreferredStaffFromDemandData = async (
     demandDataPoints.forEach(point => {
       if (point.taskBreakdown) {
         point.taskBreakdown.forEach((task: any) => {
-          if (task.preferredStaffId && task.preferredStaffName) {
-            preferredStaffSet.add(task.preferredStaffId);
-            staffInfoMap.set(task.preferredStaffId, task.preferredStaffName);
+          if (task.preferredStaff?.staffId && task.preferredStaff?.staffName) {
+            preferredStaffSet.add(task.preferredStaff.staffId);
+            staffInfoMap.set(task.preferredStaff.staffId, task.preferredStaff.staffName);
           }
         });
       }
@@ -207,7 +207,7 @@ export const refreshStaffOptionsCache = async (): Promise<StaffOption[]> => {
 };
 
 /**
- * NEW: Get cache statistics including preferred staff cache
+ * Get cache statistics including preferred staff cache
  */
 export const getStaffCacheStatistics = (): {
   staffOptionsCount: number;

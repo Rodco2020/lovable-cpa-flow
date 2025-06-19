@@ -10,11 +10,6 @@ import { FilteringOptions } from './types';
 import { PERFORMANCE_OPERATIONS } from './constants';
 import { PerformanceMonitor } from './performanceMonitor';
 
-// NEW: Extended DemandFilters interface for preferred staff
-interface ExtendedDemandFilters extends DemandFilters {
-  preferredStaff?: string[];
-}
-
 export class DataFilter {
   private static performanceMonitor = new PerformanceMonitor();
 
@@ -23,7 +18,7 @@ export class DataFilter {
    */
   static optimizeFiltering(
     data: DemandMatrixData,
-    filters: ExtendedDemandFilters, // NEW: Use extended filters
+    filters: DemandFilters,
     options: FilteringOptions = {}
   ): DemandMatrixData {
     const { enableEarlyExit = true, enablePreCalculation = true, enableLogging = true } = options;
@@ -32,7 +27,7 @@ export class DataFilter {
     console.log(`🔍 [DATA FILTER] Starting optimization with filters:`, {
       skillsFilter: filters.skills?.length === 0 ? 'NONE (show all)' : filters.skills,
       clientsFilter: filters.clients?.length === 0 ? 'NONE (show all)' : filters.clients,
-      preferredStaffFilter: filters.preferredStaff?.length === 0 ? 'NONE (show all)' : filters.preferredStaff, // NEW
+      preferredStaffFilter: filters.preferredStaff?.staffIds?.length === 0 ? 'NONE (show all)' : filters.preferredStaff?.staffIds,
       hasTimeHorizon: !!filters.timeHorizon,
       includeInactive: filters.includeInactive
     });
@@ -49,15 +44,15 @@ export class DataFilter {
     // Pre-calculate filter sets for efficiency
     const skillSet = enablePreCalculation && filters.skills && filters.skills.length > 0 ? new Set(filters.skills) : null;
     const clientSet = enablePreCalculation && filters.clients && filters.clients.length > 0 ? new Set(filters.clients) : null;
-    const preferredStaffSet = enablePreCalculation && filters.preferredStaff && filters.preferredStaff.length > 0 ? new Set(filters.preferredStaff) : null; // NEW
+    const preferredStaffSet = enablePreCalculation && filters.preferredStaff?.staffIds && filters.preferredStaff.staffIds.length > 0 ? new Set(filters.preferredStaff.staffIds) : null;
     
     console.log(`🎯 [DATA FILTER] Filter sets prepared:`, {
       skillSetSize: skillSet?.size || 0,
       clientSetSize: clientSet?.size || 0,
-      preferredStaffSetSize: preferredStaffSet?.size || 0, // NEW
+      preferredStaffSetSize: preferredStaffSet?.size || 0,
       willFilterBySkills: !!skillSet,
       willFilterByClients: !!clientSet,
-      willFilterByPreferredStaff: !!preferredStaffSet // NEW
+      willFilterByPreferredStaff: !!preferredStaffSet
     });
     
     // Filter data points efficiently
@@ -87,10 +82,10 @@ export class DataFilter {
         }
       }
       
-      // NEW: Preferred staff filter - only apply if we have an active preferred staff filter
+      // Preferred staff filter - only apply if we have an active preferred staff filter
       if (preferredStaffSet && preferredStaffSet.size > 0) {
         const hasMatchingPreferredStaff = point.taskBreakdown?.some(task => 
-          task.preferredStaffId && preferredStaffSet.has(task.preferredStaffId)
+          task.preferredStaff?.staffId && preferredStaffSet.has(task.preferredStaff.staffId)
         );
         if (!hasMatchingPreferredStaff) {
           return false;
@@ -131,7 +126,7 @@ export class DataFilter {
         totalDemand: result.totalDemand.toFixed(1),
         totalTasks: result.totalTasks,
         totalClients: result.totalClients,
-        preferredStaffFiltered: !!preferredStaffSet // NEW
+        preferredStaffFiltered: !!preferredStaffSet
       });
     }
     
@@ -141,19 +136,19 @@ export class DataFilter {
   /**
    * Check if filters are effectively empty - updated to include preferred staff
    */
-  private static hasNoActiveFilters(filters: ExtendedDemandFilters): boolean {
+  private static hasNoActiveFilters(filters: DemandFilters): boolean {
     const hasNoSkillFilter = !filters.skills || filters.skills.length === 0;
     const hasNoClientFilter = !filters.clients || filters.clients.length === 0;
-    const hasNoPreferredStaffFilter = !filters.preferredStaff || filters.preferredStaff.length === 0; // NEW
+    const hasNoPreferredStaffFilter = !filters.preferredStaff?.staffIds || filters.preferredStaff.staffIds.length === 0;
     const hasNoTimeHorizon = !filters.timeHorizon;
     const hasNoInactiveFilter = !filters.includeInactive;
 
-    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoPreferredStaffFilter && hasNoTimeHorizon && hasNoInactiveFilter; // NEW: Include preferred staff
+    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoPreferredStaffFilter && hasNoTimeHorizon && hasNoInactiveFilter;
     
     console.log(`🔍 [DATA FILTER] Active filters check:`, {
       hasNoSkillFilter,
       hasNoClientFilter,
-      hasNoPreferredStaffFilter, // NEW
+      hasNoPreferredStaffFilter,
       hasNoTimeHorizon,
       hasNoInactiveFilter,
       noActiveFilters
