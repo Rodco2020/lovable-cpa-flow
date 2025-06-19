@@ -1,180 +1,296 @@
 
-import { DemandMatrixData, DemandDataPoint, ClientTaskDemand, ClientRevenueData, MatrixRevenueComparison } from '@/types/demand';
-import { ForecastData } from '@/types/forecasting';
-import { RecurringTaskDB, SkillType } from '@/types/task';
+import { RecurringTaskDB } from '@/types/task';
+import { PreferredStaffInfo, PreferredStaffMetadata } from '@/types/demand';
 
-export interface SkillMappingResult {
-  skills: SkillType[];
-  skillMapping: Map<string, string>;
+/**
+ * Core interfaces for matrix transformation with preferred staff support
+ */
+
+export interface TransformationInput {
+  tasks: RecurringTaskDB[];
+  clients: Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>;
+  skills: string[];
+  months: Array<{ key: string; label: string }>;
+  /**
+   * NEW: Staff information for preferred staff resolution
+   */
+  staffMembers?: Array<{
+    id: string;
+    full_name: string;
+    role_title?: string;
+    assigned_skills: string[];
+  }>;
 }
 
-export interface DataPointGenerationContext {
-  forecastData: ForecastData[];
-  tasks: RecurringTaskDB[];
-  skills: SkillType[];
-  skillMapping: Map<string, string>;
-  /** NEW: Revenue calculation context */
-  revenueContext?: {
-    includeRevenueCalculations: boolean;
-    skillFeeRates: Map<string, number>;
-    clientRevenueData: Map<string, ClientRevenueData>;
-    useClientExpectedRevenue: boolean;
+export interface TaskPeriodData {
+  taskId: string;
+  clientId: string;
+  clientName: string;
+  skillType: string;
+  estimatedHours: number;
+  monthlyHours: number;
+  recurrencePattern: {
+    type: string;
+    interval: number;
+    frequency: number;
+  };
+  /**
+   * NEW: Preferred staff information for this task period
+   */
+  preferredStaff?: PreferredStaffInfo;
+}
+
+export interface SkillMonthData {
+  skillType: string;
+  month: string;
+  monthLabel: string;
+  demandHours: number;
+  taskCount: number;
+  clientCount: number;
+  taskBreakdown: TaskPeriodData[];
+  /**
+   * NEW: Preferred staff metadata for this skill/month combination
+   */
+  preferredStaffMetadata?: PreferredStaffMetadata;
+}
+
+export interface ClientRevenueInfo {
+  clientId: string;
+  clientName: string;
+  expectedMonthlyRevenue: number;
+  totalHours: number;
+  totalRevenue: number;
+  hourlyRate: number;
+  /**
+   * NEW: Preferred staff summary for this client
+   */
+  preferredStaffSummary?: {
+    totalTasksWithPreferredStaff: number;
+    uniquePreferredStaff: number;
+    preferredStaffBreakdown: Array<{
+      staffId: string;
+      staffName: string;
+      taskCount: number;
+      totalHours: number;
+    }>;
   };
 }
 
-export interface MatrixTotals {
-  totalDemand: number;
-  totalTasks: number;
-  totalClients: number;
-  /** NEW: Revenue totals */
-  totalSuggestedRevenue?: number;
-  totalExpectedRevenue?: number;
-  totalExpectedLessSuggested?: number;
+export interface SkillFeeRate {
+  skillName: string;
+  feeRate: number;
+  source: 'database' | 'fallback' | 'calculated';
 }
 
-export interface SkillSummary {
-  [key: string]: {
+/**
+ * NEW: Interface for preferred staff processing results
+ */
+export interface PreferredStaffProcessingResult {
+  processedTasks: Array<{
+    taskId: string;
+    preferredStaff: PreferredStaffInfo | null;
+    resolutionStatus: 'resolved' | 'not_found' | 'invalid' | 'none';
+  }>;
+  staffLookupMap: Map<string, {
+    id: string;
+    name: string;
+    roleTitle?: string;
+    assignedSkills: string[];
+  }>;
+  statistics: {
+    totalTasks: number;
+    tasksWithPreferredStaff: number;
+    tasksWithResolvedStaff: number;
+    tasksWithUnresolvedStaff: number;
+    uniquePreferredStaffCount: number;
+  };
+}
+
+export interface TransformationOptions {
+  includeRevenue?: boolean;
+  fallbackSkillRate?: number;
+  enableCaching?: boolean;
+  enableValidation?: boolean;
+  /**
+   * NEW: Preferred staff processing options
+   */
+  preferredStaffOptions?: {
+    enabled: boolean;
+    includeRoleInfo: boolean;
+    validateSkillMatching: boolean;
+    fallbackToGeneric: boolean;
+  };
+}
+
+export interface TransformationResult {
+  dataPoints: SkillMonthData[];
+  clientTotals: Map<string, number>;
+  skillSummary: Record<string, {
     totalHours: number;
     taskCount: number;
     clientCount: number;
-    /** NEW: Skill-level revenue summaries */
-    totalSuggestedRevenue?: number;
-    totalExpectedLessSuggested?: number;
-    averageFeeRate?: number;
-  };
-}
-
-/**
- * NEW: Interface for revenue calculation results during matrix transformation
- */
-export interface MatrixRevenueCalculationResult {
-  dataPointRevenues: Map<string, { suggestedRevenue: number; expectedLessSuggested: number }>;
-  clientRevenues: Map<string, { suggestedRevenue: number; expectedLessSuggested: number }>;
-  skillRevenues: Map<string, { suggestedRevenue: number; expectedLessSuggested: number }>;
-  totals: {
-    totalSuggestedRevenue: number;
-    totalExpectedRevenue: number;
-    totalExpectedLessSuggested: number;
-  };
-  calculationMetrics: {
-    processedDataPoints: number;
-    calculationTime: number;
-    fallbackRatesUsed: number;
-    errors: string[];
-  };
-}
-
-/**
- * NEW: Configuration for matrix revenue calculations
- */
-export interface MatrixRevenueCalculationConfig {
-  enabled: boolean;
-  useSkillFeeRates: boolean;
-  useClientExpectedRevenue: boolean;
-  fallbackToDefaultRates: boolean;
-  includeProfitabilityAnalysis: boolean;
-  cacheResults: boolean;
-  batchSize: number;
-}
-
-/**
- * NEW: Context for revenue-enhanced data point generation
- */
-export interface RevenueEnhancedDataPointContext extends DataPointGenerationContext {
-  revenueCalculationConfig: MatrixRevenueCalculationConfig;
-  revenueCalculationResults?: MatrixRevenueCalculationResult;
-}
-
-/**
- * Enhanced matrix data point with revenue calculations
- */
-export interface RevenueEnhancedDataPoint extends DemandDataPoint {
-  suggestedRevenue: number;
-  expectedLessSuggested: number;
-  revenueCalculationMetadata: {
-    feeRateUsed: number;
-    isFallbackRate: boolean;
-    calculationTimestamp: Date;
-    clientExpectedRevenue?: number;
-  };
-}
-
-/**
- * NEW: Revenue validation result for matrix data
- */
-export interface MatrixRevenueValidationResult {
-  isValid: boolean;
-  issues: Array<{
-    type: 'missing_fee_rate' | 'invalid_calculation' | 'negative_revenue' | 'data_inconsistency';
-    skillType?: string;
-    clientId?: string;
-    month?: string;
-    message: string;
-    severity: 'warning' | 'error';
+    /**
+     * NEW: Preferred staff summary for skills
+     */
+    preferredStaffSummary?: {
+      totalTasksWithPreferredStaff: number;
+      uniquePreferredStaff: number;
+      topPreferredStaff: Array<{
+        staffId: string;
+        staffName: string;
+        taskCount: number;
+        totalHours: number;
+      }>;
+    };
   }>;
-  summary: {
-    totalDataPoints: number;
-    validDataPoints: number;
-    dataPointsWithRevenue: number;
-    fallbackRatesUsed: number;
+  clientRevenue?: Map<string, number>;
+  skillFeeRates?: Map<string, number>;
+  /**
+   * NEW: Preferred staff results and statistics
+   */
+  preferredStaffResults?: PreferredStaffProcessingResult;
+  /**
+   * NEW: Matrix-level preferred staff totals
+   */
+  preferredStaffTotals?: {
+    totalTasksWithPreferredStaff: number;
+    totalTasksWithoutPreferredStaff: number;
+    uniquePreferredStaffCount: number;
+    preferredStaffUtilization: number;
+  };
+  metadata: {
+    processingTime: number;
+    dataQuality: {
+      validTasks: number;
+      invalidTasks: number;
+      warningCount: number;
+    };
+    /**
+     * NEW: Preferred staff processing metadata
+     */
+    preferredStaffProcessing?: {
+      enabled: boolean;
+      resolvedStaff: number;
+      unresolvedStaff: number;
+      processingTime: number;
+      cacheHits: number;
+    };
   };
 }
 
 /**
- * NEW: Performance metrics for revenue calculations
+ * NEW: Interface for staff resolution service integration
  */
-export interface RevenueCalculationPerformanceMetrics {
+export interface StaffResolutionContext {
+  staffLookupService: {
+    resolveStaffById: (staffId: string) => Promise<{ id: string; name: string; roleTitle?: string } | null>;
+    bulkResolveStaff: (staffIds: string[]) => Promise<Map<string, { id: string; name: string; roleTitle?: string }>>;
+    validateStaffSkillMatching: (staffId: string, requiredSkills: string[]) => Promise<boolean>;
+  };
+  cacheManager?: {
+    get: (key: string) => any;
+    set: (key: string, value: any, ttl?: number) => void;
+    invalidate: (pattern: string) => void;
+  };
+}
+
+/**
+ * Performance and monitoring interfaces
+ */
+export interface TransformationMetrics {
   startTime: number;
   endTime: number;
-  totalDuration: number;
-  dataPointsProcessed: number;
-  calculationsPerSecond: number;
-  memoryUsage: {
-    beforeCalculation: number;
-    afterCalculation: number;
-    peakUsage: number;
+  processingTime: number;
+  dataPointsGenerated: number;
+  clientsProcessed: number;
+  skillsProcessed: number;
+  tasksProcessed: number;
+  /**
+   * NEW: Preferred staff processing metrics
+   */
+  preferredStaffMetrics?: {
+    staffResolutionTime: number;
+    staffLookupCalls: number;
+    cacheHitRate: number;
+    validationTime: number;
   };
-  cacheStats: {
-    hits: number;
-    misses: number;
-    hitRate: number;
+  memoryUsage?: {
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
   };
-  errorStats: {
-    totalErrors: number;
-    errorsByType: Record<string, number>;
+  errors: Array<{
+    type: string;
+    message: string;
+    context?: any;
+  }>;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  /**
+   * NEW: Preferred staff validation results
+   */
+  preferredStaffValidation?: {
+    invalidStaffIds: string[];
+    unresolvedStaffIds: string[];
+    skillMismatchWarnings: Array<{
+      taskId: string;
+      staffId: string;
+      requiredSkills: string[];
+      staffSkills: string[];
+    }>;
   };
 }
 
 /**
- * NEW: Integration verification result for Phase 4 testing
+ * Legacy support and migration types
  */
-export interface IntegrationVerificationResult {
-  matrixTransformation: {
-    successful: boolean;
-    processingTime: number;
-    dataPointsGenerated: number;
-    revenueCalculationsComplete: boolean;
-    performanceWithinThreshold: boolean;
+export interface LegacyTransformationInput {
+  tasks: RecurringTaskDB[];
+  clients: Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>;
+  skills: string[];
+  months: Array<{ key: string; label: string }>;
+}
+
+export interface LegacyTaskPeriodData {
+  taskId: string;
+  clientId: string;
+  clientName: string;
+  skillType: string;
+  estimatedHours: number;
+  monthlyHours: number;
+  recurrencePattern: {
+    type: string;
+    interval: number;
+    frequency: number;
   };
-  revenueCalculations: {
-    skillFeeRatesLoaded: boolean;
-    suggestedRevenueCalculated: boolean;
-    expectedLessSuggestedCalculated: boolean;
-    clientRevenueMetricsComplete: boolean;
-    matrixTotalsCalculated: boolean;
-  };
-  dataValidation: {
-    structureValid: boolean;
-    revenueFieldsPresent: boolean;
-    dataConsistencyChecks: boolean;
-    backwardCompatibilityMaintained: boolean;
-  };
-  performance: {
-    transformationTime: number;
-    memoryUsage: number;
-    withinTimeThreshold: boolean;
-    withinMemoryThreshold: boolean;
-  };
-  errors: string[];
-  warnings: string[];
+}
+
+/**
+ * Type guards and utility types
+ */
+export function hasPreferredStaffSupport(input: TransformationInput | LegacyTransformationInput): input is TransformationInput {
+  return 'staffMembers' in input;
+}
+
+export function isPreferredStaffEnabled(options?: TransformationOptions): boolean {
+  return options?.preferredStaffOptions?.enabled === true;
+}
+
+/**
+ * NEW: Extended transformation input with all preferred staff data
+ */
+export interface EnhancedTransformationInput extends TransformationInput {
+  staffMembers: Array<{
+    id: string;
+    full_name: string;
+    role_title?: string;
+    assigned_skills: string[];
+    cost_per_hour?: number;
+    status?: string;
+  }>;
+  preferredStaffResolutionContext: StaffResolutionContext;
 }

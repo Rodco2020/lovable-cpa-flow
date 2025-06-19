@@ -18,6 +18,11 @@ export interface DemandDataPoint {
    * Positive = expected exceeds suggested, Negative = suggested exceeds expected
    */
   expectedLessSuggested?: number;
+  /**
+   * NEW: Preferred staff metadata for this data point
+   * Contains information about preferred staff assignments for tasks in this skill/month
+   */
+  preferredStaffMetadata?: PreferredStaffMetadata;
 }
 
 export interface ClientTaskDemand {
@@ -34,6 +39,44 @@ export interface ClientTaskDemand {
    * Calculated using task hours × skill fee rate
    */
   suggestedRevenue?: number;
+  /**
+   * NEW: Preferred staff information for this specific task
+   * Contains the preferred staff member if assigned
+   */
+  preferredStaff?: PreferredStaffInfo;
+}
+
+/**
+ * NEW: Interface for preferred staff information
+ * Contains staff details and assignment preferences
+ */
+export interface PreferredStaffInfo {
+  staffId: string;
+  staffName: string;
+  roleTitle?: string;
+  isAvailable?: boolean;
+  assignmentType: 'preferred' | 'assigned' | 'none';
+}
+
+/**
+ * NEW: Interface for preferred staff metadata at data point level
+ * Aggregates preferred staff information for a skill/month combination
+ */
+export interface PreferredStaffMetadata {
+  totalTasksWithPreferredStaff: number;
+  preferredStaffBreakdown: Array<{
+    staffId: string;
+    staffName: string;
+    roleTitle?: string;
+    taskCount: number;
+    totalHours: number;
+    taskIds: string[];
+  }>;
+  availabilityStatus?: {
+    available: number;
+    unavailable: number;
+    unknown: number;
+  };
 }
 
 export interface RecurrencePattern {
@@ -60,6 +103,19 @@ export interface DemandMatrixData {
       totalExpectedLessSuggested?: number;
       /** NEW: Average fee rate for this skill */
       averageFeeRate?: number;
+      /**
+       * NEW: Preferred staff summary for this skill
+       */
+      preferredStaffSummary?: {
+        totalTasksWithPreferredStaff: number;
+        uniquePreferredStaff: number;
+        topPreferredStaff: Array<{
+          staffId: string;
+          staffName: string;
+          taskCount: number;
+          totalHours: number;
+        }>;
+      };
     };
   };
   clientTotals?: Map<string, number>;
@@ -80,6 +136,20 @@ export interface DemandMatrixData {
    * Key: skillName, Value: fee rate per hour
    */
   skillFeeRates?: Map<string, number>;
+  /**
+   * NEW: Preferred staff totals per client
+   * Key: clientId, Value: preferred staff assignment summary
+   */
+  clientPreferredStaffTotals?: Map<string, {
+    totalTasksWithPreferredStaff: number;
+    uniquePreferredStaff: number;
+    preferredStaffBreakdown: Array<{
+      staffId: string;
+      staffName: string;
+      taskCount: number;
+      totalHours: number;
+    }>;
+  }>;
   /** 
    * NEW: Matrix-level totals for revenue calculations
    */
@@ -87,6 +157,15 @@ export interface DemandMatrixData {
     totalSuggestedRevenue: number;
     totalExpectedRevenue: number;
     totalExpectedLessSuggested: number;
+  };
+  /**
+   * NEW: Matrix-level preferred staff statistics
+   */
+  preferredStaffTotals?: {
+    totalTasksWithPreferredStaff: number;
+    totalTasksWithoutPreferredStaff: number;
+    uniquePreferredStaffCount: number;
+    preferredStaffUtilization: number; // percentage of tasks with preferred staff
   };
 }
 
@@ -98,6 +177,15 @@ export interface DemandFilters {
     end: Date;
   };
   includeInactive?: boolean;
+  /**
+   * NEW: Preferred staff filter options
+   * Allows filtering by preferred staff assignments
+   */
+  preferredStaff?: {
+    staffIds?: string[];
+    includeUnassigned?: boolean;
+    showOnlyPreferred?: boolean;
+  };
 }
 
 export type DemandMatrixMode = 'demand-only' | 'capacity-vs-demand';
@@ -114,6 +202,14 @@ export interface DemandDrillDownData {
     totalSuggestedRevenue: number;
     totalExpectedRevenue: number;
     totalExpectedLessSuggested: number;
+  };
+  /**
+   * NEW: Preferred staff breakdown for drill-down data
+   */
+  preferredStaffBreakdown?: {
+    tasksWithPreferredStaff: ClientTaskDemand[];
+    tasksWithoutPreferredStaff: ClientTaskDemand[];
+    preferredStaffSummary: PreferredStaffMetadata;
   };
 }
 
@@ -164,6 +260,10 @@ export interface TaskFilter {
   priority?: string;
   category?: string;
   status?: string;
+  /**
+   * NEW: Preferred staff filter
+   */
+  preferredStaff?: string;
 }
 
 export interface TaskBreakdownItem {
@@ -171,6 +271,10 @@ export interface TaskBreakdownItem {
   monthlyHours: number;
   /** NEW: Revenue information for task breakdown */
   suggestedRevenue?: number;
+  /**
+   * NEW: Preferred staff information for task breakdown
+   */
+  preferredStaff?: PreferredStaffInfo;
 }
 
 export interface DemandForecastParameters {
@@ -185,6 +289,15 @@ export interface DemandForecastParameters {
   /** NEW: Revenue calculation options */
   includeRevenueCalculations?: boolean;
   useClientExpectedRevenue?: boolean;
+  /**
+   * NEW: Preferred staff filtering options
+   */
+  preferredStaffFiltering?: {
+    enabled: boolean;
+    staffIds?: string[];
+    includeUnassigned?: boolean;
+    showOnlyPreferred?: boolean;
+  };
 }
 
 export interface DemandForecastResult {
@@ -201,6 +314,14 @@ export interface DemandForecastResult {
     totalExpectedRevenue?: number;
     totalExpectedLessSuggested?: number;
     averageProfitMargin?: number;
+    /**
+     * NEW: Preferred staff summary information
+     */
+    preferredStaffSummary?: {
+      totalTasksWithPreferredStaff: number;
+      preferredStaffUtilization: number;
+      uniquePreferredStaffCount: number;
+    };
   };
   generatedAt: Date;
 }
@@ -220,6 +341,19 @@ export interface ClientRevenueData {
   suggestedRevenue?: number;
   /** NEW: Difference between expected and suggested revenue */
   expectedLessSuggested?: number;
+  /**
+   * NEW: Preferred staff data for client
+   */
+  preferredStaffData?: {
+    totalTasksWithPreferredStaff: number;
+    uniquePreferredStaff: number;
+    preferredStaffBreakdown: Array<{
+      staffId: string;
+      staffName: string;
+      taskCount: number;
+      totalHours: number;
+    }>;
+  };
   /** NEW: Revenue calculation metadata */
   revenueCalculationMetadata?: {
     calculatedAt: Date;
@@ -271,9 +405,11 @@ export interface DemandMatrixExportData extends DemandMatrixData {
   exportMetadata: {
     generatedAt: Date;
     includesRevenueData: boolean;
+    includesPreferredStaffData: boolean;
     calculationMethod: 'skill-based' | 'client-based' | 'hybrid';
     totalDataPoints: number;
     revenueCoveragePercentage: number;
+    preferredStaffCoveragePercentage: number;
   };
 }
 
@@ -316,11 +452,25 @@ export function hasRevenueData(data: DemandMatrixData | LegacyDemandMatrixData):
 }
 
 /**
+ * NEW: Type guard to check if data structure includes preferred staff fields
+ */
+export function hasPreferredStaffData(data: DemandMatrixData): boolean {
+  return 'preferredStaffTotals' in data || 'clientPreferredStaffTotals' in data;
+}
+
+/**
  * Utility type for optional revenue fields in data points
  */
 export type RevenueEnabledDataPoint = DemandDataPoint & {
   suggestedRevenue: number;
   expectedLessSuggested: number;
+};
+
+/**
+ * NEW: Utility type for preferred staff enabled data points
+ */
+export type PreferredStaffEnabledDataPoint = DemandDataPoint & {
+  preferredStaffMetadata: PreferredStaffMetadata;
 };
 
 /**
@@ -332,4 +482,15 @@ export interface RevenueFilter {
   minExpectedLessSuggested?: number;
   maxExpectedLessSuggested?: number;
   profitabilityThreshold?: number;
+}
+
+/**
+ * NEW: Type for filtering data points by preferred staff criteria
+ */
+export interface PreferredStaffFilter {
+  staffIds?: string[];
+  includeUnassigned?: boolean;
+  showOnlyPreferred?: boolean;
+  roleFilters?: string[];
+  availabilityStatus?: ('available' | 'unavailable' | 'unknown')[];
 }
