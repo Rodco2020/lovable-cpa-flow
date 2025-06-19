@@ -75,7 +75,7 @@ const createMockMatrixData = (overrides = {}) => ({
  * Test Helper Functions
  * Reusable functions for common test operations
  */
-const setupMockService = (mockData) => {
+const setupMockService = (mockData: any) => {
   vi.mocked(DemandMatrixService.generateDemandMatrix).mockResolvedValue({
     matrixData: mockData
   });
