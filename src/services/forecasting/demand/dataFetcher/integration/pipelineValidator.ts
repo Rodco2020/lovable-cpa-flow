@@ -83,7 +83,9 @@ export class PipelineValidator {
       result.duration = Date.now() - startTime;
 
       logger.info('Pipeline validation completed', { 
-        result: {
+        component: 'PipelineValidator',
+        operation: 'validateDataPipeline',
+        metadata: {
           success: result.success,
           totalTests: result.summary.totalTests,
           passedTests: result.summary.passedTests,
