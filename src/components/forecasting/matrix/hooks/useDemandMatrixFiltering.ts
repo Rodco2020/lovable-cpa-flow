@@ -25,7 +25,7 @@ interface UseDemandMatrixFilteringProps {
  * - Enhanced performance with proper memoization
  * - Maintained all existing filtering functionality
  * - Fixed property access to match actual DemandDataPoint structure
- * - Fixed preferred staff property access to use 'preferredStaff.id' for proper type handling
+ * - Fixed preferred staff property access to handle type safely
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -82,9 +82,12 @@ export const useDemandMatrixFiltering = ({
         // Show only tasks assigned to selected preferred staff
         if (selectedPreferredStaff.length > 0) {
           filteredDataPoints = filteredDataPoints.filter(point => 
-            point.taskBreakdown?.some(task => 
-              task.preferredStaff && selectedPreferredStaff.includes(task.preferredStaff.id)
-            )
+            point.taskBreakdown?.some(task => {
+              // Handle different possible property structures for preferred staff
+              const staffId = task.preferredStaff?.id || 
+                             (typeof task.preferredStaff === 'string' ? task.preferredStaff : null);
+              return staffId && selectedPreferredStaff.includes(staffId);
+            })
           );
           console.log(`🎯 [PHASE 2 FILTERING] Specific mode - filtered to ${selectedPreferredStaff.length} staff`);
         } else {
@@ -97,9 +100,12 @@ export const useDemandMatrixFiltering = ({
       case 'none':
         // Show only tasks without preferred staff assignments
         filteredDataPoints = filteredDataPoints.filter(point => 
-          point.taskBreakdown?.some(task => 
-            !task.preferredStaff || task.preferredStaff.id === null || task.preferredStaff.id === ''
-          )
+          point.taskBreakdown?.some(task => {
+            // Handle different possible property structures for preferred staff
+            const staffId = task.preferredStaff?.id || 
+                           (typeof task.preferredStaff === 'string' ? task.preferredStaff : null);
+            return !staffId || staffId === null || staffId === '';
+          })
         );
         console.log(`❌ [PHASE 2 FILTERING] None mode - showing only unassigned tasks`);
         break;
