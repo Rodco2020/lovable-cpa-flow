@@ -28,6 +28,15 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
           { key: 'mar', label: 'Mar' }
         ],
         dataPoints: [],
+        skills: ['Tax Preparation', 'Audit', 'Advisory'],
+        totalDemand: 0,
+        totalTasks: 0,
+        totalClients: 0,
+        skillSummary: {
+          'Tax Preparation': { demand: 0, tasks: 0 },
+          'Audit': { demand: 0, tasks: 0 },
+          'Advisory': { demand: 0, tasks: 0 }
+        },
         availableClients: [
           { id: 'client1', name: 'Client A' },
           { id: 'client2', name: 'Client B' }

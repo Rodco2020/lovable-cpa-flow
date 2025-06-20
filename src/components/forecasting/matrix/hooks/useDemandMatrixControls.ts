@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useMatrixControls } from './useMatrixControls';
-import { useDemandData } from '@/services/forecasting/demand/dataFetcher';
+import { useDemandData } from '@/services/forecasting/demand/dataFetcher/useDemandData';
 
 interface DemandMatrixControlsState {
   selectedClients: string[];

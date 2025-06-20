@@ -23,11 +23,19 @@ export const Phase1IntegrationTests: React.FC = () => {
       console.log('🚀 Running Phase 1 Integration Tests...');
       
       // Run pipeline validation
-      const pipelineValidation = await PipelineValidator.validatePipeline();
+      const pipelineValidation = await PipelineValidator.validateDataPipeline();
       setPipelineResult(pipelineValidation);
       
       // Run component integration tests
-      const mockData = { months: [], dataPoints: [] };
+      const mockData = { 
+        months: [], 
+        dataPoints: [],
+        skills: [],
+        totalDemand: 0,
+        totalTasks: 0,
+        totalClients: 0,
+        skillSummary: {}
+      };
       const mockControls = { preferredStaffFilterMode: 'all' };
       const mockFiltering = { dataPoints: [] };
       

@@ -11,6 +11,7 @@ interface DemandMatrixDisplayProps {
   groupingMode: 'skill' | 'client';
   isLoading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
 }
 
 /**
@@ -23,27 +24,34 @@ export const DemandMatrixDisplay: React.FC<DemandMatrixDisplayProps> = ({
   matrixData,
   groupingMode,
   isLoading = false,
-  error = null
+  error = null,
+  onRetry
 }) => {
   // Loading state
   if (isLoading) {
-    return <DemandMatrixLoadingState />;
+    return <DemandMatrixLoadingState groupingMode={groupingMode} />;
   }
 
   // Error state
   if (error) {
-    return <DemandMatrixErrorState error={error} />;
+    return (
+      <DemandMatrixErrorState 
+        error={error} 
+        onRetry={onRetry || (() => {})} 
+        groupingMode={groupingMode} 
+      />
+    );
   }
 
   // Empty state
   if (!matrixData || !matrixData.dataPoints || matrixData.dataPoints.length === 0) {
-    return <DemandMatrixEmptyState />;
+    return <DemandMatrixEmptyState groupingMode={groupingMode} onRefresh={onRetry} />;
   }
 
   // Main content
   return (
     <DemandMatrixGrid
-      matrixData={matrixData}
+      filteredData={matrixData}
       groupingMode={groupingMode}
     />
   );
