@@ -40,21 +40,17 @@ export const SkillsFilter: React.FC<SkillsFilterProps> = ({
 
   return (
     <FilterSection
-      title={
-        <span className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          Skills
-        </span>
-      }
+      title="Skills"
       badge={badge}
       loading={loading}
     >
       <div className="space-y-3">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-5 w-5" />
           <span className="text-sm font-medium">Select Skills</span>
           <button
             onClick={handleSelectAll}
-            className="text-xs text-blue-600 hover:text-blue-800"
+            className="ml-auto text-xs text-blue-600 hover:text-blue-800"
           >
             {selectAllText}
           </button>

@@ -39,7 +39,7 @@ export interface DemandMatrixControlsProps {
 
 export interface FilterSectionProps {
   title: string;
-  badge: string;
+  badge: React.ReactNode;
   loading?: boolean;
   children: React.ReactNode;
 }

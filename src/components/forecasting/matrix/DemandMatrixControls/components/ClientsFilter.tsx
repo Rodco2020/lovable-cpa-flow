@@ -25,9 +25,14 @@ export const ClientsFilter: React.FC<ClientsFilterProps> = ({
   isAllClientsSelected,
   loading = false
 }) => {
+  // Convert selectedClients (string[]) to client objects for the hook
+  const selectedClientObjects = availableClients.filter(client => 
+    selectedClients.includes(client.id)
+  );
+
   const { handleSelectAll, selectAllText } = useSelectAllLogic(
     availableClients,
-    selectedClients,
+    selectedClientObjects,
     (client) => onClientToggle(client.id),
     (client) => client.id
   );
@@ -40,21 +45,17 @@ export const ClientsFilter: React.FC<ClientsFilterProps> = ({
 
   return (
     <FilterSection
-      title={
-        <span className="flex items-center gap-2">
-          <Building2 className="h-5 w-5" />
-          Clients
-        </span>
-      }
+      title="Clients"
       badge={badge}
       loading={loading}
     >
       <div className="space-y-3">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2 mb-3">
+          <Building2 className="h-5 w-5" />
           <span className="text-sm font-medium">Select Clients</span>
           <button
             onClick={handleSelectAll}
-            className="text-xs text-blue-600 hover:text-blue-800"
+            className="ml-auto text-xs text-blue-600 hover:text-blue-800"
           >
             {selectAllText}
           </button>
