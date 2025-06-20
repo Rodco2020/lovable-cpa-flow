@@ -25,7 +25,7 @@ interface UseDemandMatrixFilteringProps {
  * - Enhanced performance with proper memoization
  * - Maintained all existing filtering functionality
  * - Fixed property access to match actual DemandDataPoint structure
- * - Fixed preferred staff property access to use 'preferredStaff' instead of 'preferredStaffId'
+ * - Fixed preferred staff property access to use 'preferredStaff.id' for proper type handling
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -83,7 +83,7 @@ export const useDemandMatrixFiltering = ({
         if (selectedPreferredStaff.length > 0) {
           filteredDataPoints = filteredDataPoints.filter(point => 
             point.taskBreakdown?.some(task => 
-              task.preferredStaff && selectedPreferredStaff.includes(task.preferredStaff)
+              task.preferredStaff && selectedPreferredStaff.includes(task.preferredStaff.id)
             )
           );
           console.log(`🎯 [PHASE 2 FILTERING] Specific mode - filtered to ${selectedPreferredStaff.length} staff`);
@@ -98,7 +98,7 @@ export const useDemandMatrixFiltering = ({
         // Show only tasks without preferred staff assignments
         filteredDataPoints = filteredDataPoints.filter(point => 
           point.taskBreakdown?.some(task => 
-            !task.preferredStaff || task.preferredStaff === null || task.preferredStaff === ''
+            !task.preferredStaff || task.preferredStaff.id === null || task.preferredStaff.id === ''
           )
         );
         console.log(`❌ [PHASE 2 FILTERING] None mode - showing only unassigned tasks`);
