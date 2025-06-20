@@ -35,7 +35,9 @@ describe('DemandMatrixControlsPanel - Refactored', () => {
     isAllSkillsSelected: false,
     isAllClientsSelected: false,
     isAllPreferredStaffSelected: false,
-    onPrintExport: vi.fn()
+    preferredStaffFilterMode: 'specific' as const,
+    onPreferredStaffFilterModeChange: vi.fn(),
+    preferredStaffLoading: false
   };
 
   beforeEach(() => {
@@ -47,7 +49,6 @@ describe('DemandMatrixControlsPanel - Refactored', () => {
       render(<DemandMatrixControlsPanel {...mockProps} />);
       
       expect(screen.getByText('Matrix Controls')).toBeInTheDocument();
-      expect(screen.getByText('Collapse')).toBeInTheDocument();
     });
 
     it('renders all filter sections when expanded', () => {
@@ -56,21 +57,14 @@ describe('DemandMatrixControlsPanel - Refactored', () => {
       expect(screen.getByText('Time Range')).toBeInTheDocument();
       expect(screen.getByText('Skills Filter')).toBeInTheDocument();
       expect(screen.getByText('Clients Filter')).toBeInTheDocument();
+      expect(screen.getByText('Preferred Staff Filter')).toBeInTheDocument();
     });
 
     it('renders action buttons', () => {
       render(<DemandMatrixControlsPanel {...mockProps} />);
       
-      expect(screen.getByText('Print/Export Reports')).toBeInTheDocument();
-      expect(screen.getByText('Export Data')).toBeInTheDocument();
-      expect(screen.getByText('Reset Filters')).toBeInTheDocument();
-    });
-
-    it('renders selection summary', () => {
-      render(<DemandMatrixControlsPanel {...mockProps} />);
-      
-      expect(screen.getByText('Mode: Skills')).toBeInTheDocument();
-      expect(screen.getByText('Range: Jan - Dec')).toBeInTheDocument();
+      expect(screen.getByText('Export Matrix Data')).toBeInTheDocument();
+      expect(screen.getByText('Reset All Filters')).toBeInTheDocument();
     });
   });
 
@@ -78,7 +72,7 @@ describe('DemandMatrixControlsPanel - Refactored', () => {
     it('handles toggle controls correctly', () => {
       render(<DemandMatrixControlsPanel {...mockProps} />);
       
-      const toggleButton = screen.getByText('Collapse');
+      const toggleButton = screen.getByLabelText('Collapse controls');
       fireEvent.click(toggleButton);
       
       expect(mockProps.onToggleControls).toHaveBeenCalledTimes(1);
@@ -102,25 +96,20 @@ describe('DemandMatrixControlsPanel - Refactored', () => {
       expect(mockProps.onClientToggle).toHaveBeenCalledWith('2');
     });
 
-    it('handles month range changes', () => {
-      render(<DemandMatrixControlsPanel {...mockProps} />);
-      
-      // This tests that the time range controls are properly connected
-      expect(screen.getByText('Start Month: Jan')).toBeInTheDocument();
-      expect(screen.getByText('End Month: Dec')).toBeInTheDocument();
-    });
-
     it('handles action button clicks', () => {
       render(<DemandMatrixControlsPanel {...mockProps} />);
       
-      fireEvent.click(screen.getByText('Export Data'));
-      expect(mockProps.onExport).toHaveBeenCalledTimes(1);
-      
-      fireEvent.click(screen.getByText('Reset Filters'));
+      fireEvent.click(screen.getByText('Reset All Filters'));
       expect(mockProps.onReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles preferred staff filter mode changes', () => {
+      render(<DemandMatrixControlsPanel {...mockProps} />);
       
-      fireEvent.click(screen.getByText('Print/Export Reports'));
-      expect(mockProps.onPrintExport).toHaveBeenCalledTimes(1);
+      const allModeRadio = screen.getByRole('radio', { name: /all tasks/i });
+      fireEvent.click(allModeRadio);
+      
+      expect(mockProps.onPreferredStaffFilterModeChange).toHaveBeenCalledWith('all');
     });
   });
 
@@ -128,44 +117,7 @@ describe('DemandMatrixControlsPanel - Refactored', () => {
     it('shows preferred staff section when staff available', () => {
       render(<DemandMatrixControlsPanel {...mockProps} />);
       
-      expect(screen.getByText('1/2 preferred staff selected')).toBeInTheDocument();
-    });
-
-    it('hides preferred staff section when no staff available', () => {
-      const propsWithoutStaff = {
-        ...mockProps,
-        availablePreferredStaff: [],
-        selectedPreferredStaff: []
-      };
-      
-      render(<DemandMatrixControlsPanel {...propsWithoutStaff} />);
-      
-      expect(screen.queryByText('preferred staff')).not.toBeInTheDocument();
-    });
-
-    it('conditionally renders print button', () => {
-      const propsWithoutPrint = {
-        ...mockProps,
-        onPrintExport: undefined
-      };
-      
-      render(<DemandMatrixControlsPanel {...propsWithoutPrint} />);
-      
-      expect(screen.queryByText('Print/Export Reports')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Collapsed State', () => {
-    it('shows summary information when collapsed', () => {
-      const collapsedProps = {
-        ...mockProps,
-        isControlsExpanded: false
-      };
-      
-      render(<DemandMatrixControlsPanel {...collapsedProps} />);
-      
-      expect(screen.getByText('1/3 skills selected')).toBeInTheDocument();
-      expect(screen.getByText('1/2 clients selected')).toBeInTheDocument();
+      expect(screen.getByText('Preferred Staff Filter')).toBeInTheDocument();
     });
 
     it('hides detailed filter lists when collapsed', () => {

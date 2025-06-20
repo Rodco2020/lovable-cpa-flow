@@ -10,7 +10,6 @@ import { PreferredStaffFilterSection } from './PreferredStaffFilterSection';
 import { MonthRangeSelector } from './MonthRangeSelector';
 import { DemandMatrixExportDialog } from './DemandMatrixExportDialog';
 import { EnhancedMatrixExportUtils } from '@/services/forecasting/export/enhancedMatrixExportUtils';
-import { useDemandMatrixControls } from '../../hooks/useDemandMatrixControls';
 
 interface DemandMatrixControlsPanelProps {
   isControlsExpanded: boolean;
@@ -81,7 +80,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
     });
 
     try {
-      // Create mock demand data for export (in real implementation, this would come from props/context)
+      // Create proper mock demand data for export
       const mockDemandData = {
         dataPoints: [
           {
