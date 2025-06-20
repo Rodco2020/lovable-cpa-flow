@@ -11,7 +11,7 @@ import {
   RotateCcw, 
   Printer 
 } from 'lucide-react';
-import { PreferredStaffFilter } from './components/PreferredStaffFilter';
+import { PreferredStaffFilterEnhanced } from './components/PreferredStaffFilterEnhanced';
 import { TimeRangeControls } from './components/TimeRangeControls';
 import { SkillsFilterSection } from './components/SkillsFilterSection';
 import { ClientsFilterSection } from './components/ClientsFilterSection';
@@ -38,26 +38,23 @@ interface DemandMatrixControlsPanelProps {
   isAllSkillsSelected: boolean;
   isAllClientsSelected: boolean;
   isAllPreferredStaffSelected: boolean;
+  // Phase 2: Enhanced three-mode preferred staff filter props
+  preferredStaffFilterMode?: 'all' | 'specific' | 'none';
+  onPreferredStaffFilterModeChange?: (mode: 'all' | 'specific' | 'none') => void;
+  preferredStaffLoading?: boolean;
   onPrintExport?: () => void;
 }
 
 /**
- * Refactored DemandMatrixControlsPanel Component
+ * Phase 2: Enhanced DemandMatrixControlsPanel Component
  * 
- * REFACTORING IMPROVEMENTS:
- * - Extracted smaller, focused components for better maintainability
- * - Separated concerns into logical sections (time range, filters, actions)
- * - Improved code organization and readability
- * - Maintained exact UI and functionality
- * 
- * PRESERVED FUNCTIONALITY:
- * - All existing prop interfaces and behavior
- * - Exact same UI layout and styling
- * - Complete filter functionality for skills, clients, and preferred staff
- * - Time range controls with month selection
- * - Export and reset functionality
- * - Expand/collapse behavior
- * - Selection summary display
+ * PHASE 2 ENHANCEMENTS:
+ * - Integrated PreferredStaffFilterEnhanced with three-mode system
+ * - Added proper loading states and error handling
+ * - Connected preferredStaffFilterMode state to UI components
+ * - Wired up onPreferredStaffFilterModeChange handler
+ * - Enhanced visual indicators for each mode
+ * - Maintained all existing functionality and responsive design
  */
 export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps> = ({
   isControlsExpanded,
@@ -79,6 +76,10 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   isAllSkillsSelected,
   isAllClientsSelected,
   isAllPreferredStaffSelected,
+  // Phase 2: Three-mode filter props with defaults
+  preferredStaffFilterMode = 'all',
+  onPreferredStaffFilterModeChange = () => {},
+  preferredStaffLoading = false,
   onPrintExport
 }) => {
   const monthNames = [
@@ -86,11 +87,36 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
+  console.log(`🎯 [PHASE 2 UI INTEGRATION] DemandMatrixControlsPanel - Rendering with enhanced preferred staff filter:`, {
+    preferredStaffFilterMode,
+    availablePreferredStaffCount: availablePreferredStaff.length,
+    selectedPreferredStaffCount: selectedPreferredStaff.length,
+    preferredStaffLoading,
+    isControlsExpanded
+  });
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Matrix Controls</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium">Matrix Controls</h3>
+            {/* Phase 2: Visual indicator for preferred staff filter mode */}
+            <Badge 
+              variant="secondary" 
+              className={`text-xs ${
+                preferredStaffFilterMode === 'all' && 'bg-green-100 text-green-800'
+              } ${
+                preferredStaffFilterMode === 'specific' && 'bg-blue-100 text-blue-800'
+              } ${
+                preferredStaffFilterMode === 'none' && 'bg-orange-100 text-orange-800'
+              }`}
+            >
+              {preferredStaffFilterMode === 'all' && '🌐 All Tasks'}
+              {preferredStaffFilterMode === 'specific' && '🎯 Specific Staff'}
+              {preferredStaffFilterMode === 'none' && '❌ Unassigned'}
+            </Badge>
+          </div>
           <div className="flex items-center gap-2">
             <Button 
               variant="ghost" 
@@ -137,29 +163,44 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
 
         <Separator />
 
-        {/* Preferred Staff Filter */}
-        {availablePreferredStaff.length > 0 && (
-          <>
-            <div>
-              <PreferredStaffFilter
-                availablePreferredStaff={availablePreferredStaff}
-                selectedPreferredStaff={selectedPreferredStaff}
-                onPreferredStaffToggle={onPreferredStaffToggle}
-                isAllPreferredStaffSelected={isAllPreferredStaffSelected}
-              />
-              
-              {!isControlsExpanded && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  {isAllPreferredStaffSelected 
-                    ? 'All preferred staff visible' 
-                    : `${selectedPreferredStaff.length}/${availablePreferredStaff.length} preferred staff selected`
-                  }
-                </div>
-              )}
+        {/* Phase 2: Enhanced Preferred Staff Filter with Three-Mode System */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-gray-700">Preferred Staff</h4>
+            {preferredStaffLoading && (
+              <Badge variant="outline" className="text-xs animate-pulse">
+                Loading...
+              </Badge>
+            )}
+          </div>
+          
+          {/* Phase 2: Enhanced Preferred Staff Filter Integration */}
+          <PreferredStaffFilterEnhanced
+            availablePreferredStaff={availablePreferredStaff}
+            selectedPreferredStaff={selectedPreferredStaff}
+            onPreferredStaffToggle={onPreferredStaffToggle}
+            preferredStaffFilterMode={preferredStaffFilterMode}
+            onPreferredStaffFilterModeChange={onPreferredStaffFilterModeChange}
+            className="w-full"
+          />
+          
+          {/* Phase 2: Additional context for collapsed view */}
+          {!isControlsExpanded && (
+            <div className="text-xs text-muted-foreground mt-2">
+              {preferredStaffFilterMode === 'all' && 
+                `Showing all tasks (${availablePreferredStaff.length} staff available)`
+              }
+              {preferredStaffFilterMode === 'specific' && 
+                `Filtering by ${selectedPreferredStaff.length}/${availablePreferredStaff.length} staff`
+              }
+              {preferredStaffFilterMode === 'none' && 
+                'Showing unassigned tasks only'
+              }
             </div>
-            <Separator />
-          </>
-        )}
+          )}
+        </div>
+
+        <Separator />
 
         {/* Action Buttons */}
         <ActionButtonsSection
@@ -180,6 +221,8 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
           availablePreferredStaff={availablePreferredStaff}
           isAllPreferredStaffSelected={isAllPreferredStaffSelected}
           selectedPreferredStaff={selectedPreferredStaff}
+          // Phase 2: Enhanced summary with filter mode context
+          preferredStaffFilterMode={preferredStaffFilterMode}
         />
       </CardContent>
     </Card>
