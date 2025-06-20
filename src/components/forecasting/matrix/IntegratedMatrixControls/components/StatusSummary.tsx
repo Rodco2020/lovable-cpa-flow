@@ -4,7 +4,7 @@ import React from 'react';
 interface StatusSummaryProps {
   groupingMode: 'skill' | 'client';
   monthRange: { start: number; end: number };
-  selectedSkills: string[];
+  selectedSkills: string[]; // Updated to string[]
   selectedClients: string[];
   selectedPreferredStaff: string[];
   isAllSkillsSelected: boolean;
@@ -16,6 +16,7 @@ interface StatusSummaryProps {
 /**
  * Status summary component
  * Shows current selection state and configuration
+ * Updated to work with string-based skills
  */
 export const StatusSummary: React.FC<StatusSummaryProps> = ({
   groupingMode,

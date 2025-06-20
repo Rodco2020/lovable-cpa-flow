@@ -9,6 +9,7 @@ import { PreferredStaffFilter } from '../../components/demand/components/Preferr
 /**
  * Consolidated filter controls component
  * Handles skills, clients, and preferred staff filtering
+ * Updated to work with string-based skills instead of SkillType
  */
 export const FilterControls: React.FC<FilterControlsProps> = ({
   selectedSkills,
