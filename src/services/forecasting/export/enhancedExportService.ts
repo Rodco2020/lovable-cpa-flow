@@ -1,3 +1,4 @@
+
 /**
  * Phase 5: Enhanced Export Service
  *
@@ -14,6 +15,9 @@ export interface ExportOptions {
   includeFilteringModeDetails: boolean;
   validateDataIntegrity: boolean;
 }
+
+// Export the alias for backward compatibility
+export interface EnhancedExportOptions extends ExportOptions {}
 
 export interface ExportResult {
   success: boolean;

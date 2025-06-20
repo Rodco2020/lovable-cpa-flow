@@ -14,7 +14,7 @@ interface DemandMatrixProps {
   groupingMode: 'skill' | 'client';
 }
 
-const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
+export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
   const [data, setData] = useState<DemandMatrixData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
