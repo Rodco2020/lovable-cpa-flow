@@ -221,7 +221,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
             matrixData={filteredData}
             groupingMode={groupingMode}
             isLoading={matrixControls.isLoading}
-            error={matrixControls.error}
+            error={matrixControls.error ? matrixControls.error.message : null}
           />
         </div>
       </div>

@@ -33,9 +33,9 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
         totalTasks: 0,
         totalClients: 0,
         skillSummary: {
-          'Tax Preparation': { demand: 0, tasks: 0 },
-          'Audit': { demand: 0, tasks: 0 },
-          'Advisory': { demand: 0, tasks: 0 }
+          'Tax Preparation': { totalHours: 0, taskCount: 0, clientCount: 0 },
+          'Audit': { totalHours: 0, taskCount: 0, clientCount: 0 },
+          'Advisory': { totalHours: 0, taskCount: 0, clientCount: 0 }
         },
         availableClients: [
           { id: 'client1', name: 'Client A' },

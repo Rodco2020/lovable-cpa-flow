@@ -82,7 +82,15 @@ export class PipelineValidator {
       result.success = result.summary.failedTests === 0;
       result.duration = Date.now() - startTime;
 
-      logger.info('Pipeline validation completed', result);
+      logger.info('Pipeline validation completed', { 
+        result: {
+          success: result.success,
+          totalTests: result.summary.totalTests,
+          passedTests: result.summary.passedTests,
+          failedTests: result.summary.failedTests,
+          duration: result.duration
+        }
+      });
       return result;
 
     } catch (error) {
