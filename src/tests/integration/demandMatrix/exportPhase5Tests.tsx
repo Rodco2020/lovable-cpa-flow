@@ -29,16 +29,35 @@ const mockDemandData: DemandMatrixData = {
       taskBreakdown: [
         {
           clientId: 'client-1',
-          taskCount: 4,
+          clientName: 'Client 1',
+          recurringTaskId: 'task-1',
+          taskName: 'Monthly Tax Review',
+          skillType: 'Tax Preparation',
+          estimatedHours: 15,
+          recurrencePattern: {
+            type: 'monthly',
+            interval: 1,
+            frequency: 12
+          },
           monthlyHours: 60,
           preferredStaff: {
             staffId: 'staff-1',
-            staffName: 'John Smith'
+            staffName: 'John Smith',
+            assignmentType: 'preferred'
           }
         },
         {
           clientId: 'client-2',
-          taskCount: 4,
+          clientName: 'Client 2',
+          recurringTaskId: 'task-2',
+          taskName: 'Quarterly Filing',
+          skillType: 'Tax Preparation',
+          estimatedHours: 15,
+          recurrencePattern: {
+            type: 'quarterly',
+            interval: 3,
+            frequency: 4
+          },
           monthlyHours: 60,
           preferredStaff: undefined
         }
