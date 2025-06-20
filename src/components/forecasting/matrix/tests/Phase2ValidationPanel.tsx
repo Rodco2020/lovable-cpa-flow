@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Filter, Users, CheckCircle, AlertCircle, Target } from 'lucide-react';
 import { getPreferredStaffFromDatabase } from '@/services/staff/preferredStaffDataService';
 import { useDemandMatrixFiltering } from '../hooks/useDemandMatrixFiltering';
+import { DemandMatrixData } from '@/types/demand';
 
 /**
  * Phase 2 Validation Panel
@@ -33,7 +34,7 @@ export const Phase2ValidationPanel: React.FC = () => {
   });
 
   // Mock demand data for testing (you can replace this with real data)
-  const mockDemandData = {
+  const mockDemandData: DemandMatrixData = {
     skills: ['Tax Preparation', 'Audit', 'Bookkeeping'],
     months: [
       { key: '2024-01', label: 'Jan 2024' },
@@ -42,8 +43,9 @@ export const Phase2ValidationPanel: React.FC = () => {
     ],
     dataPoints: [
       {
-        skillType: 'Tax Preparation' as any,
+        skillType: 'Tax Preparation',
         month: '2024-01',
+        monthLabel: 'Jan 2024',
         demandHours: 40,
         taskCount: 8,
         clientCount: 4,
@@ -51,24 +53,69 @@ export const Phase2ValidationPanel: React.FC = () => {
           {
             clientId: 'client-1',
             clientName: 'Client A',
+            recurringTaskId: 'task-1',
+            taskName: 'Tax Return Preparation',
+            skillType: 'Tax Preparation',
+            estimatedHours: 8,
+            recurrencePattern: {
+              type: 'monthly',
+              interval: 1,
+              frequency: 1
+            },
             monthlyHours: 20,
-            preferredStaff: preferredStaff[0] ? { staffId: preferredStaff[0].id, staffName: preferredStaff[0].full_name } : null
+            preferredStaff: preferredStaff[0] ? { 
+              staffId: preferredStaff[0].id, 
+              staffName: preferredStaff[0].full_name,
+              assignmentType: 'preferred' as const
+            } : undefined
           },
           {
             clientId: 'client-2',
             clientName: 'Client B',
+            recurringTaskId: 'task-2',
+            taskName: 'Quarterly Review',
+            skillType: 'Tax Preparation',
+            estimatedHours: 6,
+            recurrencePattern: {
+              type: 'monthly',
+              interval: 1,
+              frequency: 1
+            },
             monthlyHours: 15,
-            preferredStaff: preferredStaff[1] ? { staffId: preferredStaff[1].id, staffName: preferredStaff[1].full_name } : null
+            preferredStaff: preferredStaff[1] ? { 
+              staffId: preferredStaff[1].id, 
+              staffName: preferredStaff[1].full_name,
+              assignmentType: 'preferred' as const
+            } : undefined
           },
           {
             clientId: 'client-3',
             clientName: 'Client C',
+            recurringTaskId: 'task-3',
+            taskName: 'Basic Tax Filing',
+            skillType: 'Tax Preparation',
+            estimatedHours: 2,
+            recurrencePattern: {
+              type: 'monthly',
+              interval: 1,
+              frequency: 1
+            },
             monthlyHours: 5,
-            preferredStaff: null // Task without preferred staff
+            preferredStaff: undefined // Task without preferred staff
           }
         ]
       }
-    ]
+    ],
+    totalDemand: 40,
+    totalTasks: 8,
+    totalClients: 4,
+    skillSummary: {
+      'Tax Preparation': {
+        totalHours: 40,
+        taskCount: 8,
+        clientCount: 4
+      }
+    }
   };
 
   // Test the filtering behavior
@@ -92,6 +139,10 @@ export const Phase2ValidationPanel: React.FC = () => {
         ? prev.filter(id => id !== staffId)
         : [...prev, staffId]
     );
+  };
+
+  const handleRefresh = () => {
+    refetchStaff();
   };
 
   const getFilteringStatus = () => {
@@ -140,7 +191,7 @@ export const Phase2ValidationPanel: React.FC = () => {
           <h2 className="text-2xl font-bold">Phase 2: "All Preferred Staff" Behavior Validation</h2>
           <p className="text-gray-600 mt-1">Testing enhanced filtering logic for preferred staff</p>
         </div>
-        <Button onClick={refetchStaff} disabled={staffLoading}>
+        <Button onClick={handleRefresh} disabled={staffLoading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${staffLoading ? 'animate-spin' : ''}`} />
           Refresh Data
         </Button>
