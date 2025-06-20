@@ -25,7 +25,7 @@ interface UseDemandMatrixFilteringProps {
  * - Enhanced performance with proper memoization
  * - Maintained all existing filtering functionality
  * - Fixed property access to match actual DemandDataPoint structure
- * - Fixed preferred staff property access to handle type safely
+ * - Fixed preferred staff property access to handle different data structures safely
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -84,8 +84,20 @@ export const useDemandMatrixFiltering = ({
           filteredDataPoints = filteredDataPoints.filter(point => 
             point.taskBreakdown?.some(task => {
               // Handle different possible property structures for preferred staff
-              const staffId = task.preferredStaff?.id || 
-                             (typeof task.preferredStaff === 'string' ? task.preferredStaff : null);
+              // Check if preferredStaff exists and extract staff identifier
+              if (!task.preferredStaff) return false;
+              
+              // Handle case where preferredStaff is a string (staff ID)
+              if (typeof task.preferredStaff === 'string') {
+                return selectedPreferredStaff.includes(task.preferredStaff);
+              }
+              
+              // Handle case where preferredStaff is an object with various possible properties
+              const staffId = (task.preferredStaff as any).staffId || 
+                             (task.preferredStaff as any).full_name || 
+                             (task.preferredStaff as any).name ||
+                             (task.preferredStaff as any).id;
+              
               return staffId && selectedPreferredStaff.includes(staffId);
             })
           );
@@ -101,9 +113,20 @@ export const useDemandMatrixFiltering = ({
         // Show only tasks without preferred staff assignments
         filteredDataPoints = filteredDataPoints.filter(point => 
           point.taskBreakdown?.some(task => {
-            // Handle different possible property structures for preferred staff
-            const staffId = task.preferredStaff?.id || 
-                           (typeof task.preferredStaff === 'string' ? task.preferredStaff : null);
+            // Check if task has no preferred staff assignment
+            if (!task.preferredStaff) return true;
+            
+            // Handle case where preferredStaff is a string
+            if (typeof task.preferredStaff === 'string') {
+              return !task.preferredStaff || task.preferredStaff === '';
+            }
+            
+            // Handle case where preferredStaff is an object
+            const staffId = (task.preferredStaff as any).staffId || 
+                           (task.preferredStaff as any).full_name || 
+                           (task.preferredStaff as any).name ||
+                           (task.preferredStaff as any).id;
+            
             return !staffId || staffId === null || staffId === '';
           })
         );
