@@ -10,16 +10,19 @@ interface UseDemandMatrixFilteringProps {
   isAllSkillsSelected: boolean;
   isAllClientsSelected: boolean;
   isAllPreferredStaffSelected: boolean;
+  preferredStaffFilterMode: 'all' | 'specific' | 'none'; // Phase 2: New three-mode system
 }
 
 /**
- * Phase 1: Enhanced Demand Matrix Filtering Hook - Fixed "All Preferred Staff" Logic
+ * Phase 2: Enhanced Demand Matrix Filtering Hook - Three-Mode Preferred Staff Filtering
  * 
- * PHASE 1 FIXES:
- * - When all preferred staff are selected: show ALL tasks (both with and without preferred staff)
- * - When specific staff are selected: show only tasks assigned to those specific staff
- * - Maintains backward compatibility with existing skill and client filtering
- * - Enhanced logging for debugging and validation
+ * PHASE 2 ENHANCEMENTS:
+ * - Supports three distinct filtering modes: 'all', 'specific', 'none'
+ * - 'all' mode: Shows all tasks regardless of preferred staff assignment
+ * - 'specific' mode: Shows only tasks assigned to selected preferred staff
+ * - 'none' mode: Shows only tasks without preferred staff assignments
+ * - Maintains backward compatibility with existing filtering logic
+ * - Enhanced validation and error handling
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -29,23 +32,31 @@ export const useDemandMatrixFiltering = ({
   monthRange,
   isAllSkillsSelected,
   isAllClientsSelected,
-  isAllPreferredStaffSelected
+  isAllPreferredStaffSelected,
+  preferredStaffFilterMode
 }: UseDemandMatrixFilteringProps) => {
 
   const filteredData = useMemo(() => {
     if (!demandData) {
-      console.log('🔍 [MATRIX FILTERING] Phase 1 - No demand data available');
+      console.log('🔍 [MATRIX FILTERING] Phase 2 - No demand data available');
       return null;
     }
 
-    console.log('🔍 [MATRIX FILTERING] Phase 1 - Starting filtering with FIXED All Preferred Staff logic:', {
+    console.log('🔍 [MATRIX FILTERING] Phase 2 - Starting three-mode filtering:', {
       originalDataPoints: demandData.dataPoints.length,
       monthRange,
       skillsFilter: isAllSkillsSelected ? 'ALL' : selectedSkills.length,
       clientsFilter: isAllClientsSelected ? 'ALL' : selectedClients.length,
       preferredStaffFilter: isAllPreferredStaffSelected ? 'ALL' : selectedPreferredStaff.length,
-      filteringMode: isAllPreferredStaffSelected ? 'SHOW_ALL_TASKS_FIXED' : 'FILTER_BY_PREFERRED_STAFF'
+      filteringMode: preferredStaffFilterMode,
+      phase2Enhancement: 'THREE_MODE_SYSTEM'
     });
+
+    // Validate filter mode
+    const validModes = ['all', 'specific', 'none'];
+    if (!validModes.includes(preferredStaffFilterMode)) {
+      console.warn('⚠️ [MATRIX FILTERING] Phase 2 - Invalid filter mode, defaulting to "all":', preferredStaffFilterMode);
+    }
 
     // Filter months based on range
     const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
@@ -77,23 +88,22 @@ export const useDemandMatrixFiltering = ({
         );
       }
 
-      // PHASE 1 FIX: Enhanced Preferred Staff Filtering Logic
-      if (isAllPreferredStaffSelected) {
-        // FIXED: When "All Preferred Staff" is selected, show ALL tasks
-        // This includes tasks WITH preferred staff AND tasks WITHOUT preferred staff
+      // PHASE 2: Enhanced Three-Mode Preferred Staff Filtering Logic
+      const originalTaskCount = filteredTaskBreakdown.length;
+      
+      if (preferredStaffFilterMode === 'all') {
+        // Mode 'all': Show ALL tasks (both with and without preferred staff)
         // NO FILTERING is applied - keep all tasks
-        console.log(`🌟 [MATRIX FILTERING] Phase 1 FIXED - Showing ALL tasks (All Preferred Staff mode):`, {
+        console.log(`🌟 [MATRIX FILTERING] Phase 2 - ALL mode: Showing all tasks:`, {
           month: point.month,
           skill: point.skillType,
           totalTasks: filteredTaskBreakdown.length,
           tasksWithPreferredStaff: filteredTaskBreakdown.filter(t => t.preferredStaff?.staffId).length,
           tasksWithoutPreferredStaff: filteredTaskBreakdown.filter(t => !t.preferredStaff?.staffId).length,
-          fixApplied: 'NO_PREFERRED_STAFF_FILTERING'
+          mode: 'SHOW_ALL_TASKS'
         });
-      } else {
-        // When specific preferred staff are selected, show only tasks assigned to those staff
-        const originalTaskCount = filteredTaskBreakdown.length;
-        
+      } else if (preferredStaffFilterMode === 'specific') {
+        // Mode 'specific': Show only tasks assigned to selected preferred staff
         filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
           const taskPreferredStaffId = task.preferredStaff?.staffId;
           
@@ -106,13 +116,29 @@ export const useDemandMatrixFiltering = ({
           return false;
         });
         
-        console.log(`🎯 [MATRIX FILTERING] Phase 1 - Filtered by specific preferred staff:`, {
+        console.log(`🎯 [MATRIX FILTERING] Phase 2 - SPECIFIC mode: Filtered by selected preferred staff:`, {
           month: point.month,
           skill: point.skillType,
           originalTasks: originalTaskCount,
           filteredTasks: filteredTaskBreakdown.length,
           selectedStaff: selectedPreferredStaff.length,
-          filterApplied: 'SPECIFIC_PREFERRED_STAFF_ONLY'
+          mode: 'FILTER_BY_PREFERRED_STAFF'
+        });
+      } else if (preferredStaffFilterMode === 'none') {
+        // Mode 'none': Show only tasks WITHOUT preferred staff assignments
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const taskPreferredStaffId = task.preferredStaff?.staffId;
+          
+          // Include task if it does NOT have a preferred staff assignment
+          return !taskPreferredStaffId;
+        });
+        
+        console.log(`🚫 [MATRIX FILTERING] Phase 2 - NONE mode: Showing only unassigned tasks:`, {
+          month: point.month,
+          skill: point.skillType,
+          originalTasks: originalTaskCount,
+          filteredTasks: filteredTaskBreakdown.length,
+          mode: 'UNASSIGNED_TASKS_ONLY'
         });
       }
 
@@ -143,18 +169,18 @@ export const useDemandMatrixFiltering = ({
       dataPoints: filteredDataPoints
     };
 
-    console.log('✅ [MATRIX FILTERING] Phase 1 FIXED - Filtering completed:', {
+    console.log('✅ [MATRIX FILTERING] Phase 2 - Three-mode filtering completed:', {
       originalDataPoints: demandData.dataPoints.length,
       filteredDataPoints: result.dataPoints.length,
       pointsRemovedDueToNoTasks: originalFilteredPointsCount - result.dataPoints.length,
       monthsIncluded: filteredMonths.length,
-      preferredStaffBehavior: isAllPreferredStaffSelected ? 'ALL_TASKS_SHOWN_FIXED' : 'FILTERED_BY_STAFF',
+      preferredStaffMode: preferredStaffFilterMode,
       totalDemandHours: result.dataPoints.reduce((sum, point) => sum + point.demandHours, 0),
-      phase1FixApplied: true
+      phase2Enhancement: 'THREE_MODE_FILTERING_COMPLETE'
     });
 
-    // Phase 1 validation logging
-    if (isAllPreferredStaffSelected) {
+    // Phase 2 validation logging for each mode
+    if (preferredStaffFilterMode === 'all') {
       const totalTasksWithPreferredStaff = result.dataPoints.reduce(
         (sum, point) => sum + point.taskBreakdown.filter(t => t.preferredStaff?.staffId).length, 0
       );
@@ -162,12 +188,34 @@ export const useDemandMatrixFiltering = ({
         (sum, point) => sum + point.taskBreakdown.filter(t => !t.preferredStaff?.staffId).length, 0
       );
       
-      console.log('🎉 [MATRIX FILTERING] Phase 1 SUCCESS METRICS:', {
+      console.log('🎉 [MATRIX FILTERING] Phase 2 ALL MODE METRICS:', {
+        mode: 'all',
         allTasksDisplayed: true,
         tasksWithPreferredStaff: totalTasksWithPreferredStaff,
         tasksWithoutPreferredStaff: totalTasksWithoutPreferredStaff,
         totalTasksShown: totalTasksWithPreferredStaff + totalTasksWithoutPreferredStaff,
-        fixValidation: 'BOTH_TASK_TYPES_INCLUDED'
+        validation: 'BOTH_TASK_TYPES_INCLUDED'
+      });
+    } else if (preferredStaffFilterMode === 'specific') {
+      const totalTasksShown = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.length, 0
+      );
+      
+      console.log('🎉 [MATRIX FILTERING] Phase 2 SPECIFIC MODE METRICS:', {
+        mode: 'specific',
+        selectedStaffCount: selectedPreferredStaff.length,
+        totalTasksShown,
+        validation: 'ONLY_SELECTED_STAFF_TASKS'
+      });
+    } else if (preferredStaffFilterMode === 'none') {
+      const totalUnassignedTasks = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.length, 0
+      );
+      
+      console.log('🎉 [MATRIX FILTERING] Phase 2 NONE MODE METRICS:', {
+        mode: 'none',
+        totalUnassignedTasks,
+        validation: 'ONLY_UNASSIGNED_TASKS'
       });
     }
 
@@ -180,7 +228,8 @@ export const useDemandMatrixFiltering = ({
     monthRange,
     isAllSkillsSelected,
     isAllClientsSelected,
-    isAllPreferredStaffSelected
+    isAllPreferredStaffSelected,
+    preferredStaffFilterMode // Phase 2: Include new filter mode in dependencies
   ]);
 
   return filteredData;
