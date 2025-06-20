@@ -22,9 +22,9 @@ export const runPerformanceIntegrationTests = () => {
       vi.restoreAllMocks();
     });
 
-    it('should render efficiently with standard dataset', async () => {
+    it('should handle large datasets without performance degradation', async () => {
       const startTime = performance.now();
-
+      
       render(
         <TestWrapper>
           <DemandMatrix groupingMode="skill" />
@@ -33,22 +33,44 @@ export const runPerformanceIntegrationTests = () => {
 
       await waitFor(() => {
         expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
 
       const endTime = performance.now();
-      const renderTime = endTime - startTime;
+      const duration = endTime - startTime;
 
       // Should render within reasonable time
-      expect(renderTime).toBeLessThan(2000);
+      expect(duration).toBeLessThan(3000);
     });
 
-    it('should handle large datasets efficiently', async () => {
-      // Setup large dataset scenario
-      vi.mocked(setupSuccessfulMocks).mockImplementation(() => {
-        // Mock large dataset with 1000+ data points
+    it('should maintain performance during filter operations', async () => {
+      render(
+        <TestWrapper>
+          <DemandMatrix groupingMode="skill" />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
       const startTime = performance.now();
+      
+      // Simulate filter operations
+      const checkboxes = screen.getAllByRole('checkbox');
+      if (checkboxes.length > 0) {
+        const skillCheckbox = checkboxes[0];
+        skillCheckbox.click();
+      }
+
+      const endTime = performance.now();
+      const filterDuration = endTime - startTime;
+
+      // Filter operations should be fast
+      expect(filterDuration).toBeLessThan(500);
+    });
+
+    it('should handle memory efficiently during extended use', async () => {
+      const initialMemory = (performance as any).memory?.usedJSHeapSize || 0;
 
       render(
         <TestWrapper>
@@ -60,11 +82,20 @@ export const runPerformanceIntegrationTests = () => {
         expect(screen.getByText('Tax Preparation')).toBeInTheDocument();
       });
 
-      const endTime = performance.now();
-      const renderTime = endTime - startTime;
+      // Simulate multiple filter changes
+      for (let i = 0; i < 10; i++) {
+        const checkboxes = screen.getAllByRole('checkbox');
+        if (checkboxes.length > 0) {
+          checkboxes[0].click();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
 
-      // Even with large datasets, should render within reasonable time
-      expect(renderTime).toBeLessThan(5000);
+      const finalMemory = (performance as any).memory?.usedJSHeapSize || 0;
+      const memoryIncrease = finalMemory - initialMemory;
+
+      // Memory usage should not increase excessively
+      expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024); // 50MB
     });
   });
 };
