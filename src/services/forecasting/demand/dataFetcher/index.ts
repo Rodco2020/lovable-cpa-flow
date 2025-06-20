@@ -1,4 +1,3 @@
-
 /**
  * Data Fetcher Service - Main Entry Point
  * 
@@ -15,3 +14,4 @@ export { TaskQueryBuilder } from './taskQueryBuilder';
 export { FilterProcessor } from './filterProcessor';
 export { ForecastDataService } from './forecastDataService';
 export * from './types';
+export { useDemandData } from './useDemandData';

@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, Play } from 'lucide-react';
-import { useMatrixControls } from './hooks/useMatrixControls';
+import { useDemandMatrixControls } from './hooks/useDemandMatrixControls';
 import { useDemandMatrixFiltering } from './hooks/useDemandMatrixFiltering';
 import { DemandMatrixControlsPanel } from './components/demand/DemandMatrixControlsPanel';
 import { DemandMatrixDisplay } from './components/demand/DemandMatrixDisplay';
@@ -29,8 +30,8 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [showValidationDetails, setShowValidationDetails] = useState(false);
 
-  // Existing matrix controls and filtering logic - preserved exactly
-  const matrixControls = useMatrixControls({
+  // Enhanced matrix controls with demand-specific functionality
+  const matrixControls = useDemandMatrixControls({
     groupingMode,
     enablePreferredStaffFiltering: true // Phase 1: Enable three-mode filtering
   });

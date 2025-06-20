@@ -5,7 +5,7 @@
  * Centralized export for all Phase 1 integration tests
  */
 
-export { default as Phase1IntegrationTests } from './Phase1IntegrationTests';
+export { default as Phase1IntegrationTests, Phase1IntegrationTests as Phase1IntegrationTestsComponent } from './Phase1IntegrationTests';
 
 // Export test utilities
 export { PipelineValidator } from '@/services/forecasting/demand/dataFetcher/integration/pipelineValidator';
