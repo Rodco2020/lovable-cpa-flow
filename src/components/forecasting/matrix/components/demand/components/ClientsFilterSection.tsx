@@ -24,9 +24,14 @@ export const ClientsFilterSection: React.FC<ClientsFilterSectionProps> = ({
   isAllClientsSelected,
   isControlsExpanded
 }) => {
+  // Convert selectedClients (string[]) to client objects for the hook
+  const selectedClientObjects = availableClients.filter(client => 
+    selectedClients.includes(client.id)
+  );
+
   const { handleSelectAll } = useSelectAllLogic(
     availableClients,
-    selectedClients,
+    selectedClientObjects,
     (client) => onClientToggle(client.id),
     (client) => client.id
   );
