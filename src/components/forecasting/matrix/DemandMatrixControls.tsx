@@ -4,22 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { 
   Download, 
   RotateCcw, 
   Filter,
   RefreshCw,
-  Users,
   Building2,
   Wrench,
-  CheckCircle,
-  Target,
-  UserX,
-  Globe
+  CheckCircle
 } from 'lucide-react';
 import { SkillType } from '@/types/task';
+import { PreferredStaffFilterEnhanced } from './components/demand/components/PreferredStaffFilterEnhanced';
 
 interface DemandMatrixControlsProps {
   // Skill controls
@@ -34,7 +29,7 @@ interface DemandMatrixControlsProps {
   onClientToggle: (clientId: string) => void;
   isAllClientsSelected: boolean;
 
-  // Phase 2: Enhanced preferred staff controls with three-mode system
+  // Phase 3: Enhanced preferred staff controls with three-mode system
   availablePreferredStaff: Array<{ id: string; name: string }>;
   selectedPreferredStaff: string[];
   onPreferredStaffToggle: (staffId: string) => void;
@@ -54,13 +49,13 @@ interface DemandMatrixControlsProps {
 }
 
 /**
- * Phase 2: Enhanced Demand Matrix Controls Component - Three-Mode Preferred Staff Filtering
+ * Phase 3: Enhanced Demand Matrix Controls Component - Three-Mode UI with Visual Indicators
  * 
- * PHASE 2 ENHANCEMENTS:
- * - Added radio button group for three filtering modes: 'all', 'specific', 'none'
- * - Enhanced UI indicators for current mode state
+ * PHASE 3 ENHANCEMENTS:
+ * - Uses enhanced PreferredStaffFilterEnhanced component with visual indicators
  * - Improved accessibility and user experience
- * - Advanced validation and status indicators
+ * - Clear visual distinction between filtering modes
+ * - Comprehensive status indicators and feedback
  */
 export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
   availableSkills,
@@ -84,55 +79,20 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
   clientsLoading = false,
   preferredStaffLoading = false
 }) => {
-  // Phase 2: Helper function to get mode description
-  const getModeDescription = (mode: 'all' | 'specific' | 'none') => {
-    switch (mode) {
-      case 'all':
-        return 'Showing ALL tasks (with and without preferred staff)';
-      case 'specific':
-        return `Showing tasks for ${selectedPreferredStaff.length} selected staff member${selectedPreferredStaff.length !== 1 ? 's' : ''}`;
-      case 'none':
-        return 'Showing only tasks WITHOUT preferred staff assignments';
-      default:
-        return 'Unknown mode';
-    }
-  };
-
-  // Phase 2: Helper function to get mode icon
-  const getModeIcon = (mode: 'all' | 'specific' | 'none') => {
-    switch (mode) {
-      case 'all':
-        return <Globe className="h-4 w-4" />;
-      case 'specific':
-        return <Target className="h-4 w-4" />;
-      case 'none':
-        return <UserX className="h-4 w-4" />;
-      default:
-        return <Users className="h-4 w-4" />;
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Phase 2 Status Indicator */}
+      {/* Phase 3 Status Indicator */}
       <Card className="border-blue-200 bg-blue-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-blue-800">
             <CheckCircle className="h-5 w-5" />
-            Phase 2: Three-Mode Preferred Staff Filtering
+            Phase 3: Enhanced UI with Visual Indicators
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-blue-700">
-            <div className="mb-2 flex items-center gap-2">
-              {getModeIcon(preferredStaffFilterMode)}
-              <strong>Current Mode:</strong> 
-              <Badge variant="secondary" className="ml-1">
-                {preferredStaffFilterMode.toUpperCase()}
-              </Badge>
-            </div>
             <div className="p-2 bg-blue-100 rounded text-xs">
-              ✅ <strong>Phase 2 Active:</strong> {getModeDescription(preferredStaffFilterMode)}
+              ✅ <strong>Phase 3 Active:</strong> Enhanced preferred staff filter with distinct visual modes and accessibility improvements
             </div>
           </div>
         </CardContent>
@@ -239,107 +199,22 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Phase 2: Enhanced Preferred Staff Filter with Three-Mode System */}
+      {/* Phase 3: Enhanced Preferred Staff Filter */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Preferred Staff
-            <Badge variant="secondary" className="flex items-center gap-1">
-              {getModeIcon(preferredStaffFilterMode)}
-              {preferredStaffFilterMode.toUpperCase()}
-            </Badge>
-            {preferredStaffLoading && (
-              <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {preferredStaffLoading ? (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <RefreshCw className="h-4 w-4 animate-spin" />
               Loading preferred staff...
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Phase 2: Filter Mode Selection */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Filter Mode</Label>
-                <RadioGroup
-                  value={preferredStaffFilterMode}
-                  onValueChange={onPreferredStaffFilterModeChange}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2 p-2 rounded border hover:bg-gray-50">
-                    <RadioGroupItem value="all" id="mode-all" />
-                    <Label htmlFor="mode-all" className="flex items-center gap-2 cursor-pointer flex-1">
-                      <Globe className="h-4 w-4 text-green-600" />
-                      <div>
-                        <div className="font-medium">All Tasks</div>
-                        <div className="text-xs text-gray-500">Show all tasks regardless of preferred staff</div>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 p-2 rounded border hover:bg-gray-50">
-                    <RadioGroupItem value="specific" id="mode-specific" />
-                    <Label htmlFor="mode-specific" className="flex items-center gap-2 cursor-pointer flex-1">
-                      <Target className="h-4 w-4 text-blue-600" />
-                      <div>
-                        <div className="font-medium">Specific Staff</div>
-                        <div className="text-xs text-gray-500">Show only tasks for selected staff members</div>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 p-2 rounded border hover:bg-gray-50">
-                    <RadioGroupItem value="none" id="mode-none" />
-                    <Label htmlFor="mode-none" className="flex items-center gap-2 cursor-pointer flex-1">
-                      <UserX className="h-4 w-4 text-orange-600" />
-                      <div>
-                        <div className="font-medium">Unassigned Only</div>
-                        <div className="text-xs text-gray-500">Show only tasks without preferred staff</div>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Phase 2: Staff Selection (only shown in 'specific' mode) */}
-              {preferredStaffFilterMode === 'specific' && (
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium">
-                    Select Staff Members 
-                    <Badge variant="outline" className="ml-2">
-                      {selectedPreferredStaff.length}/{availablePreferredStaff.length}
-                    </Badge>
-                  </Label>
-                  
-                  {availablePreferredStaff.length === 0 ? (
-                    <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded">
-                      No preferred staff assignments found.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded p-2">
-                      {availablePreferredStaff.map(staff => (
-                        <label key={staff.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 hover:bg-gray-50 rounded">
-                          <Checkbox
-                            checked={selectedPreferredStaff.includes(staff.id)}
-                            onCheckedChange={() => onPreferredStaffToggle(staff.id)}
-                          />
-                          <span>{staff.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Phase 2: Current Mode Status */}
-              <div className="p-2 bg-blue-50 rounded text-sm text-blue-700">
-                <strong>Current:</strong> {getModeDescription(preferredStaffFilterMode)}
-              </div>
-            </div>
+            <PreferredStaffFilterEnhanced
+              availablePreferredStaff={availablePreferredStaff}
+              selectedPreferredStaff={selectedPreferredStaff}
+              onPreferredStaffToggle={onPreferredStaffToggle}
+              preferredStaffFilterMode={preferredStaffFilterMode}
+              onPreferredStaffFilterModeChange={onPreferredStaffFilterModeChange}
+            />
           )}
         </CardContent>
       </Card>
