@@ -24,6 +24,7 @@ interface UseDemandMatrixFilteringProps {
  * - Implemented three-mode system (all/specific/none)
  * - Enhanced performance with proper memoization
  * - Maintained all existing filtering functionality
+ * - Fixed property access to match actual DemandDataPoint structure
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -54,17 +55,17 @@ export const useDemandMatrixFiltering = ({
     // Start with original data points
     let filteredDataPoints = [...demandData.dataPoints];
 
-    // Apply skills filtering (existing logic)
+    // Apply skills filtering (using skillType property)
     if (!isAllSkillsSelected && selectedSkills.length > 0) {
       filteredDataPoints = filteredDataPoints.filter(point => 
-        selectedSkills.some(skill => point.skills?.includes(skill))
+        selectedSkills.includes(point.skillType)
       );
     }
 
-    // Apply clients filtering (existing logic)
+    // Apply clients filtering (using taskBreakdown to get client information)
     if (!isAllClientsSelected && selectedClients.length > 0) {
       filteredDataPoints = filteredDataPoints.filter(point => 
-        selectedClients.includes(point.clientId)
+        point.taskBreakdown?.some(task => selectedClients.includes(task.clientId))
       );
     }
 
@@ -80,7 +81,9 @@ export const useDemandMatrixFiltering = ({
         // Show only tasks assigned to selected preferred staff
         if (selectedPreferredStaff.length > 0) {
           filteredDataPoints = filteredDataPoints.filter(point => 
-            point.preferredStaffId && selectedPreferredStaff.includes(point.preferredStaffId)
+            point.taskBreakdown?.some(task => 
+              task.preferredStaffId && selectedPreferredStaff.includes(task.preferredStaffId)
+            )
           );
           console.log(`🎯 [PHASE 2 FILTERING] Specific mode - filtered to ${selectedPreferredStaff.length} staff`);
         } else {
@@ -93,7 +96,9 @@ export const useDemandMatrixFiltering = ({
       case 'none':
         // Show only tasks without preferred staff assignments
         filteredDataPoints = filteredDataPoints.filter(point => 
-          !point.preferredStaffId || point.preferredStaffId === null || point.preferredStaffId === ''
+          point.taskBreakdown?.some(task => 
+            !task.preferredStaffId || task.preferredStaffId === null || task.preferredStaffId === ''
+          )
         );
         console.log(`❌ [PHASE 2 FILTERING] None mode - showing only unassigned tasks`);
         break;
@@ -103,7 +108,7 @@ export const useDemandMatrixFiltering = ({
         break;
     }
 
-    // Apply month range filtering (existing logic)
+    // Apply month range filtering (if needed in the future)
     // ... month range filtering logic would go here if needed
 
     console.log(`✅ [PHASE 2 FILTERING] Filtering complete:`, {
@@ -122,9 +127,9 @@ export const useDemandMatrixFiltering = ({
       ...demandData,
       dataPoints: filteredDataPoints,
       // Update summary statistics based on filtered data
-      totalDemand: filteredDataPoints.reduce((sum, point) => sum + (point.hours || 0), 0),
-      totalTasks: filteredDataPoints.length,
-      totalClients: new Set(filteredDataPoints.map(point => point.clientId)).size
+      totalDemand: filteredDataPoints.reduce((sum, point) => sum + (point.demandHours || 0), 0),
+      totalTasks: filteredDataPoints.reduce((sum, point) => sum + (point.taskCount || 0), 0),
+      totalClients: filteredDataPoints.reduce((sum, point) => sum + (point.clientCount || 0), 0)
     };
 
   }, [
