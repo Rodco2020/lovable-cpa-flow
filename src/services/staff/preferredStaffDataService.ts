@@ -20,6 +20,15 @@ let cacheTimestamp: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
+ * Type definition for staff data from Supabase query
+ */
+interface StaffData {
+  id: string;
+  full_name: string;
+  status: string;
+}
+
+/**
  * Check if cache is still valid
  */
 const isCacheValid = (): boolean => {
@@ -87,17 +96,20 @@ export const getPreferredStaffFromDatabase = async (): Promise<StaffOption[]> =>
         return;
       }
 
-      // Handle the staff data - it could be an object, array, or null
-      let staffData = record.staff;
+      // Handle the staff data with proper typing
+      let staffData: StaffData | null = null;
       
-      // If staff data is an array, take the first element
-      if (Array.isArray(staffData) && staffData.length > 0) {
-        staffData = staffData[0];
+      // Check if staff data is an array and extract first element
+      if (Array.isArray(record.staff)) {
+        if (record.staff.length > 0) {
+          staffData = record.staff[0] as StaffData;
+        }
+      } else if (record.staff && typeof record.staff === 'object') {
+        staffData = record.staff as StaffData;
       }
       
+      // Validate the staff data
       if (staffData && 
-          typeof staffData === 'object' && 
-          !Array.isArray(staffData) &&
           staffData.id && 
           staffData.full_name && 
           staffData.status === 'active') {
@@ -110,8 +122,9 @@ export const getPreferredStaffFromDatabase = async (): Promise<StaffOption[]> =>
       } else {
         console.warn('⚠️ [PREFERRED STAFF DATA] Invalid staff data filtered out:', {
           preferred_staff_id: record.preferred_staff_id,
-          staff: staffData,
-          isArray: Array.isArray(staffData)
+          staff: record.staff,
+          processedStaffData: staffData,
+          isArray: Array.isArray(record.staff)
         });
       }
     });
