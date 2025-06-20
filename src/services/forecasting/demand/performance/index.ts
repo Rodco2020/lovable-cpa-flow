@@ -10,7 +10,7 @@ export { FilteringValidator } from './filteringValidator';
 export { PerformanceMonitor } from './performanceMonitor';
 export { DataFilter } from './dataFilter';
 
-export { PERFORMANCE_OPERATIONS, PERFORMANCE_THRESHOLDS, FILTER_MODE_TYPES } from './constants';
+export { PERFORMANCE_OPERATIONS, PERFORMANCE_THRESHOLDS, PERFORMANCE_CONSTANTS, FILTER_MODE_TYPES } from './constants';
 
 export type { 
   FilteringResult, 
@@ -27,5 +27,5 @@ export type {
 
 export type { 
   FilteringOptions, 
-  PerformanceMetrics 
+  PerformanceMetric 
 } from './types';

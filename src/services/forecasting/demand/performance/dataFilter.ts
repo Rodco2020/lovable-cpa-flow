@@ -127,7 +127,7 @@ export class DataFilter {
     // No filter if no specific configuration is set
     const hasNoSpecificStaff = staffIds.length === 0;
     const hasNoSpecialMode = !showOnlyPreferred;
-    const hasNoUnassignedMode = !includeUnassigned || includeUnassigned === false;
+    const hasNoUnassignedMode = !includeUnassigned;
 
     return hasNoSpecificStaff && hasNoSpecialMode && hasNoUnassignedMode;
   }

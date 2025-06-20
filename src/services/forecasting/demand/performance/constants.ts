@@ -17,6 +17,11 @@ export const PERFORMANCE_OPERATIONS = {
   FILTERING_TIME_HORIZON: 'filtering_time_horizon',
   METRICS_RECALCULATION: 'metrics_recalculation',
   
+  // Data processing operations
+  DATA_PROCESSING_SMALL: 'data_processing_small',
+  DATA_PROCESSING_CHUNKED: 'data_processing_chunked',
+  MATRIX_TRANSFORMATION: 'matrix_transformation',
+  
   // Memory and performance tracking
   MEMORY_USAGE_ESTIMATION: 'memory_usage_estimation',
   FILTER_VALIDATION: 'filter_validation'
@@ -38,6 +43,18 @@ export const PERFORMANCE_THRESHOLDS = {
   // Data size thresholds
   LARGE_DATASET_THRESHOLD: 1000, // data points
   PERFORMANCE_WARNING_THRESHOLD: 500 // milliseconds
+} as const;
+
+export const PERFORMANCE_CONSTANTS = {
+  // Cache management
+  CACHE_SIZE_LIMIT: 100,
+  MAX_PERFORMANCE_METRICS: 100,
+  MAX_MEMORY_METRICS: 50,
+  
+  // Processing thresholds
+  CHUNK_SIZE: 1000,
+  PERFORMANCE_THRESHOLD_MS: 500,
+  MEMORY_ALERT_THRESHOLD_MB: 10
 } as const;
 
 export const FILTER_MODE_TYPES = {
