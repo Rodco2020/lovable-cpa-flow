@@ -92,7 +92,7 @@ export const ThreeModePreferredStaffFilter: React.FC<ThreeModePreferredStaffFilt
           {preferredStaffLoading && (
             <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
           )}
-          <CheckCircle className="h-4 w-4 text-blue-500" title="Phase 2 Three-Mode System Active" />
+          <CheckCircle className="h-4 w-4 text-blue-500" />
         </CardTitle>
       </CardHeader>
       <CardContent>

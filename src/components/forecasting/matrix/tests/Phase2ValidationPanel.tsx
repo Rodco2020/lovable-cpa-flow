@@ -18,7 +18,7 @@ import { DemandMatrixData } from '@/types/demand';
  * - Proper integration with existing skill and client filters
  */
 export const Phase2ValidationPanel: React.FC = () => {
-  const [testMode, setTestMode] = useState<'all' | 'specific'>('all');
+  const [testMode, setTestMode] = useState<'all' | 'specific' | 'none'>('all');
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
   // Get preferred staff data
@@ -118,7 +118,7 @@ export const Phase2ValidationPanel: React.FC = () => {
     }
   };
 
-  // Test the filtering behavior
+  // Test the filtering behavior with Phase 2 three-mode system
   const isAllPreferredStaffSelected = testMode === 'all';
   const testSelectedStaff = testMode === 'all' ? preferredStaff.map(s => s.id) : selectedStaffIds;
 
@@ -130,7 +130,8 @@ export const Phase2ValidationPanel: React.FC = () => {
     monthRange: { start: 0, end: 2 },
     isAllSkillsSelected: false,
     isAllClientsSelected: false,
-    isAllPreferredStaffSelected
+    isAllPreferredStaffSelected,
+    preferredStaffFilterMode: testMode // Phase 2: Add the required filtering mode
   });
 
   const handleStaffToggle = (staffId: string) => {
@@ -160,7 +161,7 @@ export const Phase2ValidationPanel: React.FC = () => {
       } else {
         return { status: 'error', message: 'No tasks found' };
       }
-    } else {
+    } else if (testMode === 'specific') {
       const filteredTasks = filteredResult?.dataPoints[0]?.taskBreakdown.length || 0;
       if (selectedStaffIds.length === 0) {
         return { status: 'warning', message: 'No staff selected - select staff to test filtering' };
@@ -169,7 +170,12 @@ export const Phase2ValidationPanel: React.FC = () => {
       } else {
         return { status: 'error', message: 'No tasks found for selected staff' };
       }
+    } else if (testMode === 'none') {
+      const filteredTasks = filteredResult?.dataPoints[0]?.taskBreakdown.length || 0;
+      return { status: 'success', message: `${filteredTasks} unassigned tasks shown` };
     }
+    
+    return { status: 'error', message: 'Unknown test mode' };
   };
 
   const filteringStatus = getFilteringStatus();
@@ -188,8 +194,8 @@ export const Phase2ValidationPanel: React.FC = () => {
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Phase 2: "All Preferred Staff" Behavior Validation</h2>
-          <p className="text-gray-600 mt-1">Testing enhanced filtering logic for preferred staff</p>
+          <h2 className="text-2xl font-bold">Phase 2: Three-Mode Preferred Staff Filtering Validation</h2>
+          <p className="text-gray-600 mt-1">Testing enhanced filtering logic for preferred staff (all/specific/none modes)</p>
         </div>
         <Button onClick={handleRefresh} disabled={staffLoading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${staffLoading ? 'animate-spin' : ''}`} />
@@ -214,8 +220,8 @@ export const Phase2ValidationPanel: React.FC = () => {
               className="flex items-center gap-2"
             >
               <Users className="h-4 w-4" />
-              All Preferred Staff
-              <Badge variant="secondary">Show All Tasks</Badge>
+              All Tasks
+              <Badge variant="secondary">Show All</Badge>
             </Button>
             <Button
               variant={testMode === 'specific' ? 'default' : 'outline'}
@@ -225,6 +231,15 @@ export const Phase2ValidationPanel: React.FC = () => {
               <Filter className="h-4 w-4" />
               Specific Staff
               <Badge variant="secondary">Filter by Selected</Badge>
+            </Button>
+            <Button
+              variant={testMode === 'none' ? 'default' : 'outline'}
+              onClick={() => setTestMode('none')}
+              className="flex items-center gap-2"
+            >
+              <AlertCircle className="h-4 w-4" />
+              Unassigned Only
+              <Badge variant="secondary">No Preferred Staff</Badge>
             </Button>
           </div>
         </CardContent>
@@ -281,7 +296,7 @@ export const Phase2ValidationPanel: React.FC = () => {
             </Badge>
           </CardTitle>
           <CardDescription>
-            Testing {testMode === 'all' ? '"All Preferred Staff" behavior (should show ALL tasks)' : 'specific staff filtering (should show only matching tasks)'}
+            Testing {testMode} mode behavior - {testMode === 'all' ? 'should show ALL tasks' : testMode === 'specific' ? 'should show only matching tasks' : 'should show only unassigned tasks'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -290,9 +305,9 @@ export const Phase2ValidationPanel: React.FC = () => {
             <div className="p-3 bg-blue-50 rounded">
               <h5 className="font-semibold text-blue-800 mb-2">Test Configuration:</h5>
               <div className="text-sm text-blue-700 space-y-1">
-                <div>Mode: {testMode === 'all' ? 'All Preferred Staff (show all tasks)' : 'Specific Staff Filter'}</div>
-                <div>Selected Staff: {testMode === 'all' ? 'All' : selectedStaffIds.length || 'None'}</div>
-                <div>Expected Behavior: {testMode === 'all' ? 'Show tasks both with and without preferred staff' : 'Show only tasks assigned to selected staff'}</div>
+                <div>Mode: {testMode.toUpperCase()} ({testMode === 'all' ? 'show all tasks' : testMode === 'specific' ? 'filter by selected staff' : 'show unassigned only'})</div>
+                <div>Selected Staff: {testMode === 'all' ? 'All' : testMode === 'specific' ? selectedStaffIds.length || 'None' : 'N/A'}</div>
+                <div>Expected Behavior: {testMode === 'all' ? 'Show tasks both with and without preferred staff' : testMode === 'specific' ? 'Show only tasks assigned to selected staff' : 'Show only tasks without preferred staff'}</div>
               </div>
             </div>
 
@@ -322,8 +337,9 @@ export const Phase2ValidationPanel: React.FC = () => {
             <div className="p-3 bg-green-50 rounded">
               <h6 className="font-semibold text-green-800">Phase 2 Success Criteria:</h6>
               <ul className="text-sm text-green-700 mt-1 space-y-1">
-                <li>✅ "All Preferred Staff" mode shows ALL tasks (both with and without preferred staff)</li>
-                <li>✅ Specific staff selection filters to only show tasks for selected staff</li>
+                <li>✅ "All" mode shows ALL tasks (both with and without preferred staff)</li>
+                <li>✅ "Specific" mode filters to only show tasks for selected staff</li>
+                <li>✅ "None" mode shows only tasks without preferred staff assignments</li>
                 <li>✅ Filtering integrates properly with existing skill and client filters</li>
                 <li>✅ UI correctly reflects the current filtering behavior</li>
               </ul>
