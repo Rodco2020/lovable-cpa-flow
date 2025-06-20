@@ -5,6 +5,7 @@ import { useClients } from '@/hooks/useClients';
 import { useSkills } from '@/hooks/useSkills';
 import { useQuery } from '@tanstack/react-query';
 import { getPreferredStaffFromDatabase } from '@/services/staff/preferredStaffDataService';
+import { manualCacheRefresh } from '@/services/staff/preferredStaffCacheInvalidation';
 import { useDemandMatrixFiltering } from './useDemandMatrixFiltering';
 
 interface UseDemandMatrixControlsProps {
@@ -35,8 +36,8 @@ export const useDemandMatrixControls = ({
   const { data: skillsData, isLoading: skillsLoading } = useSkills();
   const { data: clientsData, isLoading: clientsLoading } = useClients();
 
-  // Phase 2: Continue using database-sourced preferred staff
-  const { data: preferredStaffFromDB = [], isLoading: preferredStaffLoading } = useQuery({
+  // Phase 3: Enhanced preferred staff query with cache invalidation support
+  const { data: preferredStaffFromDB = [], isLoading: preferredStaffLoading, refetch: refetchPreferredStaff } = useQuery({
     queryKey: ['preferred-staff-database'],
     queryFn: getPreferredStaffFromDatabase,
     staleTime: 5 * 60 * 1000, // 5 minutes cache
@@ -59,7 +60,7 @@ export const useDemandMatrixControls = ({
     ) || []
   ));
 
-  // Phase 2: Use database-sourced preferred staff
+  // Phase 3: Use database-sourced preferred staff
   const availablePreferredStaff = preferredStaffFromDB.map(staff => ({
     id: staff.id,
     name: staff.full_name
@@ -70,7 +71,7 @@ export const useDemandMatrixControls = ({
   const isAllClientsSelected = availableClients.length > 0 && state.selectedClients.length === availableClients.length;
   const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && state.selectedPreferredStaff.length === availablePreferredStaff.length;
 
-  // Phase 2: Use the new filtering hook
+  // Phase 3: Use the new filtering hook
   const filteredData = useDemandMatrixFiltering({
     demandData,
     selectedSkills: state.selectedSkills,
@@ -82,7 +83,7 @@ export const useDemandMatrixControls = ({
     isAllPreferredStaffSelected
   });
 
-  console.log(`🎛️ [MATRIX CONTROLS] Phase 2 - Enhanced filtering with "All Preferred Staff" behavior:`, {
+  console.log(`🎛️ [MATRIX CONTROLS] Phase 3 - Enhanced filtering with cache invalidation support:`, {
     availableSkills: availableSkills.length,
     availableClients: availableClients.length,
     availablePreferredStaff: availablePreferredStaff.length,
@@ -110,7 +111,7 @@ export const useDemandMatrixControls = ({
         selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id)
       }));
       
-      console.log(`🎛️ [MATRIX CONTROLS] Phase 2 - Initialized with ALL selections (showing all tasks):`, {
+      console.log(`🎛️ [MATRIX CONTROLS] Phase 3 - Initialized with ALL selections (showing all tasks):`, {
         skillsCount: availableSkills.length,
         clientsCount: availableClients.length,
         preferredStaffCount: availablePreferredStaff.length
@@ -125,7 +126,7 @@ export const useDemandMatrixControls = ({
         ? prev.selectedSkills.filter(s => s !== skill)
         : [...prev.selectedSkills, skill];
       
-      console.log(`🔧 [MATRIX CONTROLS] Phase 2 - Skill toggle:`, {
+      console.log(`🔧 [MATRIX CONTROLS] Phase 3 - Skill toggle:`, {
         skill,
         action: prev.selectedSkills.includes(skill) ? 'removed' : 'added',
         newCount: newSelectedSkills.length,
@@ -146,7 +147,7 @@ export const useDemandMatrixControls = ({
         ? prev.selectedClients.filter(c => c !== clientId)
         : [...prev.selectedClients, clientId];
 
-      console.log(`🔧 [MATRIX CONTROLS] Phase 2 - Client toggle:`, {
+      console.log(`🔧 [MATRIX CONTROLS] Phase 3 - Client toggle:`, {
         clientId,
         action: prev.selectedClients.includes(clientId) ? 'removed' : 'added',
         newCount: newSelectedClients.length,
@@ -167,7 +168,7 @@ export const useDemandMatrixControls = ({
         ? prev.selectedPreferredStaff.filter(s => s !== staffId)
         : [...prev.selectedPreferredStaff, staffId];
 
-      console.log(`🔧 [MATRIX CONTROLS] Phase 2 - Preferred staff toggle:`, {
+      console.log(`🔧 [MATRIX CONTROLS] Phase 3 - Preferred staff toggle:`, {
         staffId,
         action: prev.selectedPreferredStaff.includes(staffId) ? 'removed' : 'added',
         newCount: newSelectedPreferredStaff.length,
@@ -190,8 +191,8 @@ export const useDemandMatrixControls = ({
     }));
   }, []);
 
-  // Handle reset - SELECT ALL clients, skills, and preferred staff
-  const handleReset = useCallback(() => {
+  // Phase 3: Enhanced reset with cache refresh
+  const handleReset = useCallback(async () => {
     setState({
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
@@ -199,14 +200,31 @@ export const useDemandMatrixControls = ({
       monthRange: { start: 0, end: 11 }
     });
     
-    console.log(`🔄 [MATRIX CONTROLS] Phase 2 - Reset to ALL selections (showing all tasks):`, {
+    console.log(`🔄 [MATRIX CONTROLS] Phase 3 - Reset to ALL selections with cache refresh:`, {
       skillsCount: availableSkills.length,
       clientsCount: availableClients.length,
       preferredStaffCount: availablePreferredStaff.length
     });
   }, [availableSkills, availableClients, availablePreferredStaff]);
 
-  // Enhanced export with Phase 2 preferred staff context
+  // Phase 3: New manual refresh function with cache invalidation
+  const handleManualRefresh = useCallback(async () => {
+    try {
+      console.log('🔄 [MATRIX CONTROLS] Phase 3 - Manual refresh triggered');
+      
+      // Trigger cache invalidation and refresh
+      await manualCacheRefresh();
+      
+      // Refetch the preferred staff data
+      await refetchPreferredStaff();
+      
+      console.log('✅ [MATRIX CONTROLS] Phase 3 - Manual refresh completed');
+    } catch (error) {
+      console.error('❌ [MATRIX CONTROLS] Phase 3 - Manual refresh failed:', error);
+    }
+  }, [refetchPreferredStaff]);
+
+  // Handle export
   const handleExport = useCallback((exportConfig?: {
     format?: 'csv' | 'json';
     includeMetadata?: boolean;
@@ -351,6 +369,8 @@ export const useDemandMatrixControls = ({
     handleMonthRangeChange,
     handleReset,
     handleExport,
+    // Phase 3: Add manual refresh capability
+    handleManualRefresh,
     availableSkills,
     availableClients,
     availablePreferredStaff,
@@ -360,7 +380,7 @@ export const useDemandMatrixControls = ({
     isAllSkillsSelected,
     isAllClientsSelected,
     isAllPreferredStaffSelected,
-    // Phase 2: Return filtered data instead of raw demand data
+    // Phase 3: Return filtered data instead of raw demand data
     filteredData
   };
 };
