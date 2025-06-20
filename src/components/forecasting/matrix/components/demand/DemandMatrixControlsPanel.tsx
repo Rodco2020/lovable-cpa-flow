@@ -33,15 +33,45 @@ interface DemandMatrixControlsPanelProps {
  * for improved maintainability and consistency
  */
 export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps> = (props) => {
-  // Convert SkillType[] to string[] and function signatures to match IntegratedMatrixControls
-  const selectedSkillsAsStrings = props.selectedSkills.map(skill => typeof skill === 'string' ? skill : skill.toString());
-  const availableSkillsAsStrings = props.availableSkills.map(skill => typeof skill === 'string' ? skill : skill.toString());
+  // Convert SkillType[] to string[] - handle both string and object types safely
+  const selectedSkillsAsStrings = props.selectedSkills.map(skill => {
+    if (typeof skill === 'string') {
+      return skill;
+    }
+    // Handle case where skill might be an object with a name property
+    if (skill && typeof skill === 'object' && 'name' in skill) {
+      return (skill as any).name;
+    }
+    // Fallback to string conversion
+    return String(skill);
+  });
+  
+  const availableSkillsAsStrings = props.availableSkills.map(skill => {
+    if (typeof skill === 'string') {
+      return skill;
+    }
+    // Handle case where skill might be an object with a name property
+    if (skill && typeof skill === 'object' && 'name' in skill) {
+      return (skill as any).name;
+    }
+    // Fallback to string conversion
+    return String(skill);
+  });
   
   const handleSkillToggle = (skill: string) => {
     // Find the original SkillType that matches this string
-    const originalSkill = props.availableSkills.find(s => 
-      (typeof s === 'string' ? s : s.toString()) === skill
-    );
+    const originalSkill = props.availableSkills.find(s => {
+      if (typeof s === 'string') {
+        return s === skill;
+      }
+      // Handle case where skill might be an object with a name property
+      if (s && typeof s === 'object' && 'name' in s) {
+        return (s as any).name === skill;
+      }
+      // Fallback to string conversion
+      return String(s) === skill;
+    });
+    
     if (originalSkill) {
       props.onSkillToggle(originalSkill);
     }
