@@ -87,11 +87,17 @@ export const getPreferredStaffFromDatabase = async (): Promise<StaffOption[]> =>
         return;
       }
 
-      // Handle the staff data - it could be an object or null
-      const staffData = record.staff;
+      // Handle the staff data - it could be an object, array, or null
+      let staffData = record.staff;
+      
+      // If staff data is an array, take the first element
+      if (Array.isArray(staffData) && staffData.length > 0) {
+        staffData = staffData[0];
+      }
       
       if (staffData && 
           typeof staffData === 'object' && 
+          !Array.isArray(staffData) &&
           staffData.id && 
           staffData.full_name && 
           staffData.status === 'active') {
@@ -104,7 +110,8 @@ export const getPreferredStaffFromDatabase = async (): Promise<StaffOption[]> =>
       } else {
         console.warn('⚠️ [PREFERRED STAFF DATA] Invalid staff data filtered out:', {
           preferred_staff_id: record.preferred_staff_id,
-          staff: staffData
+          staff: staffData,
+          isArray: Array.isArray(staffData)
         });
       }
     });
