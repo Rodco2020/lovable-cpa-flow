@@ -33,11 +33,25 @@ interface DemandMatrixControlsPanelProps {
  * for improved maintainability and consistency
  */
 export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps> = (props) => {
+  // Convert SkillType[] to string[] and function signatures to match IntegratedMatrixControls
+  const selectedSkillsAsStrings = props.selectedSkills.map(skill => typeof skill === 'string' ? skill : skill.toString());
+  const availableSkillsAsStrings = props.availableSkills.map(skill => typeof skill === 'string' ? skill : skill.toString());
+  
+  const handleSkillToggle = (skill: string) => {
+    // Find the original SkillType that matches this string
+    const originalSkill = props.availableSkills.find(s => 
+      (typeof s === 'string' ? s : s.toString()) === skill
+    );
+    if (originalSkill) {
+      props.onSkillToggle(originalSkill);
+    }
+  };
+
   return (
     <IntegratedMatrixControls
-      selectedSkills={props.selectedSkills}
-      onSkillToggle={props.onSkillToggle}
-      availableSkills={props.availableSkills}
+      selectedSkills={selectedSkillsAsStrings}
+      onSkillToggle={handleSkillToggle}
+      availableSkills={availableSkillsAsStrings}
       isAllSkillsSelected={props.isAllSkillsSelected}
       selectedClients={props.selectedClients}
       onClientToggle={props.onClientToggle}
