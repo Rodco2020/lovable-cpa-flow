@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Download, 
   FileText, 
@@ -21,18 +22,18 @@ import {
   Users, 
   Building2, 
   Briefcase,
-  CheckCircle 
+  CheckCircle,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
-
-interface ExportConfiguration {
-  format: 'csv' | 'json';
-  includeMetadata: boolean;
-  includeTaskBreakdown: boolean;
-  includePreferredStaffInfo: boolean;
-}
+import { EnhancedExportService, EnhancedExportOptions } from '@/services/forecasting/export/enhancedExportService';
+import { DemandMatrixData, DemandFilters } from '@/types/demand';
+import { toast } from 'sonner';
 
 interface DemandMatrixExportDialogProps {
-  onExport: (config: ExportConfiguration) => void;
+  onExport?: (config: any) => void; // Legacy support
+  demandData: DemandMatrixData;
+  currentFilters: DemandFilters;
   groupingMode: 'skill' | 'client';
   selectedSkills: string[];
   selectedClients: string[];
@@ -48,13 +49,15 @@ interface DemandMatrixExportDialogProps {
 }
 
 /**
- * Demand Matrix Export Dialog Component
+ * Phase 5: Enhanced Demand Matrix Export Dialog
  * 
- * Provides export configuration options with context about current filters,
- * including preferred staff filtering information.
+ * Integrates with the new three-mode filtering system and provides comprehensive
+ * export functionality with filtering mode metadata and data integrity validation.
  */
 export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> = ({
-  onExport,
+  onExport, // Legacy support
+  demandData,
+  currentFilters,
   groupingMode,
   selectedSkills,
   selectedClients,
@@ -69,11 +72,15 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
   children
 }) => {
   const [open, setOpen] = useState(false);
-  const [config, setConfig] = useState<ExportConfiguration>({
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [config, setConfig] = useState<EnhancedExportOptions>({
     format: 'csv',
     includeMetadata: true,
     includeTaskBreakdown: true,
-    includePreferredStaffInfo: true
+    includePreferredStaffInfo: true,
+    includeFilteringModeDetails: true,
+    validateDataIntegrity: true
   });
 
   const monthNames = [
@@ -81,9 +88,74 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
-  const handleExport = () => {
-    onExport(config);
-    setOpen(false);
+  // Determine current filtering mode
+  const getFilteringModeDescription = () => {
+    if (!currentFilters.preferredStaff) return 'All Tasks Mode';
+    
+    const { staffIds = [], showOnlyPreferred = false } = currentFilters.preferredStaff;
+    
+    if (showOnlyPreferred && staffIds.length === 0) {
+      return 'Unassigned Only Mode';
+    } else if (staffIds.length > 0) {
+      return `Specific Staff Mode (${staffIds.length} staff)`;
+    }
+    
+    return 'All Tasks Mode';
+  };
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      console.log(`🚀 [PHASE 5 EXPORT DIALOG] Starting export:`, {
+        format: config.format,
+        filteringMode: getFilteringModeDescription(),
+        selectedSkills: selectedSkills.length,
+        selectedClients: selectedClients.length
+      });
+
+      // Use Phase 5 enhanced export service
+      const result = await EnhancedExportService.exportWithFilteringContext(
+        demandData,
+        currentFilters,
+        selectedSkills,
+        selectedClients,
+        monthRange,
+        config
+      );
+
+      if (result.success) {
+        toast.success(`Export completed successfully! File: ${result.exportedFileName}`, {
+          description: `Format: ${config.format.toUpperCase()} | Mode: ${getFilteringModeDescription()}`
+        });
+        
+        // Legacy callback support
+        if (onExport) {
+          onExport(config);
+        }
+        
+        setOpen(false);
+      } else {
+        const errorMessage = result.errors?.join(', ') || 'Unknown export error';
+        setExportError(errorMessage);
+        toast.error('Export failed', {
+          description: errorMessage
+        });
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown export error';
+      setExportError(errorMessage);
+      toast.error('Export failed', {
+        description: errorMessage
+      });
+      console.error('❌ [PHASE 5 EXPORT DIALOG] Export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Calculate filter summary
@@ -92,6 +164,8 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
   const preferredStaffText = availablePreferredStaff.length > 0 
     ? (isAllPreferredStaffSelected ? `All ${availablePreferredStaff.length} preferred staff` : `${selectedPreferredStaff.length} of ${availablePreferredStaff.length} preferred staff`)
     : 'No preferred staff available';
+
+  const estimatedDataPoints = selectedSkills.length * (monthRange.end - monthRange.start + 1);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -108,10 +182,10 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Export Demand Matrix Data
+            Export Demand Matrix Data (Phase 5 Enhanced)
           </DialogTitle>
           <DialogDescription>
-            Configure your export settings and review current filter context
+            Configure export settings with comprehensive filtering mode support
           </DialogDescription>
         </DialogHeader>
 
@@ -120,7 +194,7 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-medium mb-3 flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-600" />
-              Current Filter Context
+              Current Filter Context & Mode Detection
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -138,6 +212,14 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                   <span className="font-medium">Grouping:</span>
                   <Badge variant="secondary">
                     {groupingMode === 'skill' ? 'By Skills' : 'By Clients'}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium">Filtering Mode:</span>
+                  <Badge variant="outline" className="text-xs font-medium">
+                    {getFilteringModeDescription()}
                   </Badge>
                 </div>
               </div>
@@ -170,6 +252,14 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                 )}
               </div>
             </div>
+
+            {/* Data preview */}
+            <div className="mt-3 p-2 bg-white rounded border text-xs">
+              <span className="font-medium">Estimated Export Size:</span> ~{estimatedDataPoints} data points
+              {config.validateDataIntegrity && (
+                <span className="ml-2 text-green-600">• Data integrity validation enabled</span>
+              )}
+            </div>
           </div>
 
           <Separator />
@@ -179,15 +269,15 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
             <h4 className="font-medium mb-3">Export Format</h4>
             <RadioGroup 
               value={config.format} 
-              onValueChange={(value: 'csv' | 'json') => setConfig(prev => ({ ...prev, format: value }))}
-              className="grid grid-cols-2 gap-4"
+              onValueChange={(value: 'csv' | 'json' | 'excel') => setConfig(prev => ({ ...prev, format: value }))}
+              className="grid grid-cols-3 gap-4"
             >
               <div className="flex items-center space-x-2 border rounded-lg p-3">
                 <RadioGroupItem value="csv" id="csv" />
                 <Label htmlFor="csv" className="flex-1 cursor-pointer">
-                  <div className="font-medium">CSV Format</div>
+                  <div className="font-medium">CSV</div>
                   <div className="text-xs text-muted-foreground">
-                    Spreadsheet-compatible format
+                    Spreadsheet format
                   </div>
                 </Label>
               </div>
@@ -195,18 +285,28 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
               <div className="flex items-center space-x-2 border rounded-lg p-3">
                 <RadioGroupItem value="json" id="json" />
                 <Label htmlFor="json" className="flex-1 cursor-pointer">
-                  <div className="font-medium">JSON Format</div>
+                  <div className="font-medium">JSON</div>
                   <div className="text-xs text-muted-foreground">
-                    Structured data format
+                    Structured data
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2 border rounded-lg p-3">
+                <RadioGroupItem value="excel" id="excel" />
+                <Label htmlFor="excel" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Excel</div>
+                  <div className="text-xs text-muted-foreground">
+                    Advanced format
                   </div>
                 </Label>
               </div>
             </RadioGroup>
           </div>
 
-          {/* Export Options */}
+          {/* Phase 5 Enhanced Export Options */}
           <div>
-            <h4 className="font-medium mb-3">Export Options</h4>
+            <h4 className="font-medium mb-3">Phase 5 Enhanced Options</h4>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -215,9 +315,9 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                   onCheckedChange={(checked) => setConfig(prev => ({ ...prev, includeMetadata: !!checked }))}
                 />
                 <Label htmlFor="metadata" className="flex-1 cursor-pointer">
-                  <div className="font-medium">Include Metadata</div>
+                  <div className="font-medium">Include Filtering Metadata</div>
                   <div className="text-xs text-muted-foreground">
-                    Export settings, timestamps, and filter context
+                    Export timestamps, filter modes, performance metrics
                   </div>
                 </Label>
               </div>
@@ -244,23 +344,74 @@ export const DemandMatrixExportDialog: React.FC<DemandMatrixExportDialogProps> =
                     onCheckedChange={(checked) => setConfig(prev => ({ ...prev, includePreferredStaffInfo: !!checked }))}
                   />
                   <Label htmlFor="staffInfo" className="flex-1 cursor-pointer">
-                    <div className="font-medium">Include Preferred Staff Information</div>
+                    <div className="font-medium">Include Preferred Staff Details</div>
                     <div className="text-xs text-muted-foreground">
-                      Staff assignments and preferences per task
+                      Staff assignments, filtering mode analysis
                     </div>
                   </Label>
                 </div>
               )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="filteringDetails"
+                  checked={config.includeFilteringModeDetails}
+                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, includeFilteringModeDetails: !!checked }))}
+                />
+                <Label htmlFor="filteringDetails" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Include Three-Mode Filter Analysis</div>
+                  <div className="text-xs text-muted-foreground">
+                    Detailed breakdown of filtering mode impact
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="validation"
+                  checked={config.validateDataIntegrity}
+                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, validateDataIntegrity: !!checked }))}
+                />
+                <Label htmlFor="validation" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Validate Data Integrity</div>
+                  <div className="text-xs text-muted-foreground">
+                    Run Phase 4 validation checks before export
+                  </div>
+                </Label>
+              </div>
             </div>
           </div>
 
+          {/* Error Display */}
+          {exportError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Export failed: {exportError}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Export Actions */}
           <div className="flex gap-3 pt-4">
-            <Button onClick={handleExport} className="flex-1">
-              <Download className="h-4 w-4 mr-2" />
-              Export Data
+            <Button 
+              onClick={handleExport} 
+              className="flex-1"
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export with Phase 5 Enhancements
+                </>
+              )}
             </Button>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isExporting}>
               Cancel
             </Button>
           </div>
