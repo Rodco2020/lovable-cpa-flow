@@ -17,31 +17,33 @@ import {
  * Refactored modular component that consolidates matrix control functionality
  * with improved maintainability and consistent behavior across the application.
  */
-export const IntegratedMatrixControls: React.FC<IntegratedMatrixControlsProps> = ({
-  selectedSkills,
-  onSkillToggle,
-  availableSkills,
-  isAllSkillsSelected,
-  selectedClients,
-  onClientToggle,
-  availableClients,
-  isAllClientsSelected,
-  selectedPreferredStaff,
-  onPreferredStaffToggle,
-  availablePreferredStaff,
-  isAllPreferredStaffSelected,
-  monthRange,
-  onMonthRangeChange,
-  isControlsExpanded,
-  onToggleControls,
-  groupingMode,
-  onExport,
-  onReset,
-  onPrintExport,
-  skillsLoading = false,
-  clientsLoading = false,
-  preferredStaffLoading = false
-}) => {
+export const IntegratedMatrixControls: React.FC<IntegratedMatrixControlsProps> = (props) => {
+  const {
+    selectedSkills,
+    onSkillToggle,
+    availableSkills,
+    isAllSkillsSelected,
+    selectedClients,
+    onClientToggle,
+    availableClients,
+    isAllClientsSelected,
+    selectedPreferredStaff,
+    onPreferredStaffToggle,
+    availablePreferredStaff,
+    isAllPreferredStaffSelected,
+    monthRange,
+    onMonthRangeChange,
+    isControlsExpanded,
+    onToggleControls,
+    groupingMode,
+    onExport,
+    onReset,
+    onPrintExport,
+    skillsLoading = false,
+    clientsLoading = false,
+    preferredStaffLoading = false
+  } = props;
+
   return (
     <Card>
       <CardHeader>

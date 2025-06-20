@@ -1,5 +1,4 @@
 
-
 import { SkillType } from '@/types/task';
 
 /**
@@ -72,4 +71,3 @@ export interface ControlHeaderProps {
   onToggleControls: () => void;
   onReset: () => void;
 }
-
