@@ -1,4 +1,3 @@
-
 /**
  * Phase 5: Quality Assurance Orchestrator
  * 
@@ -256,7 +255,7 @@ export class Phase5QualityOrchestrator {
     const lines = [
       'PHASE 5: TESTING & QUALITY ASSURANCE',
       'Three-Mode Filtering System - Final Quality Report',
-      '=' * 50,
+      '='.repeat(50),
       '',
       `Report Generated: ${new Date().toISOString()}`,
       `Overall Score: ${report.overallScore}%`,

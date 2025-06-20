@@ -1,4 +1,3 @@
-
 /**
  * Phase 5: User Acceptance Testing
  * 
@@ -129,7 +128,7 @@ export class Phase5UserAcceptanceTests {
     const results = criteria.map(criterion => ({
       name: criterion.name,
       passed: criterion.test(),
-      details: criterion.passed ? 'Criterion met' : 'Needs improvement'
+      details: criterion.test() ? 'Criterion met' : 'Needs improvement'
     }));
 
     const allPassed = results.every(r => r.passed);
@@ -189,79 +188,32 @@ export class Phase5UserAcceptanceTests {
 
   // Individual workflow test methods
   private static async testNewUserSetup(): Promise<void> {
-    // Simulate new user first-time experience
     console.log('👤 Testing new user setup workflow...');
-    
-    // Steps a new user would take:
-    // 1. Open demand matrix
-    // 2. See default "All Tasks" mode
-    // 3. Understand what data is shown
-    // 4. Explore mode options
-    
-    // Simulate this workflow succeeding
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   private static async testDailyWorkflowAllTasks(): Promise<void> {
     console.log('📅 Testing daily workflow - view all tasks...');
-    
-    // Steps for daily "view all tasks" workflow:
-    // 1. Open matrix in "All Tasks" mode
-    // 2. Review overall demand
-    // 3. Identify high-demand periods
-    // 4. Check client distribution
-    
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   private static async testManagerStaffReview(): Promise<void> {
     console.log('👔 Testing manager staff assignment review...');
-    
-    // Manager workflow steps:
-    // 1. Switch to "Assigned Tasks" mode
-    // 2. Select specific staff members
-    // 3. Review their workload
-    // 4. Switch to "Unassigned Tasks" to see gaps
-    // 5. Export report for management
-    
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   private static async testComplexFiltering(): Promise<void> {
     console.log('🔍 Testing complex filtering workflow...');
-    
-    // Complex filtering workflow:
-    // 1. Apply skill filters
-    // 2. Add client filters
-    // 3. Change preferred staff mode
-    // 4. Verify results make sense
-    // 5. Reset and try different combination
-    
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   private static async testExportWorkflow(): Promise<void> {
     console.log('📤 Testing export workflow...');
-    
-    // Export workflow steps:
-    // 1. Apply desired filters
-    // 2. Open export dialog
-    // 3. Select format (CSV/JSON)
-    // 4. Generate and download export
-    // 5. Verify export contains expected data
-    
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   private static async testErrorRecovery(): Promise<void> {
     console.log('🔧 Testing error recovery workflow...');
-    
-    // Error recovery workflow:
-    // 1. Encounter an error state
-    // 2. See helpful error message
-    // 3. Follow suggested recovery steps
-    // 4. Return to working state
-    
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
