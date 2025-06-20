@@ -1,9 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { SkillType } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
 import { useClients } from '@/hooks/useClients';
 import { useSkills } from '@/hooks/useSkills';
+import { useQuery } from '@tanstack/react-query';
+import { getPreferredStaffFromDatabase } from '@/services/staff/preferredStaffDataService';
 
 interface UseDemandMatrixControlsProps {
   demandData?: DemandMatrixData | null;
@@ -33,6 +34,15 @@ export const useDemandMatrixControls = ({
   const { data: skillsData, isLoading: skillsLoading } = useSkills();
   const { data: clientsData, isLoading: clientsLoading } = useClients();
 
+  // Phase 1: Use new preferred staff data service with proper caching
+  const { data: preferredStaffFromDB = [], isLoading: preferredStaffLoading } = useQuery({
+    queryKey: ['preferred-staff-database'],
+    queryFn: getPreferredStaffFromDatabase,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    retry: 2,
+  });
+
   // Extract available options from demand data
   const availableSkills = demandData?.skills || [];
   
@@ -48,38 +58,38 @@ export const useDemandMatrixControls = ({
     ) || []
   ));
 
-  // Extract available preferred staff from demand data
-  const availablePreferredStaff = Array.from(new Set(
-    demandData?.dataPoints.flatMap(point => 
-      point.taskBreakdown
-        .filter(task => task.preferredStaff?.staffId && task.preferredStaff?.staffName)
-        .map(task => ({
-          id: task.preferredStaff!.staffId,
-          name: task.preferredStaff!.staffName
-        }))
-    ) || []
-  ));
+  // Phase 1: Use database-sourced preferred staff instead of demand data extraction
+  const availablePreferredStaff = preferredStaffFromDB.map(staff => ({
+    id: staff.id,
+    name: staff.full_name
+  }));
 
   // Calculate selection state flags for proper filtering logic
   const isAllSkillsSelected = availableSkills.length > 0 && state.selectedSkills.length === availableSkills.length;
   const isAllClientsSelected = availableClients.length > 0 && state.selectedClients.length === availableClients.length;
   const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && state.selectedPreferredStaff.length === availablePreferredStaff.length;
 
-  console.log(`🎛️ [MATRIX CONTROLS] UI Integration - Available options:`, {
+  console.log(`🎛️ [MATRIX CONTROLS] Phase 1 - Using database-sourced preferred staff:`, {
     availableSkills: availableSkills.length,
     availableClients: availableClients.length,
     availablePreferredStaff: availablePreferredStaff.length,
+    preferredStaffFromDB: preferredStaffFromDB.length,
     selectedSkills: state.selectedSkills.length,
     selectedClients: state.selectedClients.length,
     selectedPreferredStaff: state.selectedPreferredStaff.length,
     isAllSkillsSelected,
     isAllClientsSelected,
-    isAllPreferredStaffSelected
+    isAllPreferredStaffSelected,
+    preferredStaffLoading
   });
 
   // Initialize selections when data becomes available - SELECT ALL by default
   useEffect(() => {
-    if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0 && state.selectedPreferredStaff.length === 0) {
+    if (demandData && 
+        state.selectedSkills.length === 0 && 
+        state.selectedClients.length === 0 && 
+        state.selectedPreferredStaff.length === 0 &&
+        !preferredStaffLoading) {
       setState(prev => ({
         ...prev,
         selectedSkills: availableSkills,
@@ -87,13 +97,13 @@ export const useDemandMatrixControls = ({
         selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id)
       }));
       
-      console.log(`🎛️ [MATRIX CONTROLS] UI Integration - Initialized with ALL selections:`, {
+      console.log(`🎛️ [MATRIX CONTROLS] Phase 1 - Initialized with ALL selections:`, {
         skillsCount: availableSkills.length,
         clientsCount: availableClients.length,
         preferredStaffCount: availablePreferredStaff.length
       });
     }
-  }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
+  }, [demandData, availableSkills, availableClients, availablePreferredStaff, preferredStaffLoading]);
 
   // Handle skill toggle
   const handleSkillToggle = useCallback((skill: SkillType) => {
@@ -144,7 +154,7 @@ export const useDemandMatrixControls = ({
         ? prev.selectedPreferredStaff.filter(s => s !== staffId)
         : [...prev.selectedPreferredStaff, staffId];
 
-      console.log(`🔧 [MATRIX CONTROLS] UI Integration - Preferred staff toggle:`, {
+      console.log(`🔧 [MATRIX CONTROLS] Phase 1 - Preferred staff toggle:`, {
         staffId,
         action: prev.selectedPreferredStaff.includes(staffId) ? 'removed' : 'added',
         newCount: newSelectedPreferredStaff.length,
@@ -175,7 +185,7 @@ export const useDemandMatrixControls = ({
       monthRange: { start: 0, end: 11 }
     });
     
-    console.log(`🔄 [MATRIX CONTROLS] UI Integration - Reset to ALL selections:`, {
+    console.log(`🔄 [MATRIX CONTROLS] Phase 1 - Reset to ALL selections:`, {
       skillsCount: availableSkills.length,
       clientsCount: availableClients.length,
       preferredStaffCount: availablePreferredStaff.length
@@ -226,6 +236,7 @@ export const useDemandMatrixControls = ({
         csvData += `# Preferred Staff Filter: ${isAllPreferredStaffSelected ? 'All' : availablePreferredStaff.filter(s => state.selectedPreferredStaff.includes(s.id)).map(s => s.name).join(', ')}\n`;
       }
       csvData += `# Month Range: ${demandData.months[state.monthRange.start]?.label} - ${demandData.months[state.monthRange.end]?.label}\n`;
+      csvData += `# Phase 1: Using database-sourced preferred staff data\n`;
       csvData += `#\n`;
     }
     
@@ -302,18 +313,19 @@ export const useDemandMatrixControls = ({
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `demand-matrix-${groupingMode}-${new Date().toISOString().split('T')[0]}.${config.format}`;
+    a.download = `demand-matrix-${groupingMode}-phase1-${new Date().toISOString().split('T')[0]}.${config.format}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
     
-    console.log(`📁 [MATRIX CONTROLS] UI Integration - Enhanced export completed:`, {
+    console.log(`📁 [MATRIX CONTROLS] Phase 1 - Enhanced export completed:`, {
       format: config.format,
       itemCount: groupingMode === 'skill' ? (isAllSkillsSelected ? availableSkills.length : state.selectedSkills.length) : (isAllClientsSelected ? availableClients.length : state.selectedClients.length),
       monthCount: filteredMonths.length,
       includePreferredStaff: config.includePreferredStaffInfo,
-      includeMetadata: config.includeMetadata
+      includeMetadata: config.includeMetadata,
+      preferredStaffSource: 'database'
     });
   }, [demandData, state, groupingMode, availableSkills, availableClients, availablePreferredStaff, isAllSkillsSelected, isAllClientsSelected, isAllPreferredStaffSelected]);
 
@@ -330,6 +342,7 @@ export const useDemandMatrixControls = ({
     availablePreferredStaff,
     skillsLoading,
     clientsLoading,
+    preferredStaffLoading,
     isAllSkillsSelected,
     isAllClientsSelected,
     isAllPreferredStaffSelected

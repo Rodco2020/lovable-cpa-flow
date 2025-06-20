@@ -1,6 +1,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { StaffOption } from '@/types/staffOption';
+import { getPreferredStaffFromDatabase } from './preferredStaffDataService';
 
 /**
  * Staff Dropdown Service
@@ -8,6 +9,8 @@ import { StaffOption } from '@/types/staffOption';
  * Specialized service for retrieving staff data optimized for dropdown components.
  * Provides efficient data fetching with caching and filtering for active staff members.
  * Enhanced to support preferred staff filtering scenarios.
+ * 
+ * Phase 1: Updated to use dedicated preferred staff data service
  */
 
 /**
@@ -18,23 +21,10 @@ let cacheTimestamp: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 /**
- * Cache for preferred staff from demand data
- */
-let preferredStaffCache: Map<string, { id: string; name: string }[]> = new Map();
-let preferredStaffCacheTimestamp: number = 0;
-
-/**
  * Check if cache is still valid
  */
 const isCacheValid = (): boolean => {
   return staffOptionsCache !== null && (Date.now() - cacheTimestamp) < CACHE_DURATION;
-};
-
-/**
- * Check if preferred staff cache is valid
- */
-const isPreferredStaffCacheValid = (): boolean => {
-  return (Date.now() - preferredStaffCacheTimestamp) < CACHE_DURATION;
 };
 
 /**
@@ -43,9 +33,6 @@ const isPreferredStaffCacheValid = (): boolean => {
 export const clearStaffOptionsCache = (): void => {
   staffOptionsCache = null;
   cacheTimestamp = 0;
-  // Also clear preferred staff cache
-  preferredStaffCache.clear();
-  preferredStaffCacheTimestamp = 0;
 };
 
 /**
@@ -134,52 +121,29 @@ export const getStaffMemberForTaskAssignment = async (staffId: string): Promise<
 };
 
 /**
- * Get preferred staff options from demand data with caching
- * Optimized for demand matrix filtering scenarios
+ * Get preferred staff options using the new dedicated service
+ * Phase 1: Now delegates to the specialized preferred staff data service
  */
-export const getPreferredStaffFromDemandData = async (
-  demandDataPoints: any[]
-): Promise<{ id: string; name: string }[]> => {
+export const getPreferredStaffFromDemandData = async (): Promise<{ id: string; name: string }[]> => {
   try {
-    const cacheKey = `demand_${demandDataPoints.length}_${JSON.stringify(demandDataPoints.slice(0, 3))}`;
+    console.log('🔄 [STAFF DROPDOWN] Delegating to preferred staff data service');
     
-    // Check cache first
-    if (isPreferredStaffCacheValid() && preferredStaffCache.has(cacheKey)) {
-      console.log('Using cached preferred staff from demand data');
-      return preferredStaffCache.get(cacheKey)!;
-    }
-
-    console.log('Processing preferred staff from demand data');
+    // Use the new dedicated service for preferred staff data
+    const preferredStaffOptions = await getPreferredStaffFromDatabase();
     
-    // Extract unique preferred staff from demand data
-    const preferredStaffSet = new Set<string>();
-    const staffInfoMap = new Map<string, string>();
+    // Transform to match expected format for backward compatibility
+    const transformedOptions = preferredStaffOptions.map(staff => ({
+      id: staff.id,
+      name: staff.full_name
+    }));
     
-    demandDataPoints.forEach(point => {
-      if (point.taskBreakdown) {
-        point.taskBreakdown.forEach((task: any) => {
-          if (task.preferredStaff?.staffId && task.preferredStaff?.staffName) {
-            preferredStaffSet.add(task.preferredStaff.staffId);
-            staffInfoMap.set(task.preferredStaff.staffId, task.preferredStaff.staffName);
-          }
-        });
-      }
+    console.log('✅ [STAFF DROPDOWN] Successfully retrieved preferred staff via new service:', {
+      count: transformedOptions.length
     });
     
-    // Convert to array format
-    const preferredStaffOptions = Array.from(preferredStaffSet).map(staffId => ({
-      id: staffId,
-      name: staffInfoMap.get(staffId) || 'Unknown Staff'
-    })).sort((a, b) => a.name.localeCompare(b.name));
-    
-    // Update cache
-    preferredStaffCache.set(cacheKey, preferredStaffOptions);
-    preferredStaffCacheTimestamp = Date.now();
-    
-    console.log(`Extracted ${preferredStaffOptions.length} preferred staff from demand data`);
-    return preferredStaffOptions;
+    return transformedOptions;
   } catch (error) {
-    console.error('Error in getPreferredStaffFromDemandData:', error);
+    console.error('❌ [STAFF DROPDOWN] Error getting preferred staff:', error);
     return [];
   }
 };
@@ -207,18 +171,14 @@ export const refreshStaffOptionsCache = async (): Promise<StaffOption[]> => {
 };
 
 /**
- * Get cache statistics including preferred staff cache
+ * Get cache statistics
  */
 export const getStaffCacheStatistics = (): {
   staffOptionsCount: number;
-  preferredStaffCacheEntries: number;
   cacheAge: number;
-  preferredStaffCacheAge: number;
 } => {
   return {
     staffOptionsCount: staffOptionsCache?.length || 0,
-    preferredStaffCacheEntries: preferredStaffCache.size,
-    cacheAge: cacheTimestamp > 0 ? Date.now() - cacheTimestamp : 0,
-    preferredStaffCacheAge: preferredStaffCacheTimestamp > 0 ? Date.now() - preferredStaffCacheTimestamp : 0
+    cacheAge: cacheTimestamp > 0 ? Date.now() - cacheTimestamp : 0
   };
 };
