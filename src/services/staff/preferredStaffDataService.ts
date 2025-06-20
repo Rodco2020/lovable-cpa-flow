@@ -82,15 +82,29 @@ export const getPreferredStaffFromDatabase = async (): Promise<StaffOption[]> =>
     const staffMap = new Map<string, StaffOption>();
     
     data.forEach(record => {
-      if (record.staff && 
-          record.staff.id && 
-          record.staff.full_name && 
-          record.staff.status === 'active') {
+      if (!record || typeof record !== 'object') {
+        console.warn('⚠️ [PREFERRED STAFF DATA] Invalid record filtered out:', record);
+        return;
+      }
+
+      // Handle the staff data - it could be an object or null
+      const staffData = record.staff;
+      
+      if (staffData && 
+          typeof staffData === 'object' && 
+          staffData.id && 
+          staffData.full_name && 
+          staffData.status === 'active') {
         
         // Use Map to automatically deduplicate by staff ID
-        staffMap.set(record.staff.id, {
-          id: record.staff.id,
-          full_name: record.staff.full_name
+        staffMap.set(staffData.id, {
+          id: staffData.id,
+          full_name: staffData.full_name
+        });
+      } else {
+        console.warn('⚠️ [PREFERRED STAFF DATA] Invalid staff data filtered out:', {
+          preferred_staff_id: record.preferred_staff_id,
+          staff: staffData
         });
       }
     });
