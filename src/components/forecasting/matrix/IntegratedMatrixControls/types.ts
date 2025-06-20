@@ -1,3 +1,4 @@
+
 import { SkillType } from '@/types/task';
 
 /**
@@ -69,5 +70,4 @@ export interface ControlHeaderProps {
   isControlsExpanded: boolean;
   onToggleControls: () => void;
   onReset: () => void;
-
-
+}
