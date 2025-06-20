@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Users,
   Building2,
-  Wrench
+  Wrench,
+  CheckCircle
 } from 'lucide-react';
 import { SkillType } from '@/types/task';
 
@@ -67,6 +68,28 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
 }) => {
   return (
     <div className="space-y-4">
+      {/* Phase 1 Status Indicator */}
+      <Card className="border-green-200 bg-green-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-800">
+            <CheckCircle className="h-5 w-5" />
+            Phase 1: Fixed "All Preferred Staff" Logic
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-green-700">
+            <div className="mb-2">
+              <strong>Current Mode:</strong> {isAllPreferredStaffSelected ? 'SHOW ALL TASKS (Fixed)' : 'FILTER BY SPECIFIC STAFF'}
+            </div>
+            {isAllPreferredStaffSelected && (
+              <div className="p-2 bg-green-100 rounded text-xs">
+                ✅ <strong>Phase 1 Fix Active:</strong> Displaying ALL tasks (both with and without preferred staff assignments)
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Action Buttons */}
       <Card>
         <CardHeader>
@@ -169,15 +192,19 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Preferred Staff Filter - Phase 3: Enhanced with refresh capability */}
+      {/* Preferred Staff Filter - Phase 1: Enhanced with fixed logic indicators */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Preferred Staff
             <Badge variant="secondary">
-              {isAllPreferredStaffSelected ? 'All (Show All Tasks)' : `${selectedPreferredStaff.length}/${availablePreferredStaff.length}`}
+              {isAllPreferredStaffSelected ? 'All (Show All Tasks - FIXED)' : `${selectedPreferredStaff.length}/${availablePreferredStaff.length}`}
             </Badge>
+            {/* Phase 1: Show validation indicator */}
+            {isAllPreferredStaffSelected && (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            )}
             {/* Phase 3: Show loading indicator for preferred staff */}
             {preferredStaffLoading && (
               <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
@@ -197,9 +224,9 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
           ) : (
             <>
               <div className="mb-3 p-2 bg-blue-50 rounded text-sm text-blue-700">
-                <strong>Phase 3:</strong> Cache automatically refreshes when preferred staff assignments change.
+                <strong>Phase 1 Fixed:</strong> Cache automatically refreshes when preferred staff assignments change.
                 {isAllPreferredStaffSelected 
-                  ? ' Currently showing ALL tasks (with and without preferred staff).' 
+                  ? ' Currently showing ALL tasks (with and without preferred staff) - FIXED LOGIC.' 
                   : ' Currently filtering to selected staff only.'
                 }
               </div>

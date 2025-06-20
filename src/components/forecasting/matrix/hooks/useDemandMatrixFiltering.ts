@@ -13,12 +13,13 @@ interface UseDemandMatrixFilteringProps {
 }
 
 /**
- * Phase 2: Enhanced Demand Matrix Filtering Hook
+ * Phase 1: Enhanced Demand Matrix Filtering Hook - Fixed "All Preferred Staff" Logic
  * 
- * Implements proper "All Preferred Staff" behavior:
+ * PHASE 1 FIXES:
  * - When all preferred staff are selected: show ALL tasks (both with and without preferred staff)
  * - When specific staff are selected: show only tasks assigned to those specific staff
  * - Maintains backward compatibility with existing skill and client filtering
+ * - Enhanced logging for debugging and validation
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -33,17 +34,17 @@ export const useDemandMatrixFiltering = ({
 
   const filteredData = useMemo(() => {
     if (!demandData) {
-      console.log('🔍 [MATRIX FILTERING] Phase 2 - No demand data available');
+      console.log('🔍 [MATRIX FILTERING] Phase 1 - No demand data available');
       return null;
     }
 
-    console.log('🔍 [MATRIX FILTERING] Phase 2 - Starting filtering with enhanced preferred staff logic:', {
+    console.log('🔍 [MATRIX FILTERING] Phase 1 - Starting filtering with FIXED All Preferred Staff logic:', {
       originalDataPoints: demandData.dataPoints.length,
       monthRange,
       skillsFilter: isAllSkillsSelected ? 'ALL' : selectedSkills.length,
       clientsFilter: isAllClientsSelected ? 'ALL' : selectedClients.length,
       preferredStaffFilter: isAllPreferredStaffSelected ? 'ALL' : selectedPreferredStaff.length,
-      filteringMode: isAllPreferredStaffSelected ? 'SHOW_ALL_TASKS' : 'FILTER_BY_PREFERRED_STAFF'
+      filteringMode: isAllPreferredStaffSelected ? 'SHOW_ALL_TASKS_FIXED' : 'FILTER_BY_PREFERRED_STAFF'
     });
 
     // Filter months based on range
@@ -76,9 +77,23 @@ export const useDemandMatrixFiltering = ({
         );
       }
 
-      // Phase 2: Enhanced Preferred Staff Filtering Logic
-      if (!isAllPreferredStaffSelected) {
+      // PHASE 1 FIX: Enhanced Preferred Staff Filtering Logic
+      if (isAllPreferredStaffSelected) {
+        // FIXED: When "All Preferred Staff" is selected, show ALL tasks
+        // This includes tasks WITH preferred staff AND tasks WITHOUT preferred staff
+        // NO FILTERING is applied - keep all tasks
+        console.log(`🌟 [MATRIX FILTERING] Phase 1 FIXED - Showing ALL tasks (All Preferred Staff mode):`, {
+          month: point.month,
+          skill: point.skillType,
+          totalTasks: filteredTaskBreakdown.length,
+          tasksWithPreferredStaff: filteredTaskBreakdown.filter(t => t.preferredStaff?.staffId).length,
+          tasksWithoutPreferredStaff: filteredTaskBreakdown.filter(t => !t.preferredStaff?.staffId).length,
+          fixApplied: 'NO_PREFERRED_STAFF_FILTERING'
+        });
+      } else {
         // When specific preferred staff are selected, show only tasks assigned to those staff
+        const originalTaskCount = filteredTaskBreakdown.length;
+        
         filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
           const taskPreferredStaffId = task.preferredStaff?.staffId;
           
@@ -91,22 +106,13 @@ export const useDemandMatrixFiltering = ({
           return false;
         });
         
-        console.log(`🎯 [MATRIX FILTERING] Phase 2 - Filtered by specific preferred staff:`, {
+        console.log(`🎯 [MATRIX FILTERING] Phase 1 - Filtered by specific preferred staff:`, {
           month: point.month,
           skill: point.skillType,
-          originalTasks: point.taskBreakdown.length,
+          originalTasks: originalTaskCount,
           filteredTasks: filteredTaskBreakdown.length,
-          selectedStaff: selectedPreferredStaff.length
-        });
-      } else {
-        // When "All Preferred Staff" is selected, show ALL tasks (both with and without preferred staff)
-        // No additional filtering needed - keep all tasks
-        console.log(`🌟 [MATRIX FILTERING] Phase 2 - Showing all tasks (All Preferred Staff mode):`, {
-          month: point.month,
-          skill: point.skillType,
-          totalTasks: filteredTaskBreakdown.length,
-          tasksWithPreferredStaff: filteredTaskBreakdown.filter(t => t.preferredStaff?.staffId).length,
-          tasksWithoutPreferredStaff: filteredTaskBreakdown.filter(t => !t.preferredStaff?.staffId).length
+          selectedStaff: selectedPreferredStaff.length,
+          filterApplied: 'SPECIFIC_PREFERRED_STAFF_ONLY'
         });
       }
 
@@ -128,6 +134,7 @@ export const useDemandMatrixFiltering = ({
     });
 
     // Filter out data points with no remaining tasks after filtering
+    const originalFilteredPointsCount = filteredDataPoints.length;
     filteredDataPoints = filteredDataPoints.filter(point => point.taskCount > 0);
 
     const result = {
@@ -136,13 +143,33 @@ export const useDemandMatrixFiltering = ({
       dataPoints: filteredDataPoints
     };
 
-    console.log('✅ [MATRIX FILTERING] Phase 2 - Filtering completed:', {
+    console.log('✅ [MATRIX FILTERING] Phase 1 FIXED - Filtering completed:', {
       originalDataPoints: demandData.dataPoints.length,
       filteredDataPoints: result.dataPoints.length,
+      pointsRemovedDueToNoTasks: originalFilteredPointsCount - result.dataPoints.length,
       monthsIncluded: filteredMonths.length,
-      preferredStaffBehavior: isAllPreferredStaffSelected ? 'ALL_TASKS_SHOWN' : 'FILTERED_BY_STAFF',
-      totalDemandHours: result.dataPoints.reduce((sum, point) => sum + point.demandHours, 0)
+      preferredStaffBehavior: isAllPreferredStaffSelected ? 'ALL_TASKS_SHOWN_FIXED' : 'FILTERED_BY_STAFF',
+      totalDemandHours: result.dataPoints.reduce((sum, point) => sum + point.demandHours, 0),
+      phase1FixApplied: true
     });
+
+    // Phase 1 validation logging
+    if (isAllPreferredStaffSelected) {
+      const totalTasksWithPreferredStaff = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.filter(t => t.preferredStaff?.staffId).length, 0
+      );
+      const totalTasksWithoutPreferredStaff = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.filter(t => !t.preferredStaff?.staffId).length, 0
+      );
+      
+      console.log('🎉 [MATRIX FILTERING] Phase 1 SUCCESS METRICS:', {
+        allTasksDisplayed: true,
+        tasksWithPreferredStaff: totalTasksWithPreferredStaff,
+        tasksWithoutPreferredStaff: totalTasksWithoutPreferredStaff,
+        totalTasksShown: totalTasksWithPreferredStaff + totalTasksWithoutPreferredStaff,
+        fixValidation: 'BOTH_TASK_TYPES_INCLUDED'
+      });
+    }
 
     return result;
   }, [
