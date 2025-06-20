@@ -1,12 +1,31 @@
 
 /**
- * Performance Optimization Module
- * Main entry point for all performance optimization functionality
+ * Phase 4: Performance and Filtering Module Exports
+ * 
+ * Centralized exports for the enhanced performance monitoring and filtering system
  */
 
-export { DataProcessor } from './dataProcessor';
-export { DataFilter } from './dataFilter';
-export { CacheManager } from './cacheManager';
+export { AdvancedFilteringEngine } from './filteringEngine';
+export { FilteringValidator } from './filteringValidator';
 export { PerformanceMonitor } from './performanceMonitor';
-export * from './types';
-export * from './constants';
+export { DataFilter } from './dataFilter';
+
+export { PERFORMANCE_OPERATIONS, PERFORMANCE_THRESHOLDS, FILTER_MODE_TYPES } from './constants';
+
+export type { 
+  FilteringResult, 
+  FilteringMetrics, 
+  FilteringPerformanceStats 
+} from './filteringEngine';
+
+export type { 
+  ValidationResult, 
+  ValidationError, 
+  ValidationWarning, 
+  DataIntegrityCheck 
+} from './filteringValidator';
+
+export type { 
+  FilteringOptions, 
+  PerformanceMetrics 
+} from './types';
