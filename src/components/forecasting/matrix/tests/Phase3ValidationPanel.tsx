@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ export const Phase3ValidationPanel: React.FC = () => {
 
   // Get preferred staff data
   const { 
-    data: preferredStaff = [], 
+    data: rawPreferredStaff = [], 
     isLoading: staffLoading, 
     error: staffError,
     refetch: refetchStaff 
@@ -32,6 +31,12 @@ export const Phase3ValidationPanel: React.FC = () => {
     queryFn: getPreferredStaffFromDatabase,
     staleTime: 0, // No cache for testing
   });
+
+  // Transform StaffOption[] to PreferredStaffOption[] to match component interface
+  const preferredStaff = rawPreferredStaff.map(staff => ({
+    id: staff.id,
+    name: staff.full_name
+  }));
 
   const handleStaffToggle = (staffId: string) => {
     setSelectedStaffIds(prev => 
