@@ -14,6 +14,23 @@ interface DemandDataResponse extends DemandMatrixData {
   availablePreferredStaff: Array<{ id: string; name: string }>;
 }
 
+// Type for the task data with clients relation
+interface TaskWithClient {
+  id: string;
+  name: string;
+  client_id: string;
+  estimated_hours: number;
+  required_skills: string[];
+  recurrence_type: string;
+  recurrence_interval: number;
+  is_active: boolean;
+  preferred_staff_id: string | null;
+  clients: {
+    id: string;
+    legal_name: string;
+  } | null;
+}
+
 /**
  * Hook for fetching real demand matrix data from Supabase
  * 
@@ -131,7 +148,10 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
         });
 
         if (tasksData && tasksData.length > 0) {
-          for (const task of tasksData) {
+          // Cast the tasks data to our properly typed interface
+          const typedTasks = tasksData as TaskWithClient[];
+          
+          for (const task of typedTasks) {
             // Process each skill required by the task
             const requiredSkills = Array.isArray(task.required_skills) ? task.required_skills : [];
             
@@ -162,9 +182,7 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
 
                   if (monthlyHours > 0) {
                     // Safely access client name from the clients relation
-                    const clientName = task.clients && typeof task.clients === 'object' && !Array.isArray(task.clients) 
-                      ? task.clients.legal_name || 'Unknown Client'
-                      : 'Unknown Client';
+                    const clientName = task.clients?.legal_name || 'Unknown Client';
 
                     dataPoints.push({
                       skillType: skill,
