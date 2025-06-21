@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { DemandMatrixData } from '@/types/demand';
 import { SkillType } from '@/types/task';
@@ -14,7 +13,7 @@ interface DemandDataResponse extends DemandMatrixData {
   availablePreferredStaff: Array<{ id: string; name: string }>;
 }
 
-// Type for the task data with clients relation
+// Type for the task data with clients relation - matching actual Supabase response
 interface TaskWithClient {
   id: string;
   name: string;
@@ -28,7 +27,7 @@ interface TaskWithClient {
   clients: {
     id: string;
     legal_name: string;
-  } | null;
+  }[] | null; // Supabase returns this as an array, not a single object
 }
 
 /**
@@ -181,8 +180,10 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
                   }
 
                   if (monthlyHours > 0) {
-                    // Safely access client name from the clients relation
-                    const clientName = task.clients?.legal_name || 'Unknown Client';
+                    // Safely access client name from the clients relation array
+                    const clientName = task.clients && task.clients.length > 0 
+                      ? task.clients[0].legal_name 
+                      : 'Unknown Client';
 
                     dataPoints.push({
                       skillType: skill,
