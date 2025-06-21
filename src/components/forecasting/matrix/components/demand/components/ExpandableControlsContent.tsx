@@ -87,7 +87,8 @@ export const ExpandableControlsContent: React.FC<ExpandableControlsContentProps>
         selectedSkills={selectedSkills}
         onSkillToggle={onSkillToggle}
         availableSkills={availableSkills}
-        isAllSelected={isAllSkillsSelected}
+        isAllSkillsSelected={isAllSkillsSelected}
+        isControlsExpanded={true}
       />
 
       <Separator />
@@ -97,7 +98,8 @@ export const ExpandableControlsContent: React.FC<ExpandableControlsContentProps>
         selectedClients={selectedClients}
         onClientToggle={onClientToggle}
         availableClients={availableClients}
-        isAllSelected={isAllClientsSelected}
+        isAllClientsSelected={isAllClientsSelected}
+        isControlsExpanded={true}
       />
 
       <Separator />

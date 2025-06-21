@@ -1,3 +1,4 @@
+
 /**
  * Phase 5: Quality Assurance Orchestrator
  * 
@@ -47,7 +48,7 @@ export class Phase5QualityOrchestrator {
    */
   public static async runPhase5QualityAssurance(): Promise<Phase5QualityReport> {
     console.log('🚀 [PHASE 5 QA] Starting Phase 5: Testing & Quality Assurance...');
-    console.log('=' * 80);
+    console.log('='.repeat(80));
     
     const startTime = performance.now();
     const testResults: any = {};
