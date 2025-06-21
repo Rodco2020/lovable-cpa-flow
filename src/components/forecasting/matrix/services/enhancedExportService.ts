@@ -32,6 +32,17 @@ export interface ExportMetadata {
   };
 }
 
+// Phase 3: Enhanced export data row type to handle both data and metadata
+interface ExportDataRow {
+  skill: string;
+  month: string;
+  demandHours: number | string;
+  taskCount: number | string;
+  clientCount: number | string;
+  totalTasks: number | string;
+  taskDetails?: string;
+}
+
 export class EnhancedExportService {
   /**
    * Phase 3: Enhanced export with resolved skill data
@@ -137,11 +148,11 @@ export class EnhancedExportService {
     data: DemandMatrixData,
     metadata: ExportMetadata,
     options: EnhancedExportOptions
-  ): any[] {
+  ): ExportDataRow[] {
     console.log('📊 [PHASE 3 EXPORT] Formatting data with enhanced skill information');
 
-    const formattedData = data.dataPoints.map(point => {
-      const baseData = {
+    const formattedData: ExportDataRow[] = data.dataPoints.map(point => {
+      const baseData: ExportDataRow = {
         skill: point.skillType, // Phase 3: Using resolved skill name
         month: point.monthLabel || point.month,
         demandHours: point.demandHours,
@@ -172,7 +183,7 @@ export class EnhancedExportService {
 
     // Phase 3: Add metadata section if requested - Fixed type issues
     if (options.includeFilterSummary) {
-      formattedData.unshift({
+      const metadataRow: ExportDataRow = {
         skill: '--- EXPORT METADATA ---',
         month: `Export Date: ${metadata.exportDate}`,
         demandHours: `Total Data Points: ${metadata.totalDataPoints}`,
@@ -181,7 +192,9 @@ export class EnhancedExportService {
           ? `Skill Resolution: ${JSON.stringify(metadata.skillResolutionInfo)}`
           : 'N/A',
         totalTasks: '--- END METADATA ---'
-      });
+      };
+      
+      formattedData.unshift(metadataRow);
     }
 
     return formattedData;
@@ -247,7 +260,7 @@ export class EnhancedExportService {
   /**
    * Phase 3: Export as CSV with enhanced formatting
    */
-  private static async exportAsCSV(data: any[], metadata: ExportMetadata, filename: string): Promise<void> {
+  private static async exportAsCSV(data: ExportDataRow[], metadata: ExportMetadata, filename: string): Promise<void> {
     if (data.length === 0) return;
 
     const headers = Object.keys(data[0]);
@@ -255,7 +268,7 @@ export class EnhancedExportService {
       headers.join(','),
       ...data.map(row => 
         headers.map(header => {
-          const value = row[header];
+          const value = row[header as keyof ExportDataRow];
           // Handle values that might contain commas or quotes
           if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
             return `"${value.replace(/"/g, '""')}"`;
@@ -272,7 +285,7 @@ export class EnhancedExportService {
   /**
    * Phase 3: Export as JSON with metadata
    */
-  private static async exportAsJSON(data: any[], metadata: ExportMetadata, filename: string): Promise<void> {
+  private static async exportAsJSON(data: ExportDataRow[], metadata: ExportMetadata, filename: string): Promise<void> {
     const exportData = {
       metadata,
       data
@@ -286,7 +299,7 @@ export class EnhancedExportService {
   /**
    * Phase 3: Export as XLSX (placeholder - would need xlsx library)
    */
-  private static async exportAsXLSX(data: any[], metadata: ExportMetadata, filename: string): Promise<void> {
+  private static async exportAsXLSX(data: ExportDataRow[], metadata: ExportMetadata, filename: string): Promise<void> {
     // Phase 3: For now, fallback to CSV format
     // In a real implementation, this would use a library like xlsx
     console.log('📋 [PHASE 3 EXPORT] XLSX export not yet implemented, falling back to CSV');
