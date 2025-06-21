@@ -1,7 +1,9 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { DemandMatrixData } from '@/types/demand';
 import { SkillType } from '@/types/task';
 import { supabase } from '@/lib/supabaseClient';
+import { SkillResolutionService } from '../skillResolution/skillResolutionService';
 
 interface UseDemandDataProps {
   monthRange: { start: number; end: number };
@@ -31,18 +33,22 @@ interface TaskWithClient {
 }
 
 /**
- * Hook for fetching real demand matrix data from Supabase
+ * Enhanced Hook for fetching real demand matrix data from Supabase
  * 
- * This replaces the previous mock implementation with actual data fetching
- * from clients, staff, and recurring_tasks tables.
+ * Phase 2 Enhancement: Integrated with skill resolution service to properly
+ * handle UUID-to-name conversion while maintaining data integrity and filtering.
  */
 export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps) => {
   return useQuery({
     queryKey: ['demandData', monthRange, selectedSkills],
     queryFn: async (): Promise<DemandDataResponse> => {
-      console.log('🚀 [DEMAND DATA] Fetching real demand data from Supabase');
+      console.log('🚀 [PHASE 2 DEMAND DATA] Fetching real demand data with skill resolution');
       
       try {
+        // Phase 2: Initialize skill resolution service first
+        console.log('🔧 [PHASE 2] Initializing skill resolution service...');
+        await SkillResolutionService.initializeSkillCache();
+
         // Fetch clients
         const { data: clientsData, error: clientsError } = await supabase
           .from('clients')
@@ -65,10 +71,10 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
           throw staffError;
         }
 
-        // Fetch skills for filtering and matrix generation
+        // Phase 2: Fetch skills with both ID and name for resolution mapping
         const { data: skillsData, error: skillsError } = await supabase
           .from('skills')
-          .select('name')
+          .select('id, name')
           .order('name');
 
         if (skillsError) {
@@ -101,7 +107,7 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
           throw tasksError;
         }
 
-        console.log('✅ [DEMAND DATA] Successfully fetched data:', {
+        console.log('✅ [PHASE 2 DEMAND DATA] Successfully fetched data:', {
           clients: clientsData?.length || 0,
           staff: staffData?.length || 0,
           skills: skillsData?.length || 0,
@@ -119,7 +125,9 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
           name: staff.full_name
         }));
 
-        const skills = (skillsData || []).map(skill => skill.name);
+        // Phase 2: Get all available skill names via resolution service
+        const skills = await SkillResolutionService.getAllSkillNames();
+        console.log('📋 [PHASE 2] Available skills from resolution service:', skills.length);
 
         // Generate months for the current year (simplified for now)
         const months = [
@@ -137,25 +145,72 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
           { key: 'dec', label: 'Dec' }
         ];
 
-        // Transform recurring tasks into demand data points
+        // Phase 2: Transform recurring tasks with skill resolution
         const dataPoints = [];
         const skillSummary: { [skill: string]: { totalHours: number; taskCount: number; clientCount: number } } = {};
 
-        // Initialize skill summary
+        // Initialize skill summary for all available skills
         skills.forEach(skill => {
           skillSummary[skill] = { totalHours: 0, taskCount: 0, clientCount: 0 };
         });
 
         if (tasksData && tasksData.length > 0) {
+          console.log('🔄 [PHASE 2] Processing tasks with skill resolution...');
+          
           // Cast the tasks data to our properly typed interface
           const typedTasks = tasksData as TaskWithClient[];
           
           for (const task of typedTasks) {
-            // Process each skill required by the task
+            console.log(`📝 [PHASE 2] Processing task: ${task.name}`, {
+              taskId: task.id,
+              requiredSkills: task.required_skills,
+              skillsType: typeof task.required_skills,
+              isArray: Array.isArray(task.required_skills)
+            });
+
+            // Phase 2: Enhanced skill processing with UUID resolution
             const requiredSkills = Array.isArray(task.required_skills) ? task.required_skills : [];
             
-            for (const skill of requiredSkills) {
-              if (skills.includes(skill)) {
+            if (requiredSkills.length === 0) {
+              console.warn(`⚠️ [PHASE 2] Task ${task.name} has no required skills, skipping`);
+              continue;
+            }
+
+            // Phase 2: Resolve skill UUIDs to names
+            let resolvedSkillNames: string[] = [];
+            try {
+              // First validate the skill references
+              const validation = await SkillResolutionService.validateSkillReferences(requiredSkills);
+              
+              if (validation.valid.length > 0) {
+                // Resolve UUIDs to names
+                resolvedSkillNames = await SkillResolutionService.getSkillNames(validation.valid);
+                
+                console.log(`🔍 [PHASE 2] Skill resolution for task ${task.name}:`, {
+                  originalSkills: requiredSkills,
+                  validSkills: validation.valid,
+                  invalidSkills: validation.invalid,
+                  resolvedNames: resolvedSkillNames,
+                  diagnostics: validation.diagnostics
+                });
+              } else {
+                console.warn(`⚠️ [PHASE 2] No valid skills found for task ${task.name}:`, {
+                  originalSkills: requiredSkills,
+                  validation
+                });
+                continue;
+              }
+            } catch (error) {
+              console.error(`❌ [PHASE 2] Error resolving skills for task ${task.name}:`, error);
+              continue;
+            }
+
+            // Process each resolved skill for the task
+            for (const skillName of resolvedSkillNames) {
+              // Only process skills that are in our available skills list
+              if (skills.includes(skillName)) {
+                console.log(`✅ [PHASE 2] Processing skill: ${skillName} for task: ${task.name}`);
+                
                 // Create data points for each month (simplified projection)
                 for (const month of months) {
                   const estimatedHours = task.estimated_hours || 0;
@@ -186,7 +241,7 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
                       : 'Unknown Client';
 
                     dataPoints.push({
-                      skillType: skill,
+                      skillType: skillName, // Phase 2: Now using resolved skill name
                       month: month.key,
                       demandHours: monthlyHours,
                       taskCount: 1,
@@ -205,13 +260,15 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
                     });
 
                     // Update skill summary
-                    if (skillSummary[skill]) {
-                      skillSummary[skill].totalHours += monthlyHours;
-                      skillSummary[skill].taskCount += 1;
-                      skillSummary[skill].clientCount = new Set([...Array.from({ length: skillSummary[skill].clientCount }), task.client_id]).size;
+                    if (skillSummary[skillName]) {
+                      skillSummary[skillName].totalHours += monthlyHours;
+                      skillSummary[skillName].taskCount += 1;
+                      skillSummary[skillName].clientCount = new Set([...Array.from({ length: skillSummary[skillName].clientCount }), task.client_id]).size;
                     }
                   }
                 }
+              } else {
+                console.warn(`⚠️ [PHASE 2] Resolved skill "${skillName}" not found in available skills list`);
               }
             }
           }
@@ -226,7 +283,7 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
         const result: DemandDataResponse = {
           months,
           dataPoints,
-          skills,
+          skills, // Phase 2: Using resolved skill names
           totalDemand,
           totalTasks,
           totalClients,
@@ -235,19 +292,21 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
           availablePreferredStaff
         };
 
-        console.log('📊 [DEMAND DATA] Generated demand matrix data:', {
+        console.log('📊 [PHASE 2 DEMAND DATA] Generated enhanced demand matrix data:', {
           dataPointsCount: dataPoints.length,
           totalDemand,
           totalTasks,
           totalClients,
+          skillsCount: skills.length,
           availableClientsCount: availableClients.length,
-          availableStaffCount: availablePreferredStaff.length
+          availableStaffCount: availablePreferredStaff.length,
+          skillSummaryKeys: Object.keys(skillSummary).length
         });
 
         return result;
 
       } catch (error) {
-        console.error('❌ [DEMAND DATA] Critical error fetching demand data:', error);
+        console.error('❌ [PHASE 2 DEMAND DATA] Critical error fetching demand data:', error);
         
         // Return minimal fallback data to prevent complete failure
         return {
