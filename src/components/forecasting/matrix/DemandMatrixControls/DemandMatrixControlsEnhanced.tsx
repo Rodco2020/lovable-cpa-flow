@@ -59,7 +59,7 @@ export const DemandMatrixControlsEnhanced: React.FC<DemandMatrixControlsProps & 
   return (
     <div className="space-y-4">
       {/* Phase 3 Status Indicator - Enhanced */}
-      <PhaseIndicator phase={3} />
+      <PhaseIndicator />
 
       {/* Action Buttons - Enhanced with retry functionality */}
       <ActionButtons
