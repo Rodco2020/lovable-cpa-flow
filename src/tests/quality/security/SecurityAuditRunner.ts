@@ -15,6 +15,7 @@ export class SecurityAuditRunner {
     console.log('🔒 [SECURITY AUDIT] Starting security audit...');
     
     const vulnerabilities: SecurityAuditResult['vulnerabilities'] = [];
+    const complianceChecks: SecurityAuditResult['complianceChecks'] = [];
 
     try {
       // Audit 1: Input validation security
@@ -33,6 +34,30 @@ export class SecurityAuditRunner {
       const authIssues = await this.auditAuthentication();
       vulnerabilities.push(...authIssues);
 
+      // Add compliance checks
+      complianceChecks.push(
+        {
+          name: 'Input Validation',
+          passed: inputValidationIssues.length === 0,
+          details: `Found ${inputValidationIssues.length} input validation issues`
+        },
+        {
+          name: 'Data Protection',
+          passed: dataExposureIssues.length === 0,
+          details: `Found ${dataExposureIssues.length} data exposure risks`
+        },
+        {
+          name: 'Client Security',
+          passed: clientSideIssues.length === 0,
+          details: `Found ${clientSideIssues.length} client-side security issues`
+        },
+        {
+          name: 'Authentication',
+          passed: authIssues.length === 0,
+          details: `Found ${authIssues.length} authentication issues`
+        }
+      );
+
       // Calculate security score
       const securityScore = this.calculateSecurityScore(vulnerabilities);
       const passed = vulnerabilities.filter(v => v.severity === 'critical' || v.severity === 'high').length === 0;
@@ -43,7 +68,8 @@ export class SecurityAuditRunner {
       return {
         passed,
         vulnerabilities,
-        securityScore
+        securityScore,
+        complianceChecks
       };
 
     } catch (error) {
@@ -56,7 +82,12 @@ export class SecurityAuditRunner {
           description: `Security audit failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
           component: 'SecurityAuditRunner'
         }],
-        securityScore: 0
+        securityScore: 0,
+        complianceChecks: [{
+          name: 'Audit Execution',
+          passed: false,
+          details: 'Security audit failed to execute properly'
+        }]
       };
     }
   }

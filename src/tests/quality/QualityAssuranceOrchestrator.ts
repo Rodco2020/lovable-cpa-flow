@@ -36,28 +36,18 @@ export interface CrossBrowserTestResult {
 
 export interface PerformanceBenchmarkResult {
   passed: boolean;
-  metrics: {
-    loadTime: number;
-    renderTime: number;
-    memoryUsage: number;
-    bundleSize: number;
-  };
-  benchmarks: Array<{
-    name: string;
-    value: number;
-    threshold: number;
-    passed: boolean;
-  }>;
-  overallScore: number;
+  loadTime: number;
+  memoryUsage: number;
+  largeDatasetPerformance: number;
+  bottlenecks: string[];
 }
 
 export interface SecurityAuditResult {
   passed: boolean;
   vulnerabilities: Array<{
     severity: 'critical' | 'high' | 'medium' | 'low';
-    type: string;
     description: string;
-    recommendation: string;
+    component: string;
   }>;
   securityScore: number;
   complianceChecks: Array<{
