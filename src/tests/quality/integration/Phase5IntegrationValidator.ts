@@ -1,4 +1,3 @@
-
 /**
  * Phase 5 Integration Validator
  * 
@@ -73,6 +72,53 @@ export class Phase5IntegrationValidator {
         message: `Phase 5 validation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         details: [...details, `❌ Exception occurred: ${error}`],
         timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Run complete validation (combines all validation methods)
+   */
+  static async runCompleteValidation(): Promise<{
+    passed: boolean;
+    overallScore: number;
+    featureIntegration: Phase5ValidationResult;
+    systemStability: Phase5ValidationResult;
+  }> {
+    try {
+      // Run feature integration validation
+      const featureIntegration = await this.validatePhase5Integration();
+      
+      // Run system stability validation
+      const systemStability = await this.validateSkillResolutionPerformance();
+      
+      // Calculate overall score
+      const featureScore = featureIntegration.passed ? 100 : 50;
+      const stabilityScore = systemStability.passed ? 100 : 50;
+      const overallScore = Math.round((featureScore + stabilityScore) / 2);
+      
+      const passed = featureIntegration.passed && systemStability.passed;
+      
+      return {
+        passed,
+        overallScore,
+        featureIntegration,
+        systemStability
+      };
+      
+    } catch (error) {
+      const errorResult: Phase5ValidationResult = {
+        passed: false,
+        message: `Complete validation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: [`❌ Exception occurred: ${error}`],
+        timestamp: new Date().toISOString()
+      };
+      
+      return {
+        passed: false,
+        overallScore: 0,
+        featureIntegration: errorResult,
+        systemStability: errorResult
       };
     }
   }
