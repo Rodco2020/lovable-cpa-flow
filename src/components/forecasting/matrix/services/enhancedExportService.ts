@@ -170,7 +170,7 @@ export class EnhancedExportService {
       return baseData;
     });
 
-    // Phase 3: Add metadata section if requested
+    // Phase 3: Add metadata section if requested - Fixed type issues
     if (options.includeFilterSummary) {
       formattedData.unshift({
         skill: '--- EXPORT METADATA ---',
