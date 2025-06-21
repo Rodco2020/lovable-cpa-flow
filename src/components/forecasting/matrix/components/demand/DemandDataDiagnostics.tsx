@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Database, Loader2 } from 'lucide-react';
 import { EnhancedDataService } from '@/services/forecasting/demand/dataFetcher/enhancedDataService';
+import { SkillResolutionDiagnostics } from './SkillResolutionDiagnostics';
 
 interface DiagnosticInfo {
   databaseConnection: boolean;
@@ -15,8 +16,8 @@ interface DiagnosticInfo {
 /**
  * Demand Data Diagnostics Component
  * 
- * This component helps diagnose issues with demand data availability
- * by showing database connectivity, table row counts, and sample data.
+ * Enhanced to include Phase 1 skill resolution diagnostics
+ * alongside existing database connectivity diagnostics.
  */
 export const DemandDataDiagnostics: React.FC = () => {
   const [diagnostics, setDiagnostics] = useState<DiagnosticInfo | null>(null);
@@ -49,79 +50,85 @@ export const DemandDataDiagnostics: React.FC = () => {
   );
 
   return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Database className="h-5 w-5" />
-          Data Diagnostics
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span>Database Connection:</span>
-          {diagnostics ? (
-            getStatusBadge(diagnostics.databaseConnection, diagnostics.databaseConnection ? 'Connected' : 'Failed')
-          ) : (
-            <Badge variant="secondary">Testing...</Badge>
-          )}
-        </div>
+    <div className="space-y-4">
+      {/* Database Diagnostics */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Database Diagnostics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span>Database Connection:</span>
+            {diagnostics ? (
+              getStatusBadge(diagnostics.databaseConnection, diagnostics.databaseConnection ? 'Connected' : 'Failed')
+            ) : (
+              <Badge variant="secondary">Testing...</Badge>
+            )}
+          </div>
 
-        {diagnostics && (
-          <>
-            <div className="space-y-2">
-              <h4 className="font-medium">Table Row Counts:</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(diagnostics.tableData).map(([table, count]) => (
-                  <div key={table} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="capitalize">{table}:</span>
-                    {getStatusBadge(count > 0, `${count} rows`)}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {diagnostics.sampleData && (
+          {diagnostics && (
+            <>
               <div className="space-y-2">
-                <h4 className="font-medium">Sample Data:</h4>
-                <div className="text-sm bg-gray-50 p-3 rounded">
-                  <div>Sample Clients: {diagnostics.sampleData.clients?.length || 0}</div>
-                  <div>Sample Tasks: {diagnostics.sampleData.tasks?.length || 0}</div>
-                  {diagnostics.sampleData.clients?.[0] && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      First client: {diagnostics.sampleData.clients[0].legal_name}
+                <h4 className="font-medium">Table Row Counts:</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(diagnostics.tableData).map(([table, count]) => (
+                    <div key={table} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="capitalize">{table}:</span>
+                      {getStatusBadge(count > 0, `${count} rows`)}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
-            )}
-          </>
-        )}
 
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded">
-            <div className="flex items-center gap-2 text-red-800">
-              <AlertCircle className="h-4 w-4" />
-              Error: {error}
-            </div>
-          </div>
-        )}
-
-        <Button 
-          onClick={runDiagnostics} 
-          disabled={isLoading}
-          variant="outline"
-          className="w-full"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Running Diagnostics...
+              {diagnostics.sampleData && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Sample Data:</h4>
+                  <div className="text-sm bg-gray-50 p-3 rounded">
+                    <div>Sample Clients: {diagnostics.sampleData.clients?.length || 0}</div>
+                    <div>Sample Tasks: {diagnostics.sampleData.tasks?.length || 0}</div>
+                    {diagnostics.sampleData.clients?.[0] && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        First client: {diagnostics.sampleData.clients[0].legal_name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
-          ) : (
-            'Run Diagnostics Again'
           )}
-        </Button>
-      </CardContent>
-    </Card>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertCircle className="h-4 w-4" />
+                Error: {error}
+              </div>
+            </div>
+          )}
+
+          <Button 
+            onClick={runDiagnostics} 
+            disabled={isLoading}
+            variant="outline"
+            className="w-full"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Running Database Diagnostics...
+              </>
+            ) : (
+              'Run Database Diagnostics Again'
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Phase 1 Skill Resolution Diagnostics */}
+      <SkillResolutionDiagnostics />
+    </div>
   );
 };
