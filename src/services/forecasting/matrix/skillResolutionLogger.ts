@@ -209,7 +209,7 @@ export class SkillResolutionLogger {
     }
 
     const errorRate = diagnostics.performanceMetrics.errorRate;
-    const averageTime = diagnostics.averageResolutionTime;
+    const averageTime = diagnostics.performanceMetrics.averageResolutionTime;
 
     let status: 'good' | 'warning' | 'error';
     let summary: string;
