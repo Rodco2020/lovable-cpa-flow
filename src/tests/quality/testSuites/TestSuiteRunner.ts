@@ -30,7 +30,7 @@ export class TestSuiteRunner {
       });
 
       if (!demandMatrixResult.passed) {
-        criticalFailures.push(`Demand Matrix Tests: ${demandMatrixResult.error}`);
+        criticalFailures.push(`Demand Matrix Tests: ${demandMatrixResult.message || 'Unknown error'}`);
       }
 
       // Run revenue calculation tests
@@ -42,7 +42,7 @@ export class TestSuiteRunner {
       });
 
       if (!revenueResult.passed) {
-        criticalFailures.push(`Revenue Calculation Tests: ${revenueResult.error}`);
+        criticalFailures.push(`Revenue Calculation Tests: ${revenueResult.message || 'Unknown error'}`);
       }
 
       // Run validation tests
@@ -54,7 +54,7 @@ export class TestSuiteRunner {
       });
 
       if (!validationResult.passed) {
-        criticalFailures.push(`Validation Tests: ${validationResult.error}`);
+        criticalFailures.push(`Validation Tests: ${validationResult.message || 'Unknown error'}`);
       }
 
       // Run integration tests
@@ -66,7 +66,7 @@ export class TestSuiteRunner {
       });
 
       if (!integrationResult.passed) {
-        criticalFailures.push(`Integration Tests: ${integrationResult.error}`);
+        criticalFailures.push(`Integration Tests: ${integrationResult.message || 'Unknown error'}`);
       }
 
       // Calculate results
@@ -121,7 +121,7 @@ export class TestSuiteRunner {
   /**
    * Run specific test suite by name
    */
-  public static async runSpecificTestSuite(suiteName: string): Promise<{ passed: boolean; duration: number; error?: string }> {
+  public static async runSpecificTestSuite(suiteName: string): Promise<{ passed: boolean; duration: number; message?: string }> {
     const startTime = Date.now();
 
     try {
@@ -141,7 +141,7 @@ export class TestSuiteRunner {
       return {
         passed: false,
         duration: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }

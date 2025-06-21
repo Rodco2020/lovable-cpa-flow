@@ -66,6 +66,23 @@ export class SkillResolutionService {
   }
 
   /**
+   * Get cache statistics for monitoring and debugging
+   */
+  static getCacheStats(): { 
+    cacheSize: number; 
+    reverseCacheSize: number; 
+    isInitialized: boolean; 
+    isCacheValid: boolean;
+  } {
+    return {
+      cacheSize: (SkillResolutionService.cacheManager as any).skillCache?.size || 0,
+      reverseCacheSize: (SkillResolutionService.cacheManager as any).reverseSkillCache?.size || 0,
+      isInitialized: SkillResolutionService.cacheManager.isInitialized(),
+      isCacheValid: SkillResolutionService.cacheManager.isCacheValid()
+    };
+  }
+
+  /**
    * Resolve skill references (backward compatibility method)
    */
   static async resolveSkillReferences(skillRefs: string[]): Promise<{
