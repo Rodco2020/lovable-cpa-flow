@@ -58,17 +58,17 @@ export const useDemandMatrixControls = ({
         totalDemand: demandData.totalDemand
       });
 
-      // Run data validation
-      EnhancedDataService.validateDataAvailability({
+      // Run data validation (this is synchronous, not async)
+      const validation = EnhancedDataService.validateDataAvailability({
         clients: availableClients,
         staff: availablePreferredStaff,
         skills: availableSkills,
         recurringTasks: demandData.dataPoints || []
-      }).then(validation => {
-        if (!validation.isValid) {
-          console.warn('⚠️ [MATRIX CONTROLS] Data validation issues:', validation.issues);
-        }
       });
+      
+      if (!validation.isValid) {
+        console.warn('⚠️ [MATRIX CONTROLS] Data validation issues:', validation.issues);
+      }
     }
   }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
 

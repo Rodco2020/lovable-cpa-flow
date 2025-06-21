@@ -161,6 +161,11 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
                   }
 
                   if (monthlyHours > 0) {
+                    // Safely access client name from the clients relation
+                    const clientName = task.clients && typeof task.clients === 'object' && !Array.isArray(task.clients) 
+                      ? task.clients.legal_name || 'Unknown Client'
+                      : 'Unknown Client';
+
                     dataPoints.push({
                       skillType: skill,
                       month: month.key,
@@ -171,7 +176,7 @@ export const useDemandData = ({ monthRange, selectedSkills }: UseDemandDataProps
                         taskId: task.id,
                         taskName: task.name,
                         clientId: task.client_id,
-                        clientName: task.clients?.legal_name || 'Unknown Client',
+                        clientName: clientName,
                         estimatedHours: monthlyHours,
                         preferredStaff: task.preferred_staff_id ? {
                           staffId: task.preferred_staff_id,
