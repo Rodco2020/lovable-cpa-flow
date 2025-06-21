@@ -4,7 +4,7 @@
  * Handles validation of skill references and UUIDs
  */
 
-import { SkillCacheManager, SkillValidationResult } from './types';
+import { SkillCacheManager, SkillValidationResult, SkillResolutionDiagnostics } from './types';
 import { debugLog } from '../../logger';
 
 export class SkillValidator {
@@ -25,13 +25,24 @@ export class SkillValidator {
   async validateSkillReferences(skillRefs: string[]): Promise<SkillValidationResult> {
     console.log('🔍 [SKILL VALIDATOR] Starting skill reference validation for:', skillRefs);
 
+    const diagnostics: SkillResolutionDiagnostics = {
+      cacheHits: 0,
+      databaseLookups: 0,
+      validUuids: 0,
+      invalidUuids: 0,
+      validNames: 0,
+      invalidNames: 0,
+      totalProcessed: skillRefs.length
+    };
+
     if (!Array.isArray(skillRefs) || skillRefs.length === 0) {
       return {
         isValid: true,
         valid: [],
         invalid: [],
         resolved: [],
-        issues: []
+        issues: [],
+        diagnostics
       };
     }
 
@@ -42,7 +53,8 @@ export class SkillValidator {
       valid: [],
       invalid: [],
       resolved: [],
-      issues: []
+      issues: [],
+      diagnostics
     };
 
     for (const skillRef of skillRefs) {
@@ -61,9 +73,12 @@ export class SkillValidator {
           if (skillName) {
             result.valid.push(trimmed);
             result.resolved.push(skillName);
+            result.diagnostics.validUuids++;
+            result.diagnostics.cacheHits++;
           } else {
             result.invalid.push(trimmed);
             result.issues.push(`UUID not found in skills cache: ${trimmed.slice(0, 8)}...`);
+            result.diagnostics.invalidUuids++;
           }
         } else {
           // It's a name - check if it exists in our cache
@@ -71,10 +86,13 @@ export class SkillValidator {
           if (skillId) {
             result.valid.push(trimmed);
             result.resolved.push(trimmed);
+            result.diagnostics.validNames++;
+            result.diagnostics.cacheHits++;
           } else {
             // Name not found - this might be valid but not in cache
             result.valid.push(trimmed);
             result.resolved.push(trimmed);
+            result.diagnostics.validNames++;
             result.issues.push(`Skill name not found in cache: ${trimmed}`);
           }
         }
@@ -92,7 +110,8 @@ export class SkillValidator {
       validCount: result.valid.length,
       invalidCount: result.invalid.length,
       resolvedCount: result.resolved.length,
-      issuesCount: result.issues.length
+      issuesCount: result.issues.length,
+      diagnostics: result.diagnostics
     });
 
     debugLog(`Skill validation completed: ${result.valid.length} valid, ${result.invalid.length} invalid`);

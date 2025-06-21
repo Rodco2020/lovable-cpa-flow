@@ -21,12 +21,23 @@ export interface SkillResolutionResult {
   invalid: string[];
 }
 
+export interface SkillResolutionDiagnostics {
+  cacheHits: number;
+  databaseLookups: number;
+  validUuids: number;
+  invalidUuids: number;
+  validNames: number;
+  invalidNames: number;
+  totalProcessed: number;
+}
+
 export interface SkillValidationResult {
   isValid: boolean;
   valid: string[];
   invalid: string[];
   resolved: string[];
   issues: string[];
+  diagnostics: SkillResolutionDiagnostics;
 }
 
 export interface SkillResolutionStats {
