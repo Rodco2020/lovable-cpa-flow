@@ -15,8 +15,8 @@ interface DemandMatrixDiagnosticPanelProps {
   selectedPreferredStaff: string[];
   preferredStaffFilterMode: 'all' | 'specific' | 'none';
   availableSkills: string[];
-  availableClients: string[];
-  availablePreferredStaff: string[];
+  availableClients: Array<{ id: string; name: string }>;
+  availablePreferredStaff: Array<{ id: string; name: string }>;
   isVisible?: boolean;
 }
 
@@ -50,8 +50,8 @@ export const DemandMatrixDiagnosticPanel: React.FC<DemandMatrixDiagnosticPanelPr
     selectedPreferredStaff,
     preferredStaffFilterMode,
     availableSkills,
-    availableClients,
-    availablePreferredStaff
+    availableClients: availableClients.map(c => c.id),
+    availablePreferredStaff: availablePreferredStaff.map(s => s.id)
   });
 
   // Analyze suspicious data patterns
