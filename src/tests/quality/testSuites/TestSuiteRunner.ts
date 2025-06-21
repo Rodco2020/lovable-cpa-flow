@@ -6,10 +6,10 @@
  */
 
 import { TestSuiteResult } from '../QualityAssuranceOrchestrator';
-import { DemandMatrixTestSuite } from './DemandMatrixTestSuite';
-import { RevenueCalculationTestSuite } from './RevenueCalculationTestSuite';
-import { ValidationTestSuite } from './ValidationTestSuite';
-import { IntegrationTestSuite } from './IntegrationTestSuite';
+import { DemandMatrixTestSuite, DemandMatrixTestReport } from './DemandMatrixTestSuite';
+import { RevenueCalculationTestSuite, RevenueTestReport } from './RevenueCalculationTestSuite';
+import { ValidationTestSuite, ValidationTestReport } from './ValidationTestSuite';
+import { IntegrationTestSuite, IntegrationTestReport } from './IntegrationTestSuite';
 
 export class TestSuiteRunner {
   /**
@@ -30,7 +30,7 @@ export class TestSuiteRunner {
       });
 
       if (!demandMatrixResult.passed) {
-        criticalFailures.push(`Demand Matrix Tests: ${demandMatrixResult.message || 'Unknown error'}`);
+        criticalFailures.push(`Demand Matrix Tests: ${demandMatrixResult.error || 'Unknown error'}`);
       }
 
       // Run revenue calculation tests
@@ -42,7 +42,7 @@ export class TestSuiteRunner {
       });
 
       if (!revenueResult.passed) {
-        criticalFailures.push(`Revenue Calculation Tests: ${revenueResult.message || 'Unknown error'}`);
+        criticalFailures.push(`Revenue Calculation Tests: ${revenueResult.error || 'Unknown error'}`);
       }
 
       // Run validation tests
@@ -54,7 +54,7 @@ export class TestSuiteRunner {
       });
 
       if (!validationResult.passed) {
-        criticalFailures.push(`Validation Tests: ${validationResult.message || 'Unknown error'}`);
+        criticalFailures.push(`Validation Tests: ${validationResult.error || 'Unknown error'}`);
       }
 
       // Run integration tests
@@ -66,7 +66,7 @@ export class TestSuiteRunner {
       });
 
       if (!integrationResult.passed) {
-        criticalFailures.push(`Integration Tests: ${integrationResult.message || 'Unknown error'}`);
+        criticalFailures.push(`Integration Tests: ${integrationResult.error || 'Unknown error'}`);
       }
 
       // Calculate results
@@ -121,7 +121,7 @@ export class TestSuiteRunner {
   /**
    * Run specific test suite by name
    */
-  public static async runSpecificTestSuite(suiteName: string): Promise<{ passed: boolean; duration: number; message?: string }> {
+  public static async runSpecificTestSuite(suiteName: string): Promise<{ passed: boolean; duration: number; error?: string }> {
     const startTime = Date.now();
 
     try {
@@ -141,7 +141,7 @@ export class TestSuiteRunner {
       return {
         passed: false,
         duration: Date.now() - startTime,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
