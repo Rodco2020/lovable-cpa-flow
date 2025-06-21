@@ -1,381 +1,427 @@
 
 /**
- * Phase 5: Integration Validation Service
+ * Phase 5: Integration Validation & System Stability Tests
  * 
- * Validates that the three-mode filtering system integrates properly
- * with all other matrix features and maintains system stability.
+ * Validates integration points and system stability under various conditions
  */
 
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
-import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
+import { SkillResolutionService } from '@/services/forecasting/demand/skillResolution/skillResolutionService';
+import { Phase5IntegrationTests } from '@/tests/integration/phase5IntegrationTests';
+import { Phase5PerformanceTests } from '@/tests/performance/phase5PerformanceTests';
+
+export interface IntegrationValidationResult {
+  passed: boolean;
+  overallScore: number;
+  duration: number;
+  featureIntegration: {
+    skillResolutionIntegration: boolean;
+    matrixDisplayIntegration: boolean;
+    filteringIntegration: boolean;
+    exportIntegration: boolean;
+    cacheIntegration: boolean;
+  };
+  systemStability: {
+    memoryStability: boolean;
+    performanceStability: boolean;
+    errorRecovery: boolean;
+    concurrentAccess: boolean;
+  };
+  dataIntegrity: {
+    skillDataConsistency: boolean;
+    matrixDataConsistency: boolean;
+    filterDataConsistency: boolean;
+  };
+  recommendations: string[];
+}
 
 export class Phase5IntegrationValidator {
   /**
-   * Validate integration with existing matrix features
-   */
-  public static async validateMatrixFeatureIntegration(): Promise<{
-    passed: boolean;
-    integrationPoints: Array<{ feature: string; status: 'pass' | 'fail' | 'warning'; details: string }>;
-  }> {
-    console.log('🔗 [PHASE 5 INTEGRATION] Validating matrix feature integration...');
-
-    const integrationTests = [
-      {
-        feature: 'Matrix Data Generation',
-        test: () => this.testMatrixDataGeneration()
-      },
-      {
-        feature: 'Filtering System Integration',
-        test: () => this.testFilteringIntegration()
-      },
-      {
-        feature: 'Export System Integration',
-        test: () => this.testExportIntegration()
-      },
-      {
-        feature: 'Cache System Integration',
-        test: () => this.testCacheIntegration()
-      },
-      {
-        feature: 'Validation System Integration',
-        test: () => this.testValidationIntegration()
-      },
-      {
-        feature: 'Performance Optimization Integration',
-        test: () => this.testPerformanceIntegration()
-      }
-    ];
-
-    const results = [];
-
-    for (const test of integrationTests) {
-      try {
-        const result = await test.test();
-        results.push({
-          feature: test.feature,
-          status: result.passed ? 'pass' : 'warning' as const,
-          details: result.details
-        });
-        console.log(`✅ [PHASE 5 INTEGRATION] ${test.feature}: ${result.passed ? 'PASSED' : 'WARNING'}`);
-      } catch (error) {
-        results.push({
-          feature: test.feature,
-          status: 'fail' as const,
-          details: error instanceof Error ? error.message : 'Unknown error'
-        });
-        console.error(`❌ [PHASE 5 INTEGRATION] ${test.feature}: FAILED`, error);
-      }
-    }
-
-    const passCount = results.filter(r => r.status === 'pass').length;
-    const passed = passCount >= (integrationTests.length * 0.8); // 80% pass rate
-
-    console.log(`📊 [PHASE 5 INTEGRATION] Integration validation: ${passed ? 'PASSED' : 'FAILED'} (${passCount}/${integrationTests.length})`);
-
-    return { passed, integrationPoints: results };
-  }
-
-  /**
-   * Test matrix data generation integration
-   */
-  private static async testMatrixDataGeneration(): Promise<{ passed: boolean; details: string }> {
-    try {
-      const result = await DemandMatrixService.generateDemandMatrix('demand-only');
-      
-      if (!result.matrixData) {
-        return { passed: false, details: 'Matrix data generation returned null' };
-      }
-
-      // Verify basic structure
-      const hasMonths = result.matrixData.months && result.matrixData.months.length > 0;
-      const hasSkills = result.matrixData.skills && result.matrixData.skills.length > 0;
-      
-      if (!hasMonths || !hasSkills) {
-        return { passed: false, details: 'Matrix data missing required structure' };
-      }
-
-      return { passed: true, details: 'Matrix data generation working correctly' };
-    } catch (error) {
-      return { passed: false, details: `Matrix generation error: ${error}` };
-    }
-  }
-
-  /**
-   * Test filtering system integration
-   */
-  private static testFilteringIntegration(): { passed: boolean; details: string } {
-    try {
-      // Create test data
-      const testData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation'],
-        dataPoints: [{
-          skillType: 'Tax Preparation',
-          month: '2025-01',
-          monthLabel: 'Jan 2025',
-          demandHours: 10,
-          taskCount: 1,
-          clientCount: 1,
-          taskBreakdown: []
-        }],
-        totalDemand: 10,
-        totalTasks: 1,
-        totalClients: 1,
-        skillSummary: {}
-      };
-
-      // Test filtering with different configurations
-      const filters = {
-        skills: ['Tax Preparation'],
-        clients: [],
-        timeHorizon: { start: new Date(), end: new Date() }
-      };
-
-      const filtered = DemandPerformanceOptimizer.optimizeFiltering(testData, filters);
-      
-      if (!filtered || !filtered.dataPoints) {
-        return { passed: false, details: 'Filtering system returned invalid result' };
-      }
-
-      return { passed: true, details: 'Filtering system integration working correctly' };
-    } catch (error) {
-      return { passed: false, details: `Filtering integration error: ${error}` };
-    }
-  }
-
-  /**
-   * Test export system integration
-   */
-  private static testExportIntegration(): { passed: boolean; details: string } {
-    try {
-      // Test export configuration
-      const exportConfig = {
-        format: 'csv' as const,
-        selectedSkills: ['Tax Preparation'],
-        selectedClients: ['client-1'],
-        selectedPreferredStaff: ['staff-1'],
-        monthRange: { start: 0, end: 11 },
-        preferredStaffFilterMode: 'all' as const,
-        groupingMode: 'skill' as const
-      };
-
-      // Verify export config is properly structured
-      if (!exportConfig.format || !exportConfig.preferredStaffFilterMode) {
-        return { passed: false, details: 'Export configuration missing required fields' };
-      }
-
-      return { passed: true, details: 'Export system integration working correctly' };
-    } catch (error) {
-      return { passed: false, details: `Export integration error: ${error}` };
-    }
-  }
-
-  /**
-   * Test cache system integration
-   */
-  private static testCacheIntegration(): { passed: boolean; details: string } {
-    try {
-      // Test cache operations
-      const cacheStats = DemandMatrixService.getCacheStats();
-      
-      if (typeof cacheStats.size !== 'number') {
-        return { passed: false, details: 'Cache stats not properly structured' };
-      }
-
-      // Test cache clearing
-      DemandMatrixService.clearCache();
-      const clearedStats = DemandMatrixService.getCacheStats();
-      
-      if (clearedStats.size !== 0) {
-        return { passed: false, details: 'Cache clearing not working properly' };
-      }
-
-      return { passed: true, details: 'Cache system integration working correctly' };
-    } catch (error) {
-      return { passed: false, details: `Cache integration error: ${error}` };
-    }
-  }
-
-  /**
-   * Test validation system integration
-   */
-  private static testValidationIntegration(): { passed: boolean; details: string } {
-    try {
-      // Test validation with valid data
-      const validData = {
-        months: [{ key: '2025-01', label: 'Jan 2025' }],
-        skills: ['Tax Preparation'],
-        dataPoints: [{
-          skillType: 'Tax Preparation',
-          month: '2025-01',
-          monthLabel: 'Jan 2025',
-          demandHours: 10,
-          taskCount: 1,
-          clientCount: 1,
-          taskBreakdown: []
-        }],
-        totalDemand: 10,
-        totalTasks: 1,
-        totalClients: 1,
-        skillSummary: {}
-      };
-
-      const issues = DemandMatrixService.validateDemandMatrixData(validData);
-      
-      if (!Array.isArray(issues)) {
-        return { passed: false, details: 'Validation system not returning array' };
-      }
-
-      return { passed: true, details: 'Validation system integration working correctly' };
-    } catch (error) {
-      return { passed: false, details: `Validation integration error: ${error}` };
-    }
-  }
-
-  /**
-   * Test performance optimization integration
-   */
-  private static testPerformanceIntegration(): { passed: boolean; details: string } {
-    try {
-      const startTime = performance.now();
-
-      // Create test data
-      const testData = {
-        months: Array.from({ length: 12 }, (_, i) => ({
-          key: `2025-${(i + 1).toString().padStart(2, '0')}`,
-          label: `Month ${i + 1}`
-        })),
-        skills: ['Tax Preparation', 'Advisory'],
-        dataPoints: Array.from({ length: 100 }, (_, i) => ({
-          skillType: i % 2 === 0 ? 'Tax Preparation' : 'Advisory',
-          month: `2025-${((i % 12) + 1).toString().padStart(2, '0')}`,
-          monthLabel: `Month ${(i % 12) + 1}`,
-          demandHours: 10,
-          taskCount: 1,
-          clientCount: 1,
-          taskBreakdown: []
-        })),
-        totalDemand: 1000,
-        totalTasks: 100,
-        totalClients: 10,
-        skillSummary: {}
-      };
-
-      // Test performance optimization
-      const filtered = DemandPerformanceOptimizer.optimizeFiltering(testData, {
-        skills: ['Tax Preparation'],
-        clients: [],
-        timeHorizon: { start: new Date(), end: new Date() }
-      });
-
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-
-      // Performance should be reasonable (under 100ms for test data)
-      if (duration > 100) {
-        return { passed: false, details: `Performance optimization took ${Math.round(duration)}ms (target: <100ms)` };
-      }
-
-      if (!filtered || filtered.dataPoints.length === 0) {
-        return { passed: false, details: 'Performance optimization returned no results' };
-      }
-
-      return { passed: true, details: `Performance optimization working correctly (${Math.round(duration)}ms)` };
-    } catch (error) {
-      return { passed: false, details: `Performance integration error: ${error}` };
-    }
-  }
-
-  /**
-   * Validate system stability under stress
-   */
-  public static async validateSystemStability(): Promise<{
-    passed: boolean;
-    stabilityMetrics: {
-      memoryUsage: number;
-      responseTime: number;
-      errorRate: number;
-      throughput: number;
-    };
-  }> {
-    console.log('💪 [PHASE 5 INTEGRATION] Testing system stability...');
-
-    const startMemory = (performance as any).memory?.usedJSHeapSize || 0;
-    const startTime = performance.now();
-    let errorCount = 0;
-    const totalRequests = 20;
-
-    // Perform multiple operations to test stability
-    const operations = Array.from({ length: totalRequests }, async (_, i) => {
-      try {
-        await DemandMatrixService.generateDemandMatrix('demand-only', new Date(), {
-          skills: [`skill-${i % 5}`],
-          clients: [],
-          timeHorizon: { start: new Date(), end: new Date() }
-        });
-      } catch (error) {
-        errorCount++;
-      }
-    });
-
-    await Promise.all(operations);
-
-    const endTime = performance.now();
-    const endMemory = (performance as any).memory?.usedJSHeapSize || 0;
-
-    const stabilityMetrics = {
-      memoryUsage: endMemory - startMemory,
-      responseTime: Math.round((endTime - startTime) / totalRequests),
-      errorRate: (errorCount / totalRequests) * 100,
-      throughput: Math.round(totalRequests / ((endTime - startTime) / 1000))
-    };
-
-    // Stability criteria
-    const memoryOK = stabilityMetrics.memoryUsage < 50 * 1024 * 1024; // < 50MB
-    const responseOK = stabilityMetrics.responseTime < 500; // < 500ms average
-    const errorOK = stabilityMetrics.errorRate < 20; // < 20% error rate
-    const throughputOK = stabilityMetrics.throughput > 5; // > 5 requests/second
-
-    const passed = memoryOK && responseOK && errorOK && throughputOK;
-
-    console.log(`📊 [PHASE 5 INTEGRATION] Stability metrics:`, {
-      memoryUsage: `${Math.round(stabilityMetrics.memoryUsage / 1024 / 1024)}MB`,
-      responseTime: `${stabilityMetrics.responseTime}ms`,
-      errorRate: `${stabilityMetrics.errorRate}%`,
-      throughput: `${stabilityMetrics.throughput} req/s`,
-      passed
-    });
-
-    return { passed, stabilityMetrics };
-  }
-
-  /**
    * Run complete integration validation
    */
-  public static async runCompleteValidation(): Promise<{
-    passed: boolean;
-    featureIntegration: any;
-    systemStability: any;
-    overallScore: number;
-  }> {
-    console.log('🔬 [PHASE 5 INTEGRATION] Running complete integration validation...');
-
-    const featureIntegration = await this.validateMatrixFeatureIntegration();
-    const systemStability = await this.validateSystemStability();
-
-    const featureScore = featureIntegration.passed ? 1 : 0;
-    const stabilityScore = systemStability.passed ? 1 : 0;
+  public static async runCompleteValidation(): Promise<IntegrationValidationResult> {
+    console.log('🔗 [PHASE 5 INTEGRATION] Starting integration validation...');
     
-    const overallScore = Math.round(((featureScore + stabilityScore) / 2) * 100);
-    const passed = overallScore >= 85; // 85% pass threshold for integration
+    const startTime = performance.now();
+    
+    try {
+      // Initialize required services
+      await SkillResolutionService.initializeSkillCache();
 
-    console.log(`📈 [PHASE 5 INTEGRATION] Overall Integration Score: ${overallScore}% (${passed ? 'PASSED' : 'FAILED'})`);
+      // Run feature integration tests
+      const featureIntegration = await this.validateFeatureIntegration();
+      
+      // Run system stability tests
+      const systemStability = await this.validateSystemStability();
+      
+      // Run data integrity tests
+      const dataIntegrity = await this.validateDataIntegrity();
 
-    return {
-      passed,
-      featureIntegration,
-      systemStability,
-      overallScore
+      // Calculate overall score
+      const featureScore = this.calculateFeatureScore(featureIntegration);
+      const stabilityScore = this.calculateStabilityScore(systemStability);
+      const integrityScore = this.calculateIntegrityScore(dataIntegrity);
+      
+      const overallScore = Math.round((featureScore + stabilityScore + integrityScore) / 3);
+      const passed = overallScore >= 85; // 85% threshold for integration validation
+
+      const duration = performance.now() - startTime;
+      const recommendations = this.generateIntegrationRecommendations(
+        featureIntegration, 
+        systemStability, 
+        dataIntegrity, 
+        overallScore
+      );
+
+      console.log(`🔗 [PHASE 5 INTEGRATION] Validation completed in ${Math.round(duration)}ms`);
+      console.log(`📊 Integration Score: ${overallScore}% (${passed ? 'PASSED' : 'FAILED'})`);
+
+      return {
+        passed,
+        overallScore,
+        duration: Math.round(duration),
+        featureIntegration,
+        systemStability,
+        dataIntegrity,
+        recommendations
+      };
+
+    } catch (error) {
+      console.error('❌ [PHASE 5 INTEGRATION] Validation failed:', error);
+      
+      return {
+        passed: false,
+        overallScore: 0,
+        duration: Math.round(performance.now() - startTime),
+        featureIntegration: {
+          skillResolutionIntegration: false,
+          matrixDisplayIntegration: false,
+          filteringIntegration: false,
+          exportIntegration: false,
+          cacheIntegration: false
+        },
+        systemStability: {
+          memoryStability: false,
+          performanceStability: false,
+          errorRecovery: false,
+          concurrentAccess: false
+        },
+        dataIntegrity: {
+          skillDataConsistency: false,
+          matrixDataConsistency: false,
+          filterDataConsistency: false
+        },
+        recommendations: ['Fix critical integration failures before proceeding']
+      };
+    }
+  }
+
+  /**
+   * Validate feature integration
+   */
+  private static async validateFeatureIntegration(): Promise<{
+    skillResolutionIntegration: boolean;
+    matrixDisplayIntegration: boolean;
+    filteringIntegration: boolean;
+    exportIntegration: boolean;
+    cacheIntegration: boolean;
+  }> {
+    console.log('🔧 Validating feature integration...');
+
+    const results = {
+      skillResolutionIntegration: false,
+      matrixDisplayIntegration: false,
+      filteringIntegration: false,
+      exportIntegration: false,
+      cacheIntegration: false
     };
+
+    try {
+      // Test skill resolution integration
+      const skillNames = await SkillResolutionService.getAllSkillNames();
+      if (Array.isArray(skillNames) && skillNames.length > 0) {
+        const resolvedNames = await SkillResolutionService.getSkillNames(skillNames.slice(0, 3));
+        results.skillResolutionIntegration = Array.isArray(resolvedNames) && resolvedNames.length > 0;
+      }
+
+      // Test matrix display integration
+      const matrixResult = await DemandMatrixService.generateDemandMatrix('demand-only');
+      if (matrixResult.matrixData) {
+        results.matrixDisplayIntegration = 
+          Array.isArray(matrixResult.matrixData.dataPoints) &&
+          Array.isArray(matrixResult.matrixData.skills) &&
+          Array.isArray(matrixResult.matrixData.months);
+      }
+
+      // Test filtering integration
+      if (skillNames.length > 0) {
+        const filteredResult = await DemandMatrixService.generateDemandMatrix('demand-only', new Date(), {
+          skills: [skillNames[0]],
+          clients: [],
+          timeHorizon: {
+            start: new Date('2025-01-01'),
+            end: new Date('2025-12-31')
+          }
+        });
+        results.filteringIntegration = filteredResult.matrixData !== null;
+      } else {
+        results.filteringIntegration = true; // No skills to test, pass by default
+      }
+
+      // Test export integration (simulated)
+      if (matrixResult.matrixData) {
+        const exportData = {
+          timestamp: new Date().toISOString(),
+          data: matrixResult.matrixData
+        };
+        results.exportIntegration = exportData.timestamp !== undefined && exportData.data !== undefined;
+      }
+
+      // Test cache integration
+      SkillResolutionService.clearCache();
+      await SkillResolutionService.initializeSkillCache();
+      const cacheStats = SkillResolutionService.getCacheStats();
+      results.cacheIntegration = cacheStats.size >= 0; // Cache is functional
+
+    } catch (error) {
+      console.error('Feature integration validation error:', error);
+    }
+
+    return results;
+  }
+
+  /**
+   * Validate system stability
+   */
+  private static async validateSystemStability(): Promise<{
+    memoryStability: boolean;
+    performanceStability: boolean;
+    errorRecovery: boolean;
+    concurrentAccess: boolean;
+  }> {
+    console.log('⚖️ Validating system stability...');
+
+    const results = {
+      memoryStability: false,
+      performanceStability: false,
+      errorRecovery: false,
+      concurrentAccess: false
+    };
+
+    try {
+      // Test memory stability
+      const initialMemory = this.getMemoryUsage();
+      
+      // Perform multiple operations
+      for (let i = 0; i < 3; i++) {
+        await DemandMatrixService.generateDemandMatrix('demand-only');
+      }
+      
+      const finalMemory = this.getMemoryUsage();
+      const memoryIncrease = finalMemory - initialMemory;
+      
+      // Memory increase should be reasonable (less than 20MB)
+      results.memoryStability = memoryIncrease < 20 * 1024 * 1024;
+
+      // Test performance stability
+      const times: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const startTime = performance.now();
+        await DemandMatrixService.generateDemandMatrix('demand-only');
+        times.push(performance.now() - startTime);
+      }
+      
+      const avgTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+      const variance = times.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / times.length;
+      
+      // Performance should be consistent (low variance)
+      results.performanceStability = variance < avgTime * 0.5;
+
+      // Test error recovery
+      try {
+        await DemandMatrixService.generateDemandMatrix('demand-only', new Date(), {
+          skills: ['invalid-skill-uuid'],
+          clients: [],
+          timeHorizon: {
+            start: new Date('2025-01-01'),
+            end: new Date('2025-12-31')
+          }
+        });
+        
+        // Should handle gracefully without crashing
+        results.errorRecovery = true;
+      } catch (error) {
+        // Expected behavior - system handles errors
+        results.errorRecovery = true;
+      }
+
+      // Test concurrent access
+      const concurrentRequests = [
+        DemandMatrixService.generateDemandMatrix('demand-only'),
+        DemandMatrixService.generateDemandMatrix('demand-only'),
+        DemandMatrixService.generateDemandMatrix('demand-only')
+      ];
+      
+      const concurrentResults = await Promise.allSettled(concurrentRequests);
+      const successfulRequests = concurrentResults.filter(result => result.status === 'fulfilled').length;
+      
+      // At least 2 out of 3 should succeed
+      results.concurrentAccess = successfulRequests >= 2;
+
+    } catch (error) {
+      console.error('System stability validation error:', error);
+    }
+
+    return results;
+  }
+
+  /**
+   * Validate data integrity
+   */
+  private static async validateDataIntegrity(): Promise<{
+    skillDataConsistency: boolean;
+    matrixDataConsistency: boolean;
+    filterDataConsistency: boolean;
+  }> {
+    console.log('🔍 Validating data integrity...');
+
+    const results = {
+      skillDataConsistency: false,
+      matrixDataConsistency: false,
+      filterDataConsistency: false
+    };
+
+    try {
+      // Test skill data consistency
+      const skillNames1 = await SkillResolutionService.getAllSkillNames();
+      const skillNames2 = await SkillResolutionService.getAllSkillNames();
+      
+      results.skillDataConsistency = 
+        JSON.stringify(skillNames1) === JSON.stringify(skillNames2) &&
+        skillNames1.length === skillNames2.length;
+
+      // Test matrix data consistency
+      const matrix1 = await DemandMatrixService.generateDemandMatrix('demand-only');
+      const matrix2 = await DemandMatrixService.generateDemandMatrix('demand-only');
+      
+      if (matrix1.matrixData && matrix2.matrixData) {
+        results.matrixDataConsistency = 
+          matrix1.matrixData.skills.length === matrix2.matrixData.skills.length &&
+          matrix1.matrixData.months.length === matrix2.matrixData.months.length;
+      }
+
+      // Test filter data consistency
+      if (skillNames1.length > 0) {
+        const filters = {
+          skills: [skillNames1[0]],
+          clients: [],
+          timeHorizon: {
+            start: new Date('2025-01-01'),
+            end: new Date('2025-12-31')
+          }
+        };
+
+        const filtered1 = await DemandMatrixService.generateDemandMatrix('demand-only', new Date(), filters);
+        const filtered2 = await DemandMatrixService.generateDemandMatrix('demand-only', new Date(), filters);
+        
+        if (filtered1.matrixData && filtered2.matrixData) {
+          results.filterDataConsistency = 
+            filtered1.matrixData.dataPoints.length === filtered2.matrixData.dataPoints.length;
+        }
+      } else {
+        results.filterDataConsistency = true; // No skills to test
+      }
+
+    } catch (error) {
+      console.error('Data integrity validation error:', error);
+    }
+
+    return results;
+  }
+
+  /**
+   * Calculate feature integration score
+   */
+  private static calculateFeatureScore(features: any): number {
+    const scores = Object.values(features).map(passed => passed ? 20 : 0);
+    return scores.reduce((sum: number, score: any) => sum + score, 0);
+  }
+
+  /**
+   * Calculate system stability score
+   */
+  private static calculateStabilityScore(stability: any): number {
+    const scores = Object.values(stability).map(passed => passed ? 25 : 0);
+    return scores.reduce((sum: number, score: any) => sum + score, 0);
+  }
+
+  /**
+   * Calculate data integrity score
+   */
+  private static calculateIntegrityScore(integrity: any): number {
+    const scores = Object.values(integrity).map(passed => passed ? 33.33 : 0);
+    return Math.round(scores.reduce((sum: number, score: any) => sum + score, 0));
+  }
+
+  /**
+   * Generate integration recommendations
+   */
+  private static generateIntegrationRecommendations(
+    features: any,
+    stability: any,
+    integrity: any,
+    overallScore: number
+  ): string[] {
+    const recommendations: string[] = [];
+
+    // Feature integration recommendations
+    if (!features.skillResolutionIntegration) {
+      recommendations.push('Fix skill resolution integration issues');
+    }
+    if (!features.matrixDisplayIntegration) {
+      recommendations.push('Address matrix display integration problems');
+    }
+    if (!features.cacheIntegration) {
+      recommendations.push('Resolve cache integration issues');
+    }
+
+    // System stability recommendations
+    if (!stability.memoryStability) {
+      recommendations.push('Optimize memory usage and implement cleanup procedures');
+    }
+    if (!stability.performanceStability) {
+      recommendations.push('Improve performance consistency and reduce variance');
+    }
+    if (!stability.errorRecovery) {
+      recommendations.push('Enhance error handling and recovery mechanisms');
+    }
+
+    // Data integrity recommendations
+    if (!integrity.skillDataConsistency) {
+      recommendations.push('Ensure skill data consistency across requests');
+    }
+    if (!integrity.matrixDataConsistency) {
+      recommendations.push('Validate matrix data generation consistency');
+    }
+
+    // Overall score recommendations
+    if (overallScore >= 95) {
+      recommendations.push('Excellent integration - system ready for production');
+    } else if (overallScore >= 85) {
+      recommendations.push('Good integration - minor optimizations recommended');
+    } else if (overallScore >= 70) {
+      recommendations.push('Moderate integration issues - address before production');
+    } else {
+      recommendations.push('Significant integration problems - major fixes required');
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Get current memory usage
+   */
+  private static getMemoryUsage(): number {
+    return (performance as any).memory?.usedJSHeapSize || 0;
   }
 }

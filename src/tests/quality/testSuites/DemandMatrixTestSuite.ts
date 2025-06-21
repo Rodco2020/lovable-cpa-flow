@@ -1,264 +1,376 @@
 
 /**
- * Demand Matrix Test Suite
+ * Phase 5: Comprehensive Demand Matrix Test Suite
  * 
- * Comprehensive tests for demand matrix functionality
+ * Complete testing suite for demand matrix functionality with all phases integrated
  */
 
-import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
-import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
+import { Phase5IntegrationTests } from '@/tests/integration/phase5IntegrationTests';
+import { Phase5PerformanceTests } from '@/tests/performance/phase5PerformanceTests';
+import { Phase5IntegrationValidator } from '@/tests/quality/integration/Phase5IntegrationValidator';
+import { SkillResolutionTestingService } from '@/services/forecasting/demand/skillResolution/testingService';
+
+export interface DemandMatrixTestReport {
+  passed: boolean;
+  duration: number;
+  testSuites: {
+    integration: any;
+    performance: any;
+    validation: any;
+    skillResolution: any;
+  };
+  overallScore: number;
+  recommendations: string[];
+  readinessAssessment: {
+    productionReady: boolean;
+    blockers: string[];
+    warnings: string[];
+  };
+}
 
 export class DemandMatrixTestSuite {
   /**
-   * Run all demand matrix tests
+   * Run comprehensive test suite
    */
-  public static async runTests(): Promise<{ passed: boolean; duration: number; error?: string }> {
-    const startTime = Date.now();
-
+  public static async runTests(): Promise<DemandMatrixTestReport> {
+    console.log('🧪 [DEMAND MATRIX TEST SUITE] Starting comprehensive testing...');
+    console.log('=' .repeat(70));
+    
+    const startTime = performance.now();
+    
     try {
-      console.log('🧪 [DEMAND MATRIX TESTS] Starting test suite...');
+      // Run all test suites
+      console.log('\n📋 Running Integration Tests...');
+      const integrationResults = await Phase5IntegrationTests.runCompleteIntegrationTests();
+      
+      console.log('\n⚡ Running Performance Tests...');
+      const performanceResults = await Phase5PerformanceTests.runPerformanceTests();
+      
+      console.log('\n🔗 Running Integration Validation...');
+      const validationResults = await Phase5IntegrationValidator.runCompleteValidation();
+      
+      console.log('\n🎯 Running Skill Resolution Tests...');
+      const skillResolutionResults = await SkillResolutionTestingService.runValidationTests();
 
-      // Test 1: Matrix data generation
-      await this.testMatrixDataGeneration();
-      console.log('✅ Matrix data generation test passed');
+      // Calculate overall results
+      const overallScore = this.calculateOverallScore({
+        integration: integrationResults,
+        performance: performanceResults,
+        validation: validationResults,
+        skillResolution: skillResolutionResults
+      });
 
-      // Test 2: Filtering functionality
-      await this.testMatrixFiltering();
-      console.log('✅ Matrix filtering test passed');
+      const allTestsPassed = 
+        integrationResults.passed &&
+        performanceResults.overallPassed &&
+        validationResults.passed &&
+        skillResolutionResults.passed;
 
-      // Test 3: Revenue calculations
-      await this.testRevenueCalculations();
-      console.log('✅ Revenue calculations test passed');
+      const duration = performance.now() - startTime;
+      
+      // Generate comprehensive recommendations
+      const recommendations = this.generateComprehensiveRecommendations({
+        integration: integrationResults,
+        performance: performanceResults,
+        validation: validationResults,
+        skillResolution: skillResolutionResults
+      });
 
-      // Test 4: Performance optimization
-      await this.testPerformanceOptimization();
-      console.log('✅ Performance optimization test passed');
+      // Assess production readiness
+      const readinessAssessment = this.assessProductionReadiness(
+        allTestsPassed,
+        overallScore,
+        {
+          integration: integrationResults,
+          performance: performanceResults,
+          validation: validationResults,
+          skillResolution: skillResolutionResults
+        }
+      );
 
-      // Test 5: Data validation
-      await this.testDataValidation();
-      console.log('✅ Data validation test passed');
+      const report: DemandMatrixTestReport = {
+        passed: allTestsPassed,
+        duration: Math.round(duration),
+        testSuites: {
+          integration: integrationResults,
+          performance: performanceResults,
+          validation: validationResults,
+          skillResolution: skillResolutionResults
+        },
+        overallScore,
+        recommendations,
+        readinessAssessment
+      };
 
-      const duration = Date.now() - startTime;
-      console.log(`✅ [DEMAND MATRIX TESTS] All tests passed in ${duration}ms`);
-
-      return { passed: true, duration };
+      this.printTestSummary(report);
+      
+      return report;
 
     } catch (error) {
-      const duration = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ [DEMAND MATRIX TEST SUITE] Critical testing failure:', error);
       
-      console.error(`❌ [DEMAND MATRIX TESTS] Test failed: ${errorMessage}`);
+      const duration = performance.now() - startTime;
       
-      return { 
-        passed: false, 
-        duration, 
-        error: errorMessage 
+      return {
+        passed: false,
+        duration: Math.round(duration),
+        testSuites: {
+          integration: null,
+          performance: null,
+          validation: null,
+          skillResolution: null
+        },
+        overallScore: 0,
+        recommendations: ['Fix critical testing infrastructure before proceeding'],
+        readinessAssessment: {
+          productionReady: false,
+          blockers: ['Critical testing failure - cannot validate system'],
+          warnings: []
+        }
       };
     }
   }
 
   /**
-   * Test matrix data generation
+   * Calculate overall score from all test suites
    */
-  private static async testMatrixDataGeneration(): Promise<void> {
-    const { matrixData } = await DemandMatrixService.generateDemandMatrix('demand-only');
-
-    if (!matrixData) {
-      throw new Error('Matrix data generation returned null');
+  private static calculateOverallScore(results: any): number {
+    const scores = [];
+    
+    // Integration test score (weight: 30%)
+    if (results.integration?.passed) {
+      const integrationTestCount = Object.values(results.integration.testResults).flat().length;
+      const passedIntegrationTests = Object.values(results.integration.testResults)
+        .flat()
+        .filter((test: any) => test.passed).length;
+      scores.push((passedIntegrationTests / integrationTestCount) * 30);
+    } else {
+      scores.push(0);
     }
-
-    if (!matrixData.months || matrixData.months.length === 0) {
-      throw new Error('No months data generated');
+    
+    // Performance test score (weight: 25%)
+    if (results.performance?.overallPassed) {
+      const performanceScore = results.performance.testResults.filter((test: any) => test.passed).length;
+      const totalPerformanceTests = results.performance.testResults.length;
+      scores.push((performanceScore / totalPerformanceTests) * 25);
+    } else {
+      scores.push(0);
     }
-
-    if (!matrixData.skills || matrixData.skills.length === 0) {
-      throw new Error('No skills data generated');
+    
+    // Validation score (weight: 25%)
+    if (results.validation?.passed) {
+      scores.push((results.validation.overallScore / 100) * 25);
+    } else {
+      scores.push(0);
     }
-
-    if (!matrixData.dataPoints || matrixData.dataPoints.length === 0) {
-      throw new Error('No data points generated');
+    
+    // Skill resolution score (weight: 20%)
+    if (results.skillResolution?.passed) {
+      scores.push(20);
+    } else {
+      scores.push(0);
     }
-
-    // Validate data point structure
-    const firstDataPoint = matrixData.dataPoints[0];
-    if (!firstDataPoint.skillType || !firstDataPoint.month || firstDataPoint.demandHours < 0) {
-      throw new Error('Invalid data point structure');
-    }
+    
+    return Math.round(scores.reduce((sum, score) => sum + score, 0));
   }
 
   /**
-   * Test matrix filtering functionality
+   * Generate comprehensive recommendations
    */
-  private static async testMatrixFiltering(): Promise<void> {
-    const { matrixData } = await DemandMatrixService.generateDemandMatrix('demand-only');
+  private static generateComprehensiveRecommendations(results: any): string[] {
+    const recommendations: string[] = [];
     
-    if (!matrixData) {
-      throw new Error('No matrix data for filtering test');
+    // Integration recommendations
+    if (results.integration?.recommendations) {
+      recommendations.push(...results.integration.recommendations);
     }
+    
+    // Performance recommendations
+    if (results.performance?.recommendations) {
+      recommendations.push(...results.performance.recommendations);
+    }
+    
+    // Validation recommendations
+    if (results.validation?.recommendations) {
+      recommendations.push(...results.validation.recommendations);
+    }
+    
+    // Cross-cutting recommendations
+    const allTestsPassed = results.integration?.passed && 
+                          results.performance?.overallPassed && 
+                          results.validation?.passed && 
+                          results.skillResolution?.passed;
+    
+    if (allTestsPassed) {
+      recommendations.push('All test suites passed - system validated for production');
+      recommendations.push('Consider implementing monitoring and alerting for production deployment');
+    } else {
+      recommendations.push('Address failed test suites before production deployment');
+    }
+    
+    // Remove duplicates
+    return [...new Set(recommendations)];
+  }
 
-    // Test skill filtering
-    const skillFilters = {
-      skills: [matrixData.skills[0]],
-      clients: [],
-      timeHorizon: {
-        start: new Date('2024-01-01'),
-        end: new Date('2024-12-31')
+  /**
+   * Assess production readiness
+   */
+  private static assessProductionReadiness(
+    allTestsPassed: boolean,
+    overallScore: number,
+    results: any
+  ): {
+    productionReady: boolean;
+    blockers: string[];
+    warnings: string[];
+  } {
+    const blockers: string[] = [];
+    const warnings: string[] = [];
+    
+    // Critical blockers
+    if (!results.integration?.passed) {
+      blockers.push('Integration tests failed - core functionality not working');
+    }
+    
+    if (!results.skillResolution?.passed) {
+      blockers.push('Skill resolution system failed - data integrity compromised');
+    }
+    
+    if (overallScore < 70) {
+      blockers.push(`Overall test score too low: ${overallScore}% (minimum: 70%)`);
+    }
+    
+    // Performance warnings
+    if (!results.performance?.overallPassed) {
+      if (results.performance?.performanceSummary?.averageResponseTime > 2000) {
+        blockers.push('Performance tests failed - response times exceed acceptable limits');
+      } else {
+        warnings.push('Performance tests have issues - monitor closely in production');
       }
+    }
+    
+    // Validation warnings
+    if (!results.validation?.passed) {
+      if (results.validation?.overallScore < 50) {
+        blockers.push('Integration validation severely failed');
+      } else {
+        warnings.push('Integration validation has issues - some features may be unstable');
+      }
+    }
+    
+    // Overall assessment
+    const productionReady = blockers.length === 0 && overallScore >= 85;
+    
+    return {
+      productionReady,
+      blockers,
+      warnings
     };
-
-    const filteredData = DemandPerformanceOptimizer.optimizeFiltering(matrixData, skillFilters);
-
-    if (filteredData.dataPoints.length === 0) {
-      throw new Error('Filtering removed all data points');
-    }
-
-    // Verify filtering worked correctly
-    const hasOtherSkills = filteredData.dataPoints.some(
-      dp => dp.skillType !== matrixData.skills[0]
-    );
-
-    if (hasOtherSkills) {
-      throw new Error('Skill filtering did not work correctly');
-    }
   }
 
   /**
-   * Test revenue calculations
+   * Print test summary
    */
-  private static async testRevenueCalculations(): Promise<void> {
-    const { matrixData } = await DemandMatrixService.generateDemandMatrix('demand-only');
+  private static printTestSummary(report: DemandMatrixTestReport): void {
+    console.log('\n' + '='.repeat(70));
+    console.log('📊 DEMAND MATRIX TEST SUITE - FINAL REPORT');
+    console.log('='.repeat(70));
     
-    if (!matrixData) {
-      throw new Error('No matrix data for revenue test');
+    // Overall status
+    console.log(`\n🎯 OVERALL STATUS: ${report.passed ? '✅ PASSED' : '❌ FAILED'}`);
+    console.log(`📈 Overall Score: ${report.overallScore}%`);
+    console.log(`⏱️ Total Duration: ${report.duration}ms`);
+    
+    // Test suite breakdown
+    console.log(`\n📋 TEST SUITE BREAKDOWN:`);
+    console.log(`   Integration Tests: ${report.testSuites.integration?.passed ? '✅ PASSED' : '❌ FAILED'}`);
+    console.log(`   Performance Tests: ${report.testSuites.performance?.overallPassed ? '✅ PASSED' : '❌ FAILED'}`);
+    console.log(`   Integration Validation: ${report.testSuites.validation?.passed ? '✅ PASSED' : '❌ FAILED'}`);
+    console.log(`   Skill Resolution: ${report.testSuites.skillResolution?.passed ? '✅ PASSED' : '❌ FAILED'}`);
+    
+    // Production readiness
+    console.log(`\n🚀 PRODUCTION READINESS: ${report.readinessAssessment.productionReady ? '✅ READY' : '❌ NOT READY'}`);
+    
+    if (report.readinessAssessment.blockers.length > 0) {
+      console.log(`\n🚫 BLOCKERS (${report.readinessAssessment.blockers.length}):`);
+      report.readinessAssessment.blockers.forEach((blocker, i) => {
+        console.log(`   ${i + 1}. ${blocker}`);
+      });
     }
-
-    // Check if revenue data is present
-    if (matrixData.revenueTotals) {
-      if (matrixData.revenueTotals.totalSuggestedRevenue < 0) {
-        throw new Error('Negative suggested revenue calculated');
+    
+    if (report.readinessAssessment.warnings.length > 0) {
+      console.log(`\n⚠️ WARNINGS (${report.readinessAssessment.warnings.length}):`);
+      report.readinessAssessment.warnings.forEach((warning, i) => {
+        console.log(`   ${i + 1}. ${warning}`);
+      });
+    }
+    
+    // Recommendations
+    if (report.recommendations.length > 0) {
+      console.log(`\n💡 RECOMMENDATIONS:`);
+      report.recommendations.slice(0, 5).forEach((rec, i) => {
+        console.log(`   ${i + 1}. ${rec}`);
+      });
+      
+      if (report.recommendations.length > 5) {
+        console.log(`   ... and ${report.recommendations.length - 5} more recommendations`);
       }
-
-      if (matrixData.revenueTotals.totalExpectedRevenue < 0) {
-        throw new Error('Negative expected revenue calculated');
-      }
     }
-
-    // Validate data points have revenue information
-    const dataPointsWithRevenue = matrixData.dataPoints.filter(
-      dp => dp.suggestedRevenue !== undefined && dp.suggestedRevenue >= 0
-    );
-
-    if (dataPointsWithRevenue.length === 0) {
-      console.warn('No revenue data found in data points - this may be expected');
-    }
+    
+    console.log('\n' + '='.repeat(70));
   }
 
   /**
-   * Test performance optimization
+   * Generate detailed test report for stakeholders
    */
-  private static async testPerformanceOptimization(): Promise<void> {
-    const startTime = performance.now();
+  public static generateDetailedReport(report: DemandMatrixTestReport): string {
+    const lines = [
+      'PHASE 5: TESTING, VALIDATION & PERFORMANCE OPTIMIZATION',
+      'Comprehensive Test Report',
+      '='.repeat(60),
+      '',
+      `Report Generated: ${new Date().toISOString()}`,
+      `Overall Test Status: ${report.passed ? 'PASSED' : 'FAILED'}`,
+      `Overall Score: ${report.overallScore}%`,
+      `Total Test Duration: ${report.duration}ms`,
+      '',
+      'EXECUTIVE SUMMARY:',
+      '- Comprehensive testing of demand matrix system completed',
+      '- Integration, performance, validation, and skill resolution tested',
+      `- Production readiness: ${report.readinessAssessment.productionReady ? 'APPROVED' : 'PENDING'}`,
+      '',
+      'DETAILED TEST RESULTS:',
+      '',
+      '1. Integration Testing:',
+      `   Status: ${report.testSuites.integration?.passed ? 'PASSED' : 'FAILED'}`,
+      `   Duration: ${report.testSuites.integration?.duration || 0}ms`,
+      '',
+      '2. Performance Testing:',
+      `   Status: ${report.testSuites.performance?.overallPassed ? 'PASSED' : 'FAILED'}`,
+      `   Duration: ${report.testSuites.performance?.executionTime || 0}ms`,
+      '',
+      '3. Integration Validation:',
+      `   Status: ${report.testSuites.validation?.passed ? 'PASSED' : 'FAILED'}`,
+      `   Score: ${report.testSuites.validation?.overallScore || 0}%`,
+      '',
+      '4. Skill Resolution Testing:',
+      `   Status: ${report.testSuites.skillResolution?.passed ? 'PASSED' : 'FAILED'}`,
+      `   Total Tests: ${report.testSuites.skillResolution?.totalTests || 0}`,
+      '',
+      'PRODUCTION READINESS ASSESSMENT:',
+      `Ready for Deployment: ${report.readinessAssessment.productionReady ? 'YES' : 'NO'}`,
+      `Blockers: ${report.readinessAssessment.blockers.length}`,
+      `Warnings: ${report.readinessAssessment.warnings.length}`,
+      '',
+      'TOP RECOMMENDATIONS:',
+      ...report.recommendations.slice(0, 5).map((rec, i) => `${i + 1}. ${rec}`),
+      '',
+      'NEXT STEPS:',
+      report.readinessAssessment.productionReady 
+        ? '✅ Approved for production deployment'
+        : '❌ Address blockers before deployment'
+    ];
 
-    // Generate matrix data
-    const { matrixData } = await DemandMatrixService.generateDemandMatrix('demand-only');
-    
-    if (!matrixData) {
-      throw new Error('No matrix data for performance test');
-    }
-
-    const generationTime = performance.now() - startTime;
-
-    // Should generate within reasonable time (5 seconds)
-    if (generationTime > 5000) {
-      throw new Error(`Matrix generation took ${generationTime}ms, exceeds 5000ms threshold`);
-    }
-
-    // Test filtering performance
-    const filterStartTime = performance.now();
-    
-    const filters = {
-      skills: [],
-      clients: [],
-      timeHorizon: {
-        start: new Date('2024-01-01'),
-        end: new Date('2024-12-31')
-      }
-    };
-
-    DemandPerformanceOptimizer.optimizeFiltering(matrixData, filters);
-    
-    const filterTime = performance.now() - filterStartTime;
-
-    // Filtering should be fast (under 1 second)
-    if (filterTime > 1000) {
-      throw new Error(`Matrix filtering took ${filterTime}ms, exceeds 1000ms threshold`);
-    }
-  }
-
-  /**
-   * Test data validation
-   */
-  private static async testDataValidation(): Promise<void> {
-    const { matrixData } = await DemandMatrixService.generateDemandMatrix('demand-only');
-    
-    if (!matrixData) {
-      throw new Error('No matrix data for validation test');
-    }
-
-    const validationIssues = DemandMatrixService.validateDemandMatrixData(matrixData);
-
-    // Should have minimal validation issues for quality assurance
-    if (validationIssues.length > 5) {
-      throw new Error(`Too many validation issues: ${validationIssues.length}`);
-    }
-
-    // Check for critical validation issues
-    const criticalIssues = validationIssues.filter(issue => 
-      issue.toLowerCase().includes('error') || 
-      issue.toLowerCase().includes('critical') ||
-      issue.toLowerCase().includes('invalid')
-    );
-
-    if (criticalIssues.length > 0) {
-      throw new Error(`Critical validation issues found: ${criticalIssues.join(', ')}`);
-    }
-  }
-
-  /**
-   * Test specific client calculations (2200 White Plains Road Realty Inc)
-   */
-  public static async testWhitePlainsRealtyCalculations(): Promise<void> {
-    // This would test specific client calculations as per requirements
-    console.log('🧪 Testing 2200 White Plains Road Realty Inc calculations...');
-    
-    // Implementation would validate specific calculation examples
-    // For now, we'll simulate the test structure
-    
-    const testPassed = true; // Placeholder for actual calculation validation
-    
-    if (!testPassed) {
-      throw new Error('White Plains Realty calculations validation failed');
-    }
-    
-    console.log('✅ White Plains Realty calculations validated');
-  }
-
-  /**
-   * Test specific client calculations (Batfer Food Corp)
-   */
-  public static async testBatferFoodCorpCalculations(): Promise<void> {
-    // This would test specific client calculations as per requirements
-    console.log('🧪 Testing Batfer Food Corp calculations...');
-    
-    // Implementation would validate specific calculation examples
-    // For now, we'll simulate the test structure
-    
-    const testPassed = true; // Placeholder for actual calculation validation
-    
-    if (!testPassed) {
-      throw new Error('Batfer Food Corp calculations validation failed');
-    }
-    
-    console.log('✅ Batfer Food Corp calculations validated');
+    return lines.join('\n');
   }
 }
