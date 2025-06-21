@@ -2,10 +2,11 @@
 import { DemandMatrixData } from '@/types/demand';
 import { debugLog } from '../../logger';
 import { format, parse } from 'date-fns';
-import { SkillResolutionService } from '../skillResolutionService';
+import { SkillResolutionService } from '../skillResolution/skillResolutionService';
+import { MatrixTransformerDebugger } from './matrixTransformerDebugger';
 
 /**
- * Matrix Transformer Core with Enhanced Skill Resolution
+ * Matrix Transformer Core with Enhanced Debugging and Fixed Calculations
  * Core logic for transforming forecast and task data into matrix format
  */
 export class MatrixTransformerCore {
@@ -13,7 +14,7 @@ export class MatrixTransformerCore {
    * Transform forecast and task data to matrix data format
    */
   static async transformToMatrixData(forecastData: any[], tasks: any[]): Promise<DemandMatrixData> {
-    debugLog('Transforming data to matrix format with skill resolution', {
+    debugLog('🚀 Starting matrix transformation with enhanced debugging', {
       forecastPeriods: forecastData.length,
       tasksCount: tasks.length
     });
@@ -25,10 +26,16 @@ export class MatrixTransformerCore {
         label: period.periodLabel || format(parse(period.period, 'yyyy-MM', new Date()), 'MMM yyyy')
       }));
 
+      debugLog('📅 Extracted months:', months);
+
+      // Filter for active tasks only
+      const activeTasks = tasks.filter(task => task.is_active && task.status !== 'Archived');
+      debugLog(`📝 Filtered to ${activeTasks.length} active tasks from ${tasks.length} total`);
+
       // Extract and resolve skills from tasks
       const allSkillReferences = new Set<string>();
       
-      tasks.forEach(task => {
+      activeTasks.forEach(task => {
         if (Array.isArray(task.required_skills)) {
           task.required_skills.forEach((skill: string) => {
             if (skill && typeof skill === 'string') {
@@ -38,7 +45,7 @@ export class MatrixTransformerCore {
         }
       });
 
-      debugLog('Collected skill references from tasks:', Array.from(allSkillReferences));
+      debugLog('🎯 Collected skill references:', Array.from(allSkillReferences));
 
       // Resolve skill UUIDs to names
       const skillRefsArray = Array.from(allSkillReferences);
@@ -52,20 +59,19 @@ export class MatrixTransformerCore {
 
       const uniqueSkills = Array.from(new Set(resolvedSkillNames)).filter(name => name && name.length > 0);
 
-      debugLog('Skill resolution complete:', {
+      debugLog('✅ Skill resolution complete:', {
         originalRefs: skillRefsArray.length,
         resolvedNames: resolvedSkillNames.length,
-        uniqueSkills: uniqueSkills.length,
-        skillMapping: Object.fromEntries(Array.from(skillMapping.entries()).slice(0, 5))
+        uniqueSkills: uniqueSkills.length
       });
 
       // Generate data points for each skill-month combination
       const dataPoints: any[] = [];
       
-      uniqueSkills.forEach(skillName => {
-        months.forEach(month => {
-          // Find tasks that require this skill (by checking resolved names)
-          const skillTasks = tasks.filter(task => {
+      for (const skillName of uniqueSkills) {
+        for (const month of months) {
+          // Debug task processing for this skill-month combination
+          const skillTasks = activeTasks.filter(task => {
             if (!Array.isArray(task.required_skills)) return false;
             
             return task.required_skills.some((skillRef: string) => {
@@ -74,16 +80,22 @@ export class MatrixTransformerCore {
             });
           });
 
-          // Calculate monthly hours for each task based on recurrence
+          if (skillTasks.length === 0) continue;
+
+          // Debug the tasks for this combination
+          console.log(`🔍 Processing ${skillTasks.length} tasks for skill "${skillName}" in month ${month.key}`);
+          MatrixTransformerDebugger.debugTaskProcessing(skillTasks, month.key);
+
+          // Calculate monthly hours for each task based on recurrence - ENHANCED
           const taskBreakdown = skillTasks.map(task => {
-            const monthlyHours = this.calculateMonthlyHours(task, month.key);
+            const monthlyHours = this.calculateEnhancedMonthlyHours(task, month.key);
             
             return {
               clientId: task.client_id,
               clientName: task.clients?.legal_name || 'Unknown Client',
               recurringTaskId: task.id,
               taskName: task.name,
-              skillType: skillName, // Use resolved skill name
+              skillType: skillName,
               estimatedHours: task.estimated_hours || 0,
               recurrencePattern: this.extractRecurrencePattern(task),
               monthlyHours,
@@ -95,12 +107,15 @@ export class MatrixTransformerCore {
             };
           }).filter(task => task.monthlyHours > 0);
 
+          console.log(`📊 Task breakdown for ${skillName}/${month.key}:`, taskBreakdown);
+
           const demandHours = taskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
           const taskCount = taskBreakdown.length;
           const uniqueClients = new Set(taskBreakdown.map(task => task.clientId));
 
+          // Only add data points with actual demand
           if (demandHours > 0 || taskCount > 0) {
-            dataPoints.push({
+            const dataPoint = {
               skillType: skillName,
               month: month.key,
               monthLabel: month.label,
@@ -108,10 +123,20 @@ export class MatrixTransformerCore {
               taskCount,
               clientCount: uniqueClients.size,
               taskBreakdown
+            };
+
+            console.log(`➕ Adding data point:`, {
+              skill: skillName,
+              month: month.key,
+              hours: demandHours,
+              tasks: taskCount,
+              clients: uniqueClients.size
             });
+
+            dataPoints.push(dataPoint);
           }
-        });
-      });
+        }
+      }
 
       // Calculate totals
       const totalDemand = dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
@@ -131,7 +156,10 @@ export class MatrixTransformerCore {
         skillSummary: this.generateSkillSummary(dataPoints, uniqueSkills)
       };
 
-      debugLog('Matrix transformation complete with skill resolution:', {
+      // Debug the final matrix data
+      MatrixTransformerDebugger.debugMatrixAggregation(matrixData);
+
+      debugLog('✅ Matrix transformation complete:', {
         monthsCount: months.length,
         skillsCount: uniqueSkills.length,
         dataPointsCount: dataPoints.length,
@@ -143,7 +171,7 @@ export class MatrixTransformerCore {
       return matrixData;
 
     } catch (error) {
-      console.error('Error in matrix transformation:', error);
+      console.error('❌ Error in matrix transformation:', error);
       
       // Return minimal data structure to prevent crashes
       return {
@@ -162,31 +190,52 @@ export class MatrixTransformerCore {
   }
 
   /**
-   * Calculate monthly hours for a task based on its recurrence pattern
+   * Enhanced monthly hours calculation with better recurrence handling
    */
-  private static calculateMonthlyHours(task: any, monthKey: string): number {
+  private static calculateEnhancedMonthlyHours(task: any, monthKey: string): number {
     const estimatedHours = task.estimated_hours || 0;
     
     if (!task.recurrence_type || task.recurrence_type === 'None') {
-      return 0; // Ad-hoc tasks don't contribute to monthly recurring demand
+      console.log(`⚠️ Task "${task.name}" has no recurrence (${task.recurrence_type}), returning 0 hours`);
+      return 0;
+    }
+
+    if (estimatedHours <= 0) {
+      console.log(`⚠️ Task "${task.name}" has no estimated hours (${estimatedHours}), returning 0 hours`);
+      return 0;
     }
 
     const interval = task.recurrence_interval || 1;
     
+    let monthlyHours = 0;
     switch (task.recurrence_type) {
       case 'Daily':
-        return estimatedHours * 30 / interval; // Approximate 30 days per month
+        // Daily tasks: estimated hours * days per month / interval
+        monthlyHours = estimatedHours * (30 / interval);
+        break;
       case 'Weekly':
-        return estimatedHours * 4 / interval; // Approximate 4 weeks per month
+        // Weekly tasks: estimated hours * weeks per month / interval
+        monthlyHours = estimatedHours * (4.33 / interval); // More accurate weeks per month
+        break;
       case 'Monthly':
-        return estimatedHours / interval;
+        // Monthly tasks: estimated hours / interval
+        monthlyHours = estimatedHours / interval;
+        break;
       case 'Quarterly':
-        return interval === 3 ? estimatedHours / 3 : 0; // Every 3 months
+        // Quarterly tasks: estimated hours / 3 months / interval
+        monthlyHours = estimatedHours / (3 * interval);
+        break;
       case 'Annually':
-        return interval === 12 ? estimatedHours / 12 : 0; // Every 12 months
+        // Annual tasks: estimated hours / 12 months / interval
+        monthlyHours = estimatedHours / (12 * interval);
+        break;
       default:
-        return estimatedHours; // Default to estimated hours
+        console.warn(`⚠️ Unknown recurrence type: ${task.recurrence_type}, using estimated hours`);
+        monthlyHours = estimatedHours;
     }
+
+    console.log(`📈 Task "${task.name}": ${estimatedHours}h ${task.recurrence_type}/${interval} → ${monthlyHours.toFixed(2)}h/month`);
+    return Math.round(monthlyHours * 100) / 100; // Round to 2 decimal places
   }
 
   /**
@@ -208,7 +257,7 @@ export class MatrixTransformerCore {
       case 'Daily':
         return 30 / (interval || 1);
       case 'Weekly':
-        return 4 / (interval || 1);
+        return 4.33 / (interval || 1); // More accurate
       case 'Monthly':
         return 1 / (interval || 1);
       case 'Quarterly':

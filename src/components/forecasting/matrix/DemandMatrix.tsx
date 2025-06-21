@@ -1,12 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, Clock, Play } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Bug } from 'lucide-react';
 import { useDemandMatrixControls } from './hooks/useDemandMatrixControls';
 import { useDemandMatrixFiltering } from './hooks/useDemandMatrixFiltering';
 import { DemandMatrixControlsPanel } from './components/demand/DemandMatrixControlsPanel';
 import { DemandMatrixDisplay } from './components/demand/DemandMatrixDisplay';
+import { DemandMatrixDiagnosticPanel } from './components/demand/DemandMatrixDiagnosticPanel';
 import { Phase1ValidationService } from '@/services/forecasting/matrix/phase1ValidationService';
 import type { Phase1ValidationReport } from '@/services/forecasting/matrix/phase1ValidationService';
 
@@ -15,21 +17,22 @@ interface DemandMatrixProps {
 }
 
 /**
- * Phase 2: Enhanced DemandMatrix Component with Three-Mode Integration
+ * Enhanced DemandMatrix Component with Comprehensive Debugging
  * 
- * PHASE 2 ENHANCEMENTS:
- * - Connected preferredStaffFilterMode state to UI components
- * - Wired up onPreferredStaffFilterModeChange handler
- * - Enhanced matrix controls with three-mode preferred staff filtering
- * - Maintained all Phase 1 validation functionality
- * - Ensured seamless integration with existing controls
+ * ENHANCED FEATURES:
+ * - Comprehensive diagnostic panel for troubleshooting
+ * - Enhanced debugging and validation
+ * - Improved data quality analysis
+ * - Real-time filter validation
+ * - Performance monitoring
  */
 export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
   const [validationReport, setValidationReport] = useState<Phase1ValidationReport | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [showValidationDetails, setShowValidationDetails] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Phase 2: Enhanced matrix controls with three-mode filtering
+  // Enhanced matrix controls with debugging
   const matrixControls = useDemandMatrixControls({
     groupingMode,
     enablePreferredStaffFiltering: true
@@ -53,18 +56,18 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
   const runPhase1Validation = async () => {
     setIsValidating(true);
     try {
-      console.log('🚀 [PHASE 1 UI] Running Phase 1 validation...');
+      console.log('🚀 [ENHANCED VALIDATION] Running comprehensive Phase 1 validation...');
       const report = await Phase1ValidationService.runPhase1Validation();
       setValidationReport(report);
       setShowValidationDetails(true);
       
       if (report.overallSuccess) {
-        console.log('✅ [PHASE 1 UI] Phase 1 validation passed!');
+        console.log('✅ [ENHANCED VALIDATION] Phase 1 validation passed!');
       } else {
-        console.warn('⚠️ [PHASE 1 UI] Phase 1 validation failed:', report.summary);
+        console.warn('⚠️ [ENHANCED VALIDATION] Phase 1 validation failed:', report.summary);
       }
     } catch (error) {
-      console.error('❌ [PHASE 1 UI] Phase 1 validation error:', error);
+      console.error('❌ [ENHANCED VALIDATION] Phase 1 validation error:', error);
     } finally {
       setIsValidating(false);
     }
@@ -74,7 +77,6 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
    * Auto-run validation on component mount
    */
   useEffect(() => {
-    // Auto-run Phase 1 validation when component loads
     const timer = setTimeout(() => {
       runPhase1Validation();
     }, 1000);
@@ -82,17 +84,19 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  console.log(`🚀 [PHASE 2 MATRIX INTEGRATION] DemandMatrix - Rendering with enhanced three-mode filtering:`, {
+  console.log(`🚀 [ENHANCED MATRIX] DemandMatrix rendering with comprehensive debugging:`, {
     groupingMode,
     preferredStaffFilterMode: matrixControls.preferredStaffFilterMode,
-    availablePreferredStaffCount: matrixControls.availablePreferredStaff.length,
-    selectedPreferredStaffCount: matrixControls.selectedPreferredStaff.length,
+    hasFilteredData: !!filteredData,
+    originalDataPoints: matrixControls.demandData?.dataPoints?.length || 0,
+    filteredDataPoints: filteredData?.dataPoints?.length || 0,
+    totalDemand: filteredData?.totalDemand || 0,
     isLoading: matrixControls.isLoading
   });
 
   return (
     <div className="space-y-6">
-      {/* Phase 1: Validation Status Card - Preserved exactly */}
+      {/* Phase 1: Validation Status Card - Enhanced */}
       <Card className="border-blue-200 bg-blue-50">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
@@ -102,10 +106,10 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-blue-900">
-                  Phase 1: Integration Verification & Data Pipeline Testing
+                  Enhanced Demand Matrix with Comprehensive Debugging
                 </h3>
                 <p className="text-sm text-blue-700">
-                  Validating data pipeline integrity and component integration
+                  Advanced validation, debugging, and data quality analysis
                 </p>
               </div>
             </div>
@@ -124,6 +128,16 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
                   {validationReport.overallSuccess ? 'PASSED' : 'FAILED'}
                 </Badge>
               )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDiagnostics(!showDiagnostics)}
+                className="flex items-center gap-2"
+              >
+                <Bug className="h-4 w-4" />
+                {showDiagnostics ? 'Hide' : 'Show'} Diagnostics
+              </Button>
               
               <Button
                 variant="outline"
@@ -172,6 +186,27 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
                 </div>
               </div>
 
+              {/* Enhanced summary with data quality info */}
+              {filteredData && (
+                <div className="p-3 bg-white rounded-lg">
+                  <div className="text-sm font-medium mb-2">Current Data Status</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <span className="font-medium">Data Points:</span> {filteredData.dataPoints.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">Total Demand:</span> {filteredData.totalDemand}h
+                    </div>
+                    <div>
+                      <span className="font-medium">Total Tasks:</span> {filteredData.totalTasks}
+                    </div>
+                    <div>
+                      <span className="font-medium">Total Clients:</span> {filteredData.totalClients}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Toggle detailed validation report */}
               <Button
                 variant="ghost"
@@ -195,9 +230,24 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
         </CardContent>
       </Card>
 
-      {/* Phase 2: Enhanced Matrix Implementation with Three-Mode Integration */}
+      {/* Enhanced Diagnostic Panel */}
+      {filteredData && (
+        <DemandMatrixDiagnosticPanel
+          matrixData={filteredData}
+          selectedSkills={matrixControls.selectedSkills}
+          selectedClients={matrixControls.selectedClients}
+          selectedPreferredStaff={matrixControls.selectedPreferredStaff}
+          preferredStaffFilterMode={matrixControls.preferredStaffFilterMode}
+          availableSkills={matrixControls.availableSkills}
+          availableClients={matrixControls.availableClients}
+          availablePreferredStaff={matrixControls.availablePreferredStaff}
+          isVisible={showDiagnostics}
+        />
+      )}
+
+      {/* Enhanced Matrix Implementation */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Controls Panel - Enhanced with Three-Mode System */}
+        {/* Controls Panel - Enhanced */}
         <div className="lg:col-span-1">
           <DemandMatrixControlsPanel
             isControlsExpanded={true}
@@ -219,14 +269,13 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
             isAllSkillsSelected={matrixControls.isAllSkillsSelected}
             isAllClientsSelected={matrixControls.isAllClientsSelected}
             isAllPreferredStaffSelected={matrixControls.isAllPreferredStaffSelected}
-            // Phase 2: Three-Mode Filter Integration
             preferredStaffFilterMode={matrixControls.preferredStaffFilterMode}
             onPreferredStaffFilterModeChange={matrixControls.onPreferredStaffFilterModeChange}
             preferredStaffLoading={matrixControls.isLoading}
           />
         </div>
 
-        {/* Matrix Display - Unchanged */}
+        {/* Matrix Display - Enhanced */}
         <div className="lg:col-span-3">
           <DemandMatrixDisplay
             matrixData={filteredData}
