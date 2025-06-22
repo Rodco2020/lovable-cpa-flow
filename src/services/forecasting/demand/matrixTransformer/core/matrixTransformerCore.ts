@@ -308,7 +308,6 @@ export class MatrixTransformerCore {
     return staffSummary;
   }
 
-  
   private static extractMonths(forecastData: ForecastData[]): Array<{ key: string; label: string }> {
     const months = new Set<string>();
     forecastData.forEach(item => {
@@ -403,47 +402,6 @@ export class MatrixTransformerCore {
       },
       5
     );
-  }
-
-  private static extractMonths(forecastData: ForecastData[]): Array<{ key: string; label: string }> {
-    const months = new Set<string>();
-    forecastData.forEach(item => {
-      if (item.period) {
-        months.add(item.period);
-      }
-    });
-    
-    return Array.from(months)
-      .sort()
-      .map(monthKey => ({
-        key: monthKey,
-        label: this.formatMonthLabel(monthKey)
-      }));
-  }
-
-  private static extractSkills(forecastData: ForecastData[]): string[] {
-    const skills = new Set<string>();
-    forecastData.forEach(item => {
-      item.demand?.forEach(d => {
-        if (d.skill) {
-          skills.add(d.skill);
-        }
-      });
-    });
-    
-    return Array.from(skills).sort();
-  }
-
-  private static formatMonthLabel(monthKey: string): string {
-    try {
-      const date = new Date(monthKey);
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short' 
-      });
-    } catch {
-      return monthKey;
-    }
   }
 
   private static calculateSuggestedRevenue(dataPoint: DemandDataPoint, skillFeeRates: Map<string, number>): number {
