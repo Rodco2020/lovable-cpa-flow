@@ -22,11 +22,11 @@
  * - Exact same public API and return interface
  */
 
-// Re-export the refactored implementation
+// Re-export the refactored implementation from the correct path
 export { 
   useDemandMatrixControlsRefactored as useDemandMatrixControls,
   useDemandMatrixControlsRefactored as default
-} from './useDemandMatrixControls';
+} from './useDemandMatrixControls/useDemandMatrixControlsRefactored';
 
 // Re-export types for external consumption
 export type {

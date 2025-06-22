@@ -120,6 +120,16 @@ export interface DemandForecastParameters {
   includeClients: string[] | 'all';
 }
 
+export interface DemandForecastResult {
+  data: DemandMatrixData;
+  success: boolean;
+  error?: string;
+  metadata?: {
+    generatedAt: Date;
+    parameters: DemandForecastParameters;
+  };
+}
+
 export interface RecurrenceCalculation {
   type: string;
   interval: number;
@@ -145,6 +155,13 @@ export interface MatrixRevenueComparison {
   expected: number;
   suggested: number;
   variance: number;
+}
+
+// Helper function to safely extract staff ID from preferredStaff union type
+export function extractStaffId(preferredStaff: string | { staffId: string; full_name: string } | null): string | null {
+  if (!preferredStaff) return null;
+  if (typeof preferredStaff === 'string') return preferredStaff;
+  return preferredStaff.staffId || null;
 }
 
 export function hasRevenueData(data: DemandMatrixData): boolean {

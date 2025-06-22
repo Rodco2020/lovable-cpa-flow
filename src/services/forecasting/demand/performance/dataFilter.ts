@@ -1,342 +1,254 @@
 /**
- * Data Filtering Optimizer - Phase 4 Enhanced
- * Handles efficient data filtering with comprehensive three-mode support
+ * Phase 4: Advanced Data Filter Service
+ * 
+ * Provides enhanced filtering capabilities with improved performance,
+ * validation, and comprehensive error handling for complex filtering scenarios.
  */
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
-import { debugLog } from '../../logger';
-import { FilteringOptions } from './types';
-import { PERFORMANCE_OPERATIONS, PERFORMANCE_THRESHOLDS } from './constants';
-import { PerformanceMonitor } from './performanceMonitor';
-import { EnhancedDataFilter } from '../enhancedDataFilter';
+import { extractStaffId } from '../utils/staffIdExtractor';
 
-export class DataFilter {
-  private static performanceMonitor = new PerformanceMonitor();
-
+/**
+ * Phase 4: Enhanced data filtering with advanced algorithms and performance optimization
+ */
+export class AdvancedDataFilter {
   /**
-   * Phase 4: Enhanced data filtering with comprehensive three-mode preferred staff support
+   * Apply comprehensive filtering with enhanced performance and validation
    */
-  static optimizeFiltering(
+  static applyAdvancedFiltering(
     data: DemandMatrixData,
     filters: DemandFilters,
-    options: FilteringOptions = {}
+    options: {
+      enableStrictValidation?: boolean;
+      enablePerformanceOptimization?: boolean;
+      enableAdvancedPreferredStaffFiltering?: boolean;
+    } = {}
   ): DemandMatrixData {
-    const { enableEarlyExit = true, enablePreCalculation = true, enableLogging = true } = options;
-    const startTime = performance.now();
-    
-    console.log(`🔍 [PHASE 4 DATA FILTER] Starting enhanced optimization:`, {
-      skillsFilter: filters.skills?.length === 0 ? 'NONE (show all)' : filters.skills,
-      clientsFilter: filters.clients?.length === 0 ? 'NONE (show all)' : filters.clients,
-      preferredStaffFilter: this.getPreferredStaffFilterDescription(filters.preferredStaff),
-      hasTimeHorizon: !!filters.timeHorizon,
-      includeInactive: filters.includeInactive,
-      phase: 'PHASE_4_ENHANCED'
+    const {
+      enableStrictValidation = true,
+      enablePerformanceOptimization = true,
+      enableAdvancedPreferredStaffFiltering = true
+    } = options;
+
+    console.log(`🔍 [PHASE 4 ADVANCED FILTER] Starting comprehensive filtering:`, {
+      originalDataPoints: data.dataPoints.length,
+      filtersApplied: Object.keys(filters).length,
+      strictValidation: enableStrictValidation,
+      performanceOptimized: enablePerformanceOptimization,
+      advancedStaffFiltering: enableAdvancedPreferredStaffFiltering
     });
 
-    // Early exit for no filters - Phase 4 enhanced detection
-    if (enableEarlyExit && this.hasNoActiveFilters(filters)) {
-      const processingTime = performance.now() - startTime;
-      this.performanceMonitor.recordPerformance(PERFORMANCE_OPERATIONS.FILTERING_NO_OP, processingTime);
-      
-      console.log(`✨ [PHASE 4 DATA FILTER] No active filters detected, returning original data`);
-      return data;
-    }
-
-    try {
-      // Phase 4: Use enhanced filtering engine
-      const result = EnhancedDataFilter.optimizeFiltering(data, filters, options);
-      
-      const filteringTime = performance.now() - startTime;
-      this.performanceMonitor.recordPerformance(PERFORMANCE_OPERATIONS.FILTERING_COMPREHENSIVE, filteringTime);
-      
-      // Performance warning check
-      if (filteringTime > PERFORMANCE_THRESHOLDS.PERFORMANCE_WARNING_THRESHOLD) {
-        console.warn(`⚠️ [PHASE 4 DATA FILTER] Performance warning:`, {
-          processingTime: `${filteringTime.toFixed(2)}ms`,
-          threshold: `${PERFORMANCE_THRESHOLDS.PERFORMANCE_WARNING_THRESHOLD}ms`,
-          dataPoints: data.dataPoints.length,
-          recommendation: 'Consider data optimization or filter simplification'
-        });
-      }
-
-      if (enableLogging) {
-        console.log(`✅ [PHASE 4 DATA FILTER] Enhanced filtering completed:`, {
-          processingTime: `${filteringTime.toFixed(2)}ms`,
-          originalDataPoints: data.dataPoints.length,
-          filteredDataPoints: result.dataPoints.length,
-          remainingSkills: result.skills.length,
-          remainingMonths: result.months.length,
-          totalDemand: result.totalDemand.toFixed(1),
-          totalTasks: result.totalTasks,
-          totalClients: result.totalClients,
-          filteringMode: this.getFilteringModeDescription(filters),
-          phase: 'PHASE_4_SUCCESS'
-        });
-      }
-      
-      return result;
-
-    } catch (error) {
-      console.error(`❌ [PHASE 4 DATA FILTER] Enhanced filtering failed, using fallback:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        originalDataPoints: data.dataPoints.length
-      });
-
-      // Fallback to legacy filtering logic
-      return this.legacyFiltering(data, filters, options);
-    }
-  }
-
-  /**
-   * Phase 4: Enhanced filter detection with preferred staff support
-   */
-  private static hasNoActiveFilters(filters: DemandFilters): boolean {
-    const hasNoSkillFilter = !filters.skills || filters.skills.length === 0;
-    const hasNoClientFilter = !filters.clients || filters.clients.length === 0;
-    const hasNoPreferredStaffFilter = this.hasNoPreferredStaffFilter(filters.preferredStaff);
-    const hasNoTimeHorizon = !filters.timeHorizon;
-    const hasNoInactiveFilter = !filters.includeInactive;
-
-    const noActiveFilters = hasNoSkillFilter && hasNoClientFilter && hasNoPreferredStaffFilter && hasNoTimeHorizon && hasNoInactiveFilter;
-    
-    console.log(`🔍 [PHASE 4 DATA FILTER] Enhanced filter detection:`, {
-      hasNoSkillFilter,
-      hasNoClientFilter,
-      hasNoPreferredStaffFilter,
-      hasNoTimeHorizon,
-      hasNoInactiveFilter,
-      noActiveFilters,
-      preferredStaffDetails: filters.preferredStaff ? {
-        staffIds: filters.preferredStaff.staffIds?.length || 0,
-        includeUnassigned: filters.preferredStaff.includeUnassigned,
-        showOnlyPreferred: filters.preferredStaff.showOnlyPreferred
-      } : null
-    });
-
-    return noActiveFilters;
-  }
-
-  /**
-   * Phase 4: Enhanced preferred staff filter detection
-   */
-  private static hasNoPreferredStaffFilter(preferredStaffFilter?: DemandFilters['preferredStaff']): boolean {
-    if (!preferredStaffFilter) return true;
-
-    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffFilter;
-
-    // No filter if no specific configuration is set
-    const hasNoSpecificStaff = staffIds.length === 0;
-    const hasNoSpecialMode = !showOnlyPreferred;
-    const hasNoUnassignedMode = !includeUnassigned;
-
-    return hasNoSpecificStaff && hasNoSpecialMode && hasNoUnassignedMode;
-  }
-
-  /**
-   * Get human-readable description of preferred staff filter
-   */
-  private static getPreferredStaffFilterDescription(preferredStaffFilter?: DemandFilters['preferredStaff']): string {
-    if (!preferredStaffFilter) return 'NONE (show all)';
-
-    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffFilter;
-
-    if (showOnlyPreferred && staffIds.length === 0) {
-      return 'NONE MODE (unassigned only)';
-    } else if (staffIds.length > 0) {
-      return `SPECIFIC MODE (${staffIds.length} staff${includeUnassigned ? ' + unassigned' : ''})`;
-    } else {
-      return 'ALL MODE (show all)';
-    }
-  }
-
-  /**
-   * Get filtering mode description for logging
-   */
-  private static getFilteringModeDescription(filters: DemandFilters): string {
-    const modes = [];
-    
-    if (filters.skills && filters.skills.length > 0) {
-      modes.push(`skills(${filters.skills.length})`);
-    }
-    
-    if (filters.clients && filters.clients.length > 0) {
-      modes.push(`clients(${filters.clients.length})`);
-    }
-    
-    if (filters.preferredStaff) {
-      modes.push(`staff(${this.getPreferredStaffFilterDescription(filters.preferredStaff)})`);
-    }
-    
-    if (filters.timeHorizon) {
-      modes.push('timeHorizon');
-    }
-
-    return modes.length > 0 ? modes.join(' + ') : 'no-filters';
-  }
-
-  /**
-   * Legacy filtering fallback for error cases
-   */
-  private static legacyFiltering(
-    data: DemandMatrixData,
-    filters: DemandFilters,
-    options: FilteringOptions
-  ): DemandMatrixData {
-    console.log(`🔄 [PHASE 4 DATA FILTER] Using legacy filtering fallback`);
-    
     let filteredData = { ...data };
 
-    // Apply skill filters
-    if (filters.skills && filters.skills.length > 0) {
-      filteredData = this.applySkillFilter(filteredData, filters.skills);
+    // Apply time horizon filtering
+    if (filters.timeHorizon || filters.dateRange) {
+      filteredData = this.applyTimeHorizonFilter(filteredData, filters.timeHorizon || filters.dateRange);
     }
 
-    // Apply client filters
-    if (filters.clients && filters.clients.length > 0) {
-      filteredData = this.applyClientFilter(filteredData, filters.clients);
+    // Apply skill type filtering with enhanced performance
+    if (filters.skillTypes && filters.skillTypes.length > 0) {
+      filteredData = this.applyEnhancedSkillFilter(filteredData, filters.skillTypes, enablePerformanceOptimization);
+    } else if (filters.skills && filters.skills.length > 0) {
+      filteredData = this.applyEnhancedSkillFilter(filteredData, filters.skills, enablePerformanceOptimization);
     }
 
-    // Apply preferred staff filters
-    if (filters.preferredStaff) {
-      filteredData = this.applyPreferredStaffFilter(filteredData, filters.preferredStaff);
+    // Apply client filtering with validation
+    if (filters.clientIds && filters.clientIds.length > 0) {
+      filteredData = this.applyValidatedClientFilter(filteredData, filters.clientIds, enableStrictValidation);
+    } else if (filters.clients && filters.clients.length > 0) {
+      filteredData = this.applyValidatedClientFilter(filteredData, filters.clients, enableStrictValidation);
     }
 
-    // Apply time horizon filters
-    if (filters.timeHorizon) {
-      filteredData = this.applyTimeHorizonFilter(filteredData, filters.timeHorizon);
+    // Apply advanced preferred staff filtering
+    if (enableAdvancedPreferredStaffFiltering && (filters.preferredStaffIds || filters.preferredStaff)) {
+      const preferredStaffConfig = filters.preferredStaff || {
+        staffIds: filters.preferredStaffIds || [],
+        includeUnassigned: false,
+        showOnlyPreferred: false
+      };
+      filteredData = this.applyAdvancedPreferredStaffFilter(filteredData, preferredStaffConfig);
     }
 
-    // Recalculate totals after filtering
-    filteredData = this.recalculateTotals(filteredData);
+    // Recalculate totals and metrics
+    filteredData = this.recalculateComprehensiveMetrics(filteredData);
 
-    debugLog('Filtering optimization complete', {
+    console.log(`✅ [PHASE 4 ADVANCED FILTER] Filtering completed:`, {
       originalDataPoints: data.dataPoints.length,
       filteredDataPoints: filteredData.dataPoints.length,
-      originalTotalDemand: data.totalDemand,
-      filteredTotalDemand: filteredData.totalDemand
+      reductionPercentage: ((data.dataPoints.length - filteredData.dataPoints.length) / data.dataPoints.length * 100).toFixed(1)
     });
 
     return filteredData;
   }
 
   /**
-   * Apply skill filter to matrix data
-   */
-  private static applySkillFilter(matrixData: DemandMatrixData, skills: string[]): DemandMatrixData {
-    const filteredDataPoints = matrixData.dataPoints.filter(point =>
-      skills.includes(point.skillType)
-    );
-
-    return {
-      ...matrixData,
-      dataPoints: filteredDataPoints,
-      skills: matrixData.skills.filter(skill => skills.includes(skill))
-    };
-  }
-
-  /**
-   * Apply client filter to matrix data
-   */
-  private static applyClientFilter(matrixData: DemandMatrixData, clients: string[]): DemandMatrixData {
-    const filteredDataPoints = matrixData.dataPoints.map(point => ({
-      ...point,
-      taskBreakdown: point.taskBreakdown?.filter(task =>
-        clients.includes(task.clientId)
-      ) || []
-    })).filter(point => point.taskBreakdown.length > 0);
-
-    return {
-      ...matrixData,
-      dataPoints: filteredDataPoints
-    };
-  }
-
-  /**
-   * Apply preferred staff filter to matrix data
-   */
-  private static applyPreferredStaffFilter(
-    matrixData: DemandMatrixData, 
-    preferredStaffFilter: NonNullable<DemandFilters['preferredStaff']>
-  ): DemandMatrixData {
-    const { staffIds, includeUnassigned, showOnlyPreferred } = preferredStaffFilter;
-
-    const filteredDataPoints = matrixData.dataPoints.map(point => {
-      let filteredTaskBreakdown = point.taskBreakdown || [];
-
-      if (showOnlyPreferred) {
-        // Show only tasks with preferred staff assignments
-        filteredTaskBreakdown = filteredTaskBreakdown.filter(task =>
-          task.preferredStaff?.staffId
-        );
-      }
-
-      if (staffIds && staffIds.length > 0) {
-        // Filter by specific staff IDs
-        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
-          const hasMatchingStaff = task.preferredStaff?.staffId && staffIds.includes(task.preferredStaff.staffId);
-          const isUnassigned = !task.preferredStaff?.staffId;
-          
-          return hasMatchingStaff || (includeUnassigned && isUnassigned);
-        });
-      } else if (!includeUnassigned) {
-        // If no specific staff IDs but not including unassigned, show only assigned tasks
-        filteredTaskBreakdown = filteredTaskBreakdown.filter(task =>
-          task.preferredStaff?.staffId
-        );
-      }
-
-      return {
-        ...point,
-        taskBreakdown: filteredTaskBreakdown
-      };
-    }).filter(point => point.taskBreakdown.length > 0);
-
-    return {
-      ...matrixData,
-      dataPoints: filteredDataPoints
-    };
-  }
-
-  /**
-   * Apply time horizon filter to matrix data
+   * Enhanced time horizon filtering with performance optimization
    */
   private static applyTimeHorizonFilter(
-    matrixData: DemandMatrixData,
-    timeHorizon: { start: Date; end: Date }
+    data: DemandMatrixData,
+    timeHorizon: { start: Date; end: Date } | undefined
   ): DemandMatrixData {
-    const filteredMonths = matrixData.months.filter(month => {
+    if (!timeHorizon) return data;
+
+    const filteredMonths = data.months.filter(month => {
       const monthDate = new Date(month.key + '-01');
       return monthDate >= timeHorizon.start && monthDate <= timeHorizon.end;
     });
 
-    const filteredDataPoints = matrixData.dataPoints.filter(point =>
-      filteredMonths.some(month => month.key === point.month)
-    );
+    const monthKeys = new Set(filteredMonths.map(m => m.key));
+    const filteredDataPoints = data.dataPoints.filter(point => monthKeys.has(point.month));
 
     return {
-      ...matrixData,
+      ...data,
       months: filteredMonths,
       dataPoints: filteredDataPoints
     };
   }
 
   /**
-   * Recalculate totals after filtering
+   * Enhanced skill filtering with performance optimization
    */
-  private static recalculateTotals(matrixData: DemandMatrixData): DemandMatrixData {
-    const totalDemand = matrixData.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
-    const totalTasks = matrixData.dataPoints.reduce((sum, point) => sum + point.taskCount, 0);
+  private static applyEnhancedSkillFilter(
+    data: DemandMatrixData,
+    skills: string[],
+    enableOptimization: boolean
+  ): DemandMatrixData {
+    const skillSet = enableOptimization ? new Set(skills) : skills;
     
-    // Count unique clients across all data points
+    const filteredDataPoints = data.dataPoints.filter(point => 
+      enableOptimization 
+        ? (skillSet as Set<string>).has(point.skillType)
+        : skills.includes(point.skillType)
+    );
+
+    return {
+      ...data,
+      skills: data.skills.filter(skill => 
+        enableOptimization 
+          ? (skillSet as Set<string>).has(skill)
+          : skills.includes(skill)
+      ),
+      dataPoints: filteredDataPoints
+    };
+  }
+
+  /**
+   * Validated client filtering with enhanced error handling
+   */
+  private static applyValidatedClientFilter(
+    data: DemandMatrixData,
+    clients: string[],
+    enableValidation: boolean
+  ): DemandMatrixData {
+    const clientSet = new Set(clients);
+
+    const filteredDataPoints = data.dataPoints.map(point => {
+      const filteredTaskBreakdown = point.taskBreakdown?.filter(task => {
+        if (enableValidation && !task.clientId) {
+          console.warn(`⚠️ [PHASE 4] Invalid task found without clientId:`, task);
+          return false;
+        }
+        return clientSet.has(task.clientId);
+      }) || [];
+
+      const demandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const uniqueClients = new Set(filteredTaskBreakdown.map(task => task.clientId));
+
+      return {
+        ...point,
+        taskBreakdown: filteredTaskBreakdown,
+        demandHours,
+        taskCount: filteredTaskBreakdown.length,
+        clientCount: uniqueClients.size
+      };
+    }).filter(point => point.taskCount > 0);
+
+    return {
+      ...data,
+      dataPoints: filteredDataPoints
+    };
+  }
+
+  /**
+   * Advanced preferred staff filtering with three-mode support
+   */
+  private static applyAdvancedPreferredStaffFilter(
+    data: DemandMatrixData,
+    preferredStaffConfig: {
+      staffIds: string[];
+      includeUnassigned: boolean;
+      showOnlyPreferred: boolean;
+    }
+  ): DemandMatrixData {
+    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffConfig;
+    
+    // Determine filtering mode
+    let filteringMode: 'all' | 'specific' | 'none' = 'all';
+    if (showOnlyPreferred && staffIds.length === 0) {
+      filteringMode = 'none';
+    } else if (staffIds.length > 0) {
+      filteringMode = 'specific';
+    }
+
+    console.log(`🎯 [PHASE 4 ADVANCED FILTER] Applying three-mode preferred staff filter:`, {
+      mode: filteringMode,
+      staffIdsCount: staffIds.length,
+      includeUnassigned,
+      showOnlyPreferred
+    });
+
+    const filteredDataPoints = data.dataPoints.map(point => {
+      let filteredTaskBreakdown = point.taskBreakdown || [];
+
+      if (filteringMode === 'specific') {
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const staffId = extractStaffId(task.preferredStaff);
+          const hasMatchingStaff = staffId && staffIds.includes(staffId);
+          const isUnassigned = !staffId;
+          return hasMatchingStaff || (includeUnassigned && isUnassigned);
+        });
+      } else if (filteringMode === 'none') {
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const staffId = extractStaffId(task.preferredStaff);
+          return !staffId;
+        });
+      }
+      // Mode 'all' keeps all tasks
+
+      const demandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const uniqueClients = new Set(filteredTaskBreakdown.map(task => task.clientId));
+
+      return {
+        ...point,
+        taskBreakdown: filteredTaskBreakdown,
+        demandHours,
+        taskCount: filteredTaskBreakdown.length,
+        clientCount: uniqueClients.size
+      };
+    }).filter(point => point.taskCount > 0);
+
+    return {
+      ...data,
+      dataPoints: filteredDataPoints
+    };
+  }
+
+  /**
+   * Recalculate comprehensive metrics after filtering
+   */
+  private static recalculateComprehensiveMetrics(data: DemandMatrixData): DemandMatrixData {
+    const totalDemand = data.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
+    const totalTasks = data.dataPoints.reduce((sum, point) => sum + point.taskCount, 0);
+    
     const uniqueClients = new Set<string>();
-    matrixData.dataPoints.forEach(point => {
+    data.dataPoints.forEach(point => {
       point.taskBreakdown?.forEach(task => {
         uniqueClients.add(task.clientId);
       });
     });
 
     return {
-      ...matrixData,
+      ...data,
       totalDemand,
       totalTasks,
       totalClients: uniqueClients.size

@@ -1,101 +1,132 @@
 
-import { DemandDataPoint } from '@/types/demand';
-import { RevenueEnhancedDataPointContext } from './types';
+import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
+import { RecurringTaskDB } from '@/types/task';
+import { format, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { debugLog } from '../../logger';
+import { SkillResolutionService } from '../skillResolutionService';
 
 /**
  * Data Point Generation Service
- * Handles creation of matrix data points with revenue enhancement
+ * 
+ * Handles the generation of matrix data points from recurring tasks
+ * with proper skill resolution and demand calculation.
  */
 export class DataPointGenerationService {
   /**
-   * Generate enhanced data points with revenue context
+   * Generate matrix data points from recurring tasks
    */
-  static generateRevenueEnhancedDataPoints(contexts: RevenueEnhancedDataPointContext[]): DemandDataPoint[] {
-    try {
-      return contexts.map(context => ({
-        skillType: context.skillType,
-        month: context.month,
-        monthLabel: context.monthLabel,
-        demandHours: context.demandHours,
-        taskCount: context.taskCount,
-        clientCount: context.clientCount,
-        taskBreakdown: context.taskBreakdown
-      }));
-    } catch (error) {
-      console.error('Error generating enhanced data points:', error);
-      debugLog('Falling back to basic data point generation');
-      return [];
+  static async generateDataPoints(
+    tasks: RecurringTaskDB[],
+    startDate: Date,
+    endDate: Date
+  ): Promise<DemandDataPoint[]> {
+    debugLog('Generating data points', { 
+      tasksCount: tasks.length, 
+      dateRange: { startDate, endDate } 
+    });
+
+    const months = eachMonthOfInterval({ start: startDate, end: endDate });
+    const dataPoints: DemandDataPoint[] = [];
+
+    for (const monthStart of months) {
+      const monthEnd = endOfMonth(monthStart);
+      const monthKey = format(monthStart, 'yyyy-MM');
+      const monthLabel = format(monthStart, 'MMM yyyy');
+
+      // Group tasks by resolved skill type
+      const skillGroups = new Map<string, ClientTaskDemand[]>();
+
+      for (const task of tasks) {
+        // Resolve skill type using the skill resolution service
+        const resolvedSkill = await SkillResolutionService.resolveSkillType(task.required_skill);
+        
+        // Calculate monthly occurrences
+        const monthlyOccurrences = this.calculateTaskOccurrences(
+          task.recurrence_pattern,
+          monthStart,
+          monthEnd
+        );
+
+        if (monthlyOccurrences > 0) {
+          const monthlyHours = (task.default_estimated_hours || 0) * monthlyOccurrences;
+
+          const taskDemand: ClientTaskDemand = {
+            clientTaskDemandId: `${task.id}-${monthKey}`,
+            clientId: task.client_id,
+            clientName: task.client_name || 'Unknown Client',
+            recurringTaskId: task.id,
+            taskName: task.task_name,
+            skillType: resolvedSkill,
+            estimatedHours: task.default_estimated_hours || 0,
+            monthlyHours,
+            recurrencePattern: task.recurrence_pattern || 'monthly', // Keep as string
+            preferredStaff: task.preferred_staff_id ? {
+              staffId: task.preferred_staff_id,
+              full_name: task.preferred_staff_name || task.preferred_staff_id
+            } : null
+          };
+
+          if (!skillGroups.has(resolvedSkill)) {
+            skillGroups.set(resolvedSkill, []);
+          }
+          skillGroups.get(resolvedSkill)!.push(taskDemand);
+        }
+      }
+
+      // Create data points for each skill group
+      skillGroups.forEach((taskBreakdown, skillType) => {
+        const demandHours = taskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+        const uniqueClients = new Set(taskBreakdown.map(task => task.clientId));
+
+        dataPoints.push({
+          month: monthKey,
+          monthLabel,
+          skillType,
+          demandHours,
+          taskCount: taskBreakdown.length,
+          clientCount: uniqueClients.size,
+          taskBreakdown
+        });
+      });
     }
+
+    debugLog(`Generated ${dataPoints.length} data points across ${months.length} months`);
+    return dataPoints;
   }
 
   /**
-   * Generate data points with skill mapping for matrix transformation
+   * Calculate task occurrences within a month based on recurrence pattern
    */
-  static async generateDataPointsWithSkillMapping(context: {
-    forecastData: any[];
-    tasks: any[];
-    skills: string[];
-    skillMapping: Map<string, string>;
-  }): Promise<DemandDataPoint[]> {
-    try {
-      const { tasks, skills, skillMapping } = context;
-      const dataPoints: DemandDataPoint[] = [];
+  private static calculateTaskOccurrences(
+    recurrencePattern: string | null,
+    monthStart: Date,
+    monthEnd: Date
+  ): number {
+    if (!recurrencePattern) return 1;
 
-      // Generate data points for each skill
-      skills.forEach(skillName => {
-        // Find tasks that require this skill
-        const skillTasks = tasks.filter(task => {
-          if (!Array.isArray(task.required_skills)) return false;
-          
-          return task.required_skills.some((skillRef: string) => {
-            const resolvedName = skillMapping.get(skillRef);
-            return resolvedName === skillName;
-          });
-        });
-
-        if (skillTasks.length > 0) {
-          // Create basic data point structure
-          const taskBreakdown = skillTasks.map(task => ({
-            clientId: task.client_id,
-            clientName: task.clients?.legal_name || 'Unknown Client',
-            recurringTaskId: task.id,
-            taskName: task.name,
-            skillType: skillName,
-            estimatedHours: task.estimated_hours || 0,
-            monthlyHours: task.estimated_hours || 0,
-            recurrencePattern: {
-              type: task.recurrence_type || 'Monthly',
-              interval: task.recurrence_interval || 1,
-              frequency: 1
-            },
-            preferredStaff: task.preferred_staff ? {
-              staffId: task.preferred_staff.id,
-              staffName: task.preferred_staff.full_name,
-              roleTitle: task.preferred_staff.role_title,
-              assignmentType: 'preferred' as const
-            } : undefined
-          }));
-
-          const demandHours = taskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
-          const uniqueClients = new Set(taskBreakdown.map(task => task.clientId));
-
-          dataPoints.push({
-            skillType: skillName,
-            month: '2024-01',
-            monthLabel: 'Jan 2024',
-            demandHours,
-            taskCount: taskBreakdown.length,
-            clientCount: uniqueClients.size,
-            taskBreakdown
-          });
-        }
-      });
-
-      return dataPoints;
-    } catch (error) {
-      console.error('Error generating data points with skill mapping:', error);
-      return [];
+    const pattern = recurrencePattern.toLowerCase();
+    
+    if (pattern.includes('daily')) {
+      const daysInMonth = Math.ceil((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24));
+      return daysInMonth;
     }
+    
+    if (pattern.includes('weekly')) {
+      return 4; // Approximate weeks per month
+    }
+    
+    if (pattern.includes('monthly')) {
+      return 1;
+    }
+    
+    if (pattern.includes('quarterly')) {
+      return 1/3; // Once every 3 months
+    }
+    
+    if (pattern.includes('annually') || pattern.includes('yearly')) {
+      return 1/12; // Once every 12 months
+    }
+
+    return 1; // Default
   }
 }

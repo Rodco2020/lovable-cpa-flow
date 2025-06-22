@@ -1,354 +1,337 @@
 
 /**
- * Phase 4: Filtering Validation Service
+ * Phase 4: Advanced Filtering Validator
  * 
- * Validates filtering results and ensures data integrity
+ * Comprehensive validation service for filtering operations with enhanced
+ * error detection, data integrity checks, and performance monitoring.
  */
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
-import { FilteringResult } from './filteringEngine';
+import { extractStaffId } from '../utils/staffIdExtractor';
 
 export interface ValidationResult {
   isValid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  integrity: DataIntegrityCheck;
+  performanceMetrics: {
+    validationTime: number;
+    checksPerformed: number;
+  };
 }
 
 export interface ValidationError {
   code: string;
   message: string;
-  severity: 'critical' | 'major' | 'minor';
-  context?: any;
+  field?: string;
+  severity: 'error' | 'warning';
 }
 
 export interface ValidationWarning {
   code: string;
   message: string;
+  field?: string;
   recommendation?: string;
-  context?: any;
 }
 
-export interface DataIntegrityCheck {
-  taskCountConsistency: boolean;
-  demandHoursConsistency: boolean;
-  clientCountConsistency: boolean;
-  skillDataConsistency: boolean;
-  monthDataConsistency: boolean;
-  preferredStaffConsistency: boolean;
-}
-
+/**
+ * Phase 4: Advanced filtering validation with comprehensive error detection
+ */
 export class FilteringValidator {
   /**
-   * Phase 4: Comprehensive validation of filtering results
+   * Validate filtering input data and configuration
+   */
+  static validateFilteringInput(
+    data: DemandMatrixData,
+    filters: DemandFilters
+  ): ValidationResult {
+    const startTime = Date.now();
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+    let checksPerformed = 0;
+
+    console.log(`🔍 [PHASE 4 VALIDATOR] Starting comprehensive validation:`, {
+      dataPointsCount: data.dataPoints.length,
+      filtersCount: Object.keys(filters).length
+    });
+
+    // Validate data structure
+    const dataValidation = this.validateDataStructure(data);
+    errors.push(...dataValidation.errors);
+    warnings.push(...dataValidation.warnings);
+    checksPerformed += dataValidation.checksPerformed;
+
+    // Validate filters
+    const filtersValidation = this.validateFilters(filters);
+    errors.push(...filtersValidation.errors);
+    warnings.push(...filtersValidation.warnings);
+    checksPerformed += filtersValidation.checksPerformed;
+
+    // Validate compatibility
+    const compatibilityValidation = this.validateFilterCompatibility(data, filters);
+    errors.push(...compatibilityValidation.errors);
+    warnings.push(...compatibilityValidation.warnings);
+    checksPerformed += compatibilityValidation.checksPerformed;
+
+    const validationTime = Date.now() - startTime;
+    const isValid = errors.filter(e => e.severity === 'error').length === 0;
+
+    console.log(`${isValid ? '✅' : '❌'} [PHASE 4 VALIDATOR] Validation completed:`, {
+      isValid,
+      errorsCount: errors.filter(e => e.severity === 'error').length,
+      warningsCount: warnings.length,
+      validationTime,
+      checksPerformed
+    });
+
+    return {
+      isValid,
+      errors,
+      warnings,
+      performanceMetrics: {
+        validationTime,
+        checksPerformed
+      }
+    };
+  }
+
+  /**
+   * Validate filtering result against expected criteria
    */
   static validateFilteringResult(
     originalData: DemandMatrixData,
     filters: DemandFilters,
-    result: FilteringResult
+    filteredData: DemandMatrixData
   ): ValidationResult {
-    console.log(`🔍 [PHASE 4 VALIDATOR] Starting comprehensive validation:`, {
-      originalDataPoints: originalData.dataPoints.length,
-      filteredDataPoints: result.filteredData.dataPoints.length,
-      filtersApplied: Object.keys(filters).length,
-      timestamp: new Date().toISOString()
-    });
-
+    const startTime = Date.now();
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
+    let checksPerformed = 0;
 
-    // 1. Validate data structure integrity
-    const structureValidation = this.validateDataStructure(result.filteredData);
-    errors.push(...structureValidation.errors);
-    warnings.push(...structureValidation.warnings);
+    // Check data reduction is reasonable
+    checksPerformed++;
+    const reductionRatio = originalData.dataPoints.length > 0 
+      ? (originalData.dataPoints.length - filteredData.dataPoints.length) / originalData.dataPoints.length 
+      : 0;
 
-    // 2. Validate filtering logic consistency
-    const logicValidation = this.validateFilteringLogic(originalData, filters, result.filteredData);
-    errors.push(...logicValidation.errors);
-    warnings.push(...logicValidation.warnings);
-
-    // 3. Validate preferred staff filtering (Phase 4 specific)
-    if (filters.preferredStaff) {
-      const staffValidation = this.validatePreferredStaffFiltering(
-        originalData, 
-        filters.preferredStaff, 
-        result.filteredData
-      );
-      errors.push(...staffValidation.errors);
-      warnings.push(...staffValidation.warnings);
+    if (reductionRatio > 0.9) {
+      warnings.push({
+        code: 'EXCESSIVE_DATA_REDUCTION',
+        message: `Filtering reduced data by ${(reductionRatio * 100).toFixed(1)}%. This might be too aggressive.`,
+        recommendation: 'Review filter criteria to ensure they are not overly restrictive'
+      });
     }
 
-    // 4. Validate performance metrics
-    const performanceValidation = this.validatePerformanceMetrics(result.performanceStats);
-    warnings.push(...performanceValidation.warnings);
+    // Validate preferred staff filtering consistency
+    checksPerformed++;
+    if (filters.preferredStaffIds || filters.preferredStaff) {
+      const staffFilterValidation = this.validatePreferredStaffFiltering(filteredData, filters);
+      errors.push(...staffFilterValidation.errors);
+      warnings.push(...staffFilterValidation.warnings);
+      checksPerformed += staffFilterValidation.checksPerformed;
+    }
 
-    // 5. Data integrity checks
-    const integrityCheck = this.performDataIntegrityCheck(result.filteredData);
+    // Check totals consistency
+    checksPerformed++;
+    const calculatedTotalDemand = filteredData.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
+    if (Math.abs(calculatedTotalDemand - filteredData.totalDemand) > 0.01) {
+      errors.push({
+        code: 'TOTALS_INCONSISTENCY',
+        message: `Total demand mismatch: calculated ${calculatedTotalDemand}, stored ${filteredData.totalDemand}`,
+        severity: 'error'
+      });
+    }
 
-    const validationResult: ValidationResult = {
-      isValid: errors.filter(e => e.severity === 'critical').length === 0,
+    const validationTime = Date.now() - startTime;
+    const isValid = errors.filter(e => e.severity === 'error').length === 0;
+
+    return {
+      isValid,
       errors,
       warnings,
-      integrity: integrityCheck
+      performanceMetrics: {
+        validationTime,
+        checksPerformed
+      }
     };
-
-    console.log(`✅ [PHASE 4 VALIDATOR] Validation completed:`, {
-      isValid: validationResult.isValid,
-      criticalErrors: errors.filter(e => e.severity === 'critical').length,
-      majorErrors: errors.filter(e => e.severity === 'major').length,
-      minorErrors: errors.filter(e => e.severity === 'minor').length,
-      warnings: warnings.length,
-      integrityScore: this.calculateIntegrityScore(integrityCheck)
-    });
-
-    return validationResult;
   }
 
+  /**
+   * Validate data structure integrity
+   */
   private static validateDataStructure(data: DemandMatrixData): {
     errors: ValidationError[];
     warnings: ValidationWarning[];
+    checksPerformed: number;
   } {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
+    let checksPerformed = 0;
 
     // Check required fields
-    if (!data.dataPoints || !Array.isArray(data.dataPoints)) {
+    checksPerformed++;
+    if (!data.dataPoints) {
       errors.push({
         code: 'MISSING_DATA_POINTS',
-        message: 'Data points array is missing or invalid',
-        severity: 'critical'
+        message: 'Data points array is missing',
+        field: 'dataPoints',
+        severity: 'error'
       });
     }
 
-    if (!data.months || !Array.isArray(data.months)) {
-      errors.push({
-        code: 'MISSING_MONTHS',
-        message: 'Months array is missing or invalid',
-        severity: 'critical'
-      });
-    }
-
-    if (!data.skills || !Array.isArray(data.skills)) {
-      errors.push({
-        code: 'MISSING_SKILLS',
-        message: 'Skills array is missing or invalid',
-        severity: 'major'
-      });
-    }
-
-    // Check data consistency
-    data.dataPoints?.forEach((point, index) => {
-      if (typeof point.demandHours !== 'number' || point.demandHours < 0) {
-        errors.push({
-          code: 'INVALID_DEMAND_HOURS',
-          message: `Invalid demand hours at data point ${index}`,
-          severity: 'major',
-          context: { index, demandHours: point.demandHours }
-        });
-      }
-
-      if (typeof point.taskCount !== 'number' || point.taskCount < 0) {
-        errors.push({
-          code: 'INVALID_TASK_COUNT',
-          message: `Invalid task count at data point ${index}`,
-          severity: 'major',
-          context: { index, taskCount: point.taskCount }
-        });
-      }
-
-      if (point.taskBreakdown && point.taskBreakdown.length !== point.taskCount) {
-        warnings.push({
-          code: 'TASK_BREAKDOWN_MISMATCH',
-          message: `Task breakdown length doesn't match task count at data point ${index}`,
-          context: { index, taskCount: point.taskCount, breakdownLength: point.taskBreakdown.length }
-        });
-      }
-    });
-
-    return { errors, warnings };
-  }
-
-  private static validateFilteringLogic(
-    originalData: DemandMatrixData,
-    filters: DemandFilters,
-    filteredData: DemandMatrixData
-  ): { errors: ValidationError[]; warnings: ValidationWarning[] } {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationWarning[] = [];
-
-    // Validate skill filtering
-    if (filters.skills && filters.skills.length > 0) {
-      const unexpectedSkills = filteredData.skills.filter(skill => !filters.skills!.includes(skill));
-      if (unexpectedSkills.length > 0) {
-        errors.push({
-          code: 'SKILL_FILTER_VIOLATION',
-          message: 'Filtered data contains skills not in filter',
-          severity: 'major',
-          context: { unexpectedSkills }
-        });
-      }
-    }
-
-    // Validate client filtering
-    if (filters.clients && filters.clients.length > 0) {
-      const clientSet = new Set(filters.clients);
-      filteredData.dataPoints.forEach((point, index) => {
-        point.taskBreakdown?.forEach((task, taskIndex) => {
-          if (!clientSet.has(task.clientId)) {
-            errors.push({
-              code: 'CLIENT_FILTER_VIOLATION',
-              message: 'Filtered data contains clients not in filter',
-              severity: 'major',
-              context: { dataPointIndex: index, taskIndex, clientId: task.clientId }
-            });
-          }
-        });
-      });
-    }
-
-    // Check data reduction ratios
-    const reductionRatio = (originalData.dataPoints.length - filteredData.dataPoints.length) / originalData.dataPoints.length;
-    if (reductionRatio > 0.9) {
-      warnings.push({
-        code: 'HIGH_DATA_REDUCTION',
-        message: 'Filtering removed more than 90% of data',
-        recommendation: 'Verify filter criteria are not too restrictive',
-        context: { reductionRatio: reductionRatio * 100 }
-      });
-    }
-
-    return { errors, warnings };
-  }
-
-  private static validatePreferredStaffFiltering(
-    originalData: DemandMatrixData,
-    preferredStaffFilter: NonNullable<DemandFilters['preferredStaff']>,
-    filteredData: DemandMatrixData
-  ): { errors: ValidationError[]; warnings: ValidationWarning[] } {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationWarning[] = [];
-
-    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffFilter;
-
-    // Determine expected filtering mode
-    let expectedMode: 'all' | 'specific' | 'none' = 'all';
-    if (showOnlyPreferred && staffIds.length === 0) {
-      expectedMode = 'none';
-    } else if (staffIds.length > 0) {
-      expectedMode = 'specific';
-    }
-
-    console.log(`🔍 [VALIDATOR] Validating preferred staff filtering:`, {
-      expectedMode,
-      staffIds: staffIds.length,
-      includeUnassigned,
-      showOnlyPreferred
-    });
-
-    filteredData.dataPoints.forEach((point, pointIndex) => {
-      point.taskBreakdown?.forEach((task, taskIndex) => {
-        const hasPreferredStaff = !!task.preferredStaff?.staffId;
-        const matchesSelectedStaff = hasPreferredStaff && staffIds.includes(task.preferredStaff!.staffId);
-
-        if (expectedMode === 'specific') {
-          // Should only have tasks with selected staff or unassigned (if includeUnassigned)
-          if (hasPreferredStaff && !matchesSelectedStaff) {
-            errors.push({
-              code: 'STAFF_FILTER_VIOLATION_SPECIFIC',
-              message: 'Task with non-selected preferred staff found in specific mode',
-              severity: 'major',
-              context: { pointIndex, taskIndex, staffId: task.preferredStaff?.staffId }
-            });
-          }
-          if (!hasPreferredStaff && !includeUnassigned) {
-            errors.push({
-              code: 'UNASSIGNED_TASK_IN_SPECIFIC_MODE',
-              message: 'Unassigned task found when includeUnassigned is false',
-              severity: 'major',
-              context: { pointIndex, taskIndex }
-            });
-          }
-        } else if (expectedMode === 'none') {
-          // Should only have tasks without preferred staff
-          if (hasPreferredStaff) {
-            errors.push({
-              code: 'ASSIGNED_TASK_IN_NONE_MODE',
-              message: 'Task with preferred staff found in none mode',
-              severity: 'major',
-              context: { pointIndex, taskIndex, staffId: task.preferredStaff?.staffId }
-            });
-          }
+    // Check data points structure
+    if (data.dataPoints) {
+      data.dataPoints.forEach((point, index) => {
+        checksPerformed++;
+        if (!point.skillType) {
+          errors.push({
+            code: 'MISSING_SKILL_TYPE',
+            message: `Data point ${index} is missing skillType`,
+            field: `dataPoints[${index}].skillType`,
+            severity: 'error'
+          });
         }
-        // Mode 'all' allows any tasks, so no validation needed
-      });
-    });
 
-    return { errors, warnings };
+        // Validate task breakdown
+        if (point.taskBreakdown) {
+          point.taskBreakdown.forEach((task, taskIndex) => {
+            checksPerformed++;
+            if (task.preferredStaff) {
+              const staffId = extractStaffId(task.preferredStaff);
+              if (!staffId && typeof task.preferredStaff === 'object') {
+                warnings.push({
+                  code: 'INVALID_PREFERRED_STAFF',
+                  message: `Task ${taskIndex} has invalid preferred staff structure`,
+                  field: `dataPoints[${index}].taskBreakdown[${taskIndex}].preferredStaff`,
+                  recommendation: 'Ensure preferred staff has valid staffId'
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+
+    return { errors, warnings, checksPerformed };
   }
 
-  private static validatePerformanceMetrics(performanceStats: any): { warnings: ValidationWarning[] } {
+  /**
+   * Validate preferred staff filtering logic
+   */
+  private static validatePreferredStaffFiltering(
+    data: DemandMatrixData,
+    filters: DemandFilters
+  ): {
+    errors: ValidationError[];
+    warnings: ValidationWarning[];
+    checksPerformed: number;
+  } {
+    const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
+    let checksPerformed = 0;
 
-    if (performanceStats.totalProcessingTime > 1000) {
-      warnings.push({
-        code: 'SLOW_FILTERING_PERFORMANCE',
-        message: 'Filtering took longer than 1 second',
-        recommendation: 'Consider optimizing filter logic or data structure',
-        context: { processingTime: performanceStats.totalProcessingTime }
-      });
-    }
-
-    if (performanceStats.memoryUsage?.reductionPercentage < 0) {
-      warnings.push({
-        code: 'MEMORY_USAGE_INCREASE',
-        message: 'Memory usage increased after filtering',
-        recommendation: 'Review filtering implementation for memory leaks',
-        context: { reductionPercentage: performanceStats.memoryUsage.reductionPercentage }
-      });
-    }
-
-    return { warnings };
-  }
-
-  private static performDataIntegrityCheck(data: DemandMatrixData): DataIntegrityCheck {
-    const check: DataIntegrityCheck = {
-      taskCountConsistency: true,
-      demandHoursConsistency: true,
-      clientCountConsistency: true,
-      skillDataConsistency: true,
-      monthDataConsistency: true,
-      preferredStaffConsistency: true
+    const preferredStaffConfig = filters.preferredStaff || {
+      staffIds: filters.preferredStaffIds || [],
+      includeUnassigned: false,
+      showOnlyPreferred: false
     };
 
-    // Check task count consistency
-    data.dataPoints.forEach(point => {
-      if (point.taskBreakdown && point.taskBreakdown.length !== point.taskCount) {
-        check.taskCountConsistency = false;
-      }
+    // Check if filtering actually applied
+    checksPerformed++;
+    if (preferredStaffConfig.staffIds.length > 0 || preferredStaffConfig.showOnlyPreferred) {
+      let hasMatchingTasks = false;
+      
+      data.dataPoints.forEach(point => {
+        point.taskBreakdown?.forEach(task => {
+          checksPerformed++;
+          const staffId = extractStaffId(task.preferredStaff);
+          if (staffId && preferredStaffConfig.staffIds.includes(staffId)) {
+            hasMatchingTasks = true;
+          }
+        });
+      });
 
-      // Check demand hours consistency
-      if (point.taskBreakdown) {
-        const calculatedHours = point.taskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
-        if (Math.abs(calculatedHours - point.demandHours) > 0.01) {
-          check.demandHoursConsistency = false;
-        }
+      if (!hasMatchingTasks && preferredStaffConfig.staffIds.length > 0) {
+        warnings.push({
+          code: 'NO_MATCHING_STAFF_TASKS',
+          message: 'No tasks found matching the selected preferred staff',
+          recommendation: 'Verify that the selected staff have assigned tasks in the current data set'
+        });
       }
+    }
 
-      // Check client count consistency
-      if (point.taskBreakdown) {
-        const uniqueClients = new Set(point.taskBreakdown.map(task => task.clientId));
-        if (uniqueClients.size !== point.clientCount) {
-          check.clientCountConsistency = false;
-        }
-      }
-    });
-
-    return check;
+    return { errors, warnings, checksPerformed };
   }
 
-  private static calculateIntegrityScore(integrity: DataIntegrityCheck): number {
-    const checks = Object.values(integrity);
-    const passedChecks = checks.filter(Boolean).length;
-    return (passedChecks / checks.length) * 100;
+  /**
+   * Validate filters configuration
+   */
+  private static validateFilters(filters: DemandFilters): {
+    errors: ValidationError[];
+    warnings: ValidationWarning[];
+    checksPerformed: number;
+  } {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+    let checksPerformed = 0;
+
+    // Validate date ranges
+    checksPerformed++;
+    if (filters.timeHorizon) {
+      if (filters.timeHorizon.start >= filters.timeHorizon.end) {
+        errors.push({
+          code: 'INVALID_DATE_RANGE',
+          message: 'Start date must be before end date',
+          field: 'timeHorizon',
+          severity: 'error'
+        });
+      }
+    }
+
+    // Validate arrays
+    checksPerformed++;
+    if (filters.skillTypes && !Array.isArray(filters.skillTypes)) {
+      errors.push({
+        code: 'INVALID_SKILL_TYPES',
+        message: 'skillTypes must be an array',
+        field: 'skillTypes',
+        severity: 'error'
+      });
+    }
+
+    return { errors, warnings, checksPerformed };
+  }
+
+  /**
+   * Validate filter compatibility with data
+   */
+  private static validateFilterCompatibility(
+    data: DemandMatrixData,
+    filters: DemandFilters
+  ): {
+    errors: ValidationError[];
+    warnings: ValidationWarning[];
+    checksPerformed: number;
+  } {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+    let checksPerformed = 0;
+
+    // Check if skills exist in data
+    checksPerformed++;
+    if (filters.skillTypes) {
+      const availableSkills = new Set(data.skills);
+      const missingSkills = filters.skillTypes.filter(skill => !availableSkills.has(skill));
+      
+      if (missingSkills.length > 0) {
+        warnings.push({
+          code: 'SKILLS_NOT_FOUND',
+          message: `Skills not found in data: ${missingSkills.join(', ')}`,
+          field: 'skillTypes',
+          recommendation: 'Remove non-existent skills from filter or update data'
+        });
+      }
+    }
+
+    return { errors, warnings, checksPerformed };
   }
 }

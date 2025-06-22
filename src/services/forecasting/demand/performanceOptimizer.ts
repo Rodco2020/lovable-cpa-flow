@@ -1,127 +1,203 @@
-
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
+import { extractStaffId } from './utils/staffIdExtractor';
 import { debugLog } from '../logger';
 
 /**
- * Demand Performance Optimizer
- * Optimizes filtering and processing of demand matrix data
+ * Performance Optimizer for Demand Matrix Operations
+ * 
+ * Provides performance optimization techniques for large-scale demand data processing,
+ * including caching, batching, and efficient filtering algorithms.
  */
-export class DemandPerformanceOptimizer {
+
+export interface OptimizationResult {
+  optimizedData: DemandMatrixData;
+  performanceMetrics: {
+    processingTime: number;
+    memoryUsage: number;
+    optimizationRatio: number;
+  };
+}
+
+export interface OptimizationOptions {
+  enableCaching?: boolean;
+  enableBatching?: boolean;
+  batchSize?: number;
+  enableParallelProcessing?: boolean;
+}
+
+/**
+ * Performance optimizer for demand matrix operations
+ */
+export class PerformanceOptimizer {
+  private static cache = new Map<string, { data: DemandMatrixData; timestamp: number }>();
+  private static readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
   /**
-   * Optimize filtering for demand matrix data with preferred staff support
+   * Optimize demand matrix filtering for large datasets
    */
-  static optimizeFiltering(matrixData: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
-    debugLog('Optimizing demand matrix filtering with preferred staff support', { filters });
+  static optimizeFiltering(
+    data: DemandMatrixData,
+    filters: DemandFilters,
+    options: OptimizationOptions = {}
+  ): OptimizationResult {
+    const startTime = Date.now();
+    const startMemory = process.memoryUsage?.()?.heapUsed || 0;
 
-    let filteredData = { ...matrixData };
-
-    // Apply skill filters
-    if (filters.skills && filters.skills.length > 0) {
-      filteredData = this.applySkillFilter(filteredData, filters.skills);
-    }
-
-    // Apply client filters
-    if (filters.clients && filters.clients.length > 0) {
-      filteredData = this.applyClientFilter(filteredData, filters.clients);
-    }
-
-    // Apply preferred staff filters
-    if (filters.preferredStaff) {
-      filteredData = this.applyPreferredStaffFilter(filteredData, filters.preferredStaff);
-    }
-
-    // Apply time horizon filters
-    if (filters.timeHorizon) {
-      filteredData = this.applyTimeHorizonFilter(filteredData, filters.timeHorizon);
-    }
-
-    // Recalculate totals after filtering
-    filteredData = this.recalculateTotals(filteredData);
-
-    debugLog('Filtering optimization complete', {
-      originalDataPoints: matrixData.dataPoints.length,
-      filteredDataPoints: filteredData.dataPoints.length,
-      originalTotalDemand: matrixData.totalDemand,
-      filteredTotalDemand: filteredData.totalDemand
+    debugLog('Starting performance optimization', { 
+      dataPoints: data.dataPoints.length,
+      options 
     });
 
-    return filteredData;
-  }
+    const {
+      enableCaching = true,
+      enableBatching = false,
+      batchSize = 1000,
+      enableParallelProcessing = false
+    } = options;
 
-  /**
-   * Apply skill filter to matrix data
-   */
-  private static applySkillFilter(matrixData: DemandMatrixData, skills: string[]): DemandMatrixData {
-    const filteredDataPoints = matrixData.dataPoints.filter(point =>
-      skills.includes(point.skillType)
-    );
+    // Check cache first
+    const cacheKey = enableCaching ? this.generateCacheKey(data, filters) : null;
+    if (cacheKey) {
+      const cached = this.getCachedResult(cacheKey);
+      if (cached) {
+        debugLog('Cache hit for optimization');
+        return {
+          optimizedData: cached,
+          performanceMetrics: {
+            processingTime: Date.now() - startTime,
+            memoryUsage: 0,
+            optimizationRatio: 1.0
+          }
+        };
+      }
+    }
 
-    return {
-      ...matrixData,
-      dataPoints: filteredDataPoints,
-      skills: matrixData.skills.filter(skill => skills.includes(skill))
+    let optimizedData = { ...data };
+
+    // Apply optimized filtering
+    if (enableBatching && data.dataPoints.length > batchSize) {
+      optimizedData = this.applyBatchedFiltering(optimizedData, filters, batchSize);
+    } else {
+      optimizedData = this.applyOptimizedFiltering(optimizedData, filters);
+    }
+
+    // Cache result
+    if (cacheKey && enableCaching) {
+      this.setCachedResult(cacheKey, optimizedData);
+    }
+
+    const endTime = Date.now();
+    const endMemory = process.memoryUsage?.()?.heapUsed || 0;
+
+    const result: OptimizationResult = {
+      optimizedData,
+      performanceMetrics: {
+        processingTime: endTime - startTime,
+        memoryUsage: Math.max(0, endMemory - startMemory),
+        optimizationRatio: data.dataPoints.length > 0 
+          ? optimizedData.dataPoints.length / data.dataPoints.length 
+          : 1.0
+      }
     };
+
+    debugLog('Performance optimization completed', result.performanceMetrics);
+    return result;
   }
 
   /**
-   * Apply client filter to matrix data
+   * Apply optimized filtering with performance enhancements
    */
-  private static applyClientFilter(matrixData: DemandMatrixData, clients: string[]): DemandMatrixData {
-    const filteredDataPoints = matrixData.dataPoints.map(point => ({
-      ...point,
-      taskBreakdown: point.taskBreakdown?.filter(task =>
-        clients.includes(task.clientId)
-      ) || []
-    })).filter(point => point.taskBreakdown.length > 0);
+  private static applyOptimizedFiltering(
+    data: DemandMatrixData,
+    filters: DemandFilters
+  ): DemandMatrixData {
+    let filteredData = { ...data };
 
-    return {
-      ...matrixData,
-      dataPoints: filteredDataPoints
-    };
+    // Time horizon filter (most selective first)
+    if (filters.timeHorizon || filters.dateRange) {
+      const timeRange = filters.timeHorizon || filters.dateRange;
+      if (timeRange) {
+        filteredData = this.applyTimeHorizonFilter(filteredData, timeRange);
+      }
+    }
+
+    // Skill filter
+    if (filters.skillTypes?.length || filters.skills?.length) {
+      const skills = filters.skillTypes || filters.skills || [];
+      filteredData = this.applySkillFilter(filteredData, skills);
+    }
+
+    // Client filter
+    if (filters.clientIds?.length || filters.clients?.length) {
+      const clients = filters.clientIds || filters.clients || [];
+      filteredData = this.applyClientFilter(filteredData, clients);
+    }
+
+    // Preferred staff filter
+    if (filters.preferredStaffIds?.length || filters.preferredStaff) {
+      const preferredStaffConfig = filters.preferredStaff || {
+        staffIds: filters.preferredStaffIds || [],
+        includeUnassigned: false,
+        showOnlyPreferred: false
+      };
+      filteredData = this.applyPreferredStaffFilter(filteredData, preferredStaffConfig);
+    }
+
+    return this.recalculateTotals(filteredData);
   }
 
   /**
-   * Apply preferred staff filter to matrix data
+   * Apply preferred staff filter with optimized staff ID extraction
    */
   private static applyPreferredStaffFilter(
-    matrixData: DemandMatrixData, 
-    preferredStaffFilter: NonNullable<DemandFilters['preferredStaff']>
+    data: DemandMatrixData,
+    config: {
+      staffIds: string[];
+      includeUnassigned: boolean;
+      showOnlyPreferred: boolean;
+    }
   ): DemandMatrixData {
-    const { staffIds, includeUnassigned, showOnlyPreferred } = preferredStaffFilter;
+    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = config;
+    
+    // Determine filtering mode
+    let filteringMode: 'all' | 'specific' | 'none' = 'all';
+    if (showOnlyPreferred && staffIds.length === 0) {
+      filteringMode = 'none';
+    } else if (staffIds.length > 0) {
+      filteringMode = 'specific';
+    }
 
-    const filteredDataPoints = matrixData.dataPoints.map(point => {
+    const filteredDataPoints = data.dataPoints.map(point => {
       let filteredTaskBreakdown = point.taskBreakdown || [];
 
-      if (showOnlyPreferred) {
-        // Show only tasks with preferred staff assignments
-        filteredTaskBreakdown = filteredTaskBreakdown.filter(task =>
-          task.preferredStaff?.staffId
-        );
-      }
-
-      if (staffIds && staffIds.length > 0) {
-        // Filter by specific staff IDs
+      if (filteringMode === 'specific') {
         filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
-          const hasMatchingStaff = task.preferredStaff?.staffId && staffIds.includes(task.preferredStaff.staffId);
-          const isUnassigned = !task.preferredStaff?.staffId;
-          
+          const staffId = extractStaffId(task.preferredStaff);
+          const hasMatchingStaff = staffId && staffIds.includes(staffId);
+          const isUnassigned = !staffId;
           return hasMatchingStaff || (includeUnassigned && isUnassigned);
         });
-      } else if (!includeUnassigned) {
-        // If no specific staff IDs but not including unassigned, show only assigned tasks
-        filteredTaskBreakdown = filteredTaskBreakdown.filter(task =>
-          task.preferredStaff?.staffId
-        );
+      } else if (filteringMode === 'none') {
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const staffId = extractStaffId(task.preferredStaff);
+          return !staffId;
+        });
       }
+
+      const demandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const uniqueClients = new Set(filteredTaskBreakdown.map(task => task.clientId));
 
       return {
         ...point,
-        taskBreakdown: filteredTaskBreakdown
+        taskBreakdown: filteredTaskBreakdown,
+        demandHours,
+        taskCount: filteredTaskBreakdown.length,
+        clientCount: uniqueClients.size
       };
-    }).filter(point => point.taskBreakdown.length > 0);
+    }).filter(point => point.taskCount > 0);
 
     return {
-      ...matrixData,
+      ...data,
       dataPoints: filteredDataPoints
     };
   }
@@ -138,13 +214,55 @@ export class DemandPerformanceOptimizer {
       return monthDate >= timeHorizon.start && monthDate <= timeHorizon.end;
     });
 
-    const filteredDataPoints = matrixData.dataPoints.filter(point =>
-      filteredMonths.some(month => month.key === point.month)
-    );
+    const monthKeys = new Set(filteredMonths.map(m => m.key));
+    const filteredDataPoints = matrixData.dataPoints.filter(point => monthKeys.has(point.month));
 
     return {
       ...matrixData,
       months: filteredMonths,
+      dataPoints: filteredDataPoints
+    };
+  }
+
+  /**
+   * Apply skill filter to matrix data
+   */
+  private static applySkillFilter(matrixData: DemandMatrixData, skills: string[]): DemandMatrixData {
+    const skillSet = new Set(skills);
+    const filteredDataPoints = matrixData.dataPoints.filter(point => skillSet.has(point.skillType));
+    
+    return {
+      ...matrixData,
+      skills: matrixData.skills.filter(skill => skillSet.has(skill)),
+      dataPoints: filteredDataPoints
+    };
+  }
+
+  /**
+   * Apply client filter to matrix data
+   */
+  private static applyClientFilter(matrixData: DemandMatrixData, clients: string[]): DemandMatrixData {
+    const clientSet = new Set(clients);
+
+    const filteredDataPoints = matrixData.dataPoints.map(point => {
+      const filteredTaskBreakdown = point.taskBreakdown?.filter(task => 
+        clientSet.has(task.clientId)
+      ) || [];
+
+      const demandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const uniqueClients = new Set(filteredTaskBreakdown.map(task => task.clientId));
+
+      return {
+        ...point,
+        taskBreakdown: filteredTaskBreakdown,
+        demandHours,
+        taskCount: filteredTaskBreakdown.length,
+        clientCount: uniqueClients.size
+      };
+    }).filter(point => point.taskCount > 0);
+
+    return {
+      ...matrixData,
       dataPoints: filteredDataPoints
     };
   }
@@ -156,7 +274,6 @@ export class DemandPerformanceOptimizer {
     const totalDemand = matrixData.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
     const totalTasks = matrixData.dataPoints.reduce((sum, point) => sum + point.taskCount, 0);
     
-    // Count unique clients across all data points
     const uniqueClients = new Set<string>();
     matrixData.dataPoints.forEach(point => {
       point.taskBreakdown?.forEach(task => {
@@ -169,6 +286,52 @@ export class DemandPerformanceOptimizer {
       totalDemand,
       totalTasks,
       totalClients: uniqueClients.size
+    };
+  }
+
+  private static generateCacheKey(data: DemandMatrixData, filters: DemandFilters): string {
+    return JSON.stringify({
+      dataHash: data.dataPoints.length,
+      totalDemand: data.totalDemand,
+      filters
+    });
+  }
+
+  private static getCachedResult(cacheKey: string): DemandMatrixData | null {
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+    this.cache.delete(cacheKey);
+    return null;
+  }
+
+  private static setCachedResult(cacheKey: string, data: DemandMatrixData): void {
+    this.cache.set(cacheKey, { data, timestamp: Date.now() });
+  }
+
+  private static applyBatchedFiltering(
+    data: DemandMatrixData,
+    filters: DemandFilters,
+    batchSize: number
+  ): DemandMatrixData {
+    // For large datasets, process in batches
+    const batches = [];
+    for (let i = 0; i < data.dataPoints.length; i += batchSize) {
+      batches.push(data.dataPoints.slice(i, i + batchSize));
+    }
+
+    const processedBatches = batches.map(batch => {
+      const batchData = { ...data, dataPoints: batch };
+      return this.applyOptimizedFiltering(batchData, filters);
+    });
+
+    // Combine results
+    const combinedDataPoints = processedBatches.flatMap(batch => batch.dataPoints);
+    
+    return {
+      ...data,
+      dataPoints: combinedDataPoints
     };
   }
 }

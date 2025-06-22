@@ -1,223 +1,174 @@
 
-import { ForecastData } from '@/types/forecasting';
-import { RecurringTaskDB, SkillType } from '@/types/task';
-import { ClientTaskDemand } from '@/types/demand';
-import { ClientResolutionService } from '../clientResolutionService';
-import { RecurrenceCalculator } from '../recurrenceCalculator';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
+import { RecurringTaskDB } from '@/types/task';
+import { format, eachMonthOfInterval, endOfMonth } from 'date-fns';
+import { debugLog } from '../../logger';
 
 /**
- * Service responsible for calculating demand for skills and periods
- * FIXED: Now uses consistent full-hours-per-skill logic
+ * Demand Calculation Service
+ * 
+ * Core service for calculating demand metrics from recurring tasks
+ * with enhanced accuracy and consistency.
  */
 export class DemandCalculationService {
   /**
-   * Calculate demand for skill period with mapping support
-   * FIXED: Uses consistent logic for skill demand calculation
+   * Calculate comprehensive demand metrics from recurring tasks
    */
-  static calculateDemandForSkillPeriodWithMapping(
-    period: ForecastData, 
-    skill: SkillType, 
-    skillMapping: Map<string, string>
-  ): number {
-    try {
-      if (!period || !Array.isArray(period.demand)) {
-        return 0;
-      }
-
-      console.log(`🔍 [DEMAND CALC] Calculating demand for skill "${skill}" in period ${period.period} (FIXED logic)`);
-      console.log(`📋 [DEMAND CALC] Available demand items:`, period.demand.map(d => ({ skill: d.skill, hours: d.hours })));
-
-      // Try direct match first
-      let skillDemand = period.demand.find(d => d && d.skill === skill);
-      
-      // If no direct match, try mapping-based match
-      if (!skillDemand) {
-        for (const demandItem of period.demand) {
-          if (demandItem && demandItem.skill) {
-            const mappedSkill = skillMapping.get(demandItem.skill);
-            if (mappedSkill === skill) {
-              skillDemand = demandItem;
-              console.log(`🎯 [DEMAND CALC] Found skill via mapping: ${demandItem.skill} -> ${mappedSkill}`);
-              break;
-            }
-          }
-        }
-      }
-
-      if (!skillDemand || typeof skillDemand.hours !== 'number') {
-        console.log(`⚠️ [DEMAND CALC] No demand found for skill "${skill}"`);
-        return 0;
-      }
-
-      const hours = Math.max(0, skillDemand.hours);
-      console.log(`✅ [DEMAND CALC] Found ${hours}h demand for skill "${skill}" (FIXED: using full hours per skill)`);
-      return hours;
-    } catch (error) {
-      console.warn(`Error calculating demand for skill ${skill}:`, error);
-      return 0;
-    }
-  }
-
-  /**
-   * NEW: Calculate demand for skill period (simplified interface)
-   */
-  static calculateDemandForSkillPeriod(
-    skill: SkillType,
-    period: ForecastData,
+  static calculateDemandMetrics(
     tasks: RecurringTaskDB[],
-    skillMapping: Map<string, string>
-  ): { totalDemand: number; totalTasks: number; totalClients: number } {
-    try {
-      const demandHours = this.calculateDemandForSkillPeriodWithMapping(period, skill, skillMapping);
-      
-      // Calculate task and client counts for this skill in this period
-      const skillTasks = tasks.filter(task => {
-        if (!Array.isArray(task.required_skills)) return false;
-        return task.required_skills.some(taskSkill => {
-          const mappedSkill = skillMapping.get(taskSkill);
-          return mappedSkill === skill || taskSkill === skill;
-        });
+    startDate: Date,
+    endDate: Date
+  ): DemandDataPoint[] {
+    debugLog('Calculating demand metrics', { 
+      tasksCount: tasks.length,
+      dateRange: { startDate, endDate }
+    });
+
+    const months = eachMonthOfInterval({ start: startDate, end: endDate });
+    const demandPoints: DemandDataPoint[] = [];
+
+    months.forEach(monthStart => {
+      const monthEnd = endOfMonth(monthStart);
+      const monthKey = format(monthStart, 'yyyy-MM');
+      const monthLabel = format(monthStart, 'MMM yyyy');
+
+      // Group tasks by skill type for aggregation
+      const skillGroups = new Map<string, ClientTaskDemand[]>();
+
+      tasks.forEach(task => {
+        const skillType = task.required_skill || 'General';
+        
+        // Calculate monthly task occurrences
+        const occurrences = this.calculateTaskOccurrences(
+          task.recurrence_pattern,
+          monthStart,
+          monthEnd
+        );
+
+        if (occurrences > 0) {
+          const monthlyHours = (task.default_estimated_hours || 0) * occurrences;
+
+          const taskDemand: ClientTaskDemand = {
+            clientTaskDemandId: `${task.id}-${monthKey}`,
+            taskName: task.task_name,
+            clientId: task.client_id,
+            clientName: task.client_name || 'Unknown Client',
+            monthlyHours,
+            skillType,
+            estimatedHours: task.default_estimated_hours || 0,
+            recurrencePattern: task.recurrence_pattern || 'monthly', // Keep as string
+            recurringTaskId: task.id,
+            preferredStaff: task.preferred_staff_id ? {
+              staffId: task.preferred_staff_id,
+              full_name: task.preferred_staff_name || task.preferred_staff_id
+            } : null
+          };
+
+          if (!skillGroups.has(skillType)) {
+            skillGroups.set(skillType, []);
+          }
+          skillGroups.get(skillType)!.push(taskDemand);
+        }
       });
 
-      const uniqueClients = new Set(skillTasks.map(task => task.client_id)).size;
+      // Create demand points for each skill group
+      skillGroups.forEach((taskBreakdown, skillType) => {
+        const demandHours = taskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+        const uniqueClients = new Set(taskBreakdown.map(task => task.clientId));
 
-      return {
-        totalDemand: demandHours,
-        totalTasks: skillTasks.length,
-        totalClients: uniqueClients
-      };
-    } catch (error) {
-      console.warn(`Error calculating demand for skill period ${skill}:`, error);
-      return { totalDemand: 0, totalTasks: 0, totalClients: 0 };
-    }
-  }
-
-  /**
-   * NEW: Calculate monthly demand for a specific task
-   */
-  static calculateMonthlyDemandForTask(
-    task: RecurringTaskDB,
-    forecastPeriod: ForecastData
-  ): { monthlyHours: number; monthlyOccurrences: number } {
-    try {
-      if (!task || !forecastPeriod) {
-        return { monthlyHours: 0, monthlyOccurrences: 0 };
-      }
-
-      // Parse period to get month boundaries
-      const periodDate = new Date(`${forecastPeriod.period}-01`);
-      const monthStart = startOfMonth(periodDate);
-      const monthEnd = endOfMonth(periodDate);
-
-      // Calculate recurrence for this task in the month
-      const recurrence = RecurrenceCalculator.calculateMonthlyDemand(task, monthStart, monthEnd);
-
-      const estimatedHours = Math.max(0, task.estimated_hours || 0);
-      const monthlyHours = recurrence.monthlyOccurrences * estimatedHours;
-
-      return {
-        monthlyHours,
-        monthlyOccurrences: recurrence.monthlyOccurrences
-      };
-    } catch (error) {
-      console.warn(`Error calculating monthly demand for task ${task.id}:`, error);
-      return { monthlyHours: 0, monthlyOccurrences: 0 };
-    }
-  }
-
-  /**
-   * Generate task breakdown with consistent client resolution using pre-resolved client map
-   * FIXED: Now uses full task hours per skill in breakdown generation
-   */
-  static async generateTaskBreakdownWithMapping(
-    tasks: RecurringTaskDB[],
-    skillDisplayName: SkillType,
-    period: string,
-    skillMapping: Map<string, string>,
-    clientResolutionMap?: Map<string, string>
-  ): Promise<ClientTaskDemand[]> {
-    try {
-      const breakdown: ClientTaskDemand[] = [];
-
-      console.log(`🔍 [TASK BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with FIXED logic`);
-
-      // Derive month boundaries from period string for recurrence calculation
-      const periodDate = new Date(`${period}-01`);
-      const monthStart = startOfMonth(periodDate);
-      const monthEnd = endOfMonth(periodDate);
-
-      // If no pre-resolved map provided, create one
-      let resolvedClientMap = clientResolutionMap;
-      if (!resolvedClientMap) {
-        const clientIds = new Set<string>();
-        tasks.forEach(task => {
-          if (task.client_id) {
-            clientIds.add(task.client_id);
-          }
+        demandPoints.push({
+          month: monthKey,
+          monthLabel,
+          skillType,
+          demandHours,
+          taskCount: taskBreakdown.length,
+          clientCount: uniqueClients.size,
+          taskBreakdown
         });
-        resolvedClientMap = await ClientResolutionService.resolveClientIds(Array.from(clientIds));
-      }
+      });
+    });
 
-      // Build breakdown with pre-resolved client names
-      for (const task of tasks) {
-        try {
-          if (!task || !Array.isArray(task.required_skills)) continue;
-          
-          // Check if task requires this skill using mapping
-          let hasSkill = false;
-          
-          for (const taskSkillRef of task.required_skills) {
-            const mappedSkillName = skillMapping.get(taskSkillRef);
-            if (mappedSkillName === skillDisplayName) {
-              hasSkill = true;
-              break;
-            }
-          }
+    return demandPoints;
+  }
 
-          if (hasSkill) {
-            const clientId = task.client_id || 'unknown';
-            const clientName = resolvedClientMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
+  /**
+   * Calculate task occurrences based on recurrence pattern
+   */
+  private static calculateTaskOccurrences(
+    recurrencePattern: string | null,
+    monthStart: Date,
+    monthEnd: Date
+  ): number {
+    if (!recurrencePattern) return 1;
 
-            // Calculate monthly recurrence for this task within the period
-            const recurrence = RecurrenceCalculator.calculateMonthlyDemand(
-              task,
-              monthStart,
-              monthEnd
-            );
+    const pattern = recurrencePattern.toLowerCase();
+    const daysInMonth = Math.ceil((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24));
 
-            // FIXED: Use full task hours for each skill (not divided)
-            const fullTaskHours = Math.max(0, task.estimated_hours || 0);
-            const monthlyTaskHours = recurrence.monthlyOccurrences * fullTaskHours;
-
-            const demandItem: ClientTaskDemand = {
-              clientId: clientId,
-              clientName: clientName,
-              recurringTaskId: task.id,
-              taskName: task.name || 'Unnamed Task',
-              skillType: skillDisplayName,
-              estimatedHours: fullTaskHours, // FIXED: Full task hours
-              recurrencePattern: {
-                type: task.recurrence_type || 'Monthly',
-                interval: task.recurrence_interval || 1,
-                frequency: recurrence.monthlyOccurrences
-              },
-              monthlyHours: monthlyTaskHours // FIXED: Full monthly hours
-            };
-
-            breakdown.push(demandItem);
-            console.log(`✨ [TASK BREAKDOWN] Added task ${task.id} (${clientName}) to breakdown for skill "${skillDisplayName}" with ${monthlyTaskHours}h (FIXED)`);
-          }
-        } catch (itemError) {
-          console.warn(`Error creating demand item for task ${task.id}:`, itemError);
-        }
-      }
-
-      console.log(`📊 [TASK BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with FIXED logic`);
-      return breakdown;
-    } catch (error) {
-      console.warn(`Error generating task breakdown for ${skillDisplayName}:`, error);
-      return [];
+    if (pattern.includes('daily')) {
+      return daysInMonth;
     }
+    
+    if (pattern.includes('weekly')) {
+      return Math.floor(daysInMonth / 7);
+    }
+    
+    if (pattern.includes('bi-weekly') || pattern.includes('biweekly')) {
+      return Math.floor(daysInMonth / 14);
+    }
+    
+    if (pattern.includes('monthly')) {
+      return 1;
+    }
+    
+    if (pattern.includes('quarterly')) {
+      return 1/3;
+    }
+    
+    if (pattern.includes('annually') || pattern.includes('yearly')) {
+      return 1/12;
+    }
+
+    // Try to extract numeric intervals
+    const numericMatch = pattern.match(/every\s+(\d+)\s+(day|week|month)/);
+    if (numericMatch) {
+      const interval = parseInt(numericMatch[1]);
+      const unit = numericMatch[2];
+      
+      switch (unit) {
+        case 'day':
+          return Math.floor(daysInMonth / interval);
+        case 'week':
+          return Math.floor(daysInMonth / (interval * 7));
+        case 'month':
+          return 1 / interval;
+      }
+    }
+
+    return 1; // Default to once per month
+  }
+
+  /**
+   * Aggregate demand data across all skills and periods
+   */
+  static aggregateDemandTotals(dataPoints: DemandDataPoint[]): {
+    totalDemand: number;
+    totalTasks: number;
+    totalClients: number;
+  } {
+    const totalDemand = dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
+    const totalTasks = dataPoints.reduce((sum, point) => sum + point.taskCount, 0);
+    
+    const allClients = new Set<string>();
+    dataPoints.forEach(point => {
+      point.taskBreakdown?.forEach(task => {
+        allClients.add(task.clientId);
+      });
+    });
+
+    return {
+      totalDemand,
+      totalTasks,
+      totalClients: allClients.size
+    };
   }
 }
