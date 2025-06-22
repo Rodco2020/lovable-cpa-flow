@@ -1,4 +1,3 @@
-
 /**
  * Filtering Validation Service
  * 
@@ -113,18 +112,17 @@ export class FilteringValidationService {
   }
 
   /**
-   * Extract staff ID from various staff reference formats
+   * Extract staff ID from various staff reference formats with proper type safety
    */
-  static extractStaffId(staffRef: any): string | null {
+  static extractStaffId(staffRef: string | { staffId: string; full_name: string; } | null): string | null {
     if (!staffRef) return null;
 
     if (typeof staffRef === 'string') {
       return staffRef.trim() || null;
     }
 
-    if (typeof staffRef === 'object') {
-      const staffId = staffRef.staffId || staffRef.id || staffRef.full_name || staffRef.name;
-      return staffId && typeof staffId === 'string' ? staffId.trim() : null;
+    if (typeof staffRef === 'object' && 'staffId' in staffRef) {
+      return staffRef.staffId?.trim() || null;
     }
 
     return null;

@@ -5,7 +5,10 @@ export interface ClientTaskDemand {
   clientId: string;
   clientName: string;
   monthlyHours: number;
-  skillType: string; // Add missing skillType property
+  skillType: string;
+  estimatedHours?: number; // Add missing property
+  recurrencePattern?: string; // Add missing property
+  recurringTaskId?: string; // Add missing property
   preferredStaff?: {
     staffId: string;
     full_name: string;
@@ -14,19 +17,22 @@ export interface ClientTaskDemand {
 
 export interface DemandDataPoint {
   month: string;
-  monthLabel: string; // Add missing monthLabel property
+  monthLabel: string;
   skillType: string;
   demandHours: number;
   taskCount: number;
   clientCount: number;
+  suggestedRevenue?: number; // Add missing property
+  expectedLessSuggested?: number; // Add missing property
   taskBreakdown?: ClientTaskDemand[];
 }
 
 export interface SkillSummary {
   skillType: string;
   totalDemand: number;
-  totalHours: number; // Add missing totalHours property
+  totalHours: number;
   taskCount: number;
+  clientCount?: number; // Add missing property
 }
 
 export interface MonthInfo {
@@ -42,7 +48,6 @@ export interface DemandMatrixData {
   totalTasks: number;
   totalClients: number;
   skillSummary: SkillSummary[];
-  // Add missing client-related properties
   clientTotals?: Map<string, number>;
   clientRevenue?: Map<string, number>;
   clientHourlyRates?: Map<string, number>;
@@ -52,6 +57,7 @@ export interface DemandMatrixData {
     totalRevenue: number;
     totalSuggestedRevenue: number;
     totalExpectedLessSuggested: number;
+    totalExpectedRevenue?: number; // Add missing property
   };
 }
 
@@ -61,4 +67,28 @@ export interface DemandMatrixFilters {
   selectedPreferredStaff: string[];
   monthRange: { start: number; end: number };
   preferredStaffFilterMode: 'all' | 'specific' | 'none';
+}
+
+// Add missing DemandFilters interface
+export interface DemandFilters {
+  skillTypes?: string[];
+  clientIds?: string[];
+  preferredStaffIds?: string[];
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
+  status?: string[];
+  priorities?: string[];
+}
+
+// Add missing ClientRevenueData interface
+export interface ClientRevenueData {
+  clientId: string;
+  clientName: string;
+  expectedRevenue: number;
+  suggestedRevenue: number;
+  actualRevenue?: number;
+  variance: number;
+  utilizationRate: number;
 }

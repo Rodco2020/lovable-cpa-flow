@@ -82,13 +82,12 @@ export const ExpandableControlsContent: React.FC<ExpandableControlsContentProps>
 
       <Separator />
 
-      {/* Skills Filter */}
+      {/* Skills Filter - FIXED: Use isAllSelected instead of isAllSkillsSelected */}
       <SkillsFilterSection
         selectedSkills={selectedSkills}
         onSkillToggle={onSkillToggle}
         availableSkills={availableSkills}
-        isAllSkillsSelected={isAllSkillsSelected}
-        isControlsExpanded={true}
+        isAllSelected={isAllSkillsSelected}
       />
 
       <Separator />
@@ -99,7 +98,6 @@ export const ExpandableControlsContent: React.FC<ExpandableControlsContentProps>
         onClientToggle={onClientToggle}
         availableClients={availableClients}
         isAllClientsSelected={isAllClientsSelected}
-        isControlsExpanded={true}
       />
 
       <Separator />
