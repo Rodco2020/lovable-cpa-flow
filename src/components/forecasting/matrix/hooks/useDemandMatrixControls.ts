@@ -24,8 +24,8 @@
 
 // Re-export the refactored implementation
 export { 
-  useDemandMatrixControls,
-  useDemandMatrixControls as default
+  useDemandMatrixControlsRefactored as useDemandMatrixControls,
+  useDemandMatrixControlsRefactored as default
 } from './useDemandMatrixControls';
 
 // Re-export types for external consumption

@@ -6,16 +6,36 @@
 
 import { ClientRevenueData } from '@/types/demand';
 
+export interface SkillDemandData {
+  skillType: string;
+  demandHours: number;
+  suggestedRevenue: number;
+}
+
+export interface RevenueComparisonResult {
+  variance: number;
+  percentageVariance: number;
+  recommendation: string;
+}
+
+export interface BulkRevenueCalculationOptions {
+  includeProjections?: boolean;
+  includeVarianceAnalysis?: boolean;
+  threshold?: number;
+}
+
+export class RevenueComparisonServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RevenueComparisonServiceError';
+  }
+}
+
 export class RevenueComparisonService {
   /**
    * Compare expected vs suggested revenue for a client
    */
-  static compareClientRevenue(clientData: ClientRevenueData): {
-    variance: number;
-    percentageVariance: number;
-    recommendation: string;
-  } {
-    // FIXED: Use expectedRevenue instead of expectedMonthlyRevenue
+  static compareClientRevenue(clientData: ClientRevenueData): RevenueComparisonResult {
     const expectedRevenue = clientData.expectedRevenue || 0;
     const suggestedRevenue = clientData.suggestedRevenue || 0;
     
@@ -54,7 +74,6 @@ export class RevenueComparisonService {
     const recommendations: string[] = [];
 
     clientsData.forEach(client => {
-      // FIXED: Use expectedRevenue consistently
       totalExpected += client.expectedRevenue || 0;
       totalSuggested += client.suggestedRevenue || 0;
 
@@ -76,7 +95,9 @@ export class RevenueComparisonService {
    * Calculate utilization impact on revenue
    */
   static calculateUtilizationImpact(client: ClientRevenueData): number {
-    // FIXED: Use expectedRevenue
     return (client.expectedRevenue || 0) * (client.utilizationRate / 100);
   }
 }
+
+// Create instance for easier usage
+export const revenueComparisonService = new RevenueComparisonService();

@@ -33,6 +33,9 @@ export interface SkillSummary {
   totalHours: number;
   taskCount: number;
   clientCount?: number;
+  totalSuggestedRevenue?: number;
+  totalExpectedLessSuggested?: number;
+  averageFeeRate?: number;
 }
 
 export interface MonthInfo {
@@ -82,6 +85,19 @@ export interface DemandFilters {
   };
   status?: string[];
   priorities?: string[];
+  // Add missing properties referenced in other files
+  timeHorizon?: {
+    start: Date;
+    end: Date;
+  };
+  skills?: string[];
+  clients?: string[];
+  preferredStaff?: {
+    staffIds: string[];
+    includeUnassigned: boolean;
+    showOnlyPreferred: boolean;
+  };
+  includeInactive?: boolean;
 }
 
 export interface ClientRevenueData {
@@ -92,4 +108,45 @@ export interface ClientRevenueData {
   actualRevenue?: number;
   variance: number;
   utilizationRate: number;
+}
+
+// Add missing type definitions
+export interface DemandForecastParameters {
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+  includeSkills: string[] | 'all';
+  includeClients: string[] | 'all';
+}
+
+export interface RecurrenceCalculation {
+  type: string;
+  interval: number;
+  frequency: number;
+}
+
+export interface PreferredStaffInfo {
+  staffId: string;
+  full_name: string;
+}
+
+export interface PreferredStaffMetadata {
+  assignmentCount: number;
+  totalHours: number;
+  skills: string[];
+}
+
+export interface LegacyDemandMatrixData extends DemandMatrixData {
+  legacy?: boolean;
+}
+
+export interface MatrixRevenueComparison {
+  expected: number;
+  suggested: number;
+  variance: number;
+}
+
+export function hasRevenueData(data: DemandMatrixData): boolean {
+  return !!(data.revenueTotals && data.revenueTotals.totalRevenue > 0);
 }

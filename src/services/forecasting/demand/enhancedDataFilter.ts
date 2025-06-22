@@ -136,23 +136,35 @@ export class EnhancedDataFilter {
     let filteredData = { ...data };
 
     // Apply time horizon filter
-    if (filters.timeHorizon) {
-      filteredData = this.applyTimeHorizonFilter(filteredData, filters.timeHorizon);
+    if (filters.timeHorizon || filters.dateRange) {
+      const timeRange = filters.timeHorizon || filters.dateRange;
+      if (timeRange) {
+        filteredData = this.applyTimeHorizonFilter(filteredData, timeRange);
+      }
     }
 
     // Apply skill filter
-    if (filters.skills && filters.skills.length > 0) {
+    if (filters.skillTypes && filters.skillTypes.length > 0) {
+      filteredData = this.applySkillFilter(filteredData, filters.skillTypes);
+    } else if (filters.skills && filters.skills.length > 0) {
       filteredData = this.applySkillFilter(filteredData, filters.skills);
     }
 
     // Apply client filter
-    if (filters.clients && filters.clients.length > 0) {
+    if (filters.clientIds && filters.clientIds.length > 0) {
+      filteredData = this.applyClientFilter(filteredData, filters.clientIds);
+    } else if (filters.clients && filters.clients.length > 0) {
       filteredData = this.applyClientFilter(filteredData, filters.clients);
     }
 
     // Phase 4: Apply enhanced preferred staff filter
-    if (filters.preferredStaff) {
-      filteredData = this.applyEnhancedPreferredStaffFilter(filteredData, filters.preferredStaff);
+    if (filters.preferredStaffIds || filters.preferredStaff) {
+      const preferredStaffFilter = filters.preferredStaff || {
+        staffIds: filters.preferredStaffIds || [],
+        includeUnassigned: false,
+        showOnlyPreferred: false
+      };
+      filteredData = this.applyEnhancedPreferredStaffFilter(filteredData, preferredStaffFilter);
     }
 
     // Recalculate totals
@@ -215,7 +227,11 @@ export class EnhancedDataFilter {
 
   private static applyEnhancedPreferredStaffFilter(
     data: DemandMatrixData,
-    preferredStaffFilter: NonNullable<DemandFilters['preferredStaff']>
+    preferredStaffFilter: {
+      staffIds: string[];
+      includeUnassigned: boolean;
+      showOnlyPreferred: boolean;
+    }
   ): DemandMatrixData {
     const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffFilter;
     
@@ -239,12 +255,22 @@ export class EnhancedDataFilter {
 
       if (filteringMode === 'specific') {
         filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
-          const hasMatchingStaff = task.preferredStaff?.staffId && staffIds.includes(task.preferredStaff.staffId);
-          const isUnassigned = !task.preferredStaff?.staffId;
+          // Handle both string and object types for preferredStaff
+          const staffId = typeof task.preferredStaff === 'string' 
+            ? task.preferredStaff 
+            : task.preferredStaff?.staffId;
+          
+          const hasMatchingStaff = staffId && staffIds.includes(staffId);
+          const isUnassigned = !staffId;
           return hasMatchingStaff || (includeUnassigned && isUnassigned);
         });
       } else if (filteringMode === 'none') {
-        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => !task.preferredStaff?.staffId);
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const staffId = typeof task.preferredStaff === 'string' 
+            ? task.preferredStaff 
+            : task.preferredStaff?.staffId;
+          return !staffId;
+        });
       }
       // Mode 'all' keeps all tasks
 

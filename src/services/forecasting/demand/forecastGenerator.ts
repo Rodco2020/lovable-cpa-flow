@@ -24,8 +24,8 @@ export class ForecastGenerator {
     
     // Create filters from parameters
     const filters: DemandFilters = {
-      skills: includeSkills === 'all' ? [] : includeSkills,
-      clients: includeClients === 'all' ? [] : includeClients,
+      skillTypes: includeSkills === 'all' ? [] : includeSkills,
+      clientIds: includeClients === 'all' ? [] : includeClients,
       timeHorizon: {
         start: dateRange.startDate,
         end: dateRange.endDate
