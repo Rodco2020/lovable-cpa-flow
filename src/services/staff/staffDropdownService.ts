@@ -3,137 +3,107 @@ import { supabase } from '@/lib/supabaseClient';
 import { StaffOption } from '@/types/staffOption';
 
 /**
- * Staff Dropdown Service
- * 
- * Specialized service for retrieving staff data optimized for dropdown components.
- * Provides efficient data fetching with caching and filtering for active staff members.
+ * Optimized Staff Dropdown Service
+ * Provides efficient staff data retrieval for dropdown components
  */
 
 /**
- * Cache for staff options to improve performance
- */
-let staffOptionsCache: StaffOption[] | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-/**
- * Check if cache is still valid
- */
-const isCacheValid = (): boolean => {
-  return staffOptionsCache !== null && (Date.now() - cacheTimestamp) < CACHE_DURATION;
-};
-
-/**
- * Clear the staff options cache
- */
-export const clearStaffOptionsCache = (): void => {
-  staffOptionsCache = null;
-  cacheTimestamp = 0;
-};
-
-/**
- * Fetch active staff members optimized for dropdown usage
- * Returns only essential fields: id, full_name, role_title
- * Includes caching for performance optimization
+ * Get active staff members formatted for dropdown usage
+ * Uses caching-friendly query structure
  */
 export const getActiveStaffForDropdown = async (): Promise<StaffOption[]> => {
   try {
-    // Return cached data if valid
-    if (isCacheValid()) {
-      console.log('Using cached staff options');
-      return staffOptionsCache!;
-    }
-
-    console.log('Fetching fresh staff options for dropdown');
+    console.log('🔍 [Staff Dropdown Service] Fetching active staff for dropdown');
     
     const { data, error } = await supabase
       .from('staff')
-      .select('id, full_name, role_title')
+      .select('id, full_name')
       .eq('status', 'active')
-      .order('full_name', { ascending: true });
-    
+      .order('full_name')
+      .range(0, 999); // Ensure we get all active staff
+
     if (error) {
-      console.error('Error fetching active staff for dropdown:', error);
-      throw error;
+      console.error('❌ [Staff Dropdown Service] Error fetching staff:', error);
+      return [];
     }
-    
-    // Transform to StaffOption format and filter out invalid entries
-    const staffOptions: StaffOption[] = (data || [])
+
+    if (!data || !Array.isArray(data)) {
+      console.warn('⚠️ [Staff Dropdown Service] No staff data returned');
+      return [];
+    }
+
+    // Validate and format staff data
+    const validStaff = data
       .filter(staff => 
         staff && 
-        staff.id && 
-        staff.full_name && 
-        staff.full_name.trim() !== ''
+        typeof staff.id === 'string' && 
+        typeof staff.full_name === 'string' &&
+        staff.id.trim().length > 0 &&
+        staff.full_name.trim().length > 0
       )
       .map(staff => ({
-        id: staff.id,
-        full_name: staff.full_name
+        id: staff.id.trim(),
+        full_name: staff.full_name.trim()
       }));
-    
-    // Update cache
-    staffOptionsCache = staffOptions;
-    cacheTimestamp = Date.now();
-    
-    console.log(`Fetched ${staffOptions.length} active staff members for dropdown`);
-    return staffOptions;
+
+    console.log(`✅ [Staff Dropdown Service] Fetched ${validStaff.length} active staff members`);
+    return validStaff;
+
   } catch (error) {
-    console.error('Error in getActiveStaffForDropdown:', error);
-    throw error;
+    console.error('💥 [Staff Dropdown Service] Unexpected error:', error);
+    return [];
   }
 };
 
 /**
- * Get staff member details by ID for task editing workflow
- * Includes role information for validation purposes
+ * Get staff member by ID with validation
  */
-export const getStaffMemberForTaskAssignment = async (staffId: string): Promise<{
-  id: string;
-  full_name: string;
-  role_title: string;
-  status: string;
-} | null> => {
+export const getStaffById = async (staffId: string): Promise<StaffOption | null> => {
   try {
+    if (!staffId || typeof staffId !== 'string' || staffId.trim().length === 0) {
+      console.warn('⚠️ [Staff Dropdown Service] Invalid staff ID provided');
+      return null;
+    }
+
+    console.log(`🔍 [Staff Dropdown Service] Fetching staff by ID: ${staffId}`);
+    
     const { data, error } = await supabase
       .from('staff')
-      .select('id, full_name, role_title, status')
-      .eq('id', staffId)
+      .select('id, full_name')
+      .eq('id', staffId.trim())
       .eq('status', 'active')
-      .single();
-    
+      .maybeSingle();
+
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows returned
-        return null;
-      }
-      console.error('Error fetching staff member for task assignment:', error);
-      throw error;
+      console.error('❌ [Staff Dropdown Service] Error fetching staff by ID:', error);
+      return null;
     }
-    
-    return data;
+
+    if (!data) {
+      console.warn(`⚠️ [Staff Dropdown Service] No staff found with ID: ${staffId}`);
+      return null;
+    }
+
+    console.log(`✅ [Staff Dropdown Service] Found staff: ${data.full_name}`);
+    return {
+      id: data.id,
+      full_name: data.full_name
+    };
+
   } catch (error) {
-    console.error('Error in getStaffMemberForTaskAssignment:', error);
-    throw error;
+    console.error('💥 [Staff Dropdown Service] Unexpected error fetching staff by ID:', error);
+    return null;
   }
 };
 
 /**
- * Validate if a staff member is active and available for task assignment
+ * Validate staff ID format (UUID)
  */
-export const validateStaffForTaskAssignment = async (staffId: string): Promise<boolean> => {
-  try {
-    const staffMember = await getStaffMemberForTaskAssignment(staffId);
-    return staffMember !== null && staffMember.status === 'active';
-  } catch (error) {
-    console.error('Error validating staff for task assignment:', error);
+export const validateStaffId = (staffId: string): boolean => {
+  if (!staffId || typeof staffId !== 'string') {
     return false;
   }
-};
 
-/**
- * Refresh staff options cache
- * Useful when staff data has been updated
- */
-export const refreshStaffOptionsCache = async (): Promise<StaffOption[]> => {
-  clearStaffOptionsCache();
-  return await getActiveStaffForDropdown();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(staffId.trim());
 };

@@ -34,6 +34,9 @@ export interface ClientTaskDemand {
    * Calculated using task hours × skill fee rate
    */
   suggestedRevenue?: number;
+  /** NEW: Preferred staff information for task breakdown */
+  preferredStaffId?: string;
+  preferredStaffName?: string;
 }
 
 export interface RecurrencePattern {
@@ -88,11 +91,26 @@ export interface DemandMatrixData {
     totalExpectedRevenue: number;
     totalExpectedLessSuggested: number;
   };
+  /** NEW: Staff-related data for preferred staff filtering */
+  staffSummary?: {
+    [key: string]: {
+      staffId: string;
+      staffName: string;
+      totalHours: number;
+      taskCount: number;
+      clientCount: number;
+    };
+  };
+  /** NEW: Available staff for filtering */
+  availableStaff?: Array<{ id: string; name: string; }>;
 }
 
+/** ENHANCED: DemandFilters interface with preferred staff support */
 export interface DemandFilters {
   skills: string[];
   clients: string[];
+  /** NEW: Preferred staff filter */
+  preferredStaff: string[];
   timeHorizon: {
     start: Date;
     end: Date;
@@ -115,6 +133,13 @@ export interface DemandDrillDownData {
     totalExpectedRevenue: number;
     totalExpectedLessSuggested: number;
   };
+  /** NEW: Staff breakdown for drill-down data */
+  staffBreakdown?: Array<{
+    staffId: string;
+    staffName: string;
+    hours: number;
+    taskCount: number;
+  }>;
 }
 
 export interface RecurrenceCalculation {
@@ -164,6 +189,8 @@ export interface TaskFilter {
   priority?: string;
   category?: string;
   status?: string;
+  /** NEW: Preferred staff filter */
+  preferredStaff?: string;
 }
 
 export interface TaskBreakdownItem {
@@ -181,6 +208,8 @@ export interface DemandForecastParameters {
   };
   includeSkills: string[] | 'all';
   includeClients: string[] | 'all';
+  /** NEW: Include preferred staff in forecast parameters */
+  includePreferredStaff: string[] | 'all';
   granularity: 'daily' | 'weekly' | 'monthly';
   /** NEW: Revenue calculation options */
   includeRevenueCalculations?: boolean;
@@ -235,46 +264,32 @@ export interface ClientRevenueData {
 }
 
 /**
- * NEW: Interface for revenue comparison results in matrix context
+ * NEW: Interface for staff-related demand data
  */
-export interface MatrixRevenueComparison {
-  totalSuggestedRevenue: number;
-  totalExpectedRevenue: number;
-  totalExpectedLessSuggested: number;
-  clientBreakdown: Array<{
-    clientId: string;
+export interface StaffDemandData {
+  staffId: string;
+  staffName: string;
+  totalHours: number;
+  taskCount: number;
+  clientCount: number;
+  skills: string[];
+  tasksAssigned: Array<{
+    taskId: string;
+    taskName: string;
     clientName: string;
-    suggestedRevenue: number;
-    expectedRevenue: number;
-    expectedLessSuggested: number;
-    variance: number;
-    variancePercentage: number;
+    estimatedHours: number;
+    skillType: string;
   }>;
-  skillBreakdown: Array<{
-    skillName: string;
-    suggestedRevenue: number;
-    demandHours: number;
-    averageFeeRate: number;
-  }>;
-  performanceMetrics: {
-    calculationTime: number;
-    dataPoints: number;
-    cacheHits: number;
-    errors: number;
-  };
 }
 
 /**
- * NEW: Interface for revenue-enabled matrix export data
+ * NEW: Interface for staff filter options
  */
-export interface DemandMatrixExportData extends DemandMatrixData {
-  exportMetadata: {
-    generatedAt: Date;
-    includesRevenueData: boolean;
-    calculationMethod: 'skill-based' | 'client-based' | 'hybrid';
-    totalDataPoints: number;
-    revenueCoveragePercentage: number;
-  };
+export interface StaffFilterOption {
+  id: string;
+  name: string;
+  taskCount?: number;
+  totalHours?: number;
 }
 
 /**

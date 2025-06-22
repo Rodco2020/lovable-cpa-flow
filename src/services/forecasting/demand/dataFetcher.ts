@@ -1,36 +1,39 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
-import { DemandFilters } from '@/types/demand';
+import { DemandFilters, StaffFilterOption } from '@/types/demand';
 import { RecurringTaskDB, TaskPriority, TaskCategory, TaskStatus } from '@/types/task';
 import { DataValidator } from './dataValidator';
 
 /**
- * Enhanced Data Fetcher Service with validation, error handling, and skill resolution
+ * Enhanced Data Fetcher Service with staff data support
+ * Phase 1: Database Analysis and Backend Preparation
  */
 export class DataFetcher {
   /**
-   * Fetch client-assigned tasks with comprehensive validation and error recovery
+   * ENHANCED: Fetch client-assigned tasks with staff information
    */
   static async fetchClientAssignedTasks(filters: DemandFilters = { 
     skills: [], 
     clients: [], 
+    preferredStaff: [], // NEW: Add preferred staff filter
     timeHorizon: { start: new Date(), end: new Date() } 
   }): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching client-assigned tasks with enhanced validation', { filters });
+    debugLog('Fetching client-assigned tasks with staff information', { filters });
 
     try {
-      // Build query with proper error handling
+      // ENHANCED: Build query with staff information join
       let query = supabase
         .from('recurring_tasks')
-        .select('*, clients!inner(id, legal_name, expected_monthly_revenue)')
+        .select(`
+          *,
+          clients!inner(id, legal_name, expected_monthly_revenue),
+          staff(id, full_name, role_title)
+        `)
         .eq('is_active', true)
-        // Explicit range to avoid default 10 row limit in some environments
         .range(0, 999);
 
-      // Apply filters safely
+      // Apply existing filters
       if (filters.clients && filters.clients.length > 0) {
-        // Validate client IDs
         const validClientIds = filters.clients.filter(id => 
           typeof id === 'string' && id.length > 0
         );
@@ -40,7 +43,17 @@ export class DataFetcher {
         }
       }
 
-      // Execute query with timeout and retry logic - REMOVED LIMIT
+      // NEW: Apply preferred staff filter
+      if (filters.preferredStaff && filters.preferredStaff.length > 0) {
+        const validStaffIds = filters.preferredStaff.filter(id => 
+          typeof id === 'string' && id.length > 0
+        );
+        
+        if (validStaffIds.length > 0) {
+          query = query.in('preferred_staff_id', validStaffIds);
+        }
+      }
+
       const { data, error } = await query;
 
       if (error) {
@@ -53,24 +66,28 @@ export class DataFetcher {
         return [];
       }
 
-      debugLog(`Fetched ${data.length} recurring tasks from database`);
+      debugLog(`Fetched ${data.length} recurring tasks with staff information from database`);
 
-      // Type-cast the raw data to ensure proper typing
+      // Type-cast and enhance with staff data
       const typedData: RecurringTaskDB[] = data.map(task => ({
         ...task,
         priority: task.priority as TaskPriority,
         category: task.category as TaskCategory,
-        status: task.status as TaskStatus
+        status: task.status as TaskStatus,
+        // Include staff information if available
+        staff_info: task.staff ? {
+          id: task.staff.id,
+          full_name: task.staff.full_name,
+          role_title: task.staff.role_title
+        } : null
       }));
 
-      // Enhanced validation and cleaning with skill resolution
+      // Enhanced validation with staff data
       const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(typedData);
 
-      // Provide detailed feedback about data quality
       if (invalidTasks.length > 0) {
         console.warn(`Data quality issues: ${invalidTasks.length}/${typedData.length} tasks excluded`);
         
-        // Group errors for better reporting
         const errorSummary = this.summarizeValidationErrors(invalidTasks);
         console.warn('Validation error summary:', errorSummary);
       }
@@ -86,14 +103,114 @@ export class DataFetcher {
 
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
-      
-      // Instead of returning empty array, try a fallback approach
       return this.attemptFallbackDataFetch();
     }
   }
 
   /**
-   * Attempt fallback data fetch with minimal filtering - REMOVED LIMIT
+   * NEW: Fetch available staff for preferred staff filtering
+   */
+  static async fetchAvailableStaff(): Promise<StaffFilterOption[]> {
+    try {
+      debugLog('Fetching available staff for filtering');
+
+      const { data, error } = await supabase
+        .from('staff')
+        .select('id, full_name')
+        .eq('status', 'active')
+        .order('full_name')
+        .range(0, 999);
+
+      if (error) {
+        console.error('Error fetching staff:', error);
+        return [];
+      }
+
+      if (!Array.isArray(data)) {
+        console.warn('Staff data is not an array');
+        return [];
+      }
+
+      // Validate and format staff data
+      const validStaff = data
+        .filter(staff => 
+          staff && 
+          typeof staff.id === 'string' && 
+          typeof staff.full_name === 'string' &&
+          staff.id.trim().length > 0 &&
+          staff.full_name.trim().length > 0
+        )
+        .map(staff => ({
+          id: staff.id.trim(),
+          name: staff.full_name.trim()
+        }));
+
+      debugLog(`Fetched ${validStaff.length} valid staff members`);
+      return validStaff;
+
+    } catch (error) {
+      console.error('Error fetching available staff:', error);
+      return [];
+    }
+  }
+
+  /**
+   * NEW: Fetch staff with task assignment statistics
+   */
+  static async fetchStaffWithTaskStats(): Promise<Array<StaffFilterOption & { taskCount: number; totalHours: number }>> {
+    try {
+      debugLog('Fetching staff with task assignment statistics');
+
+      // Get staff with their task assignments
+      const { data, error } = await supabase
+        .from('staff')
+        .select(`
+          id,
+          full_name,
+          recurring_tasks!left(id, estimated_hours)
+        `)
+        .eq('status', 'active')
+        .order('full_name');
+
+      if (error) {
+        console.error('Error fetching staff with task stats:', error);
+        return [];
+      }
+
+      if (!Array.isArray(data)) {
+        console.warn('Staff with task stats data is not an array');
+        return [];
+      }
+
+      // Calculate statistics for each staff member
+      const staffWithStats = data
+        .filter(staff => staff && staff.id && staff.full_name)
+        .map(staff => {
+          const tasks = Array.isArray(staff.recurring_tasks) ? staff.recurring_tasks : [];
+          const taskCount = tasks.length;
+          const totalHours = tasks.reduce((sum, task) => {
+            return sum + (typeof task.estimated_hours === 'number' ? task.estimated_hours : 0);
+          }, 0);
+
+          return {
+            id: staff.id,
+            name: staff.full_name,
+            taskCount,
+            totalHours
+          };
+        });
+
+      debugLog(`Fetched ${staffWithStats.length} staff members with task statistics`);
+      return staffWithStats;
+
+    } catch (error) {
+      console.error('Error fetching staff with task statistics:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Attempt fallback data fetch with minimal filtering
    */
   private static async attemptFallbackDataFetch(): Promise<RecurringTaskDB[]> {
     try {
@@ -103,7 +220,7 @@ export class DataFetcher {
         .from('recurring_tasks')
         .select('*, clients(id, legal_name, expected_monthly_revenue)')
         .eq('is_active', true)
-        .range(0, 999); // explicitly fetch up to 1000 rows
+        .range(0, 999);
 
       if (error) {
         console.error('Fallback query also failed:', error);
@@ -115,9 +232,8 @@ export class DataFetcher {
         return [];
       }
 
-      // Apply basic type casting and minimal validation
       const fallbackTasks: RecurringTaskDB[] = data
-        .filter(task => task && task.id && task.client_id) // Basic existence check
+        .filter(task => task && task.id && task.client_id)
         .map(task => ({
           ...task,
           priority: (task.priority as TaskPriority) || 'Medium',
@@ -143,7 +259,6 @@ export class DataFetcher {
 
     invalidTasks.forEach(({ errors }) => {
       errors.forEach(error => {
-        // Categorize errors for cleaner reporting
         let category = 'Other';
         
         if (error.includes('skill')) category = 'Invalid Skills';
@@ -151,6 +266,7 @@ export class DataFetcher {
         else if (error.includes('date')) category = 'Invalid Dates';
         else if (error.includes('ID')) category = 'Missing IDs';
         else if (error.includes('recurrence')) category = 'Invalid Recurrence';
+        else if (error.includes('staff')) category = 'Invalid Staff';
 
         errorCounts[category] = (errorCounts[category] || 0) + 1;
       });
@@ -160,7 +276,7 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch available skills with validation - REMOVED LIMIT
+   * Fetch available skills with validation
    */
   static async fetchAvailableSkills(): Promise<string[]> {
     try {
@@ -168,8 +284,7 @@ export class DataFetcher {
         .from('skills')
         .select('id, name')
         .order('name')
-        .range(0, 999); // ensure all skills retrieved
-        // REMOVED: .limit(100) - Now fetches all skills
+        .range(0, 999);
 
       if (error) {
         console.error('Error fetching skills:', error);
@@ -181,7 +296,6 @@ export class DataFetcher {
         return [];
       }
 
-      // Validate and extract skill names
       const validSkills = data
         .filter(skill => skill && typeof skill.name === 'string' && skill.name.trim().length > 0)
         .map(skill => skill.name.trim());
@@ -196,7 +310,7 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch available clients with validation - INCREASED LIMIT
+   * Fetch available clients with validation
    */
   static async fetchAvailableClients(): Promise<Array<{ id: string; name: string }>> {
     try {
@@ -205,8 +319,7 @@ export class DataFetcher {
         .select('id, legal_name')
         .eq('status', 'Active')
         .order('legal_name')
-        .range(0, 999); // ensure all active clients fetched
-        // REMOVED: .limit(1000) - Now fetches all active clients
+        .range(0, 999);
 
       if (error) {
         console.error('Error fetching clients:', error);
@@ -218,7 +331,6 @@ export class DataFetcher {
         return [];
       }
 
-      // Validate and format client data
       const validClients = data
         .filter(client => 
           client && 
@@ -242,7 +354,7 @@ export class DataFetcher {
   }
 
   /**
-   * NEW: Fetch clients with revenue data for matrix calculations
+   * Fetch clients with revenue data for matrix calculations
    */
   static async fetchClientsWithRevenue(): Promise<Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>> {
     try {
@@ -263,7 +375,6 @@ export class DataFetcher {
         return [];
       }
 
-      // Validate and format client revenue data
       const validClients = data
         .filter(client => 
           client && 
