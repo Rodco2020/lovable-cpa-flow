@@ -16,57 +16,57 @@ export class FilterProcessor {
 
     const issues: string[] = [];
     const processedFilters: DemandFilters = {
-      skills: [],
-      clients: [],
-      timeHorizon: filters?.timeHorizon || {
+      skillTypes: [],
+      clientIds: [],
+      dateRange: filters?.dateRange || {
         start: new Date(),
         end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year from now
       },
-      preferredStaff: filters?.preferredStaff || { staffIds: [] }
+      preferredStaffIds: filters?.preferredStaffIds || []
     };
 
     // Validate skills filter
-    if (filters?.skills) {
-      if (Array.isArray(filters.skills)) {
-        processedFilters.skills = filters.skills.filter(skill => 
+    if (filters?.skillTypes) {
+      if (Array.isArray(filters.skillTypes)) {
+        processedFilters.skillTypes = filters.skillTypes.filter(skill => 
           skill && typeof skill === 'string' && skill.trim().length > 0
         );
-        console.log(`✅ [FILTER PROCESSOR] Processed ${processedFilters.skills.length} skill filters`);
+        console.log(`✅ [FILTER PROCESSOR] Processed ${processedFilters.skillTypes.length} skill filters`);
       } else {
         issues.push('Skills filter must be an array');
       }
     }
 
     // Validate clients filter
-    if (filters?.clients) {
-      if (Array.isArray(filters.clients)) {
-        processedFilters.clients = filters.clients.filter(client => 
+    if (filters?.clientIds) {
+      if (Array.isArray(filters.clientIds)) {
+        processedFilters.clientIds = filters.clientIds.filter(client => 
           client && typeof client === 'string' && client.trim().length > 0
         );
-        console.log(`✅ [FILTER PROCESSOR] Processed ${processedFilters.clients.length} client filters`);
+        console.log(`✅ [FILTER PROCESSOR] Processed ${processedFilters.clientIds.length} client filters`);
       } else {
         issues.push('Clients filter must be an array');
       }
     }
 
     // Validate preferred staff filter
-    if (filters?.preferredStaff?.staffIds) {
-      if (Array.isArray(filters.preferredStaff.staffIds)) {
-        processedFilters.preferredStaff!.staffIds = filters.preferredStaff.staffIds.filter(staffId => 
+    if (filters?.preferredStaffIds) {
+      if (Array.isArray(filters.preferredStaffIds)) {
+        processedFilters.preferredStaffIds = filters.preferredStaffIds.filter(staffId => 
           staffId && typeof staffId === 'string' && staffId.trim().length > 0
         );
-        console.log(`✅ [FILTER PROCESSOR] Processed ${processedFilters.preferredStaff!.staffIds.length} preferred staff filters`);
+        console.log(`✅ [FILTER PROCESSOR] Processed ${processedFilters.preferredStaffIds.length} preferred staff filters`);
       } else {
         issues.push('Preferred staff filter must be an array');
       }
     }
 
-    // Validate time horizon
-    if (filters?.timeHorizon) {
-      if (!(filters.timeHorizon.start instanceof Date) || !(filters.timeHorizon.end instanceof Date)) {
-        issues.push('Time horizon must contain valid Date objects');
-      } else if (filters.timeHorizon.start >= filters.timeHorizon.end) {
-        issues.push('Time horizon start date must be before end date');
+    // Validate date range
+    if (filters?.dateRange) {
+      if (!(filters.dateRange.start instanceof Date) || !(filters.dateRange.end instanceof Date)) {
+        issues.push('Date range must contain valid Date objects');
+      } else if (filters.dateRange.start >= filters.dateRange.end) {
+        issues.push('Date range start date must be before end date');
       }
     }
 
@@ -86,9 +86,9 @@ export class FilterProcessor {
   static areFiltersEmpty(filters?: DemandFilters): boolean {
     if (!filters) return true;
 
-    const hasSkills = filters.skills && filters.skills.length > 0;
-    const hasClients = filters.clients && filters.clients.length > 0;
-    const hasPreferredStaff = filters.preferredStaff?.staffIds && filters.preferredStaff.staffIds.length > 0;
+    const hasSkills = filters.skillTypes && filters.skillTypes.length > 0;
+    const hasClients = filters.clientIds && filters.clientIds.length > 0;
+    const hasPreferredStaff = filters.preferredStaffIds && filters.preferredStaffIds.length > 0;
 
     return !hasSkills && !hasClients && !hasPreferredStaff;
   }
