@@ -10,6 +10,11 @@ export class PerformanceMonitor {
     timestamp: number;
   }> = [];
 
+  private static memoryUsage: Array<{
+    timestamp: number;
+    usage: number;
+  }> = [];
+
   static time<T>(operation: string, fn: () => T): T {
     const start = Date.now();
     const result = fn();
@@ -38,11 +43,31 @@ export class PerformanceMonitor {
     return result;
   }
 
+  static recordPerformance(operation: string, duration: number): void {
+    this.metrics.push({
+      operation,
+      duration,
+      timestamp: Date.now()
+    });
+  }
+
+  static recordMemoryUsage(usage: number): void {
+    this.memoryUsage.push({
+      timestamp: Date.now(),
+      usage
+    });
+  }
+
   static getMetrics() {
     return [...this.metrics];
   }
 
+  static getMemoryUsage() {
+    return [...this.memoryUsage];
+  }
+
   static clearMetrics() {
     this.metrics = [];
+    this.memoryUsage = [];
   }
 }

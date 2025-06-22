@@ -95,6 +95,20 @@ export class DataPointGenerationService {
   }
 
   /**
+   * Generate data points with skill mapping (for backward compatibility)
+   */
+  static async generateDataPointsWithSkillMapping(
+    tasks: RecurringTaskDB[],
+    startDate: Date,
+    endDate: Date,
+    skillMapping?: Record<string, string>
+  ): Promise<DemandDataPoint[]> {
+    // For now, delegate to the main method
+    // In the future, this could incorporate the skill mapping logic
+    return this.generateDataPoints(tasks, startDate, endDate);
+  }
+
+  /**
    * Calculate task occurrences within a month based on recurrence pattern
    */
   private static calculateTaskOccurrences(

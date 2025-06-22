@@ -1,132 +1,90 @@
 
-import { debugLog } from './logger';
-import { 
-  DemandForecastParameters, 
-  DemandMatrixData,
-  DemandForecastResult
-} from '@/types/demand';
+import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
-import { RecurringTaskDB } from '@/types/task';
-
-// Import from the refactored demand module
-import {
-  DataFetcher,
-  RecurrenceCalculator,
-  ForecastGenerator,
-  MatrixTransformer
-} from './demand';
+import { debugLog } from './logger';
+import { DemandMatrixService } from './demandMatrixService';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 /**
  * Demand Data Service
- * Handles demand forecasting and matrix data transformation
+ * 
+ * High-level service for managing demand-related data operations
+ * and coordinating between different demand data sources.
  */
 export class DemandDataService {
   /**
-   * Calculate monthly demand for a recurring task
+   * Get demand matrix data with filters
    */
-  static calculateMonthlyDemand(
-    task: RecurringTaskDB,
-    startDate: Date,
-    endDate: Date
-  ) {
-    return RecurrenceCalculator.calculateMonthlyDemand(task, startDate, endDate);
+  static async getDemandMatrixData(filters: DemandFilters = {}): Promise<DemandMatrixData> {
+    debugLog('Getting demand matrix data', { filters });
+
+    try {
+      return await DemandMatrixService.generateDemandMatrix(filters);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      debugLog('Error getting demand matrix data', { error: errorMessage });
+      throw new Error(`Failed to get demand matrix data: ${errorMessage}`);
+    }
   }
 
   /**
-   * Generate demand forecast data
+   * Process forecast data into demand matrix format
    */
-  static async generateDemandForecast(
-    parameters: DemandForecastParameters
-  ): Promise<ForecastData[]> {
-    debugLog('DemandDataService: Generating demand forecast', { parameters });
-    return await ForecastGenerator.generateDemandForecast(parameters);
-  }
-
-  /**
-   * Transform forecast data to matrix format
-   */
-  static async transformToMatrixData(
+  static async processForecastData(
     forecastData: ForecastData[],
-    tasks: RecurringTaskDB[]
+    filters: DemandFilters = {}
   ): Promise<DemandMatrixData> {
-    debugLog('DemandDataService: Transforming to matrix data', { 
-      periodsCount: forecastData.length, 
-      tasksCount: tasks.length 
+    debugLog('Processing forecast data', { 
+      forecastDataLength: forecastData.length,
+      filters 
     });
-    return await MatrixTransformer.transformToMatrixData(forecastData, tasks);
-  }
 
-  /**
-   * Get recurring tasks data from the database
-   */
-  static async getRecurringTasksData(): Promise<RecurringTaskDB[]> {
-    debugLog('DemandDataService: Fetching recurring tasks data');
-    
     try {
-      const tasks = await DataFetcher.fetchClientAssignedTasks();
+      // Import the matrix transformer
+      const { MatrixTransformerCore } = await import('./demand/matrixTransformer');
       
-      // Filter only active tasks
-      const activeTasks = tasks.filter(task => task.is_active);
+      // For now, we'll create an empty tasks array since we're working with forecast data
+      const emptyTasks: any[] = [];
       
-      debugLog('DemandDataService: Successfully fetched recurring tasks', { 
-        totalTasks: tasks.length,
-        activeTasks: activeTasks.length 
-      });
-      
-      return activeTasks;
+      // Transform the forecast data to matrix format
+      const matrixData = await MatrixTransformerCore.transformToMatrixData(
+        forecastData,
+        emptyTasks
+      );
+
+      // Apply filters if provided
+      if (Object.keys(filters).length > 0) {
+        return await DemandMatrixService.applyFiltering(matrixData, filters);
+      }
+
+      return matrixData;
+
     } catch (error) {
-      console.error('Error fetching recurring tasks:', error);
-      return [];
+      const errorMessage = getErrorMessage(error);
+      debugLog('Error processing forecast data', { error: errorMessage });
+      throw new Error(`Failed to process forecast data: ${errorMessage}`);
     }
   }
 
   /**
-   * Generate complete demand forecast with matrix
+   * Validate demand data
    */
-  static async generateDemandForecastWithMatrix(
-    parameters: DemandForecastParameters
-  ): Promise<DemandForecastResult> {
-    debugLog('DemandDataService: Generating complete demand forecast with matrix', { parameters });
+  static validateDemandData(data: DemandMatrixData): { isValid: boolean; issues: string[] } {
+    return DemandMatrixService.validateMatrix(data);
+  }
 
-    try {
-      // Generate forecast data
-      const forecastData = await this.generateDemandForecast(parameters);
-      
-      // Fetch related tasks for matrix generation
-      const tasks = await DataFetcher.fetchClientAssignedTasks({
-        skills: parameters.includeSkills === 'all' ? [] : parameters.includeSkills,
-        clients: parameters.includeClients === 'all' ? [] : parameters.includeClients,
-        timeHorizon: {
-          start: parameters.dateRange.startDate,
-          end: parameters.dateRange.endDate
-        }
-      });
-      
-      // Transform to matrix
-      const demandMatrix = await this.transformToMatrixData(forecastData, tasks);
-      
-      // Calculate summary
-      const summary = {
-        totalDemand: demandMatrix.totalDemand,
-        totalTasks: demandMatrix.totalTasks,
-        totalClients: demandMatrix.totalClients,
-        averageMonthlyDemand: demandMatrix.months.length > 0 
-          ? demandMatrix.totalDemand / demandMatrix.months.length 
-          : 0
-      };
+  /**
+   * Get demand summary statistics
+   */
+  static getDemandSummary(data: DemandMatrixData) {
+    return DemandMatrixService.getMatrixSummary(data);
+  }
 
-      return {
-        parameters,
-        data: forecastData,
-        demandMatrix,
-        summary,
-        generatedAt: new Date()
-      };
-    } catch (error) {
-      console.error('Error generating demand forecast with matrix:', error);
-      throw error;
-    }
+  /**
+   * Clear all caches
+   */
+  static clearCaches(): void {
+    DemandMatrixService.clearCache();
+    debugLog('All demand data caches cleared');
   }
 }
-
-export default DemandDataService;

@@ -2,73 +2,120 @@
 /**
  * Demand Matrix Validator
  * 
- * Validates demand matrix data structure and integrity
+ * Validates demand matrix data structure and content integrity
  */
 
 import { DemandMatrixData } from '@/types/demand';
 
 export interface ValidationResult {
   isValid: boolean;
-  errors: string[];
-  warnings: string[];
+  issues: string[];
 }
 
 export class DemandMatrixValidator {
-  static validate(data: DemandMatrixData): ValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+  /**
+   * Validate demand matrix data structure
+   */
+  static validateDemandMatrix(data: DemandMatrixData): ValidationResult {
+    const issues: string[] = [];
 
-    // Check required properties
-    if (!data.months) {
-      errors.push('Missing months array');
-    } else if (!Array.isArray(data.months)) {
-      errors.push('Months must be an array');
+    if (!data) {
+      issues.push('Matrix data is null or undefined');
+      return { isValid: false, issues };
     }
 
-    if (!data.skills) {
-      errors.push('Missing skills array');
-    } else if (!Array.isArray(data.skills)) {
-      errors.push('Skills must be an array');
+    // Validate required properties
+    if (!Array.isArray(data.months)) {
+      issues.push('Months array is missing or invalid');
     }
 
-    if (!data.dataPoints) {
-      errors.push('Missing dataPoints array');
-    } else if (!Array.isArray(data.dataPoints)) {
-      errors.push('DataPoints must be an array');
+    if (!Array.isArray(data.skills)) {
+      issues.push('Skills array is missing or invalid');
     }
 
-    if (!data.skillSummary) {
-      errors.push('Missing skillSummary array');
-    } else if (!Array.isArray(data.skillSummary)) {
-      errors.push('SkillSummary must be an array');
+    if (!Array.isArray(data.dataPoints)) {
+      issues.push('Data points array is missing or invalid');
     }
 
-    // Check numeric properties
+    if (!Array.isArray(data.skillSummary)) {
+      issues.push('Skill summary array is missing or invalid');
+    }
+
+    // Validate numeric properties
     if (typeof data.totalDemand !== 'number') {
-      errors.push('TotalDemand must be a number');
+      issues.push('Total demand must be a number');
     }
 
     if (typeof data.totalTasks !== 'number') {
-      errors.push('TotalTasks must be a number');
+      issues.push('Total tasks must be a number');
     }
 
     if (typeof data.totalClients !== 'number') {
-      errors.push('TotalClients must be a number');
+      issues.push('Total clients must be a number');
     }
 
-    // Warnings for empty data
-    if (data.dataPoints?.length === 0) {
-      warnings.push('No data points found');
+    // Validate data consistency
+    if (data.dataPoints && data.skills) {
+      const skillsInData = new Set(data.dataPoints.map(point => point.skillType));
+      const declaredSkills = new Set(data.skills);
+      
+      skillsInData.forEach(skill => {
+        if (!declaredSkills.has(skill)) {
+          issues.push(`Skill '${skill}' found in data points but not in skills array`);
+        }
+      });
     }
 
-    if (data.skills?.length === 0) {
-      warnings.push('No skills found');
+    // Validate data points structure
+    if (data.dataPoints) {
+      data.dataPoints.forEach((point, index) => {
+        if (!point.month) {
+          issues.push(`Data point ${index} missing month`);
+        }
+        if (!point.skillType) {
+          issues.push(`Data point ${index} missing skillType`);
+        }
+        if (typeof point.demandHours !== 'number') {
+          issues.push(`Data point ${index} demandHours must be a number`);
+        }
+        if (typeof point.taskCount !== 'number') {
+          issues.push(`Data point ${index} taskCount must be a number`);
+        }
+      });
     }
 
     return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
+      isValid: issues.length === 0,
+      issues
+    };
+  }
+
+  /**
+   * Validate skill summary data
+   */
+  static validateSkillSummary(skillSummary: any[]): ValidationResult {
+    const issues: string[] = [];
+
+    if (!Array.isArray(skillSummary)) {
+      issues.push('Skill summary must be an array');
+      return { isValid: false, issues };
+    }
+
+    skillSummary.forEach((skill, index) => {
+      if (!skill.skillType) {
+        issues.push(`Skill summary ${index} missing skillType`);
+      }
+      if (typeof skill.totalDemand !== 'number') {
+        issues.push(`Skill summary ${index} totalDemand must be a number`);
+      }
+      if (typeof skill.taskCount !== 'number') {
+        issues.push(`Skill summary ${index} taskCount must be a number`);
+      }
+    });
+
+    return {
+      isValid: issues.length === 0,
+      issues
     };
   }
 }

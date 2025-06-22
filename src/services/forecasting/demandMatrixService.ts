@@ -4,6 +4,7 @@ import { debugLog } from './logger';
 import { MatrixTransformer } from './demand/matrixTransformer';
 import { DataFetcher } from './demand/dataFetcher';
 import { DemandMatrixValidator } from './demand/validation/demandMatrixValidator';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 /**
  * Demand Matrix Service
@@ -12,6 +13,8 @@ import { DemandMatrixValidator } from './demand/validation/demandMatrixValidator
  * transformation, validation, and filtering.
  */
 export class DemandMatrixService {
+  private static cache = new Map<string, DemandMatrixData>();
+
   /**
    * Generate demand matrix with comprehensive data processing
    */
@@ -63,7 +66,8 @@ export class DemandMatrixService {
       return matrixData;
 
     } catch (error) {
-      debugLog('Error generating demand matrix', { error });
+      const errorMessage = getErrorMessage(error);
+      debugLog('Error generating demand matrix', { error: errorMessage });
       return this.createEmptyMatrix();
     }
   }
@@ -79,7 +83,8 @@ export class DemandMatrixService {
         issues: validationResult.issues
       };
     } catch (error) {
-      debugLog('Error validating matrix', { error });
+      const errorMessage = getErrorMessage(error);
+      debugLog('Error validating matrix', { error: errorMessage });
       return {
         isValid: false,
         issues: ['Validation failed due to unexpected error']
@@ -121,9 +126,32 @@ export class DemandMatrixService {
       return result.filteredData;
 
     } catch (error) {
-      debugLog('Error applying filtering', { error });
+      const errorMessage = getErrorMessage(error);
+      debugLog('Error applying filtering', { error: errorMessage });
       return data; // Return original data on error
     }
+  }
+
+  /**
+   * Clear cache
+   */
+  static clearCache(): void {
+    this.cache.clear();
+    debugLog('Matrix cache cleared');
+  }
+
+  /**
+   * Validate demand matrix data structure
+   */
+  static validateDemandMatrixData(data: DemandMatrixData): { isValid: boolean; issues: string[] } {
+    return this.validateMatrix(data);
+  }
+
+  /**
+   * Get cache key for demand matrix
+   */
+  static getDemandMatrixCacheKey(filters: DemandFilters): string {
+    return JSON.stringify(filters);
   }
 
   /**
