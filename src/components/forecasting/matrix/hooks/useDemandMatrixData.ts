@@ -50,12 +50,22 @@ export const useDemandMatrixData = () => {
         totalDemand: 0,
         totalTasks: tasks?.length || 0,
         totalClients: 0,
-        skillSummary: []
+        skillSummary: [],
+        // Initialize client-related maps
+        clientTotals: new Map(),
+        clientRevenue: new Map(),
+        clientHourlyRates: new Map(),
+        clientSuggestedRevenue: new Map(),
+        clientExpectedLessSuggested: new Map(),
+        revenueTotals: {
+          totalRevenue: 0,
+          totalSuggestedRevenue: 0,
+          totalExpectedLessSuggested: 0
+        }
       };
 
       // Transform tasks into data points
       if (tasks && tasks.length > 0) {
-        const skillMap = { 'Junior': 0, 'Senior': 0, 'CPA': 0 };
         let totalHours = 0;
         const clientSet = new Set<string>();
 
@@ -84,11 +94,13 @@ export const useDemandMatrixData = () => {
                 clientId: task.client_id,
                 clientName: task.clients?.legal_name || 'Unknown Client',
                 monthlyHours,
-                preferredStaff: null // No preferred staff for basic test data
+                skillType: skill, // Add skillType property
+                preferredStaff: null
               });
             } else {
               mockData.dataPoints.push({
                 month: month.key,
+                monthLabel: month.label, // Add monthLabel property
                 skillType: skill,
                 demandHours: monthlyHours,
                 taskCount: 1,
@@ -99,6 +111,7 @@ export const useDemandMatrixData = () => {
                   clientId: task.client_id,
                   clientName: task.clients?.legal_name || 'Unknown Client',
                   monthlyHours,
+                  skillType: skill, // Add skillType property
                   preferredStaff: null
                 }]
               });
@@ -109,12 +122,15 @@ export const useDemandMatrixData = () => {
         mockData.totalDemand = totalHours;
         mockData.totalClients = clientSet.size;
         
-        // Create skill summary
+        // Create skill summary with correct structure
         mockData.skillSummary = mockData.skills.map(skill => ({
           skillType: skill,
           totalDemand: mockData.dataPoints
             .filter(p => p.skillType === skill)
             .reduce((sum, p) => sum + p.demandHours, 0),
+          totalHours: mockData.dataPoints
+            .filter(p => p.skillType === skill)
+            .reduce((sum, p) => sum + p.demandHours, 0), // Add totalHours property
           taskCount: mockData.dataPoints
             .filter(p => p.skillType === skill)
             .reduce((sum, p) => sum + p.taskCount, 0)

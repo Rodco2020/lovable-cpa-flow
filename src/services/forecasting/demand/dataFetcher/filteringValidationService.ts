@@ -131,6 +131,23 @@ export class FilteringValidationService {
   }
 
   /**
+   * Safe staff ID extraction with proper type checking
+   */
+  static safeExtractStaffId(staffRef: string | { staffId: string; full_name: string; } | null): string | null {
+    if (!staffRef) return null;
+
+    if (typeof staffRef === 'string') {
+      return staffRef.trim() || null;
+    }
+
+    if (typeof staffRef === 'object' && 'staffId' in staffRef) {
+      return staffRef.staffId?.trim() || null;
+    }
+
+    return null;
+  }
+
+  /**
    * Validate filter configuration
    */
   static validateFilterConfiguration(config: {

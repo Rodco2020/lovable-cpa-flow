@@ -5,6 +5,7 @@ export interface ClientTaskDemand {
   clientId: string;
   clientName: string;
   monthlyHours: number;
+  skillType: string; // Add missing skillType property
   preferredStaff?: {
     staffId: string;
     full_name: string;
@@ -13,6 +14,7 @@ export interface ClientTaskDemand {
 
 export interface DemandDataPoint {
   month: string;
+  monthLabel: string; // Add missing monthLabel property
   skillType: string;
   demandHours: number;
   taskCount: number;
@@ -23,6 +25,7 @@ export interface DemandDataPoint {
 export interface SkillSummary {
   skillType: string;
   totalDemand: number;
+  totalHours: number; // Add missing totalHours property
   taskCount: number;
 }
 
@@ -39,6 +42,17 @@ export interface DemandMatrixData {
   totalTasks: number;
   totalClients: number;
   skillSummary: SkillSummary[];
+  // Add missing client-related properties
+  clientTotals?: Map<string, number>;
+  clientRevenue?: Map<string, number>;
+  clientHourlyRates?: Map<string, number>;
+  clientSuggestedRevenue?: Map<string, number>;
+  clientExpectedLessSuggested?: Map<string, number>;
+  revenueTotals?: {
+    totalRevenue: number;
+    totalSuggestedRevenue: number;
+    totalExpectedLessSuggested: number;
+  };
 }
 
 export interface DemandMatrixFilters {

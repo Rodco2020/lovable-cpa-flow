@@ -1,85 +1,51 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff } from 'lucide-react';
-import { useSelectAllLogic } from '../../../DemandMatrixControls/hooks/useSelectAllLogic';
+import { Badge } from '@/components/ui/badge';
 
 interface SkillsFilterSectionProps {
-  availableSkills: string[];
   selectedSkills: string[];
   onSkillToggle: (skill: string) => void;
-  isAllSkillsSelected: boolean;
-  isControlsExpanded: boolean;
+  availableSkills: string[];
+  isAllSelected: boolean; // Add the missing property
+  isLoading?: boolean;
 }
 
-/**
- * Skills Filter Section Component
- * Handles skills selection with show all/hide all functionality
- */
 export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
-  availableSkills,
   selectedSkills,
   onSkillToggle,
-  isAllSkillsSelected,
-  isControlsExpanded
+  availableSkills,
+  isAllSelected,
+  isLoading = false
 }) => {
-  const { handleSelectAll } = useSelectAllLogic(
-    availableSkills,
-    selectedSkills,
-    onSkillToggle
-  );
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <label className="text-sm font-medium">Skills Filter</label>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSelectAll}
-          className="h-6 px-2 text-xs"
-        >
-          {isAllSkillsSelected ? (
-            <>
-              <EyeOff className="h-3 w-3 mr-1" />
-              Hide All
-            </>
-          ) : (
-            <>
-              <Eye className="h-3 w-3 mr-1" />
-              Show All
-            </>
-          )}
-        </Button>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-medium">Skills Filter</h4>
+        <Badge variant="outline">
+          {isAllSelected ? 'All' : `${selectedSkills.length}/${availableSkills.length}`}
+        </Badge>
       </div>
       
-      {isControlsExpanded && (
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {availableSkills.map((skill) => (
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Loading skills...</div>
+        ) : (
+          availableSkills.map((skill) => (
             <div key={skill} className="flex items-center space-x-2">
               <Checkbox
-                id={`skill-${skill}`}
-                checked={isAllSkillsSelected || selectedSkills.includes(skill)}
+                id={skill}
+                checked={selectedSkills.includes(skill)}
                 onCheckedChange={() => onSkillToggle(skill)}
               />
-              <label 
-                htmlFor={`skill-${skill}`} 
-                className="text-sm cursor-pointer flex-1 truncate"
-                title={skill}
-              >
+              <Label htmlFor={skill} className="text-sm font-normal">
                 {skill}
-              </label>
+              </Label>
             </div>
-          ))}
-        </div>
-      )}
-      
-      {!isControlsExpanded && (
-        <div className="text-xs text-muted-foreground">
-          {isAllSkillsSelected ? 'All skills visible' : `${selectedSkills.length}/${availableSkills.length} skills selected`}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 };
