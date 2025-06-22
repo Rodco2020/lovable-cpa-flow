@@ -44,7 +44,7 @@ describe('RevenueComparisonService', () => {
       { 
         clientId: 'client1', 
         clientName: 'Client A', 
-        expectedMonthlyRevenue: 5000,
+        expectedRevenue: 5000,
         totalHours: 20,
         totalRevenue: 5000,
         hourlyRate: 250
@@ -52,7 +52,7 @@ describe('RevenueComparisonService', () => {
       { 
         clientId: 'client2', 
         clientName: 'Client B', 
-        expectedMonthlyRevenue: 7500,
+        expectedRevenue: 7500,
         totalHours: 30,
         totalRevenue: 7500,
         hourlyRate: 250
@@ -60,7 +60,7 @@ describe('RevenueComparisonService', () => {
       { 
         clientId: 'client3', 
         clientName: 'Client C', 
-        expectedMonthlyRevenue: 2500,
+        expectedRevenue: 2500,
         totalHours: 10,
         totalRevenue: 2500,
         hourlyRate: 250
@@ -205,7 +205,7 @@ describe('RevenueComparisonService', () => {
         { 
           clientId: 'client1', 
           clientName: 'Client A', 
-          expectedMonthlyRevenue: 0,
+          expectedRevenue: 0,
           totalHours: 0,
           totalRevenue: 0,
           hourlyRate: 0
@@ -351,7 +351,7 @@ describe('RevenueComparisonService', () => {
         { 
           clientId: 'client1', 
           clientName: 'Large Client', 
-          expectedMonthlyRevenue: 1000000,
+          expectedRevenue: 1000000,
           totalHours: 4000,
           totalRevenue: 1000000,
           hourlyRate: 250
@@ -404,6 +404,52 @@ describe('RevenueComparisonService', () => {
       // Should still complete with partial results
       expect(result.skillBreakdown).toHaveLength(3);
       expect(result.performanceMetrics.errors).toBeGreaterThan(0);
+    });
+  });
+
+  describe('compareClientRevenue', () => {
+    it('should calculate positive variance correctly', () => {
+      const result = RevenueComparisonService.compareClientRevenue(mockClientData);
+      
+      expect(result.variance).toBe(1500);
+      expect(result.percentageVariance).toBe(15);
+      expect(result.recommendation).toContain('increasing task scope');
+    });
+
+    it('should handle high variance in revenue report', () => {
+      const mockData: ClientRevenueData[] = [
+        {
+          clientId: 'client-1',
+          clientName: 'High Variance Client',
+          expectedRevenue: 10000, // FIXED: Use expectedRevenue
+          suggestedRevenue: 5000,
+          variance: 5000,
+          utilizationRate: 50
+        }
+      ];
+
+      const report = RevenueComparisonService.generateRevenueReport(mockData);
+      expect(report.recommendations).toHaveLength(1);
+      expect(report.recommendations[0]).toContain('High Variance Client');
+    });
+
+    it('should calculate utilization impact with variance analysis', () => {
+      const mockData: ClientRevenueData[] = [
+        {
+          clientId: 'client-1',
+          clientName: 'Analysis Client',
+          expectedRevenue: 12000, // FIXED: Use expectedRevenue
+          suggestedRevenue: 10000,
+          variance: 2000,
+          utilizationRate: 80
+        }
+      ];
+
+      const report = RevenueComparisonService.generateRevenueReport(mockData);
+      const impact = RevenueComparisonService.calculateUtilizationImpact(mockData[0]);
+      
+      expect(impact).toBe(9600); // 12000 * 0.8
+      expect(report.totalVariance).toBe(2000);
     });
   });
 });

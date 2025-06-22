@@ -1,49 +1,69 @@
-
 /**
- * Phase 3: Enhanced Export Service
- * 
- * Provides advanced export functionality with proper handling of resolved skill data,
- * enhanced filtering information, and improved data formatting.
+ * Enhanced Export Service
+ * Provides advanced export functionality for matrix data
  */
 
 import { DemandMatrixData } from '@/types/demand';
-import { SkillType } from '@/types/task';
-
-export interface EnhancedExportOptions {
-  includeFilterSummary?: boolean;
-  includeSkillResolutionInfo?: boolean;
-  format?: 'csv' | 'json' | 'xlsx';
-  filename?: string;
-}
-
-export interface ExportMetadata {
-  exportDate: string;
-  totalDataPoints: number;
-  appliedFilters: {
-    skills: SkillType[];
-    clients: string[];
-    preferredStaff: string[];
-    preferredStaffMode: string;
-  };
-  skillResolutionInfo?: {
-    totalSkills: number;
-    resolvedSkills: number;
-    unresolvedSkills: number;
-  };
-}
-
-// Phase 3: Enhanced export data row type to handle both data and metadata
-interface ExportDataRow {
-  skill: string;
-  month: string;
-  demandHours: number | string;
-  taskCount: number | string;
-  clientCount: number | string;
-  totalTasks: number | string;
-  taskDetails?: string;
-}
+import { extractStaffId } from '@/services/forecasting/demand/utils/staffExtractionUtils';
 
 export class EnhancedExportService {
+  /**
+   * Export demand matrix data to CSV format
+   */
+  static exportToCSV(data: DemandMatrixData): string {
+    const headers = ['Month', 'Skill Type', 'Demand Hours', 'Task Count', 'Client Count'];
+    const rows = [headers.join(',')];
+
+    data.dataPoints.forEach(point => {
+      const row = [
+        point.monthLabel || point.month,
+        point.skillType,
+        point.demandHours.toString(),
+        point.taskCount.toString(),
+        point.clientCount.toString()
+      ];
+      rows.push(row.join(','));
+    });
+
+    return rows.join('\n');
+  }
+
+  /**
+   * Export detailed task breakdown
+   */
+  static exportTaskBreakdown(data: DemandMatrixData): string {
+    const headers = [
+      'Month',
+      'Skill Type', 
+      'Task Name',
+      'Client Name',
+      'Monthly Hours',
+      'Preferred Staff'
+    ];
+    const rows = [headers.join(',')];
+
+    data.dataPoints.forEach(point => {
+      if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+        point.taskBreakdown.forEach((task: any) => {
+          // FIXED: Use extractStaffId utility for safe staff extraction
+          const preferredStaffId = extractStaffId(task.preferredStaff) || 'Unassigned';
+          
+          const row = [
+            point.monthLabel || point.month,
+            point.skillType,
+            task.taskName || 'Unknown',
+            task.clientName || 'Unknown',
+            (task.monthlyHours || 0).toString(),
+            preferredStaffId
+          ];
+          rows.push(row.join(','));
+        });
+      }
+    });
+
+    return rows.join('\n');
+  }
+
   /**
    * Phase 3: Enhanced export with resolved skill data
    */

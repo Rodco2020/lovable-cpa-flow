@@ -36,24 +36,24 @@ export class TaskQueryBuilder {
       query = query.eq('is_active', true);
     }
 
-    // Apply skill filters
-    if (filters?.skills && filters.skills.length > 0) {
-      console.log('🎯 [TASK QUERY BUILDER] Applying skill filters:', filters.skills);
+    // Apply skill filters - FIXED: use skillTypes instead of skills
+    if (filters?.skillTypes && filters.skillTypes.length > 0) {
+      console.log('🎯 [TASK QUERY BUILDER] Applying skill filters:', filters.skillTypes);
       
       // Use overlaps operator for array comparison
-      query = query.overlaps('required_skills', filters.skills);
+      query = query.overlaps('required_skills', filters.skillTypes);
     }
 
-    // Apply client filters
-    if (filters?.clients && filters.clients.length > 0) {
-      console.log('🏢 [TASK QUERY BUILDER] Applying client filters:', filters.clients);
-      query = query.in('client_id', filters.clients);
+    // Apply client filters - FIXED: use clientIds instead of clients
+    if (filters?.clientIds && filters.clientIds.length > 0) {
+      console.log('🏢 [TASK QUERY BUILDER] Applying client filters:', filters.clientIds);
+      query = query.in('client_id', filters.clientIds);
     }
 
-    // Apply preferred staff filters
-    if (filters?.preferredStaff?.staffIds && filters.preferredStaff.staffIds.length > 0) {
-      console.log('👥 [TASK QUERY BUILDER] Applying preferred staff filters:', filters.preferredStaff.staffIds);
-      query = query.in('preferred_staff_id', filters.preferredStaff.staffIds);
+    // Apply preferred staff filters - FIXED: use preferredStaffIds instead of preferredStaff
+    if (filters?.preferredStaffIds && filters.preferredStaffIds.length > 0) {
+      console.log('👥 [TASK QUERY BUILDER] Applying preferred staff filters:', filters.preferredStaffIds);
+      query = query.in('preferred_staff_id', filters.preferredStaffIds);
     }
 
     console.log('✅ [TASK QUERY BUILDER] Query built successfully');
