@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { DemandMatrixControlsFixed } from '../../DemandMatrixControls/DemandMatrixControlsFixed';
+// FIXED: Updated import path
 import { useDemandMatrixData } from '../../hooks/useDemandMatrixData';
 
 /**

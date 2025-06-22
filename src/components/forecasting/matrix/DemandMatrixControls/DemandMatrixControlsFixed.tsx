@@ -8,8 +8,8 @@ import { SkillType } from '@/types/task';
 import { useDemandMatrixFilteringFixed } from '../hooks/useDemandMatrixFilteringFixed';
 import { FilteringValidationService } from '@/services/forecasting/demand/dataFetcher/filteringValidationService';
 
-// Import existing filter components
-import { SkillsFilterSection } from './components/SkillsFilter';
+// FIXED: Import from correct locations
+import { SkillsFilterSection } from '../components/demand/components/SkillsFilterSection';
 import { ClientsFilterSection } from '../components/demand/ClientsFilterSection';
 import { PreferredStaffFilterSection } from '../components/demand/PreferredStaffFilterSection';
 import { MonthRangeSelector } from '../components/demand/MonthRangeSelector';
@@ -25,7 +25,8 @@ interface DemandMatrixControlsFixedProps {
  * FIXED: Demand Matrix Controls Component
  * 
  * FIXES IMPLEMENTED:
- * - Uses the corrected filtering hook
+ * - Corrected import paths for components
+ * - Fixed MonthRangeSelector props usage
  * - Enhanced validation and diagnostics
  * - Improved state management
  * - Better error handling and user feedback
@@ -190,9 +191,8 @@ export const DemandMatrixControlsFixed: React.FC<DemandMatrixControlsFixedProps>
             </div>
           )}
 
-          {/* Month Range */}
+          {/* FIXED: Month Range - removed months prop */}
           <MonthRangeSelector
-            months={demandData?.months || []}
             monthRange={monthRange}
             onMonthRangeChange={setMonthRange}
           />
