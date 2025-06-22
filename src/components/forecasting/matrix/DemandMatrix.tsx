@@ -30,7 +30,7 @@ interface DemandMatrixProps {
 }
 
 /**
- * Enhanced Demand Matrix Component with Print/Export Functionality
+ * Enhanced Demand Matrix Component with Staff Filtering Support
  */
 export const DemandMatrix: React.FC<DemandMatrixProps> = ({ 
   className,
@@ -47,7 +47,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
   const [drillDownData, setDrillDownData] = useState<DemandDrillDownData | null>(null);
   const [selectedDrillDown, setSelectedDrillDown] = useState<{skill: SkillType; month: string} | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [showPrintExportDialog, setShowPrintExportDialog] = useState(false); // NEW: Print/Export dialog state
+  const [showPrintExportDialog, setShowPrintExportDialog] = useState(false);
   const [timeHorizon, setTimeHorizon] = useState<'quarter' | 'half-year' | 'year' | 'custom'>('year');
   const [customDateRange, setCustomDateRange] = useState<{start: Date; end: Date}>();
   
@@ -86,11 +86,11 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
         });
       }
 
-      // Apply performance optimization with updated filters
+      // Apply performance optimization with updated filters including staff
       const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(newDemandData, {
         skills: [],
         clients: [],
-        preferredStaff: [], // NEW: Add missing preferredStaff property
+        preferredStaff: [], // Enhanced: Include staff in initial filters
         timeHorizon: customDateRange ? {
           start: customDateRange.start,
           end: customDateRange.end
@@ -124,22 +124,26 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     isEnabled: !isLoading && !error
   });
 
-  // Demand-specific controls
+  // Enhanced: Demand-specific controls with staff support
   const {
     selectedSkills,
     selectedClients,
+    selectedPreferredStaff, // Enhanced: Include staff selection
     monthRange,
     handleSkillToggle,
     handleClientToggle,
+    handlePreferredStaffToggle, // Enhanced: Include staff toggle handler
     handleMonthRangeChange,
     handleReset,
     handleExport,
     availableSkills,
     availableClients,
+    availablePreferredStaff, // Enhanced: Include available staff
     skillsLoading,
     clientsLoading,
     isAllSkillsSelected,
-    isAllClientsSelected
+    isAllClientsSelected,
+    isAllPreferredStaffSelected // Enhanced: Include staff selection state
   } = useDemandMatrixControls({
     demandData,
     groupingMode
@@ -192,7 +196,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     setShowExportDialog(true);
   };
 
-  // NEW: Handle print/export dialog
+  // Handle print/export dialog
   const handleShowPrintExport = () => {
     setShowPrintExportDialog(true);
   };
@@ -218,7 +222,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     loadDemandData();
   }, []);
 
-  // FIXED: Filter data based on controls and grouping mode with corrected logic
+  // Enhanced: Filter data based on controls and grouping mode with staff filtering
   const getFilteredData = () => {
     if (!demandData) return null;
 
@@ -228,21 +232,24 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
       availableSkillsCount: availableSkills.length,
       selectedClientsCount: selectedClients.length,
       availableClientsCount: availableClients.length,
+      selectedPreferredStaffCount: selectedPreferredStaff.length, // Enhanced: Log staff selection
+      availablePreferredStaffCount: availablePreferredStaff.length, // Enhanced: Log available staff
       isAllSkillsSelected,
       isAllClientsSelected,
+      isAllPreferredStaffSelected, // Enhanced: Log staff selection state
       monthRange
     });
 
     const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
     
-    // FIXED: Create filters with correct "no active filtering" logic
+    // Enhanced: Create filters with correct staff filtering logic
     const filters = {
       // Only include skills filter if we're NOT selecting all skills
       skills: isAllSkillsSelected ? [] : selectedSkills,
       // Only include clients filter if we're NOT selecting all clients  
       clients: isAllClientsSelected ? [] : selectedClients,
-      // NEW: Add missing preferredStaff property (empty array for now)
-      preferredStaff: [],
+      // Enhanced: Only include staff filter if we're NOT selecting all staff
+      preferredStaff: isAllPreferredStaffSelected ? [] : selectedPreferredStaff,
       timeHorizon: {
         start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
         end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
@@ -252,11 +259,11 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
       skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
       clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
-      preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL STAFF (no filter)' : filters.preferredStaff,
+      preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL STAFF (no filter)' : filters.preferredStaff, // Enhanced: Log staff filter
       timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
     });
 
-    // Use the corrected performance optimizer
+    // Use the enhanced performance optimizer with staff filtering
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
     
     console.log(`📊 [DEMAND MATRIX] Filter results:`, {
@@ -264,6 +271,8 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
       filteredDataPoints: optimizedData.dataPoints.length,
       originalSkills: demandData.skills.length,
       filteredSkills: optimizedData.skills.length,
+      originalStaff: demandData.availableStaff?.length || 0, // Enhanced: Log original staff count
+      filteredStaff: optimizedData.availableStaff?.length || 0, // Enhanced: Log filtered staff count
       totalDemandHours: optimizedData.totalDemand || 0
     });
 
@@ -337,7 +346,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
       <div className={className}>
         {/* Responsive layout for matrix and controls */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-          {/* Controls Panel - Enhanced with time controls */}
+          {/* Enhanced: Controls Panel with staff filtering support */}
           <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
             <div className="space-y-4">
               {/* Time Horizon Controls */}
@@ -348,14 +357,16 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
                 onCustomDateRangeChange={setCustomDateRange}
               />
               
-              {/* Standard Controls Panel */}
+              {/* Enhanced: Standard Controls Panel with staff support */}
               <DemandMatrixControlsPanel
                 isControlsExpanded={isControlsExpanded}
                 onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
                 selectedSkills={selectedSkills}
                 selectedClients={selectedClients}
+                selectedPreferredStaff={selectedPreferredStaff} // Enhanced: Pass staff selection
                 onSkillToggle={handleSkillToggle}
                 onClientToggle={handleClientToggle}
+                onPreferredStaffToggle={handlePreferredStaffToggle} // Enhanced: Pass staff toggle handler
                 monthRange={monthRange}
                 onMonthRangeChange={handleMonthRangeChange}
                 onExport={handleShowExport}
@@ -363,6 +374,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
                 groupingMode={groupingMode}
                 availableSkills={availableSkills}
                 availableClients={availableClients}
+                availablePreferredStaff={availablePreferredStaff} // Enhanced: Pass available staff
                 onPrintExport={handleShowPrintExport}
               />
             </div>
@@ -420,7 +432,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
           data={drillDownData}
         />
 
-        {/* Export Dialog */}
+        {/* Enhanced: Export Dialog with staff support */}
         {demandData && (
           <DemandMatrixExportDialog
             isOpen={showExportDialog}
@@ -428,12 +440,13 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
             demandData={demandData}
             selectedSkills={selectedSkills}
             selectedClients={selectedClients}
+            selectedPreferredStaff={selectedPreferredStaff} // Enhanced: Pass staff selection
             monthRange={monthRange}
             groupingMode={groupingMode}
           />
         )}
 
-        {/* Print/Export Dialog */}
+        {/* Enhanced: Print/Export Dialog with staff support */}
         {demandData && (
           <DemandMatrixPrintExportDialog
             isOpen={showPrintExportDialog}
@@ -441,6 +454,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
             demandData={filteredData}
             selectedSkills={selectedSkills}
             selectedClients={selectedClients}
+            selectedPreferredStaff={selectedPreferredStaff} // Enhanced: Pass staff selection
             monthRange={monthRange}
             groupingMode={groupingMode}
           />

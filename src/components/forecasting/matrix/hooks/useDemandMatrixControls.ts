@@ -13,7 +13,7 @@ interface UseDemandMatrixControlsProps {
 interface DemandMatrixControlsState {
   selectedSkills: SkillType[];
   selectedClients: string[];
-  selectedPreferredStaff: string[]; // NEW: Add preferred staff state
+  selectedPreferredStaff: string[]; // Enhanced: Preferred staff state
   monthRange: { start: number; end: number };
 }
 
@@ -25,7 +25,7 @@ export const useDemandMatrixControls = ({
   const [state, setState] = useState<DemandMatrixControlsState>({
     selectedSkills: [],
     selectedClients: [],
-    selectedPreferredStaff: [], // NEW: Initialize preferred staff
+    selectedPreferredStaff: [], // Enhanced: Initialize preferred staff
     monthRange: { start: 0, end: 11 }
   });
 
@@ -48,35 +48,52 @@ export const useDemandMatrixControls = ({
     ) || []
   ));
 
-  // FIXED: Calculate selection state flags for proper filtering logic
+  // Enhanced: Extract available preferred staff from demand data
+  const availablePreferredStaff = Array.from(new Set(
+    demandData?.dataPoints.flatMap(point => 
+      point.taskBreakdown
+        .filter(task => task.preferredStaffId && task.preferredStaffName)
+        .map(task => ({
+          id: task.preferredStaffId!,
+          name: task.preferredStaffName!
+        }))
+    ) || []
+  ));
+
+  // Enhanced: Calculate selection state flags for proper filtering logic
   const isAllSkillsSelected = availableSkills.length > 0 && state.selectedSkills.length === availableSkills.length;
   const isAllClientsSelected = availableClients.length > 0 && state.selectedClients.length === availableClients.length;
+  const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && state.selectedPreferredStaff.length === availablePreferredStaff.length;
 
   console.log(`🎛️ [MATRIX CONTROLS] Available options:`, {
     availableSkills: availableSkills.length,
     availableClients: availableClients.length,
+    availablePreferredStaff: availablePreferredStaff.length,
     selectedSkills: state.selectedSkills.length,
     selectedClients: state.selectedClients.length,
+    selectedPreferredStaff: state.selectedPreferredStaff.length,
     isAllSkillsSelected,
-    isAllClientsSelected
+    isAllClientsSelected,
+    isAllPreferredStaffSelected
   });
 
   // Initialize selections when data becomes available - SELECT ALL by default
   useEffect(() => {
-    if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0) {
+    if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0 && state.selectedPreferredStaff.length === 0) {
       setState(prev => ({
         ...prev,
         selectedSkills: availableSkills,
         selectedClients: availableClients.map(client => client.id),
-        selectedPreferredStaff: [] // NEW: Initialize preferred staff as empty (all selected)
+        selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id) // Enhanced: Initialize all staff selected
       }));
       
-      console.log(`🎛️ [MATRIX CONTROLS] Initialized with ALL skills and clients selected:`, {
+      console.log(`🎛️ [MATRIX CONTROLS] Initialized with ALL skills, clients, and staff selected:`, {
         skillsCount: availableSkills.length,
-        clientsCount: availableClients.length
+        clientsCount: availableClients.length,
+        staffCount: availablePreferredStaff.length
       });
     }
-  }, [demandData, availableSkills, availableClients]);
+  }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
 
   // Handle skill toggle
   const handleSkillToggle = useCallback((skill: SkillType) => {
@@ -122,6 +139,28 @@ export const useDemandMatrixControls = ({
     });
   }, [availableClients.length]);
 
+  // Enhanced: Handle preferred staff toggle
+  const handlePreferredStaffToggle = useCallback((staffId: string) => {
+    setState(prev => {
+      const newSelectedPreferredStaff = prev.selectedPreferredStaff.includes(staffId)
+        ? prev.selectedPreferredStaff.filter(s => s !== staffId)
+        : [...prev.selectedPreferredStaff, staffId];
+
+      console.log(`🔧 [MATRIX CONTROLS] Preferred staff toggle:`, {
+        staffId,
+        action: prev.selectedPreferredStaff.includes(staffId) ? 'removed' : 'added',
+        newCount: newSelectedPreferredStaff.length,
+        totalAvailable: availablePreferredStaff.length,
+        willBeAllSelected: newSelectedPreferredStaff.length === availablePreferredStaff.length
+      });
+
+      return {
+        ...prev,
+        selectedPreferredStaff: newSelectedPreferredStaff
+      };
+    });
+  }, [availablePreferredStaff.length]);
+
   // Handle month range change
   const handleMonthRangeChange = useCallback((monthRange: { start: number; end: number }) => {
     setState(prev => ({
@@ -130,20 +169,21 @@ export const useDemandMatrixControls = ({
     }));
   }, []);
 
-  // Handle reset - SELECT ALL clients and skills
+  // Enhanced: Handle reset - SELECT ALL clients, skills, and staff
   const handleReset = useCallback(() => {
     setState({
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
-      selectedPreferredStaff: [], // NEW: Reset preferred staff
+      selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id), // Enhanced: Reset staff to all selected
       monthRange: { start: 0, end: 11 }
     });
     
-    console.log(`🔄 [MATRIX CONTROLS] Reset to ALL skills and clients:`, {
+    console.log(`🔄 [MATRIX CONTROLS] Reset to ALL skills, clients, and staff:`, {
       skillsCount: availableSkills.length,
-      clientsCount: availableClients.length
+      clientsCount: availableClients.length,
+      staffCount: availablePreferredStaff.length
     });
-  }, [availableSkills, availableClients]);
+  }, [availableSkills, availableClients, availablePreferredStaff]);
 
   // Handle export
   const handleExport = useCallback(() => {
@@ -222,14 +262,17 @@ export const useDemandMatrixControls = ({
     ...state,
     handleSkillToggle,
     handleClientToggle,
+    handlePreferredStaffToggle, // Enhanced: Export staff toggle handler
     handleMonthRangeChange,
     handleReset,
     handleExport,
     availableSkills,
     availableClients,
+    availablePreferredStaff, // Enhanced: Export available staff
     skillsLoading,
     clientsLoading,
     isAllSkillsSelected,
-    isAllClientsSelected
+    isAllClientsSelected,
+    isAllPreferredStaffSelected // Enhanced: Export staff selection state
   };
 };
