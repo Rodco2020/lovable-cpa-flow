@@ -1,8 +1,8 @@
-
 import { DemandDataPoint, ClientTaskDemand, RecurrenceCalculation } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { debugLog } from '../../logger';
+import { SkillTypeHandler } from './skillTypeHandler';
 
 /**
  * Consistent Demand Calculation Service
@@ -31,8 +31,8 @@ export class ConsistentDemandCalculation {
       const skillGroups = new Map<string, ClientTaskDemand[]>();
 
       tasks.forEach(task => {
-        // Fix: Use correct property names from RecurringTaskDB
-        const skillType = task.required_skills || 'General';
+        // Fix: Use skill type handler to normalize skill type
+        const skillType = SkillTypeHandler.extractSkillFromTask(task);
         
         // Calculate occurrences for this month
         const monthlyOccurrences = this.calculateMonthlyOccurrences(

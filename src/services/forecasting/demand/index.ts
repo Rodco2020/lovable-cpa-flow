@@ -45,7 +45,8 @@ export {
 
 // Data validation and processing
 export { DataValidator } from './dataValidator';
-export { DemandPerformanceOptimizer } from './performanceOptimizer';
+// Fix: Export correct name for performance optimizer
+export { PerformanceOptimizer as DemandPerformanceOptimizer } from './performanceOptimizer';
 export { DemandDrillDownService } from './demandDrillDownService';
 
 // Client and skill resolution services

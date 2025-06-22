@@ -1,31 +1,27 @@
 
 /**
- * Phase 4: Performance and Filtering Module Exports
- * 
- * Centralized exports for the enhanced performance monitoring and filtering system
+ * Performance Module Index
  */
 
-export { AdvancedFilteringEngine } from './filteringEngine';
-export { FilteringValidator } from './filteringValidator';
-export { PerformanceMonitor } from './performanceMonitor';
+// Data processing
 export { DataFilter } from './dataFilter';
+export { PerformanceOptimizer } from '../performanceOptimizer';
 
-export { PERFORMANCE_OPERATIONS, PERFORMANCE_THRESHOLDS, PERFORMANCE_CONSTANTS, FILTER_MODE_TYPES } from './constants';
-
-export type { 
-  FilteringResult, 
-  FilteringMetrics, 
-  FilteringPerformanceStats 
+// Filtering engine
+export { 
+  FilteringEngine,
+  type FilteringMetrics,
+  type FilteringPerformanceStats 
 } from './filteringEngine';
 
-export type { 
-  ValidationResult, 
-  ValidationError, 
-  ValidationWarning, 
-  DataIntegrityCheck 
+// Validation
+export { 
+  FilteringValidator,
+  type DataIntegrityCheck 
 } from './filteringValidator';
 
-export type { 
-  FilteringOptions, 
-  PerformanceMetric 
-} from './types';
+// Cache management
+export { CacheManager } from './cacheManager';
+
+// Monitoring
+export { PerformanceMonitor } from './performanceMonitor';

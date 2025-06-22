@@ -3,6 +3,7 @@ import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
 import { format, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { debugLog } from '../../logger';
+import { SkillTypeHandler } from './skillTypeHandler';
 
 /**
  * Data Point Generation Service
@@ -36,8 +37,8 @@ export class DataPointGenerationService {
       const skillGroups = new Map<string, ClientTaskDemand[]>();
 
       for (const task of tasks) {
-        // Use correct property names from RecurringTaskDB
-        const skillType = task.required_skills || 'General';
+        // Fix: Use skill type handler to normalize skill type
+        const skillType = SkillTypeHandler.extractSkillFromTask(task);
         
         // Calculate monthly occurrences
         const monthlyOccurrences = this.calculateTaskOccurrences(
