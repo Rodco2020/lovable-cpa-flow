@@ -1,3 +1,4 @@
+
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
@@ -109,8 +110,8 @@ export interface DemandMatrixData {
 export interface DemandFilters {
   skills: string[];
   clients: string[];
-  /** NEW: Preferred staff filter */
-  preferredStaff: string[];
+  /** NEW: Preferred staff filter - now optional for backward compatibility */
+  preferredStaff?: string[];
   timeHorizon: {
     start: Date;
     end: Date;
@@ -208,8 +209,8 @@ export interface DemandForecastParameters {
   };
   includeSkills: string[] | 'all';
   includeClients: string[] | 'all';
-  /** NEW: Include preferred staff in forecast parameters */
-  includePreferredStaff: string[] | 'all';
+  /** NEW: Include preferred staff in forecast parameters - now optional for backward compatibility */
+  includePreferredStaff?: string[] | 'all';
   granularity: 'daily' | 'weekly' | 'monthly';
   /** NEW: Revenue calculation options */
   includeRevenueCalculations?: boolean;

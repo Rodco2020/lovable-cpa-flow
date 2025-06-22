@@ -13,6 +13,7 @@ interface UseDemandMatrixControlsProps {
 interface DemandMatrixControlsState {
   selectedSkills: SkillType[];
   selectedClients: string[];
+  selectedPreferredStaff: string[]; // NEW: Add preferred staff state
   monthRange: { start: number; end: number };
 }
 
@@ -24,6 +25,7 @@ export const useDemandMatrixControls = ({
   const [state, setState] = useState<DemandMatrixControlsState>({
     selectedSkills: [],
     selectedClients: [],
+    selectedPreferredStaff: [], // NEW: Initialize preferred staff
     monthRange: { start: 0, end: 11 }
   });
 
@@ -65,7 +67,8 @@ export const useDemandMatrixControls = ({
       setState(prev => ({
         ...prev,
         selectedSkills: availableSkills,
-        selectedClients: availableClients.map(client => client.id)
+        selectedClients: availableClients.map(client => client.id),
+        selectedPreferredStaff: [] // NEW: Initialize preferred staff as empty (all selected)
       }));
       
       console.log(`🎛️ [MATRIX CONTROLS] Initialized with ALL skills and clients selected:`, {
@@ -132,6 +135,7 @@ export const useDemandMatrixControls = ({
     setState({
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
+      selectedPreferredStaff: [], // NEW: Reset preferred staff
       monthRange: { start: 0, end: 11 }
     });
     

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabaseClient';
 import { StaffOption } from '@/types/staffOption';
 
@@ -106,4 +105,12 @@ export const validateStaffId = (staffId: string): boolean => {
 
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(staffId.trim());
+};
+
+/**
+ * Clear staff options cache (placeholder for future caching implementation)
+ */
+export const clearStaffOptionsCache = (): void => {
+  console.log('🗑️ [Staff Dropdown Service] Cache cleared (placeholder implementation)');
+  // TODO: Implement actual cache clearing when caching is added
 };

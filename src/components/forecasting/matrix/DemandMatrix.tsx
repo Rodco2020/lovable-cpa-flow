@@ -86,10 +86,11 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
         });
       }
 
-      // Apply performance optimization
+      // Apply performance optimization with updated filters
       const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(newDemandData, {
         skills: [],
         clients: [],
+        preferredStaff: [], // NEW: Add missing preferredStaff property
         timeHorizon: customDateRange ? {
           start: customDateRange.start,
           end: customDateRange.end
@@ -240,6 +241,8 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
       skills: isAllSkillsSelected ? [] : selectedSkills,
       // Only include clients filter if we're NOT selecting all clients  
       clients: isAllClientsSelected ? [] : selectedClients,
+      // NEW: Add missing preferredStaff property (empty array for now)
+      preferredStaff: [],
       timeHorizon: {
         start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
         end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
@@ -249,6 +252,7 @@ export const DemandMatrix: React.FC<DemandMatrixProps> = ({
     console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
       skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
       clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
+      preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL STAFF (no filter)' : filters.preferredStaff,
       timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
     });
 

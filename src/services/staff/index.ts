@@ -1,14 +1,11 @@
 
-/**
- * Staff Service Module
- * Centralizes all staff-related services and functions
- */
+// Staff Services Exports
+export { StaffService } from './staffService';
+export { 
+  getActiveStaffForDropdown, 
+  validateStaffId 
+} from './staffDropdownService';
+export type { StaffOption } from '@/types/staffOption';
 
-// Re-export all individual services
-export * from './staffService';
-export * from './timeSlotService';
-export * from './availabilityService';
-export * from './defaultTemplateService';
-export * from './skillMappingService';
-export * from './staffMapper';
-export * from './staffDropdownService';
+// Remove duplicate getStaffById export to resolve ambiguity
+// The getStaffById from staffDropdownService will be used
