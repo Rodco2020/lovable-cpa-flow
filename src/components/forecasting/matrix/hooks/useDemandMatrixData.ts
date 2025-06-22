@@ -12,9 +12,9 @@ export const useDemandMatrixData = () => {
     queryFn: async (): Promise<DemandMatrixData> => {
       console.log('🔍 [DATA HOOK] Fetching demand matrix data for testing');
       
-      // Fetch client assigned tasks with basic data
+      // Fetch recurring tasks with basic data
       const { data: tasks, error } = await supabase
-        .from('client_assigned_tasks')
+        .from('recurring_tasks')
         .select(`
           id,
           client_id,
@@ -22,11 +22,12 @@ export const useDemandMatrixData = () => {
           estimated_hours,
           priority,
           status,
-          recurrence_pattern,
+          required_skills,
+          name,
           clients!inner(id, legal_name),
           task_templates!inner(id, name, required_skills, category)
         `)
-        .eq('status', 'active')
+        .eq('status', 'Active')
         .limit(100);
 
       if (error) {
@@ -48,7 +49,8 @@ export const useDemandMatrixData = () => {
         dataPoints: [],
         totalDemand: 0,
         totalTasks: tasks?.length || 0,
-        totalClients: 0
+        totalClients: 0,
+        skillSummary: []
       };
 
       // Transform tasks into data points
@@ -58,8 +60,8 @@ export const useDemandMatrixData = () => {
         const clientSet = new Set<string>();
 
         tasks.forEach((task: any) => {
-          const skill = Array.isArray(task.task_templates?.required_skills) 
-            ? task.task_templates.required_skills[0] || 'Junior'
+          const skill = Array.isArray(task.required_skills) 
+            ? task.required_skills[0] || 'Junior'
             : 'Junior';
           
           const monthlyHours = task.estimated_hours || 5;
@@ -77,8 +79,8 @@ export const useDemandMatrixData = () => {
               existingPoint.taskCount += 1;
               existingPoint.taskBreakdown = existingPoint.taskBreakdown || [];
               existingPoint.taskBreakdown.push({
-                taskId: task.id,
-                taskName: task.task_templates?.name || 'Unknown Task',
+                clientTaskDemandId: task.id,
+                taskName: task.name || 'Unknown Task',
                 clientId: task.client_id,
                 clientName: task.clients?.legal_name || 'Unknown Client',
                 monthlyHours,
@@ -92,8 +94,8 @@ export const useDemandMatrixData = () => {
                 taskCount: 1,
                 clientCount: 1,
                 taskBreakdown: [{
-                  taskId: task.id,
-                  taskName: task.task_templates?.name || 'Unknown Task',
+                  clientTaskDemandId: task.id,
+                  taskName: task.name || 'Unknown Task',
                   clientId: task.client_id,
                   clientName: task.clients?.legal_name || 'Unknown Client',
                   monthlyHours,
@@ -106,6 +108,17 @@ export const useDemandMatrixData = () => {
 
         mockData.totalDemand = totalHours;
         mockData.totalClients = clientSet.size;
+        
+        // Create skill summary
+        mockData.skillSummary = mockData.skills.map(skill => ({
+          skillType: skill,
+          totalDemand: mockData.dataPoints
+            .filter(p => p.skillType === skill)
+            .reduce((sum, p) => sum + p.demandHours, 0),
+          taskCount: mockData.dataPoints
+            .filter(p => p.skillType === skill)
+            .reduce((sum, p) => sum + p.taskCount, 0)
+        }));
       }
 
       console.log('✅ [DATA HOOK] Demand data fetched:', {
