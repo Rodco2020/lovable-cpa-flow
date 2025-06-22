@@ -6,9 +6,9 @@ export interface ClientTaskDemand {
   clientName: string;
   monthlyHours: number;
   skillType: string;
-  estimatedHours?: number; // Add missing property
-  recurrencePattern?: string; // Add missing property
-  recurringTaskId?: string; // Add missing property
+  estimatedHours?: number;
+  recurrencePattern?: string;
+  recurringTaskId?: string;
   preferredStaff?: {
     staffId: string;
     full_name: string;
@@ -22,8 +22,8 @@ export interface DemandDataPoint {
   demandHours: number;
   taskCount: number;
   clientCount: number;
-  suggestedRevenue?: number; // Add missing property
-  expectedLessSuggested?: number; // Add missing property
+  suggestedRevenue?: number;
+  expectedLessSuggested?: number;
   taskBreakdown?: ClientTaskDemand[];
 }
 
@@ -32,7 +32,7 @@ export interface SkillSummary {
   totalDemand: number;
   totalHours: number;
   taskCount: number;
-  clientCount?: number; // Add missing property
+  clientCount?: number;
 }
 
 export interface MonthInfo {
@@ -57,8 +57,11 @@ export interface DemandMatrixData {
     totalRevenue: number;
     totalSuggestedRevenue: number;
     totalExpectedLessSuggested: number;
-    totalExpectedRevenue?: number; // Add missing property
+    totalExpectedRevenue?: number;
   };
+  // Add missing properties for backward compatibility
+  availableClients?: Array<{ id: string; name: string }>;
+  availablePreferredStaff?: Array<{ id: string; name: string }>;
 }
 
 export interface DemandMatrixFilters {
@@ -69,7 +72,6 @@ export interface DemandMatrixFilters {
   preferredStaffFilterMode: 'all' | 'specific' | 'none';
 }
 
-// Add missing DemandFilters interface
 export interface DemandFilters {
   skillTypes?: string[];
   clientIds?: string[];
@@ -82,7 +84,6 @@ export interface DemandFilters {
   priorities?: string[];
 }
 
-// Add missing ClientRevenueData interface
 export interface ClientRevenueData {
   clientId: string;
   clientName: string;
