@@ -1,6 +1,7 @@
 
 import { useEffect, useCallback } from 'react';
 import eventService from '@/services/eventService';
+import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
 import { useToast } from '@/components/ui/use-toast';
 
 interface UseDemandMatrixRealtimeProps {
@@ -21,7 +22,10 @@ export const useDemandMatrixRealtime = ({
   const handleTaskEvent = useCallback((event: any) => {
     console.log('Demand matrix: Task event received', event.type, event.payload);
     
-    // Trigger data refresh (remove clearCache call since it doesn't exist)
+    // Clear cache to ensure fresh data
+    DemandMatrixService.clearCache();
+    
+    // Trigger data refresh
     onDataChange();
     
     // Show subtle notification
@@ -35,7 +39,8 @@ export const useDemandMatrixRealtime = ({
   const handleClientEvent = useCallback((event: any) => {
     console.log('Demand matrix: Client event received', event.type, event.payload);
     
-    // Trigger data refresh
+    // Clear cache and refresh for client changes
+    DemandMatrixService.clearCache();
     onDataChange();
     
     toast({
@@ -49,6 +54,7 @@ export const useDemandMatrixRealtime = ({
     console.log('Demand matrix: Forecast recalculation triggered', event.payload);
     
     // Force refresh for forecast recalculations
+    DemandMatrixService.clearCache();
     onDataChange();
   }, [onDataChange]);
 
@@ -78,6 +84,7 @@ export const useDemandMatrixRealtime = ({
   return {
     // Expose manual refresh capability
     refreshData: useCallback(() => {
+      DemandMatrixService.clearCache();
       onDataChange();
     }, [onDataChange])
   };

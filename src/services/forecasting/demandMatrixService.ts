@@ -1,198 +1,146 @@
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { debugLog } from './logger';
-import { MatrixTransformer } from './demand/matrixTransformer';
+import { MatrixTransformerCore } from './demand/matrixTransformer/matrixTransformerCore';
 import { DataFetcher } from './demand/dataFetcher';
-import { DemandMatrixValidator } from './demand/validation/demandMatrixValidator';
-import { getErrorMessage } from '@/utils/errorUtils';
+import { DemandPerformanceOptimizer } from './demand/performanceOptimizer';
+import { DemandMatrixValidator } from './demand/demandMatrixValidator';
+import { startOfYear, addMonths } from 'date-fns';
 
 /**
- * Demand Matrix Service
- * 
- * Core service for managing demand matrix operations including data fetching,
- * transformation, validation, and filtering.
+ * Demand Matrix Service with Enhanced Preferred Staff Support
+ * Core service for generating demand matrix data with preferred staff filtering capabilities
  */
 export class DemandMatrixService {
-  private static cache = new Map<string, DemandMatrixData>();
+  private static cache = new Map<string, { data: DemandMatrixData; timestamp: number }>();
+  private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   /**
-   * Generate demand matrix with comprehensive data processing
+   * Generate demand matrix with preferred staff integration
    */
   static async generateDemandMatrix(
-    filters: DemandFilters = {}
-  ): Promise<DemandMatrixData> {
-    debugLog('Generating demand matrix', { filters });
+    forecastType: 'demand-only' | 'combined' = 'demand-only',
+    startDate: Date = startOfYear(new Date()),
+    filters?: DemandFilters
+  ): Promise<{ matrixData: DemandMatrixData }> {
+    const cacheKey = this.buildCacheKey(forecastType, startDate, filters);
+    
+    // Check cache first
+    const cached = this.getCachedData(cacheKey);
+    if (cached) {
+      debugLog('Returning cached demand matrix data');
+      return { matrixData: cached };
+    }
+
+    debugLog('Generating fresh demand matrix data with preferred staff support', { 
+      forecastType, 
+      startDate,
+      hasPreferredStaffFilter: !!filters?.preferredStaff?.staffIds?.length
+    });
 
     try {
-      // Fetch client-assigned tasks based on filters
-      const tasks = await DataFetcher.fetchClientAssignedTasks(filters);
-      
-      if (tasks.length === 0) {
-        debugLog('No tasks found matching filters');
-        return this.createEmptyMatrix();
-      }
+      // Fetch forecast and task data
+      const forecastData = await DataFetcher.fetchForecastData(startDate);
+      const tasks = await DataFetcher.fetchRecurringTasks();
 
-      // Generate forecast data for the next 12 months
-      const { ForecastGenerator } = await import('./demand/forecastGenerator');
-      const startDate = new Date();
-      const endDate = new Date(startDate.getFullYear() + 1, startDate.getMonth(), 0);
-      
-      const forecastData = await ForecastGenerator.generateDemandForecast({
-        dateRange: { startDate, endDate },
-        includeSkills: filters.skillTypes || 'all',
-        includeClients: filters.clientIds || 'all'
-      });
+      console.log(`📊 [DEMAND MATRIX SERVICE] Data fetched: ${forecastData.length} forecast periods, ${tasks.length} tasks`);
 
-      // Transform to matrix format
-      const matrixData = await MatrixTransformer.transformToMatrixData(
-        forecastData,
-        tasks
-      );
+      // Transform to matrix data with preferred staff processing
+      const matrixData = await MatrixTransformerCore.transformToMatrixData(forecastData, tasks);
 
-      // Validate the generated matrix
-      const validationResult = DemandMatrixValidator.validateDemandMatrix(matrixData);
-      if (!validationResult.isValid) {
-        debugLog('Matrix validation failed', { 
-          issues: validationResult.issues 
+      // Apply preferred staff filters if provided
+      let filteredMatrixData = matrixData;
+      if (filters) {
+        console.log('🎯 [DEMAND MATRIX SERVICE] Applying preferred staff filters:', {
+          skillsFilter: filters.skills?.length || 0,
+          clientsFilter: filters.clients?.length || 0,
+          preferredStaffFilter: filters.preferredStaff?.staffIds?.length || 0
         });
+
+        filteredMatrixData = DemandPerformanceOptimizer.optimizeFiltering(matrixData, filters);
       }
 
-      debugLog('Demand matrix generated successfully', {
-        totalDataPoints: matrixData.dataPoints.length,
-        totalDemand: matrixData.totalDemand,
-        monthsCount: matrixData.months.length
-      });
-
-      return matrixData;
-
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      debugLog('Error generating demand matrix', { error: errorMessage });
-      return this.createEmptyMatrix();
-    }
-  }
-
-  /**
-   * Validate demand matrix data
-   */
-  static validateMatrix(data: DemandMatrixData): { isValid: boolean; issues: string[] } {
-    try {
-      const validationResult = DemandMatrixValidator.validateDemandMatrix(data);
-      return {
-        isValid: validationResult.isValid,
-        issues: validationResult.issues
-      };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      debugLog('Error validating matrix', { error: errorMessage });
-      return {
-        isValid: false,
-        issues: ['Validation failed due to unexpected error']
-      };
-    }
-  }
-
-  /**
-   * Apply enhanced filtering to demand matrix data
-   */
-  static async applyFiltering(
-    data: DemandMatrixData,
-    filters: DemandFilters
-  ): Promise<DemandMatrixData> {
-    debugLog('Applying enhanced filtering', { filters });
-
-    try {
-      // Use the enhanced data filter for comprehensive filtering
-      const { EnhancedDataFilter } = await import('./demand/enhancedDataFilter');
-      
-      const result = await EnhancedDataFilter.executeComprehensiveFiltering(
-        data,
-        filters,
-        {
-          enableValidation: true,
-          enablePerformanceMonitoring: true,
-          enableLogging: true,
-          fallbackOnError: true
-        }
-      );
-
-      if (!result.success) {
-        debugLog('Filtering failed, using fallback', { 
-          errors: result.errors 
-        });
-        return data; // Return original data as fallback
+      // Validate the matrix data
+      const validation = DemandMatrixValidator.validateDemandMatrixData(filteredMatrixData);
+      if (!validation.isValid) {
+        console.warn('⚠️ [DEMAND MATRIX SERVICE] Matrix validation issues:', validation.issues);
       }
 
-      return result.filteredData;
+      // Cache the result
+      this.setCachedData(cacheKey, filteredMatrixData);
+
+      console.log(`✅ [DEMAND MATRIX SERVICE] Matrix generated successfully: ${filteredMatrixData.dataPoints.length} data points, ${filteredMatrixData.totalDemand}h total demand`);
+
+      return { matrixData: filteredMatrixData };
 
     } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      debugLog('Error applying filtering', { error: errorMessage });
-      return data; // Return original data on error
+      console.error('❌ [DEMAND MATRIX SERVICE] Error generating demand matrix:', error);
+      throw new Error(`Failed to generate demand matrix: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Clear cache
+   * Validate demand matrix data with preferred staff validation
+   */
+  static validateDemandMatrixData(data: DemandMatrixData): string[] {
+    return DemandMatrixValidator.validateDemandMatrixData(data).issues;
+  }
+
+  /**
+   * Get demand matrix cache key (for compatibility with existing code)
+   */
+  static getDemandMatrixCacheKey(forecastType: string, startDate: Date): string {
+    return `demand_matrix_${forecastType}_${startDate.toISOString().split('T')[0]}`;
+  }
+
+  /**
+   * Enhanced cache management
+   */
+  private static buildCacheKey(forecastType: string, startDate: Date, filters?: DemandFilters): string {
+    const baseKey = `${forecastType}-${startDate.toISOString().split('T')[0]}`;
+    
+    if (!filters) return baseKey;
+    
+    const filterKey = [
+      filters.skills?.sort().join(',') || '',
+      filters.clients?.sort().join(',') || '',
+      filters.preferredStaff?.staffIds?.sort().join(',') || '',
+      filters.timeHorizon ? `${filters.timeHorizon.start.toISOString()}-${filters.timeHorizon.end.toISOString()}` : ''
+    ].join('|');
+    
+    return `${baseKey}-${filterKey}`;
+  }
+
+  private static getCachedData(cacheKey: string): DemandMatrixData | null {
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(cacheKey);
+    }
+    return null;
+  }
+
+  private static setCachedData(cacheKey: string, data: DemandMatrixData): void {
+    this.cache.set(cacheKey, { data, timestamp: Date.now() });
+  }
+
+  /**
+   * Clear cache for fresh data generation
    */
   static clearCache(): void {
     this.cache.clear();
-    debugLog('Matrix cache cleared');
+    debugLog('Demand matrix cache cleared');
   }
 
   /**
-   * Validate demand matrix data structure
+   * Get cache statistics
    */
-  static validateDemandMatrixData(data: DemandMatrixData): { isValid: boolean; issues: string[] } {
-    return this.validateMatrix(data);
-  }
-
-  /**
-   * Get cache key for demand matrix
-   */
-  static getDemandMatrixCacheKey(filters: DemandFilters): string {
-    return JSON.stringify(filters);
-  }
-
-  /**
-   * Create empty matrix structure
-   */
-  private static createEmptyMatrix(): DemandMatrixData {
+  static getCacheStats() {
     return {
-      months: [],
-      skills: [],
-      dataPoints: [],
-      totalDemand: 0,
-      totalTasks: 0,
-      totalClients: 0,
-      skillSummary: [],
-      availableClients: [],
-      availablePreferredStaff: []
-    };
-  }
-
-  /**
-   * Get matrix summary statistics
-   */
-  static getMatrixSummary(data: DemandMatrixData): {
-    totalHours: number;
-    totalTasks: number;
-    totalClients: number;
-    skillsCount: number;
-    monthsCount: number;
-    averageHoursPerMonth: number;
-  } {
-    const averageHoursPerMonth = data.months.length > 0 
-      ? data.totalDemand / data.months.length 
-      : 0;
-
-    return {
-      totalHours: data.totalDemand,
-      totalTasks: data.totalTasks,
-      totalClients: data.totalClients,
-      skillsCount: data.skills.length,
-      monthsCount: data.months.length,
-      averageHoursPerMonth
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
     };
   }
 }

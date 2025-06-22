@@ -1,29 +1,28 @@
-
 import { useMemo } from 'react';
 import { DemandMatrixData } from '@/types/demand';
-import { SkillType } from '@/types/task';
 
 interface UseDemandMatrixFilteringProps {
-  demandData: DemandMatrixData | null;
-  selectedSkills: SkillType[];
+  demandData?: DemandMatrixData | null;
+  selectedSkills: string[];
   selectedClients: string[];
   selectedPreferredStaff: string[];
   monthRange: { start: number; end: number };
   isAllSkillsSelected: boolean;
   isAllClientsSelected: boolean;
   isAllPreferredStaffSelected: boolean;
-  preferredStaffFilterMode: 'all' | 'specific' | 'none';
+  preferredStaffFilterMode: 'all' | 'specific' | 'none'; // Phase 2: New three-mode system
 }
 
 /**
- * Enhanced Demand Matrix Filtering Hook with Comprehensive Debugging
+ * Phase 2: Enhanced Demand Matrix Filtering Hook - Three-Mode Preferred Staff Filtering
  * 
- * ENHANCED FEATURES:
- * - Comprehensive filtering validation and debugging
- * - Proper handling of three-mode preferred staff filtering
- * - Enhanced performance with detailed memoization
- * - Fixed property access for different data structures
- * - Detailed logging for troubleshooting filter issues
+ * PHASE 2 ENHANCEMENTS:
+ * - Supports three distinct filtering modes: 'all', 'specific', 'none'
+ * - 'all' mode: Shows all tasks regardless of preferred staff assignment
+ * - 'specific' mode: Shows only tasks assigned to selected preferred staff
+ * - 'none' mode: Shows only tasks without preferred staff assignments
+ * - Maintains backward compatibility with existing filtering logic
+ * - Enhanced validation and error handling
  */
 export const useDemandMatrixFiltering = ({
   demandData,
@@ -35,245 +34,192 @@ export const useDemandMatrixFiltering = ({
   isAllClientsSelected,
   isAllPreferredStaffSelected,
   preferredStaffFilterMode
-}: UseDemandMatrixFilteringProps): DemandMatrixData | null => {
-  
-  return useMemo(() => {
+}: UseDemandMatrixFilteringProps) => {
+
+  const filteredData = useMemo(() => {
     if (!demandData) {
-      console.log(`🔍 [FILTERING] No demand data available for filtering`);
+      console.log('🔍 [MATRIX FILTERING] Phase 2 - No demand data available');
       return null;
     }
 
-    console.group(`🔍 [FILTERING] Enhanced filtering with comprehensive debugging`);
-    console.log(`📊 Input Data:`, {
-      totalDataPoints: demandData.dataPoints.length,
-      totalSkills: demandData.skills.length,
-      totalMonths: demandData.months.length,
-      totalDemand: demandData.totalDemand,
-      totalTasks: demandData.totalTasks,
-      totalClients: demandData.totalClients
+    console.log('🔍 [MATRIX FILTERING] Phase 2 - Starting three-mode filtering:', {
+      originalDataPoints: demandData.dataPoints.length,
+      monthRange,
+      skillsFilter: isAllSkillsSelected ? 'ALL' : selectedSkills.length,
+      clientsFilter: isAllClientsSelected ? 'ALL' : selectedClients.length,
+      preferredStaffFilter: isAllPreferredStaffSelected ? 'ALL' : selectedPreferredStaff.length,
+      filteringMode: preferredStaffFilterMode,
+      phase2Enhancement: 'THREE_MODE_SYSTEM'
     });
 
-    console.log(`🎛️ Filter Settings:`, {
-      preferredStaffFilterMode,
-      isAllSkillsSelected,
-      isAllClientsSelected,
-      isAllPreferredStaffSelected,
-      selectedSkillsCount: selectedSkills.length,
-      selectedClientsCount: selectedClients.length,
-      selectedPreferredStaffCount: selectedPreferredStaff.length,
-      monthRange
-    });
-
-    // Start with original data points
-    let filteredDataPoints = [...demandData.dataPoints];
-    console.log(`🚀 Starting with ${filteredDataPoints.length} data points`);
-
-    // Apply skills filtering
-    if (!isAllSkillsSelected && selectedSkills.length > 0) {
-      const beforeCount = filteredDataPoints.length;
-      filteredDataPoints = filteredDataPoints.filter(point => 
-        selectedSkills.includes(point.skillType)
-      );
-      console.log(`🎯 Skills filter: ${beforeCount} → ${filteredDataPoints.length} data points`);
-      console.log(`   Selected skills:`, selectedSkills);
-    } else {
-      console.log(`🎯 Skills filter: SKIPPED (all skills selected)`);
-    }
-
-    // Apply clients filtering
-    if (!isAllClientsSelected && selectedClients.length > 0) {
-      const beforeCount = filteredDataPoints.length;
-      
-      filteredDataPoints = filteredDataPoints.map(point => {
-        // Filter task breakdown by selected clients
-        const filteredTaskBreakdown = (point.taskBreakdown || []).filter((task: any) => 
-          selectedClients.includes(task.clientId)
-        );
-
-        // Recalculate metrics based on filtered tasks
-        const demandHours = filteredTaskBreakdown.reduce((sum: number, task: any) => sum + task.monthlyHours, 0);
-        const taskCount = filteredTaskBreakdown.length;
-        const uniqueClients = new Set(filteredTaskBreakdown.map((task: any) => task.clientId));
-
-        return {
-          ...point,
-          taskBreakdown: filteredTaskBreakdown,
-          demandHours,
-          taskCount,
-          clientCount: uniqueClients.size
-        };
-      }).filter(point => point.taskCount > 0); // Remove empty data points
-
-      console.log(`👥 Clients filter: ${beforeCount} → ${filteredDataPoints.length} data points`);
-      console.log(`   Selected clients:`, selectedClients);
-    } else {
-      console.log(`👥 Clients filter: SKIPPED (all clients selected)`);
-    }
-
-    // Apply month range filtering
-    const selectedMonthKeys = demandData.months
-      .slice(monthRange.start, monthRange.end + 1)
-      .map(month => month.key);
-    
-    if (selectedMonthKeys.length < demandData.months.length) {
-      const beforeCount = filteredDataPoints.length;
-      filteredDataPoints = filteredDataPoints.filter(point =>
-        selectedMonthKeys.includes(point.month)
-      );
-      console.log(`📅 Month range filter: ${beforeCount} → ${filteredDataPoints.length} data points`);
-      console.log(`   Selected months:`, selectedMonthKeys);
-    } else {
-      console.log(`📅 Month range filter: SKIPPED (all months selected)`);
-    }
-
-    // Apply preferred staff filtering with enhanced debugging
-    console.log(`👤 Applying preferred staff filter (mode: ${preferredStaffFilterMode})`);
-    
-    switch (preferredStaffFilterMode) {
-      case 'all':
-        console.log(`🌐 All mode - showing all tasks regardless of preferred staff`);
-        // No additional filtering needed
-        break;
-
-      case 'specific':
-        if (selectedPreferredStaff.length > 0) {
-          const beforeCount = filteredDataPoints.length;
-          
-          filteredDataPoints = filteredDataPoints.map(point => {
-            const filteredTaskBreakdown = (point.taskBreakdown || []).filter((task: any) => {
-              // Handle different possible property structures for preferred staff
-              if (!task.preferredStaff) return false;
-              
-              // Handle case where preferredStaff is a string (staff ID)
-              if (typeof task.preferredStaff === 'string') {
-                return selectedPreferredStaff.includes(task.preferredStaff);
-              }
-              
-              // Handle case where preferredStaff is an object
-              const staffId = (task.preferredStaff as any).staffId || 
-                             (task.preferredStaff as any).full_name || 
-                             (task.preferredStaff as any).name ||
-                             (task.preferredStaff as any).id;
-              
-              const isMatch = staffId && selectedPreferredStaff.includes(staffId);
-              
-              if (!isMatch && task.preferredStaff) {
-                console.log(`   Task "${task.taskName}" preferred staff check:`, {
-                  preferredStaff: task.preferredStaff,
-                  extractedStaffId: staffId,
-                  selectedStaff: selectedPreferredStaff,
-                  match: isMatch
-                });
-              }
-              
-              return isMatch;
-            });
-
-            // Recalculate metrics
-            const demandHours = filteredTaskBreakdown.reduce((sum: number, task: any) => sum + task.monthlyHours, 0);
-            const taskCount = filteredTaskBreakdown.length;
-            const uniqueClients = new Set(filteredTaskBreakdown.map((task: any) => task.clientId));
-
-            return {
-              ...point,
-              taskBreakdown: filteredTaskBreakdown,
-              demandHours,
-              taskCount,
-              clientCount: uniqueClients.size
-            };
-          }).filter(point => point.taskCount > 0);
-          
-          console.log(`🎯 Specific staff filter: ${beforeCount} → ${filteredDataPoints.length} data points`);
-          console.log(`   Selected staff:`, selectedPreferredStaff);
-        } else {
-          console.log(`🎯 Specific mode - no staff selected, showing no tasks`);
-          filteredDataPoints = [];
-        }
-        break;
-
-      case 'none':
-        const beforeCount = filteredDataPoints.length;
-        
-        filteredDataPoints = filteredDataPoints.map(point => {
-          const filteredTaskBreakdown = (point.taskBreakdown || []).filter((task: any) => {
-            // Check if task has no preferred staff assignment
-            if (!task.preferredStaff) return true;
-            
-            // Handle case where preferredStaff is a string
-            if (typeof task.preferredStaff === 'string') {
-              return !task.preferredStaff || task.preferredStaff === '';
-            }
-            
-            // Handle case where preferredStaff is an object but empty/null
-            if (typeof task.preferredStaff === 'object') {
-              const staffId = (task.preferredStaff as any).staffId || 
-                             (task.preferredStaff as any).full_name || 
-                             (task.preferredStaff as any).name ||
-                             (task.preferredStaff as any).id;
-              return !staffId || staffId === '';
-            }
-            
-            return false;
-          });
-
-          // Recalculate metrics
-          const demandHours = filteredTaskBreakdown.reduce((sum: number, task: any) => sum + task.monthlyHours, 0);
-          const taskCount = filteredTaskBreakdown.length;
-          const uniqueClients = new Set(filteredTaskBreakdown.map((task: any) => task.clientId));
-
-          return {
-            ...point,
-            taskBreakdown: filteredTaskBreakdown,
-            demandHours,
-            taskCount,
-            clientCount: uniqueClients.size
-          };
-        }).filter(point => point.taskCount > 0);
-        
-        console.log(`🚫 None mode filter: ${beforeCount} → ${filteredDataPoints.length} data points`);
-        break;
+    // Validate filter mode
+    const validModes = ['all', 'specific', 'none'];
+    if (!validModes.includes(preferredStaffFilterMode)) {
+      console.warn('⚠️ [MATRIX FILTERING] Phase 2 - Invalid filter mode, defaulting to "all":', preferredStaffFilterMode);
     }
 
     // Filter months based on range
     const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
-    
-    // Filter skills that still have data
-    const availableSkills = Array.from(new Set(filteredDataPoints.map(point => point.skillType)));
+    const selectedMonthKeys = new Set(filteredMonths.map(month => month.key));
 
-    // Recalculate totals
-    const totalDemand = filteredDataPoints.reduce((sum, point) => sum + point.demandHours, 0);
-    const totalTasks = filteredDataPoints.reduce((sum, point) => sum + point.taskCount, 0);
-    const uniqueClients = new Set<string>();
-    filteredDataPoints.forEach(point => {
-      point.taskBreakdown?.forEach((task: any) => {
-        uniqueClients.add(task.clientId);
-      });
+    // Filter data points
+    let filteredDataPoints = demandData.dataPoints.filter(point => {
+      // Month filter
+      if (!selectedMonthKeys.has(point.month)) {
+        return false;
+      }
+
+      // Skill filter - use ALL if all are selected, otherwise filter by selected
+      if (!isAllSkillsSelected && !selectedSkills.includes(point.skillType)) {
+        return false;
+      }
+
+      return true;
     });
 
-    const filteredData: DemandMatrixData = {
+    // Apply client and preferred staff filtering to task breakdown within each data point
+    filteredDataPoints = filteredDataPoints.map(point => {
+      let filteredTaskBreakdown = point.taskBreakdown;
+
+      // Client filtering
+      if (!isAllClientsSelected) {
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => 
+          selectedClients.includes(task.clientId)
+        );
+      }
+
+      // PHASE 2: Enhanced Three-Mode Preferred Staff Filtering Logic
+      const originalTaskCount = filteredTaskBreakdown.length;
+      
+      if (preferredStaffFilterMode === 'all') {
+        // Mode 'all': Show ALL tasks (both with and without preferred staff)
+        // NO FILTERING is applied - keep all tasks
+        console.log(`🌟 [MATRIX FILTERING] Phase 2 - ALL mode: Showing all tasks:`, {
+          month: point.month,
+          skill: point.skillType,
+          totalTasks: filteredTaskBreakdown.length,
+          tasksWithPreferredStaff: filteredTaskBreakdown.filter(t => t.preferredStaff?.staffId).length,
+          tasksWithoutPreferredStaff: filteredTaskBreakdown.filter(t => !t.preferredStaff?.staffId).length,
+          mode: 'SHOW_ALL_TASKS'
+        });
+      } else if (preferredStaffFilterMode === 'specific') {
+        // Mode 'specific': Show only tasks assigned to selected preferred staff
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const taskPreferredStaffId = task.preferredStaff?.staffId;
+          
+          // Include task if it has a preferred staff ID that matches our selection
+          if (taskPreferredStaffId && selectedPreferredStaff.includes(taskPreferredStaffId)) {
+            return true;
+          }
+          
+          // Exclude tasks that don't match our preferred staff filter
+          return false;
+        });
+        
+        console.log(`🎯 [MATRIX FILTERING] Phase 2 - SPECIFIC mode: Filtered by selected preferred staff:`, {
+          month: point.month,
+          skill: point.skillType,
+          originalTasks: originalTaskCount,
+          filteredTasks: filteredTaskBreakdown.length,
+          selectedStaff: selectedPreferredStaff.length,
+          mode: 'FILTER_BY_PREFERRED_STAFF'
+        });
+      } else if (preferredStaffFilterMode === 'none') {
+        // Mode 'none': Show only tasks WITHOUT preferred staff assignments
+        filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
+          const taskPreferredStaffId = task.preferredStaff?.staffId;
+          
+          // Include task if it does NOT have a preferred staff assignment
+          return !taskPreferredStaffId;
+        });
+        
+        console.log(`🚫 [MATRIX FILTERING] Phase 2 - NONE mode: Showing only unassigned tasks:`, {
+          month: point.month,
+          skill: point.skillType,
+          originalTasks: originalTaskCount,
+          filteredTasks: filteredTaskBreakdown.length,
+          mode: 'UNASSIGNED_TASKS_ONLY'
+        });
+      }
+
+      // Recalculate aggregated values based on filtered tasks
+      const demandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const taskCount = filteredTaskBreakdown.length;
+      
+      // Count unique clients in filtered tasks
+      const uniqueClients = new Set(filteredTaskBreakdown.map(task => task.clientId));
+      const clientCount = uniqueClients.size;
+
+      return {
+        ...point,
+        taskBreakdown: filteredTaskBreakdown,
+        demandHours,
+        taskCount,
+        clientCount
+      };
+    });
+
+    // Filter out data points with no remaining tasks after filtering
+    const originalFilteredPointsCount = filteredDataPoints.length;
+    filteredDataPoints = filteredDataPoints.filter(point => point.taskCount > 0);
+
+    const result = {
       ...demandData,
       months: filteredMonths,
-      skills: availableSkills,
-      dataPoints: filteredDataPoints,
-      totalDemand,
-      totalTasks,
-      totalClients: uniqueClients.size
+      dataPoints: filteredDataPoints
     };
 
-    console.log(`✅ Filtering complete:`, {
+    console.log('✅ [MATRIX FILTERING] Phase 2 - Three-mode filtering completed:', {
       originalDataPoints: demandData.dataPoints.length,
-      filteredDataPoints: filteredDataPoints.length,
-      originalTotalDemand: demandData.totalDemand,
-      filteredTotalDemand: totalDemand,
-      originalTotalTasks: demandData.totalTasks,
-      filteredTotalTasks: totalTasks,
-      originalTotalClients: demandData.totalClients,
-      filteredTotalClients: uniqueClients.size
+      filteredDataPoints: result.dataPoints.length,
+      pointsRemovedDueToNoTasks: originalFilteredPointsCount - result.dataPoints.length,
+      monthsIncluded: filteredMonths.length,
+      preferredStaffMode: preferredStaffFilterMode,
+      totalDemandHours: result.dataPoints.reduce((sum, point) => sum + point.demandHours, 0),
+      phase2Enhancement: 'THREE_MODE_FILTERING_COMPLETE'
     });
 
-    console.groupEnd();
-    return filteredData;
+    // Phase 2 validation logging for each mode
+    if (preferredStaffFilterMode === 'all') {
+      const totalTasksWithPreferredStaff = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.filter(t => t.preferredStaff?.staffId).length, 0
+      );
+      const totalTasksWithoutPreferredStaff = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.filter(t => !t.preferredStaff?.staffId).length, 0
+      );
+      
+      console.log('🎉 [MATRIX FILTERING] Phase 2 ALL MODE METRICS:', {
+        mode: 'all',
+        allTasksDisplayed: true,
+        tasksWithPreferredStaff: totalTasksWithPreferredStaff,
+        tasksWithoutPreferredStaff: totalTasksWithoutPreferredStaff,
+        totalTasksShown: totalTasksWithPreferredStaff + totalTasksWithoutPreferredStaff,
+        validation: 'BOTH_TASK_TYPES_INCLUDED'
+      });
+    } else if (preferredStaffFilterMode === 'specific') {
+      const totalTasksShown = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.length, 0
+      );
+      
+      console.log('🎉 [MATRIX FILTERING] Phase 2 SPECIFIC MODE METRICS:', {
+        mode: 'specific',
+        selectedStaffCount: selectedPreferredStaff.length,
+        totalTasksShown,
+        validation: 'ONLY_SELECTED_STAFF_TASKS'
+      });
+    } else if (preferredStaffFilterMode === 'none') {
+      const totalUnassignedTasks = result.dataPoints.reduce(
+        (sum, point) => sum + point.taskBreakdown.length, 0
+      );
+      
+      console.log('🎉 [MATRIX FILTERING] Phase 2 NONE MODE METRICS:', {
+        mode: 'none',
+        totalUnassignedTasks,
+        validation: 'ONLY_UNASSIGNED_TASKS'
+      });
+    }
 
+    return result;
   }, [
     demandData,
     selectedSkills,
@@ -283,6 +229,8 @@ export const useDemandMatrixFiltering = ({
     isAllSkillsSelected,
     isAllClientsSelected,
     isAllPreferredStaffSelected,
-    preferredStaffFilterMode
+    preferredStaffFilterMode // Phase 2: Include new filter mode in dependencies
   ]);
+
+  return filteredData;
 };

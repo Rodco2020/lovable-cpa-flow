@@ -1,36 +1,35 @@
 
 /**
- * Cache Manager for Performance Module
+ * Cache Management Optimizer
+ * Handles intelligent cache management with LRU eviction
  */
 
+import { debugLog } from '../../logger';
+import { CacheManagementOptions } from './types';
+import { PERFORMANCE_CONSTANTS } from './constants';
+
 export class CacheManager {
-  private static cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-
-  static get<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-
-    if (Date.now() - entry.timestamp > entry.ttl) {
-      this.cache.delete(key);
-      return null;
+  /**
+   * Intelligent cache management with LRU eviction
+   */
+  static manageCacheSize<T>(
+    cache: Map<string, T>, 
+    options: CacheManagementOptions = {}
+  ): void {
+    const { maxSize = PERFORMANCE_CONSTANTS.CACHE_SIZE_LIMIT, enableLogging = true } = options;
+    
+    if (cache.size <= maxSize) return;
+    
+    const entriesToRemove = cache.size - maxSize;
+    const keys = Array.from(cache.keys());
+    
+    // Remove oldest entries (assuming insertion order)
+    for (let i = 0; i < entriesToRemove; i++) {
+      cache.delete(keys[i]);
     }
-
-    return entry.data;
-  }
-
-  static set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    });
-  }
-
-  static clear(): void {
-    this.cache.clear();
-  }
-
-  static size(): number {
-    return this.cache.size;
+    
+    if (enableLogging) {
+      debugLog(`Cache trimmed: removed ${entriesToRemove} entries, now ${cache.size} items`);
+    }
   }
 }

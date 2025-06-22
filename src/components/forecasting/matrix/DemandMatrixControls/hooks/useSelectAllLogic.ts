@@ -18,10 +18,10 @@ export const useSelectAllLogic = <T>(
     } else {
       // Select all - toggle each unselected item to select it
       availableItems.forEach(item => {
-        const itemKey = getKey ? getKey(item) : item as string;
-        const selectedKeys = getKey ? selectedItems.map(getKey) : selectedItems.map(item => item as string);
+        const key = getKey ? getKey(item) : item;
+        const selectedKey = getKey ? selectedItems.map(getKey) : selectedItems;
         
-        if (!selectedKeys.includes(itemKey)) {
+        if (!selectedKey.includes(key)) {
           onItemToggle(item);
         }
       });

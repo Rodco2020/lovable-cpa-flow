@@ -1,291 +1,482 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, Clock, Play, Bug } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { DemandMatrixData } from '@/types/demand';
+import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
+import { DemandDrillDownService } from '@/services/forecasting/demand/demandDrillDownService';
+import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { useDemandMatrixControls } from './hooks/useDemandMatrixControls';
-import { useDemandMatrixFiltering } from './hooks/useDemandMatrixFiltering';
-import { DemandMatrixControlsPanel } from './components/demand/DemandMatrixControlsPanel';
-import { DemandMatrixDisplay } from './components/demand/DemandMatrixDisplay';
-import { DemandMatrixDiagnosticPanel } from './components/demand/DemandMatrixDiagnosticPanel';
-import { Phase1ValidationService } from '@/services/forecasting/matrix/phase1ValidationService';
-import type { Phase1ValidationReport } from '@/services/forecasting/matrix/phase1ValidationService';
+import { useDemandMatrixRealtime } from '@/hooks/useDemandMatrixRealtime';
+import { useToast } from '@/components/ui/use-toast';
+import { SkillType } from '@/types/task';
+import { DemandDrillDownData } from '@/types/demandDrillDown';
+import {
+  DemandMatrixHeader,
+  DemandMatrixGrid,
+  DemandMatrixControlsPanel,
+  DemandMatrixLoadingState,
+  DemandMatrixErrorState,
+  DemandMatrixEmptyState,
+  DemandMatrixSummaryFooter,
+  DemandDrillDownDialog,
+  DemandMatrixTimeControls,
+  DemandMatrixExportDialog
+} from './components/demand';
+import { DemandMatrixErrorBoundary } from './components/demand/DemandMatrixErrorBoundary';
+import { DemandMatrixPrintExportDialog } from './components/demand/DemandMatrixPrintExportDialog';
 
 interface DemandMatrixProps {
+  className?: string;
   groupingMode: 'skill' | 'client';
 }
 
 /**
- * Enhanced DemandMatrix Component with Comprehensive Debugging
- * 
- * ENHANCED FEATURES:
- * - Comprehensive diagnostic panel for troubleshooting
- * - Enhanced debugging and validation
- * - Improved data quality analysis
- * - Real-time filter validation
- * - Performance monitoring
+ * Enhanced Demand Matrix Component with Print/Export Functionality
  */
-export const DemandMatrix: React.FC<DemandMatrixProps> = ({ groupingMode }) => {
-  const [validationReport, setValidationReport] = useState<Phase1ValidationReport | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
-  const [showValidationDetails, setShowValidationDetails] = useState(false);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+export const DemandMatrix: React.FC<DemandMatrixProps> = ({ 
+  className,
+  groupingMode 
+}) => {
+  const [demandData, setDemandData] = useState<DemandMatrixData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const [isControlsExpanded, setIsControlsExpanded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Phase 4: Advanced features state
+  const [drillDownData, setDrillDownData] = useState<DemandDrillDownData | null>(null);
+  const [selectedDrillDown, setSelectedDrillDown] = useState<{skill: SkillType; month: string} | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showPrintExportDialog, setShowPrintExportDialog] = useState(false); // NEW: Print/Export dialog state
+  const [timeHorizon, setTimeHorizon] = useState<'quarter' | 'half-year' | 'year' | 'custom'>('year');
+  const [customDateRange, setCustomDateRange] = useState<{start: Date; end: Date}>();
+  
+  const { toast } = useToast();
 
-  // Enhanced matrix controls with debugging
-  const matrixControls = useDemandMatrixControls({
-    groupingMode,
-    enablePreferredStaffFiltering: true
-  });
+  // Load demand matrix data with performance optimization
+  const loadDemandData = async () => {
+    const startTime = performance.now();
+    setIsLoading(true);
+    setError(null);
+    setValidationIssues([]);
 
-  const filteredData = useDemandMatrixFiltering({
-    demandData: matrixControls.demandData,
-    selectedSkills: matrixControls.selectedSkills,
-    selectedClients: matrixControls.selectedClients,
-    selectedPreferredStaff: matrixControls.selectedPreferredStaff,
-    monthRange: matrixControls.monthRange,
-    isAllSkillsSelected: matrixControls.isAllSkillsSelected,
-    isAllClientsSelected: matrixControls.isAllClientsSelected,
-    isAllPreferredStaffSelected: matrixControls.isAllPreferredStaffSelected,
-    preferredStaffFilterMode: matrixControls.preferredStaffFilterMode
-  });
-
-  /**
-   * Run Phase 1 validation
-   */
-  const runPhase1Validation = async () => {
-    setIsValidating(true);
     try {
-      console.log('🚀 [ENHANCED VALIDATION] Running comprehensive Phase 1 validation...');
-      const report = await Phase1ValidationService.runPhase1Validation();
-      setValidationReport(report);
-      setShowValidationDetails(true);
+      console.log(`Loading demand data (attempt ${retryCount + 1})`);
       
-      if (report.overallSuccess) {
-        console.log('✅ [ENHANCED VALIDATION] Phase 1 validation passed!');
+      const { matrixData: newDemandData } = await DemandMatrixService.generateDemandMatrix('demand-only');
+      
+      // Validate the data
+      const issues = DemandMatrixService.validateDemandMatrixData(newDemandData);
+      if (issues.length > 0) {
+        setValidationIssues(issues);
+        console.warn('Demand matrix validation issues:', issues);
+        
+        toast({
+          title: "Data quality issues detected",
+          description: `${issues.length} validation issues found. Functionality may be limited.`,
+          variant: "destructive"
+        });
       } else {
-        console.warn('⚠️ [ENHANCED VALIDATION] Phase 1 validation failed:', report.summary);
+        const loadTime = performance.now() - startTime;
+        console.log(`Demand matrix loaded successfully in ${loadTime.toFixed(2)}ms`);
+        
+        toast({
+          title: "Demand matrix loaded",
+          description: `${newDemandData.months.length} months × ${newDemandData.skills.length} ${groupingMode}s loaded`,
+        });
       }
-    } catch (error) {
-      console.error('❌ [ENHANCED VALIDATION] Phase 1 validation error:', error);
+
+      // Apply performance optimization
+      const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(newDemandData, {
+        skills: [],
+        clients: [],
+        timeHorizon: customDateRange ? {
+          start: customDateRange.start,
+          end: customDateRange.end
+        } : undefined
+      });
+
+      setDemandData(optimizedData);
+      setRetryCount(0); // Reset retry count on success
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load demand matrix data';
+      setError(errorMessage);
+      console.error('Error loading demand matrix data:', err);
+      
+      // Increment retry count for tracking
+      setRetryCount(prev => prev + 1);
+      
+      toast({
+        title: "Error loading demand matrix",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
-      setIsValidating(false);
+      setIsLoading(false);
     }
   };
 
-  /**
-   * Auto-run validation on component mount
-   */
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      runPhase1Validation();
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  console.log(`🚀 [ENHANCED MATRIX] DemandMatrix rendering with comprehensive debugging:`, {
-    groupingMode,
-    preferredStaffFilterMode: matrixControls.preferredStaffFilterMode,
-    hasFilteredData: !!filteredData,
-    originalDataPoints: matrixControls.demandData?.dataPoints?.length || 0,
-    filteredDataPoints: filteredData?.dataPoints?.length || 0,
-    totalDemand: filteredData?.totalDemand || 0,
-    isLoading: matrixControls.isLoading
+  // Phase 5: Real-time updates integration
+  const { refreshData } = useDemandMatrixRealtime({
+    onDataChange: loadDemandData,
+    isEnabled: !isLoading && !error
   });
 
+  // Demand-specific controls - Updated to include preferred staff
+  const {
+    selectedSkills,
+    selectedClients,
+    selectedPreferredStaff,
+    monthRange,
+    handleSkillToggle,
+    handleClientToggle,
+    handlePreferredStaffToggle,
+    handleMonthRangeChange,
+    handleReset,
+    handleExport,
+    availableSkills,
+    availableClients,
+    availablePreferredStaff,
+    skillsLoading,
+    clientsLoading,
+    isAllSkillsSelected,
+    isAllClientsSelected,
+    isAllPreferredStaffSelected
+  } = useDemandMatrixControls({
+    demandData,
+    groupingMode
+  });
+
+  // Phase 4: Handle drill-down cell clicks with error handling
+  const handleCellClick = async (skill: SkillType, month: string) => {
+    if (!demandData) return;
+    
+    try {
+      setSelectedDrillDown({ skill, month });
+      const drillDown = DemandDrillDownService.generateDrillDownData(demandData, skill, month);
+      setDrillDownData(drillDown);
+    } catch (err) {
+      console.error('Error generating drill-down data:', err);
+      toast({
+        title: "Error loading details",
+        description: "Failed to load drill-down data for this cell",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Phase 4: Handle time horizon changes with performance optimization
+  const handleTimeHorizonChange = (horizon: 'quarter' | 'half-year' | 'year' | 'custom') => {
+    setTimeHorizon(horizon);
+    
+    // Clear cache when changing time horizon
+    DemandMatrixService.clearCache();
+    
+    // Adjust month range based on horizon
+    switch (horizon) {
+      case 'quarter':
+        handleMonthRangeChange({ start: 0, end: 2 });
+        break;
+      case 'half-year':
+        handleMonthRangeChange({ start: 0, end: 5 });
+        break;
+      case 'year':
+        handleMonthRangeChange({ start: 0, end: 11 });
+        break;
+      case 'custom':
+        // Keep current range until custom dates are set
+        break;
+    }
+  };
+
+  // Phase 4: Handle export dialog
+  const handleShowExport = () => {
+    setShowExportDialog(true);
+  };
+
+  // NEW: Handle print/export dialog
+  const handleShowPrintExport = () => {
+    setShowPrintExportDialog(true);
+  };
+
+  // Enhanced retry with exponential backoff
+  const handleRetryWithBackoff = async () => {
+    const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+    
+    if (retryCount > 0) {
+      toast({
+        title: "Retrying...",
+        description: `Waiting ${backoffDelay / 1000}s before retry attempt ${retryCount + 1}`,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    }
+    
+    await loadDemandData();
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    loadDemandData();
+  }, []);
+
+  // FIXED: Filter data based on controls and grouping mode with corrected logic
+  const getFilteredData = () => {
+    if (!demandData) return null;
+
+    console.log(`🔧 [DEMAND MATRIX] Starting filter operation:`, {
+      groupingMode,
+      selectedSkillsCount: selectedSkills.length,
+      availableSkillsCount: availableSkills.length,
+      selectedClientsCount: selectedClients.length,
+      availableClientsCount: availableClients.length,
+      selectedPreferredStaffCount: selectedPreferredStaff.length,
+      availablePreferredStaffCount: availablePreferredStaff.length,
+      isAllSkillsSelected,
+      isAllClientsSelected,
+      isAllPreferredStaffSelected,
+      monthRange
+    });
+
+    const filteredMonths = demandData.months.slice(monthRange.start, monthRange.end + 1);
+    
+    // FIXED: Create filters with correct "no active filtering" logic and proper preferredStaff structure
+    const filters = {
+      // Only include skills filter if we're NOT selecting all skills
+      skills: isAllSkillsSelected ? [] : selectedSkills,
+      // Only include clients filter if we're NOT selecting all clients  
+      clients: isAllClientsSelected ? [] : selectedClients,
+      // FIXED: Use proper preferredStaff object structure instead of array
+      preferredStaff: {
+        staffIds: isAllPreferredStaffSelected ? [] : selectedPreferredStaff,
+        includeUnassigned: false,
+        showOnlyPreferred: false
+      },
+      timeHorizon: {
+        start: filteredMonths[0] ? new Date(filteredMonths[0].key) : new Date(),
+        end: filteredMonths[filteredMonths.length - 1] ? new Date(filteredMonths[filteredMonths.length - 1].key) : new Date()
+      }
+    };
+
+    console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
+      skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
+      clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
+      preferredStaffFilter: filters.preferredStaff.staffIds?.length === 0 ? 'ALL PREFERRED STAFF (no filter)' : filters.preferredStaff.staffIds,
+      timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
+    });
+
+    // Use the corrected performance optimizer
+    const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
+    
+    console.log(`📊 [DEMAND MATRIX] Filter results:`, {
+      originalDataPoints: demandData.dataPoints.length,
+      filteredDataPoints: optimizedData.dataPoints.length,
+      originalSkills: demandData.skills.length,
+      filteredSkills: optimizedData.skills.length,
+      totalDemandHours: optimizedData.totalDemand || 0
+    });
+
+    // Handle grouping mode transformation
+    if (groupingMode === 'client') {
+      // Transform data for client-based view - use the optimized data
+      const clientGroupedData = {
+        ...optimizedData,
+        skills: Array.from(new Set(
+          optimizedData.dataPoints
+            .flatMap(point => point.taskBreakdown?.map(task => task.clientName) || [])
+            .filter(name => name && !name.includes('...'))
+        )),
+        dataPoints: optimizedData.dataPoints // Use the already filtered data points
+      };
+
+      console.log(`👥 [DEMAND MATRIX] Client grouping applied:`, {
+        uniqueClients: clientGroupedData.skills.length,
+        dataPointsAfterGrouping: clientGroupedData.dataPoints.length
+      });
+
+      return clientGroupedData;
+    }
+
+    return optimizedData;
+  };
+
+  const filteredData = getFilteredData();
+
+  // Loading state with enhanced information
+  if (isLoading || skillsLoading || clientsLoading) {
+    return (
+      <DemandMatrixErrorBoundary>
+        <DemandMatrixLoadingState 
+          className={className}
+          groupingMode={groupingMode}
+        />
+      </DemandMatrixErrorBoundary>
+    );
+  }
+
+  // Error state with retry capability
+  if (error) {
+    return (
+      <DemandMatrixErrorBoundary>
+        <DemandMatrixErrorState
+          className={className}
+          error={error}
+          onRetry={handleRetryWithBackoff}
+          groupingMode={groupingMode}
+        />
+      </DemandMatrixErrorBoundary>
+    );
+  }
+
+  // No data state with enhanced guidance
+  if (!filteredData || filteredData.dataPoints.length === 0) {
+    return (
+      <DemandMatrixErrorBoundary>
+        <DemandMatrixEmptyState
+          className={className}
+          groupingMode={groupingMode}
+          onRefresh={refreshData}
+        />
+      </DemandMatrixErrorBoundary>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Phase 1: Validation Status Card - Enhanced */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-blue-900">
-                  Enhanced Demand Matrix with Comprehensive Debugging
-                </h3>
-                <p className="text-sm text-blue-700">
-                  Advanced validation, debugging, and data quality analysis
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {validationReport && (
-                <Badge 
-                  variant={validationReport.overallSuccess ? "default" : "destructive"}
-                  className="flex items-center gap-1"
-                >
-                  {validationReport.overallSuccess ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <AlertCircle className="h-3 w-3" />
-                  )}
-                  {validationReport.overallSuccess ? 'PASSED' : 'FAILED'}
-                </Badge>
-              )}
+    <DemandMatrixErrorBoundary>
+      <div className={className}>
+        {/* Responsive layout for matrix and controls */}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          {/* Controls Panel - Enhanced with time controls */}
+          <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
+            <div className="space-y-4">
+              {/* Time Horizon Controls */}
+              <DemandMatrixTimeControls
+                timeHorizon={timeHorizon}
+                customDateRange={customDateRange}
+                onTimeHorizonChange={handleTimeHorizonChange}
+                onCustomDateRangeChange={setCustomDateRange}
+              />
               
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDiagnostics(!showDiagnostics)}
-                className="flex items-center gap-2"
-              >
-                <Bug className="h-4 w-4" />
-                {showDiagnostics ? 'Hide' : 'Show'} Diagnostics
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={runPhase1Validation}
-                disabled={isValidating}
-                className="flex items-center gap-2"
-              >
-                {isValidating ? (
-                  <Clock className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-                {isValidating ? 'Validating...' : 'Run Validation'}
-              </Button>
+              {/* Standard Controls Panel - FIXED: Added all required preferred staff props */}
+              <DemandMatrixControlsPanel
+                isControlsExpanded={isControlsExpanded}
+                onToggleControls={() => setIsControlsExpanded(!isControlsExpanded)}
+                selectedSkills={selectedSkills}
+                selectedClients={selectedClients}
+                selectedPreferredStaff={selectedPreferredStaff}
+                onSkillToggle={handleSkillToggle}
+                onClientToggle={handleClientToggle}
+                onPreferredStaffToggle={handlePreferredStaffToggle}
+                monthRange={monthRange}
+                onMonthRangeChange={handleMonthRangeChange}
+                onExport={handleShowExport}
+                onReset={handleReset}
+                groupingMode={groupingMode}
+                availableSkills={availableSkills}
+                availableClients={availableClients}
+                availablePreferredStaff={availablePreferredStaff}
+                isAllSkillsSelected={isAllSkillsSelected}
+                isAllClientsSelected={isAllClientsSelected}
+                isAllPreferredStaffSelected={isAllPreferredStaffSelected}
+                onPrintExport={handleShowPrintExport}
+              />
             </div>
           </div>
+          
+          {/* Matrix Panel */}
+          <div className={`xl:col-span-4 ${isControlsExpanded ? 'xl:col-span-3' : ''}`}>
+            <Card>
+              <CardHeader>
+                <DemandMatrixHeader
+                  groupingMode={groupingMode}
+                  isLoading={isLoading}
+                  validationIssues={validationIssues}
+                  onRefresh={refreshData}
+                />
+              </CardHeader>
+              <CardContent>
+                {/* Enhanced Grid with Click Handling */}
+                <div onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const skillOrClient = target.getAttribute('data-skill');
+                  const month = target.getAttribute('data-month');
+                  
+                  if (skillOrClient && month) {
+                    handleCellClick(skillOrClient as SkillType, month);
+                  }
+                }}>
+                  <DemandMatrixGrid
+                    filteredData={filteredData}
+                    groupingMode={groupingMode}
+                  />
+                </div>
+                
+                <DemandMatrixSummaryFooter
+                  filteredData={filteredData}
+                  validationIssues={validationIssues}
+                  groupingMode={groupingMode}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-          {/* Validation Summary */}
-          {validationReport && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-white rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
-                    {validationReport.summary.passedTests}
-                  </div>
-                  <div className="text-xs text-gray-600">Tests Passed</div>
-                </div>
-                <div className="text-center p-3 bg-white rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">
-                    {validationReport.summary.failedTests}
-                  </div>
-                  <div className="text-xs text-gray-600">Tests Failed</div>
-                </div>
-                <div className="text-center p-3 bg-white rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {validationReport.summary.warningsCount}
-                  </div>
-                  <div className="text-xs text-gray-600">Warnings</div>
-                </div>
-                <div className="text-center p-3 bg-white rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {validationReport.duration}ms
-                  </div>
-                  <div className="text-xs text-gray-600">Duration</div>
-                </div>
-              </div>
-
-              {/* Enhanced summary with data quality info */}
-              {filteredData && (
-                <div className="p-3 bg-white rounded-lg">
-                  <div className="text-sm font-medium mb-2">Current Data Status</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <span className="font-medium">Data Points:</span> {filteredData.dataPoints.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">Total Demand:</span> {filteredData.totalDemand}h
-                    </div>
-                    <div>
-                      <span className="font-medium">Total Tasks:</span> {filteredData.totalTasks}
-                    </div>
-                    <div>
-                      <span className="font-medium">Total Clients:</span> {filteredData.totalClients}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Toggle detailed validation report */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowValidationDetails(!showValidationDetails)}
-                className="w-full"
-              >
-                {showValidationDetails ? 'Hide' : 'Show'} Validation Details
-              </Button>
-
-              {/* Detailed validation report */}
-              {showValidationDetails && (
-                <div className="mt-4 p-4 bg-white rounded-lg border">
-                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
-                    {Phase1ValidationService.generateReportSummary(validationReport)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Enhanced Diagnostic Panel */}
-      {filteredData && (
-        <DemandMatrixDiagnosticPanel
-          matrixData={filteredData}
-          selectedSkills={matrixControls.selectedSkills}
-          selectedClients={matrixControls.selectedClients}
-          selectedPreferredStaff={matrixControls.selectedPreferredStaff}
-          preferredStaffFilterMode={matrixControls.preferredStaffFilterMode}
-          availableSkills={matrixControls.availableSkills}
-          availableClients={matrixControls.availableClients}
-          availablePreferredStaff={matrixControls.availablePreferredStaff}
-          isVisible={showDiagnostics}
+        {/* Phase 4: Advanced Feature Dialogs */}
+        
+        {/* Drill-Down Dialog */}
+        <DemandDrillDownDialog
+          isOpen={!!drillDownData}
+          onClose={() => {
+            setDrillDownData(null);
+            setSelectedDrillDown(null);
+          }}
+          skill={selectedDrillDown?.skill || null}
+          month={selectedDrillDown?.month || null}
+          data={drillDownData}
         />
-      )}
 
-      {/* Enhanced Matrix Implementation */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Controls Panel - Enhanced */}
-        <div className="lg:col-span-1">
-          <DemandMatrixControlsPanel
-            isControlsExpanded={true}
-            onToggleControls={() => {}}
-            selectedSkills={matrixControls.selectedSkills}
-            selectedClients={matrixControls.selectedClients}
-            selectedPreferredStaff={matrixControls.selectedPreferredStaff}
-            onSkillToggle={matrixControls.onSkillToggle}
-            onClientToggle={matrixControls.onClientToggle}
-            onPreferredStaffToggle={matrixControls.onPreferredStaffToggle}
-            monthRange={matrixControls.monthRange}
-            onMonthRangeChange={matrixControls.onMonthRangeChange}
-            onExport={matrixControls.onExport}
-            onReset={matrixControls.onReset}
+        {/* Export Dialog - FIXED: Using correct prop interface */}
+        {demandData && (
+          <DemandMatrixExportDialog
+            onExport={(config) => {
+              // Handle export configuration
+              handleExport(config);
+              setShowExportDialog(false);
+            }}
             groupingMode={groupingMode}
-            availableSkills={matrixControls.availableSkills}
-            availableClients={matrixControls.availableClients}
-            availablePreferredStaff={matrixControls.availablePreferredStaff}
-            isAllSkillsSelected={matrixControls.isAllSkillsSelected}
-            isAllClientsSelected={matrixControls.isAllClientsSelected}
-            isAllPreferredStaffSelected={matrixControls.isAllPreferredStaffSelected}
-            preferredStaffFilterMode={matrixControls.preferredStaffFilterMode}
-            onPreferredStaffFilterModeChange={matrixControls.onPreferredStaffFilterModeChange}
-            preferredStaffLoading={matrixControls.isLoading}
-          />
-        </div>
+            selectedSkills={selectedSkills}
+            selectedClients={selectedClients}
+            selectedPreferredStaff={selectedPreferredStaff}
+            monthRange={monthRange}
+            availableSkills={availableSkills}
+            availableClients={availableClients}
+            availablePreferredStaff={availablePreferredStaff}
+            isAllSkillsSelected={isAllSkillsSelected}
+            isAllClientsSelected={isAllClientsSelected}
+            isAllPreferredStaffSelected={isAllPreferredStaffSelected}
+          >
+            {showExportDialog && (
+              <div className="hidden">Export Trigger</div>
+            )}
+          </DemandMatrixExportDialog>
+        )}
 
-        {/* Matrix Display - Enhanced */}
-        <div className="lg:col-span-3">
-          <DemandMatrixDisplay
-            matrixData={filteredData}
+        {/* Print/Export Dialog */}
+        {demandData && (
+          <DemandMatrixPrintExportDialog
+            isOpen={showPrintExportDialog}
+            onClose={() => setShowPrintExportDialog(false)}
+            demandData={filteredData}
+            selectedSkills={selectedSkills}
+            selectedClients={selectedClients}
+            monthRange={monthRange}
             groupingMode={groupingMode}
-            isLoading={matrixControls.isLoading}
-            error={matrixControls.error ? matrixControls.error.message : null}
           />
-        </div>
+        )}
       </div>
-    </div>
+    </DemandMatrixErrorBoundary>
   );
 };
 

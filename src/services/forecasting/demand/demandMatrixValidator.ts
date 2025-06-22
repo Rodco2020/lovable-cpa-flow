@@ -1,33 +1,26 @@
+
 import { DemandMatrixData } from '@/types/demand';
-import { extractStaffId, extractStaffName, isStaffObject } from './utils/staffExtractionUtils';
 
 export interface ValidationResult {
   isValid: boolean;
   issues: string[];
-  warnings: string[];
 }
 
 /**
  * Demand Matrix Validator
- * Validates demand matrix data structure and content
+ * Validates demand matrix data structure and consistency
  */
 export class DemandMatrixValidator {
   /**
-   * Validate the complete demand matrix data structure
+   * Validate demand matrix data structure and content
    */
-  static validateDemandMatrix(data: DemandMatrixData): {
-    isValid: boolean;
-    issues: string[];
-    warnings: string[];
-  } {
+  static validateDemandMatrixData(data: DemandMatrixData): ValidationResult {
     const issues: string[] = [];
-    const warnings: string[] = [];
 
     if (!data) {
       return {
         isValid: false,
-        issues: ['Data is null or undefined'],
-        warnings: []
+        issues: ['Data is null or undefined']
       };
     }
 
@@ -85,7 +78,7 @@ export class DemandMatrixValidator {
 
         // Validate task breakdown if present
         if (point.taskBreakdown) {
-          point.taskBreakdown.forEach((task: any, taskIndex) => {
+          point.taskBreakdown.forEach((task, taskIndex) => {
             if (!task.clientId || typeof task.clientId !== 'string') {
               issues.push(`Data point ${index}, task ${taskIndex}: missing or invalid clientId`);
             }
@@ -104,22 +97,17 @@ export class DemandMatrixValidator {
 
             // Validate preferred staff if present
             if (task.preferredStaff) {
-              // FIXED: Use safe staff extraction utilities
-              const staffId = extractStaffId(task.preferredStaff);
-              const staffName = extractStaffName(task.preferredStaff);
-              
-              if (!staffId && !staffName) {
-                warnings.push(`Data point ${index}, task ${taskIndex}: Invalid preferred staff structure`);
+              if (!task.preferredStaff.staffId || typeof task.preferredStaff.staffId !== 'string') {
+                issues.push(`Data point ${index}, task ${taskIndex}: invalid preferredStaff.staffId`);
               }
 
-              // Check if it's an object but missing expected properties
-              if (isStaffObject(task.preferredStaff)) {
-                if (!task.preferredStaff.staffId) {
-                  warnings.push(`Data point ${index}, task ${taskIndex}: Staff object missing staffId`);
-                }
-                if (!task.preferredStaff.full_name) {
-                  warnings.push(`Data point ${index}, task ${taskIndex}: Staff object missing full_name`);
-                }
+              if (!task.preferredStaff.staffName || typeof task.preferredStaff.staffName !== 'string') {
+                issues.push(`Data point ${index}, task ${taskIndex}: invalid preferredStaff.staffName`);
+              }
+
+              if (!task.preferredStaff.assignmentType || 
+                  !['preferred', 'assigned', 'none'].includes(task.preferredStaff.assignmentType)) {
+                issues.push(`Data point ${index}, task ${taskIndex}: invalid preferredStaff.assignmentType`);
               }
             }
           });
@@ -165,8 +153,7 @@ export class DemandMatrixValidator {
 
     return {
       isValid: issues.length === 0,
-      issues,
-      warnings
+      issues
     };
   }
 }

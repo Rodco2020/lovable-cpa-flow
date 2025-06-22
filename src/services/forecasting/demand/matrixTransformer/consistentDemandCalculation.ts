@@ -1,159 +1,224 @@
-import { DemandDataPoint, ClientTaskDemand, RecurrenceCalculation } from '@/types/demand';
-import { RecurringTaskDB } from '@/types/task';
-import { format, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
-import { debugLog } from '../../logger';
-import { SkillTypeHandler } from './skillTypeHandler';
+
+import { ForecastData } from '@/types/forecasting';
+import { RecurringTaskDB, SkillType } from '@/types/task';
+import { ClientTaskDemand } from '@/types/demand';
+import { ClientResolutionService } from '../clientResolutionService';
+import { RecurrenceCalculator } from '../recurrenceCalculator';
+import { SkillConsistencyService } from '../../skillConsistencyService';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 /**
  * Consistent Demand Calculation Service
+ * FIXED: Ensures consistent skill naming between Demand and Capacity matrices
  * 
- * Provides unified demand calculation logic ensuring consistency across
- * all matrix transformation operations.
+ * This is the primary fix for the skill demand calculation discrepancy.
+ * It ensures both matrices use identical skill names for accurate lookups.
  */
-export class ConsistentDemandCalculation {
+export class ConsistentDemandCalculationService {
   /**
-   * Calculate monthly demand from recurring tasks with proper recurrence handling
+   * Calculate demand for skill period with CONSISTENT skill mapping
+   * FIXED: Uses SkillConsistencyService to ensure matrix alignment
    */
-  static calculateMonthlyDemand(
-    tasks: RecurringTaskDB[],
-    startDate: Date,
-    endDate: Date
-  ): DemandDataPoint[] {
-    const months = eachMonthOfInterval({ start: startDate, end: endDate });
-    const demandPoints: DemandDataPoint[] = [];
+  static calculateDemandForSkillPeriodConsistent(
+    period: ForecastData, 
+    skill: SkillType, 
+    skillMapping: Map<string, string>
+  ): number {
+    try {
+      if (!period || !Array.isArray(period.demand)) {
+        return 0;
+      }
 
-    months.forEach(monthStart => {
-      const monthEnd = endOfMonth(monthStart);
-      const monthKey = format(monthStart, 'yyyy-MM');
-      const monthLabel = format(monthStart, 'MMM yyyy');
+      console.log(`🔍 [CONSISTENT DEMAND] Calculating demand for skill "${skill}" in period ${period.period}`);
+      console.log(`📋 [CONSISTENT DEMAND] Available demand items:`, period.demand.map(d => ({ skill: d.skill, hours: d.hours })));
 
-      // Group tasks by skill type for this month
-      const skillGroups = new Map<string, ClientTaskDemand[]>();
+      // Create enhanced skill mapping that includes normalization
+      const enhancedMapping = this.createEnhancedSkillMapping(skillMapping, period.demand);
 
-      tasks.forEach(task => {
-        // Fix: Use skill type handler to normalize skill type
-        const skillType = SkillTypeHandler.extractSkillFromTask(task);
-        
-        // Calculate occurrences for this month
-        const monthlyOccurrences = this.calculateMonthlyOccurrences(
-          task.recurrence_type,
-          monthStart,
-          monthEnd
-        );
-
-        if (monthlyOccurrences > 0) {
-          const monthlyHours = (task.estimated_hours || 0) * monthlyOccurrences;
-
-          const demandItem: ClientTaskDemand = {
-            clientTaskDemandId: `${task.id}-${monthKey}`,
-            taskName: task.name,
-            clientId: task.client_id,
-            clientName: 'Unknown Client', // This would need to be fetched separately
-            monthlyHours,
-            skillType,
-            estimatedHours: task.estimated_hours || 0,
-            recurrencePattern: task.recurrence_type || 'monthly',
-            recurringTaskId: task.id,
-            preferredStaff: task.preferred_staff_id ? {
-              staffId: task.preferred_staff_id,
-              full_name: task.preferred_staff_id // This would need staff lookup
-            } : null
-          };
-
-          if (!skillGroups.has(skillType)) {
-            skillGroups.set(skillType, []);
+      // Try direct match first
+      let skillDemand = period.demand.find(d => d && d.skill === skill);
+      
+      // If no direct match, try enhanced mapping
+      if (!skillDemand) {
+        for (const demandItem of period.demand) {
+          if (demandItem && demandItem.skill) {
+            const mappedSkill = enhancedMapping.get(demandItem.skill);
+            if (mappedSkill === skill) {
+              skillDemand = demandItem;
+              console.log(`🎯 [CONSISTENT DEMAND] Found skill via enhanced mapping: ${demandItem.skill} -> ${mappedSkill}`);
+              break;
+            }
           }
-          skillGroups.get(skillType)!.push(demandItem);
         }
-      });
+      }
 
-      // Create demand points for each skill type
-      skillGroups.forEach((taskBreakdown, skillType) => {
-        const demandHours = taskBreakdown.reduce((sum, item) => sum + item.monthlyHours, 0);
-        const uniqueClients = new Set(taskBreakdown.map(item => item.clientId));
+      if (!skillDemand || typeof skillDemand.hours !== 'number') {
+        console.log(`⚠️ [CONSISTENT DEMAND] No demand found for skill "${skill}"`);
+        return 0;
+      }
 
-        demandPoints.push({
-          month: monthKey,
-          monthLabel,
-          skillType,
-          demandHours,
-          taskCount: taskBreakdown.length,
-          clientCount: uniqueClients.size,
-          taskBreakdown
+      const hours = Math.max(0, skillDemand.hours);
+      console.log(`✅ [CONSISTENT DEMAND] Found ${hours}h demand for skill "${skill}" (using consistent mapping)`);
+      return hours;
+    } catch (error) {
+      console.warn(`Error calculating consistent demand for skill ${skill}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Generate task breakdown with consistent skill mapping
+   * FIXED: Uses SkillConsistencyService for skill alignment
+   */
+  static async generateTaskBreakdownConsistent(
+    tasks: RecurringTaskDB[],
+    skillDisplayName: SkillType,
+    period: string,
+    skillMapping: Map<string, string>,
+    clientResolutionMap?: Map<string, string>
+  ): Promise<ClientTaskDemand[]> {
+    try {
+      const breakdown: ClientTaskDemand[] = [];
+
+      console.log(`🔍 [CONSISTENT BREAKDOWN] Generating breakdown for skill "${skillDisplayName}" with consistent mapping`);
+
+      // Derive month boundaries from period string for recurrence calculation
+      const periodDate = new Date(`${period}-01`);
+      const monthStart = startOfMonth(periodDate);
+      const monthEnd = endOfMonth(periodDate);
+
+      // Create enhanced skill mapping
+      const enhancedMapping = this.createEnhancedSkillMapping(skillMapping, []);
+
+      // If no pre-resolved map provided, create one
+      let resolvedClientMap = clientResolutionMap;
+      if (!resolvedClientMap) {
+        const clientIds = new Set<string>();
+        tasks.forEach(task => {
+          if (task.client_id) {
+            clientIds.add(task.client_id);
+          }
         });
-      });
+        resolvedClientMap = await ClientResolutionService.resolveClientIds(Array.from(clientIds));
+      }
+
+      // Build breakdown with consistent skill mapping
+      for (const task of tasks) {
+        try {
+          if (!task || !Array.isArray(task.required_skills)) continue;
+          
+          // Check if task requires this skill using enhanced mapping
+          let hasSkill = false;
+          
+          for (const taskSkillRef of task.required_skills) {
+            const mappedSkillName = enhancedMapping.get(taskSkillRef);
+            if (mappedSkillName === skillDisplayName) {
+              hasSkill = true;
+              console.log(`🎯 [CONSISTENT BREAKDOWN] Task ${task.id} matches skill "${skillDisplayName}" via mapping: ${taskSkillRef} -> ${mappedSkillName}`);
+              break;
+            }
+          }
+
+          if (hasSkill) {
+            const clientId = task.client_id || 'unknown';
+            const clientName = resolvedClientMap.get(clientId) || `Client ${clientId.substring(0, 8)}...`;
+
+            // Calculate monthly recurrence for this task within the period
+            const recurrence = RecurrenceCalculator.calculateMonthlyDemand(
+              task,
+              monthStart,
+              monthEnd
+            );
+
+            // Use full task hours for consistent calculation
+            const fullTaskHours = Math.max(0, task.estimated_hours || 0);
+            const monthlyTaskHours = recurrence.monthlyOccurrences * fullTaskHours;
+
+            const demandItem: ClientTaskDemand = {
+              clientId: clientId,
+              clientName: clientName,
+              recurringTaskId: task.id,
+              taskName: task.name || 'Unnamed Task',
+              skillType: skillDisplayName,
+              estimatedHours: fullTaskHours,
+              recurrencePattern: {
+                type: task.recurrence_type || 'Monthly',
+                interval: task.recurrence_interval || 1,
+                frequency: recurrence.monthlyOccurrences
+              },
+              monthlyHours: monthlyTaskHours
+            };
+
+            breakdown.push(demandItem);
+            console.log(`✨ [CONSISTENT BREAKDOWN] Added task ${task.id} (${clientName}) with ${monthlyTaskHours}h`);
+          }
+        } catch (itemError) {
+          console.warn(`Error creating consistent demand item for task ${task.id}:`, itemError);
+        }
+      }
+
+      console.log(`📊 [CONSISTENT BREAKDOWN] Generated ${breakdown.length} items for skill "${skillDisplayName}" with consistent mapping`);
+      return breakdown;
+    } catch (error) {
+      console.warn(`Error generating consistent task breakdown for ${skillDisplayName}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Create enhanced skill mapping that includes consistency normalization
+   * This ensures both matrices use the same skill names
+   */
+  private static createEnhancedSkillMapping(
+    baseMapping: Map<string, string>,
+    demandItems: Array<{ skill: SkillType; hours: number }> = []
+  ): Map<string, SkillType> {
+    const enhancedMapping = new Map<string, SkillType>();
+
+    // Add base mappings
+    baseMapping.forEach((value, key) => {
+      enhancedMapping.set(key, value as SkillType);
     });
 
-    debugLog(`Generated ${demandPoints.length} demand points`);
-    return demandPoints;
-  }
+    // Extract skills from demand items and normalize them
+    const demandSkills = demandItems.map(item => item.skill);
+    const normalizedSkills = SkillConsistencyService.normalizeSkillsForMatrixConsistency(demandSkills);
 
-  /**
-   * Calculate how many times a task occurs in a given month
-   */
-  private static calculateMonthlyOccurrences(
-    recurrenceType: string | null,
-    monthStart: Date,
-    monthEnd: Date
-  ): number {
-    if (!recurrenceType) return 1; // Default to once per month
+    // Add normalized mappings
+    demandSkills.forEach((originalSkill, index) => {
+      const normalizedSkill = normalizedSkills[index];
+      enhancedMapping.set(originalSkill, normalizedSkill);
+      enhancedMapping.set(normalizedSkill, normalizedSkill); // Self-mapping
+    });
 
-    try {
-      // Parse recurrence pattern
-      const pattern = this.parseRecurrencePattern(recurrenceType);
-      
-      switch (pattern.type.toLowerCase()) {
-        case 'daily':
-          // For daily tasks, calculate based on interval
-          const daysInMonth = Math.ceil((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24));
-          return Math.floor(daysInMonth / (pattern.interval || 1));
-          
-        case 'weekly':
-          // For weekly tasks
-          return Math.floor(4 / (pattern.interval || 1)); // Approximate 4 weeks per month
-          
-        case 'monthly':
-          return pattern.interval === 1 ? 1 : (pattern.interval === 2 ? 0.5 : 1 / (pattern.interval || 1));
-          
-        case 'quarterly':
-          return 1 / 3; // Once every 3 months
-          
-        case 'annually':
-          return 1 / 12; // Once every 12 months
-          
-        default:
-          return 1;
-      }
-    } catch (error) {
-      debugLog('Error parsing recurrence pattern, defaulting to monthly', { recurrenceType, error });
-      return 1;
-    }
-  }
-
-  /**
-   * Parse recurrence pattern string into structured data
-   */
-  private static parseRecurrencePattern(pattern: string): { type: string; interval: number; frequency: number } {
-    // Handle simple patterns
-    const lowerPattern = pattern.toLowerCase();
+    console.log(`🔗 [CONSISTENT DEMAND] Created enhanced mapping with ${enhancedMapping.size} entries`);
     
-    if (lowerPattern.includes('daily')) {
-      return { type: 'daily', interval: 1, frequency: 1 };
-    }
-    if (lowerPattern.includes('weekly')) {
-      return { type: 'weekly', interval: 1, frequency: 1 };
-    }
-    if (lowerPattern.includes('monthly')) {
-      return { type: 'monthly', interval: 1, frequency: 1 };
-    }
-    if (lowerPattern.includes('quarterly')) {
-      return { type: 'quarterly', interval: 3, frequency: 1 };
-    }
-    if (lowerPattern.includes('annually') || lowerPattern.includes('yearly')) {
-      return { type: 'annually', interval: 12, frequency: 1 };
+    return enhancedMapping;
+  }
+
+  /**
+   * Validate skill consistency between demand and capacity
+   */
+  static validateSkillConsistency(
+    demandSkills: SkillType[],
+    capacitySkills: SkillType[]
+  ): { isConsistent: boolean; issues: string[]; fixedSkills?: SkillType[] } {
+    const validation = SkillConsistencyService.validateMatrixSkillConsistency(
+      demandSkills,
+      capacitySkills
+    );
+
+    if (!validation.isConsistent) {
+      // Attempt to fix by normalizing all skills to consistent format
+      const allSkills = [...new Set([...demandSkills, ...capacitySkills])];
+      const fixedSkills = SkillConsistencyService.normalizeSkillsForMatrixConsistency(allSkills);
+      
+      return {
+        ...validation,
+        fixedSkills
+      };
     }
 
-    // Default to monthly
-    return { type: 'monthly', interval: 1, frequency: 1 };
+    return validation;
   }
 }

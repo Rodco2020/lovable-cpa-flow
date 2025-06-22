@@ -1,43 +1,16 @@
 
 /**
- * Skill Resolution Types
- * Core type definitions for the skill resolution system
+ * Type definitions for the Skill Resolution Service
  */
 
-export interface SkillMappingEntry {
+export interface SkillCacheEntry {
   id: string;
   name: string;
 }
 
-export interface SkillCache {
-  skills: SkillMappingEntry[];
-  lastUpdated: number;
-  isValid: boolean;
-}
-
 export interface SkillResolutionResult {
-  resolved: string[];
-  valid: string[];
-  invalid: string[];
-}
-
-export interface SkillResolutionDiagnostics {
-  cacheHits: number;
-  databaseLookups: number;
-  validUuids: number;
-  invalidUuids: number;
-  validNames: number;
-  invalidNames: number;
-  totalProcessed: number;
-}
-
-export interface SkillValidationResult {
-  isValid: boolean;
-  valid: string[];
-  invalid: string[];
-  resolved: string[];
-  issues: string[];
-  diagnostics: SkillResolutionDiagnostics;
+  resolvedNames: string[];
+  stats: SkillResolutionStats;
 }
 
 export interface SkillResolutionStats {
@@ -47,6 +20,22 @@ export interface SkillResolutionStats {
   fetched: number;
   fallback: number;
   errors: number;
+}
+
+export interface SkillValidationResult {
+  valid: string[];
+  invalid: string[];
+  resolved: string[];
+  diagnostics: SkillValidationDiagnostics;
+}
+
+export interface SkillValidationDiagnostics {
+  inputCount: number;
+  validUuids: number;
+  invalidUuids: number;
+  resolvedNames: number;
+  cacheHits: number;
+  errors: string[];
 }
 
 export interface SkillCacheManager {

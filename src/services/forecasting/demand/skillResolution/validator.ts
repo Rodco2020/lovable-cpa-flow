@@ -1,156 +1,114 @@
 
 /**
- * Skill Validation Service
- * Handles validation of skill references and UUIDs
+ * Skill Validation Utilities
+ * Handles UUID validation and skill reference validation
  */
 
-import { SkillCacheManager, SkillValidationResult, SkillResolutionDiagnostics } from './types';
-import { debugLog } from '../../logger';
+import { supabase } from '@/integrations/supabase/client';
+import { SkillCacheManager, SkillValidationResult } from './types';
 
 export class SkillValidator {
   constructor(private cacheManager: SkillCacheManager) {}
 
   /**
-   * Check if a string is a valid UUID
+   * Validate if a string is a UUID
    */
   isUUID(str: string): boolean {
     if (!str || typeof str !== 'string') return false;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(str.trim());
+    return uuidRegex.test(str);
   }
 
   /**
    * Validate skill references with comprehensive diagnostics
    */
   async validateSkillReferences(skillRefs: string[]): Promise<SkillValidationResult> {
-    console.log('🔍 [SKILL VALIDATOR] Starting skill reference validation for:', skillRefs);
+    console.log('🔍 [SKILL VALIDATION] Starting validation:', skillRefs);
 
-    const diagnostics: SkillResolutionDiagnostics = {
-      cacheHits: 0,
-      databaseLookups: 0,
+    const diagnostics = {
+      inputCount: skillRefs?.length || 0,
       validUuids: 0,
       invalidUuids: 0,
-      validNames: 0,
-      invalidNames: 0,
-      totalProcessed: skillRefs.length
+      resolvedNames: 0,
+      cacheHits: 0,
+      errors: [] as string[]
     };
 
-    if (!Array.isArray(skillRefs) || skillRefs.length === 0) {
-      return {
-        isValid: true,
-        valid: [],
-        invalid: [],
-        resolved: [],
-        issues: [],
-        diagnostics
-      };
+    if (!Array.isArray(skillRefs)) {
+      diagnostics.errors.push('Input is not an array');
+      return { valid: [], invalid: skillRefs || [], resolved: [], diagnostics };
     }
 
     await this.cacheManager.initialize();
 
-    const result: SkillValidationResult = {
-      isValid: true,
-      valid: [],
-      invalid: [],
-      resolved: [],
-      issues: [],
-      diagnostics
-    };
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    const resolved: string[] = [];
 
     for (const skillRef of skillRefs) {
       try {
         if (!skillRef || typeof skillRef !== 'string') {
-          result.invalid.push(String(skillRef));
-          result.issues.push(`Invalid skill reference: ${skillRef}`);
+          invalid.push(skillRef);
+          diagnostics.invalidUuids++;
           continue;
         }
 
         const trimmed = skillRef.trim();
         
         if (this.isUUID(trimmed)) {
-          // It's a UUID - check if we can resolve it
-          const skillName = this.cacheManager.getNameById(trimmed);
-          if (skillName) {
-            result.valid.push(trimmed);
-            result.resolved.push(skillName);
-            result.diagnostics.validUuids++;
-            result.diagnostics.cacheHits++;
+          diagnostics.validUuids++;
+          const name = this.cacheManager.getNameById(trimmed);
+          
+          if (name) {
+            valid.push(trimmed);
+            resolved.push(name);
+            diagnostics.resolvedNames++;
+            diagnostics.cacheHits++;
           } else {
-            result.invalid.push(trimmed);
-            result.issues.push(`UUID not found in skills cache: ${trimmed.slice(0, 8)}...`);
-            result.diagnostics.invalidUuids++;
+            // Try database lookup for missing cache entries
+            try {
+              const { data } = await supabase
+                .from('skills')
+                .select('name')
+                .eq('id', trimmed)
+                .single();
+                
+              if (data?.name) {
+                valid.push(trimmed);
+                resolved.push(data.name);
+                diagnostics.resolvedNames++;
+                this.cacheManager.updateCache(trimmed, data.name);
+              } else {
+                invalid.push(trimmed);
+                resolved.push(`Unknown: ${trimmed.slice(0, 8)}`);
+              }
+            } catch {
+              invalid.push(trimmed);
+              resolved.push(`Error: ${trimmed.slice(0, 8)}`);
+            }
           }
         } else {
-          // It's a name - check if it exists in our cache
-          const skillId = this.cacheManager.getIdByName(trimmed);
-          if (skillId) {
-            result.valid.push(trimmed);
-            result.resolved.push(trimmed);
-            result.diagnostics.validNames++;
-            result.diagnostics.cacheHits++;
+          // It's a name - check if valid
+          const id = this.cacheManager.getIdByName(trimmed);
+          if (id) {
+            valid.push(trimmed);
+            resolved.push(trimmed);
+            diagnostics.resolvedNames++;
+            diagnostics.cacheHits++;
           } else {
-            // Name not found - this might be valid but not in cache
-            result.valid.push(trimmed);
-            result.resolved.push(trimmed);
-            result.diagnostics.validNames++;
-            result.issues.push(`Skill name not found in cache: ${trimmed}`);
+            invalid.push(trimmed);
+            resolved.push(trimmed);
           }
         }
       } catch (error) {
-        console.error(`❌ [SKILL VALIDATOR] Error validating skill ${skillRef}:`, error);
-        result.invalid.push(skillRef);
-        result.issues.push(`Validation error for ${skillRef}: ${error}`);
+        console.error(`❌ [SKILL VALIDATION] Error validating skill reference ${skillRef}:`, error);
+        invalid.push(skillRef);
+        resolved.push(`Error: ${skillRef}`);
+        diagnostics.errors.push(`Validation error for ${skillRef}: ${error}`);
       }
     }
 
-    result.isValid = result.invalid.length === 0;
-
-    console.log('📊 [SKILL VALIDATOR] Validation complete:', {
-      isValid: result.isValid,
-      validCount: result.valid.length,
-      invalidCount: result.invalid.length,
-      resolvedCount: result.resolved.length,
-      issuesCount: result.issues.length,
-      diagnostics: result.diagnostics
-    });
-
-    debugLog(`Skill validation completed: ${result.valid.length} valid, ${result.invalid.length} invalid`);
-    return result;
-  }
-
-  /**
-   * Validate array contains only UUIDs
-   */
-  validateUUIDArray(skillIds: string[]): { valid: string[], invalid: string[] } {
-    const valid: string[] = [];
-    const invalid: string[] = [];
-
-    for (const skillId of skillIds) {
-      if (this.isUUID(skillId)) {
-        valid.push(skillId);
-      } else {
-        invalid.push(skillId);
-      }
-    }
-
-    return { valid, invalid };
-  }
-
-  /**
-   * Validate array contains only skill names
-   */
-  validateNameArray(skillNames: string[]): { valid: string[], invalid: string[] } {
-    const valid: string[] = [];
-    const invalid: string[] = [];
-
-    for (const skillName of skillNames) {
-      if (skillName && typeof skillName === 'string' && skillName.trim().length > 0) {
-        valid.push(skillName.trim());
-      } else {
-        invalid.push(skillName);
-      }
-    }
-
-    return { valid, invalid };
+    console.log('📊 [SKILL VALIDATION] Validation complete:', { valid, invalid, resolved, diagnostics });
+    return { valid, invalid, resolved, diagnostics };
   }
 }

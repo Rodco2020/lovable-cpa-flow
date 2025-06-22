@@ -8,33 +8,14 @@ interface PrintViewProps {
   data: ClientExportData[] | TaskExportData[];
   dataType: 'clients' | 'tasks';
   appliedFilters?: Record<string, any>;
-  // Phase 4: Enhanced props for three-mode filtering context
-  preferredStaffFilterMode?: 'all' | 'specific' | 'none';
-  filteringSummary?: {
-    totalRecords: number;
-    filteredRecords: number;
-    filteringMode: string;
-    filtersApplied: string[];
-  };
   onPrint: () => void;
 }
 
-/**
- * Phase 4: Enhanced Print View Component
- * 
- * PHASE 4 ENHANCEMENTS:
- * - Added preferred staff filtering mode display in print header
- * - Enhanced filtering summary section with three-mode context
- * - Maintained all existing print functionality
- * - Added clear indication of filtering state in printed reports
- */
 export const PrintView: React.FC<PrintViewProps> = ({
   title,
   data,
   dataType,
   appliedFilters,
-  preferredStaffFilterMode,
-  filteringSummary,
   onPrint
 }) => {
   React.useEffect(() => {
@@ -45,20 +26,6 @@ export const PrintView: React.FC<PrintViewProps> = ({
     
     return () => clearTimeout(timer);
   }, [onPrint]);
-
-  // Phase 4: Get filter mode description for display
-  const getFilterModeDescription = () => {
-    switch (preferredStaffFilterMode) {
-      case 'all':
-        return 'All tasks included regardless of staff assignment';
-      case 'specific':
-        return 'Only tasks assigned to selected staff members';
-      case 'none':
-        return 'Only tasks without preferred staff assignments';
-      default:
-        return 'Standard filtering applied';
-    }
-  };
 
   return (
     <div className="print-view min-h-screen bg-white p-8">
@@ -87,12 +54,6 @@ export const PrintView: React.FC<PrintViewProps> = ({
             background-color: #f5f5f5;
             font-weight: bold;
           }
-          .filter-mode-highlight {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 8px;
-            margin: 8px 0;
-          }
         }
       `}</style>
       
@@ -100,33 +61,6 @@ export const PrintView: React.FC<PrintViewProps> = ({
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-2">{title}</h1>
         <p className="text-gray-600">Generated on: {formatDate(new Date())}</p>
-        
-        {/* Phase 4: Enhanced Filtering Information */}
-        {preferredStaffFilterMode && (
-          <div className="filter-mode-highlight mt-4">
-            <h3 className="font-semibold mb-1">Preferred Staff Filtering Mode:</h3>
-            <p className="text-sm">
-              <strong>{preferredStaffFilterMode.toUpperCase()}</strong> - {getFilterModeDescription()}
-            </p>
-          </div>
-        )}
-
-        {/* Phase 4: Enhanced Filtering Summary */}
-        {filteringSummary && (
-          <div className="mt-4 p-4 border border-gray-300 rounded">
-            <h3 className="font-semibold mb-2">Filtering Summary:</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p><strong>Total Records Available:</strong> {filteringSummary.totalRecords}</p>
-                <p><strong>Records After Filtering:</strong> {filteringSummary.filteredRecords}</p>
-              </div>
-              <div>
-                <p><strong>Filtering Mode:</strong> {filteringSummary.filteringMode}</p>
-                <p><strong>Filters Applied:</strong> {filteringSummary.filtersApplied.join(', ')}</p>
-              </div>
-            </div>
-          </div>
-        )}
         
         {/* Applied Filters */}
         {appliedFilters && Object.keys(appliedFilters).length > 0 && (
@@ -147,18 +81,12 @@ export const PrintView: React.FC<PrintViewProps> = ({
       {dataType === 'clients' ? (
         <ClientsTable clients={data as ClientExportData[]} />
       ) : (
-        <TasksTable 
-          tasks={data as TaskExportData[]} 
-          showPreferredStaffInfo={preferredStaffFilterMode !== undefined}
-        />
+        <TasksTable tasks={data as TaskExportData[]} />
       )}
       
       {/* Footer */}
       <div className="mt-8 pt-4 border-t text-center text-sm text-gray-600">
         <p>CPA Practice Management Software - Generated Report</p>
-        {preferredStaffFilterMode && (
-          <p className="mt-1">Report generated with {preferredStaffFilterMode.toUpperCase()} preferred staff filtering mode</p>
-        )}
       </div>
     </div>
   );
@@ -193,10 +121,7 @@ const ClientsTable: React.FC<{ clients: ClientExportData[] }> = ({ clients }) =>
   </table>
 );
 
-const TasksTable: React.FC<{ 
-  tasks: TaskExportData[]; 
-  showPreferredStaffInfo?: boolean; 
-}> = ({ tasks, showPreferredStaffInfo = false }) => (
+const TasksTable: React.FC<{ tasks: TaskExportData[] }> = ({ tasks }) => (
   <table className="w-full border-collapse border border-gray-300">
     <thead>
       <tr className="bg-gray-50">
@@ -208,10 +133,6 @@ const TasksTable: React.FC<{
         <th className="border border-gray-300 p-2">Est. Hours</th>
         <th className="border border-gray-300 p-2">Required Skills</th>
         <th className="border border-gray-300 p-2">Next Due Date</th>
-        {/* Phase 4: Conditional preferred staff column */}
-        {showPreferredStaffInfo && (
-          <th className="border border-gray-300 p-2">Preferred Staff</th>
-        )}
       </tr>
     </thead>
     <tbody>
@@ -225,10 +146,6 @@ const TasksTable: React.FC<{
           <td className="border border-gray-300 p-2">{task.estimatedHours}</td>
           <td className="border border-gray-300 p-2">{task.requiredSkills.join(', ')}</td>
           <td className="border border-gray-300 p-2">{task.nextDueDate || 'N/A'}</td>
-          {/* Phase 4: Conditional preferred staff data */}
-          {showPreferredStaffInfo && (
-            <td className="border border-gray-300 p-2">{(task as any).preferredStaff || 'Unassigned'}</td>
-          )}
         </tr>
       ))}
     </tbody>
