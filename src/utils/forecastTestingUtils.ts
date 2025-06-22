@@ -20,7 +20,16 @@ export const runRecurrenceTests = () => {
   // Mock implementation for testing
 };
 
+/**
+ * Run skill allocation strategy tests
+ */
+export const runSkillAllocationTests = () => {
+  console.log('Running skill allocation tests...');
+  // Mock implementation for testing
+};
+
 export default {
   estimateRecurringTaskInstances,
-  runRecurrenceTests
+  runRecurrenceTests,
+  runSkillAllocationTests
 };

@@ -7,6 +7,14 @@
 import { ForecastingService } from '../forecastingService';
 
 /**
+ * Initialize forecasting integrations
+ */
+export const initializeForecastingIntegrations = () => {
+  console.log('Initializing forecasting integrations...');
+  // Mock implementation for integration initialization
+};
+
+/**
  * Legacy getForecast function for backward compatibility
  */
 export const getForecast = async (params: any) => {
