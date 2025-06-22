@@ -3,7 +3,6 @@ import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { RecurringTaskDB } from '@/types/task';
 import { format, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { debugLog } from '../../logger';
-import { SkillResolutionService } from '../skillResolutionService';
 
 /**
  * Data Point Generation Service
@@ -33,43 +32,43 @@ export class DataPointGenerationService {
       const monthKey = format(monthStart, 'yyyy-MM');
       const monthLabel = format(monthStart, 'MMM yyyy');
 
-      // Group tasks by resolved skill type
+      // Group tasks by skill type
       const skillGroups = new Map<string, ClientTaskDemand[]>();
 
       for (const task of tasks) {
-        // Resolve skill type using the skill resolution service
-        const resolvedSkill = await SkillResolutionService.resolveSkillType(task.required_skill);
+        // Use correct property names from RecurringTaskDB
+        const skillType = task.required_skills || 'General';
         
         // Calculate monthly occurrences
         const monthlyOccurrences = this.calculateTaskOccurrences(
-          task.recurrence_pattern,
+          task.recurrence_type,
           monthStart,
           monthEnd
         );
 
         if (monthlyOccurrences > 0) {
-          const monthlyHours = (task.default_estimated_hours || 0) * monthlyOccurrences;
+          const monthlyHours = (task.estimated_hours || 0) * monthlyOccurrences;
 
           const taskDemand: ClientTaskDemand = {
             clientTaskDemandId: `${task.id}-${monthKey}`,
             clientId: task.client_id,
-            clientName: task.client_name || 'Unknown Client',
+            clientName: 'Unknown Client', // Would need client lookup
             recurringTaskId: task.id,
-            taskName: task.task_name,
-            skillType: resolvedSkill,
-            estimatedHours: task.default_estimated_hours || 0,
+            taskName: task.name,
+            skillType: skillType,
+            estimatedHours: task.estimated_hours || 0,
             monthlyHours,
-            recurrencePattern: task.recurrence_pattern || 'monthly', // Keep as string
+            recurrencePattern: task.recurrence_type || 'monthly',
             preferredStaff: task.preferred_staff_id ? {
               staffId: task.preferred_staff_id,
-              full_name: task.preferred_staff_name || task.preferred_staff_id
+              full_name: task.preferred_staff_id // Would need staff lookup
             } : null
           };
 
-          if (!skillGroups.has(resolvedSkill)) {
-            skillGroups.set(resolvedSkill, []);
+          if (!skillGroups.has(skillType)) {
+            skillGroups.set(skillType, []);
           }
-          skillGroups.get(resolvedSkill)!.push(taskDemand);
+          skillGroups.get(skillType)!.push(taskDemand);
         }
       }
 
@@ -98,13 +97,13 @@ export class DataPointGenerationService {
    * Calculate task occurrences within a month based on recurrence pattern
    */
   private static calculateTaskOccurrences(
-    recurrencePattern: string | null,
+    recurrenceType: string | null,
     monthStart: Date,
     monthEnd: Date
   ): number {
-    if (!recurrencePattern) return 1;
+    if (!recurrenceType) return 1;
 
-    const pattern = recurrencePattern.toLowerCase();
+    const pattern = recurrenceType.toLowerCase();
     
     if (pattern.includes('daily')) {
       const daysInMonth = Math.ceil((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24));

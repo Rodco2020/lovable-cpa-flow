@@ -1,60 +1,60 @@
+
 /**
  * Synchronous Filter Processor
  * 
- * Contains all the original filtering logic from enhancedDataFilter.ts
- * This preserves exact behavior and functionality
+ * Handles synchronous filtering operations for backward compatibility
  */
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
-import { TimeHorizonFilter, PreferredStaffFilter } from './types';
+import { extractStaffId } from '../utils/staffIdExtractor';
 
 export class SynchronousFilterProcessor {
   /**
-   * Process all filters synchronously (preserves original logic exactly)
+   * Process filters synchronously (preserves original logic)
    */
-  static processFilters(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
+  static processFilters(
+    data: DemandMatrixData,
+    filters: DemandFilters
+  ): DemandMatrixData {
     let filteredData = { ...data };
 
-    // Apply time horizon filter (preserves original logic)
+    // Apply time horizon filter
     if (filters.timeHorizon || filters.dateRange) {
-      const timeRange = filters.timeHorizon || filters.dateRange;
-      if (timeRange) {
-        filteredData = this.applyTimeHorizonFilter(filteredData, timeRange);
-      }
+      filteredData = this.applyTimeHorizonFilter(
+        filteredData, 
+        filters.timeHorizon || filters.dateRange
+      );
     }
 
-    // Apply skill filter (preserves original logic)
-    if (filters.skillTypes && filters.skillTypes.length > 0) {
-      filteredData = this.applySkillFilter(filteredData, filters.skillTypes);
-    } else if (filters.skills && filters.skills.length > 0) {
-      filteredData = this.applySkillFilter(filteredData, filters.skills);
+    // Apply skill filter
+    if (filters.skillTypes?.length || filters.skills?.length) {
+      const skillsToFilter = filters.skillTypes || filters.skills || [];
+      filteredData = this.applySkillFilter(filteredData, skillsToFilter);
     }
 
-    // Apply client filter (preserves original logic)
-    if (filters.clientIds && filters.clientIds.length > 0) {
-      filteredData = this.applyClientFilter(filteredData, filters.clientIds);
-    } else if (filters.clients && filters.clients.length > 0) {
-      filteredData = this.applyClientFilter(filteredData, filters.clients);
+    // Apply client filter
+    if (filters.clientIds?.length || filters.clients?.length) {
+      const clientsToFilter = filters.clientIds || filters.clients || [];
+      filteredData = this.applyClientFilter(filteredData, clientsToFilter);
     }
 
-    // Apply enhanced preferred staff filter (preserves original logic)
-    if (filters.preferredStaffIds || filters.preferredStaff) {
-      const preferredStaffFilter = filters.preferredStaff || {
+    // Apply preferred staff filter
+    if (filters.preferredStaffIds?.length || filters.preferredStaff) {
+      const preferredStaffConfig = filters.preferredStaff || {
         staffIds: filters.preferredStaffIds || [],
         includeUnassigned: false,
         showOnlyPreferred: false
       };
-      filteredData = this.applyEnhancedPreferredStaffFilter(filteredData, preferredStaffFilter);
+      filteredData = this.applyPreferredStaffFilter(filteredData, preferredStaffConfig);
     }
 
-    // Recalculate totals (preserves original logic)
+    // Recalculate totals
     return this.recalculateTotals(filteredData);
   }
 
-  /**
-   * Apply time horizon filter (exact copy from original)
-   */
-  private static applyTimeHorizonFilter(data: DemandMatrixData, timeHorizon: TimeHorizonFilter): DemandMatrixData {
+  private static applyTimeHorizonFilter(data: DemandMatrixData, timeHorizon: { start: Date; end: Date } | undefined): DemandMatrixData {
+    if (!timeHorizon) return data;
+
     const filteredMonths = data.months.filter(month => {
       const monthDate = new Date(month.key + '-01');
       return monthDate >= timeHorizon.start && monthDate <= timeHorizon.end;
@@ -63,20 +63,13 @@ export class SynchronousFilterProcessor {
     const monthKeys = new Set(filteredMonths.map(m => m.key));
     const filteredDataPoints = data.dataPoints.filter(point => monthKeys.has(point.month));
 
-    return {
-      ...data,
-      months: filteredMonths,
-      dataPoints: filteredDataPoints
-    };
+    return { ...data, months: filteredMonths, dataPoints: filteredDataPoints };
   }
 
-  /**
-   * Apply skill filter (exact copy from original)
-   */
   private static applySkillFilter(data: DemandMatrixData, skills: string[]): DemandMatrixData {
     const skillSet = new Set(skills);
     const filteredDataPoints = data.dataPoints.filter(point => skillSet.has(point.skillType));
-
+    
     return {
       ...data,
       skills: data.skills.filter(skill => skillSet.has(skill)),
@@ -84,9 +77,6 @@ export class SynchronousFilterProcessor {
     };
   }
 
-  /**
-   * Apply client filter (exact copy from original)
-   */
   private static applyClientFilter(data: DemandMatrixData, clients: string[]): DemandMatrixData {
     const clientSet = new Set(clients);
 
@@ -107,22 +97,19 @@ export class SynchronousFilterProcessor {
       };
     }).filter(point => point.taskCount > 0);
 
-    return {
-      ...data,
-      dataPoints: filteredDataPoints
-    };
+    return { ...data, dataPoints: filteredDataPoints };
   }
 
-  /**
-   * Apply enhanced preferred staff filter (exact copy from original)
-   */
-  private static applyEnhancedPreferredStaffFilter(
+  private static applyPreferredStaffFilter(
     data: DemandMatrixData,
-    preferredStaffFilter: PreferredStaffFilter
+    preferredStaffConfig: {
+      staffIds: string[];
+      includeUnassigned: boolean;
+      showOnlyPreferred: boolean;
+    }
   ): DemandMatrixData {
-    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffFilter;
+    const { staffIds = [], includeUnassigned = false, showOnlyPreferred = false } = preferredStaffConfig;
     
-    // Determine filtering mode (preserves original logic)
     let filteringMode: 'all' | 'specific' | 'none' = 'all';
     if (showOnlyPreferred && staffIds.length === 0) {
       filteringMode = 'none';
@@ -130,36 +117,22 @@ export class SynchronousFilterProcessor {
       filteringMode = 'specific';
     }
 
-    console.log(`🎯 [SYNC FILTER] Applying three-mode preferred staff filter:`, {
-      mode: filteringMode,
-      staffIds: staffIds.length,
-      includeUnassigned,
-      showOnlyPreferred
-    });
-
     const filteredDataPoints = data.dataPoints.map(point => {
       let filteredTaskBreakdown = point.taskBreakdown || [];
 
       if (filteringMode === 'specific') {
         filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
-          // Handle both string and object types for preferredStaff (preserves original logic)
-          const staffId = typeof task.preferredStaff === 'string' 
-            ? task.preferredStaff 
-            : task.preferredStaff?.staffId;
-          
+          const staffId = extractStaffId(task.preferredStaff);
           const hasMatchingStaff = staffId && staffIds.includes(staffId);
           const isUnassigned = !staffId;
           return hasMatchingStaff || (includeUnassigned && isUnassigned);
         });
       } else if (filteringMode === 'none') {
         filteredTaskBreakdown = filteredTaskBreakdown.filter(task => {
-          const staffId = typeof task.preferredStaff === 'string' 
-            ? task.preferredStaff 
-            : task.preferredStaff?.staffId;
+          const staffId = extractStaffId(task.preferredStaff);
           return !staffId;
         });
       }
-      // Mode 'all' keeps all tasks (preserves original logic)
 
       const demandHours = filteredTaskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0);
       const uniqueClients = new Set(filteredTaskBreakdown.map(task => task.clientId));
@@ -173,15 +146,9 @@ export class SynchronousFilterProcessor {
       };
     }).filter(point => point.taskCount > 0);
 
-    return {
-      ...data,
-      dataPoints: filteredDataPoints
-    };
+    return { ...data, dataPoints: filteredDataPoints };
   }
 
-  /**
-   * Recalculate totals (exact copy from original)
-   */
   private static recalculateTotals(data: DemandMatrixData): DemandMatrixData {
     const totalDemand = data.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
     const totalTasks = data.dataPoints.reduce((sum, point) => sum + point.taskCount, 0);

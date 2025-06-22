@@ -36,31 +36,32 @@ export class DemandCalculationService {
       const skillGroups = new Map<string, ClientTaskDemand[]>();
 
       tasks.forEach(task => {
-        const skillType = task.required_skill || 'General';
+        // Use correct property names from RecurringTaskDB
+        const skillType = task.required_skills || 'General';
         
         // Calculate monthly task occurrences
         const occurrences = this.calculateTaskOccurrences(
-          task.recurrence_pattern,
+          task.recurrence_type,
           monthStart,
           monthEnd
         );
 
         if (occurrences > 0) {
-          const monthlyHours = (task.default_estimated_hours || 0) * occurrences;
+          const monthlyHours = (task.estimated_hours || 0) * occurrences;
 
           const taskDemand: ClientTaskDemand = {
             clientTaskDemandId: `${task.id}-${monthKey}`,
-            taskName: task.task_name,
+            taskName: task.name,
             clientId: task.client_id,
-            clientName: task.client_name || 'Unknown Client',
+            clientName: 'Unknown Client', // Would need client lookup
             monthlyHours,
             skillType,
-            estimatedHours: task.default_estimated_hours || 0,
-            recurrencePattern: task.recurrence_pattern || 'monthly', // Keep as string
+            estimatedHours: task.estimated_hours || 0,
+            recurrencePattern: task.recurrence_type || 'monthly',
             recurringTaskId: task.id,
             preferredStaff: task.preferred_staff_id ? {
               staffId: task.preferred_staff_id,
-              full_name: task.preferred_staff_name || task.preferred_staff_id
+              full_name: task.preferred_staff_id // Would need staff lookup
             } : null
           };
 
@@ -95,13 +96,13 @@ export class DemandCalculationService {
    * Calculate task occurrences based on recurrence pattern
    */
   private static calculateTaskOccurrences(
-    recurrencePattern: string | null,
+    recurrenceType: string | null,
     monthStart: Date,
     monthEnd: Date
   ): number {
-    if (!recurrencePattern) return 1;
+    if (!recurrenceType) return 1;
 
-    const pattern = recurrencePattern.toLowerCase();
+    const pattern = recurrenceType.toLowerCase();
     const daysInMonth = Math.ceil((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24));
 
     if (pattern.includes('daily')) {

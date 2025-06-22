@@ -31,31 +31,32 @@ export class ConsistentDemandCalculation {
       const skillGroups = new Map<string, ClientTaskDemand[]>();
 
       tasks.forEach(task => {
-        const skillType = task.required_skill || 'General';
+        // Fix: Use correct property names from RecurringTaskDB
+        const skillType = task.required_skills || 'General';
         
         // Calculate occurrences for this month
         const monthlyOccurrences = this.calculateMonthlyOccurrences(
-          task.recurrence_pattern,
+          task.recurrence_type,
           monthStart,
           monthEnd
         );
 
         if (monthlyOccurrences > 0) {
-          const monthlyHours = (task.default_estimated_hours || 0) * monthlyOccurrences;
+          const monthlyHours = (task.estimated_hours || 0) * monthlyOccurrences;
 
           const demandItem: ClientTaskDemand = {
             clientTaskDemandId: `${task.id}-${monthKey}`,
-            taskName: task.task_name,
+            taskName: task.name,
             clientId: task.client_id,
-            clientName: task.client_name || 'Unknown Client',
+            clientName: 'Unknown Client', // This would need to be fetched separately
             monthlyHours,
             skillType,
-            estimatedHours: task.default_estimated_hours || 0,
-            recurrencePattern: task.recurrence_pattern || 'monthly', // Keep as string
+            estimatedHours: task.estimated_hours || 0,
+            recurrencePattern: task.recurrence_type || 'monthly',
             recurringTaskId: task.id,
             preferredStaff: task.preferred_staff_id ? {
               staffId: task.preferred_staff_id,
-              full_name: task.preferred_staff_name || task.preferred_staff_id
+              full_name: task.preferred_staff_id // This would need staff lookup
             } : null
           };
 
@@ -91,15 +92,15 @@ export class ConsistentDemandCalculation {
    * Calculate how many times a task occurs in a given month
    */
   private static calculateMonthlyOccurrences(
-    recurrencePattern: string | null,
+    recurrenceType: string | null,
     monthStart: Date,
     monthEnd: Date
   ): number {
-    if (!recurrencePattern) return 1; // Default to once per month
+    if (!recurrenceType) return 1; // Default to once per month
 
     try {
       // Parse recurrence pattern
-      const pattern = this.parseRecurrencePattern(recurrencePattern);
+      const pattern = this.parseRecurrencePattern(recurrenceType);
       
       switch (pattern.type.toLowerCase()) {
         case 'daily':
@@ -124,7 +125,7 @@ export class ConsistentDemandCalculation {
           return 1;
       }
     } catch (error) {
-      debugLog('Error parsing recurrence pattern, defaulting to monthly', { recurrencePattern, error });
+      debugLog('Error parsing recurrence pattern, defaulting to monthly', { recurrenceType, error });
       return 1;
     }
   }
