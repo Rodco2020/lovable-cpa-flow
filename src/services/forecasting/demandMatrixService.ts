@@ -1,9 +1,64 @@
+
 import { debugLog } from './logger';
 import { DemandDataService } from './demandDataService';
 import { DemandMatrixData, DemandMatrixMode, DemandFilters, DemandForecastParameters } from '@/types/demand';
-import { MatrixValidationService } from './matrixValidationService';
-import { MatrixCacheManager } from './cache/matrixCacheManager';
 import { DemandPerformanceOptimizer } from './demand/performanceOptimizer';
+
+/**
+ * Simple validation service for matrix data
+ */
+class MatrixValidationService {
+  static validateMatrixData(matrixData: DemandMatrixData): string[] {
+    const errors: string[] = [];
+    
+    if (!matrixData) {
+      errors.push('Matrix data is null or undefined');
+      return errors;
+    }
+    
+    if (!matrixData.months || matrixData.months.length === 0) {
+      errors.push('No months data found in matrix');
+    }
+    
+    if (!matrixData.skills || matrixData.skills.length === 0) {
+      errors.push('No skills data found in matrix');
+    }
+    
+    return errors;
+  }
+}
+
+/**
+ * Simple cache manager for matrix data
+ */
+class MatrixCacheManager {
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly TTL = 5 * 60 * 1000; // 5 minutes
+
+  async get(key: string): Promise<{ data: any } | null> {
+    const cached = this.cache.get(key);
+    if (!cached) return null;
+    
+    const isExpired = Date.now() - cached.timestamp > this.TTL;
+    if (isExpired) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return { data: cached.data };
+  }
+
+  async set(key: string, data: any): Promise<void> {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+  }
+
+  clearCache(): void {
+    this.cache.clear();
+  }
+}
 
 /**
  * Demand Matrix Service

@@ -3,9 +3,30 @@
 export { StaffService } from './staffService';
 export { 
   getActiveStaffForDropdown, 
-  validateStaffId 
+  validateStaffId,
+  getStaffById as getStaffByIdFromDropdown
 } from './staffDropdownService';
-export type { StaffOption } from '@/types/staffOption';
 
-// Remove duplicate getStaffById export to resolve ambiguity
-// The getStaffById from staffDropdownService will be used
+// Core staff operations - export all functions from staffService
+export {
+  getAllStaff,
+  getActiveStaff,
+  getStaffById,
+  createStaff,
+  updateStaff,
+  deleteStaff
+} from './staffService';
+
+// Staff availability operations - these need to be implemented
+export {
+  getWeeklyAvailabilityByStaff,
+  batchUpdateWeeklyAvailability,
+  calculateAvailabilitySummary,
+  ensureStaffHasAvailability,
+  getTimeSlotsByStaffAndDate,
+  getTimeSlotsByDate,
+  updateTimeSlot,
+  mapStaffSkillsToForecastSkills
+} from './staffAvailabilityService';
+
+export type { StaffOption } from '@/types/staffOption';

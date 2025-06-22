@@ -1,4 +1,3 @@
-
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
@@ -348,4 +347,28 @@ export interface RevenueFilter {
   minExpectedLessSuggested?: number;
   maxExpectedLessSuggested?: number;
   profitabilityThreshold?: number;
+}
+
+/**
+ * Matrix Revenue Comparison interface
+ * Used for comparing revenue projections across different periods
+ */
+export interface MatrixRevenueComparison {
+  currentPeriod: {
+    period: string;
+    revenue: number;
+    costs: number;
+    profit: number;
+  };
+  previousPeriod: {
+    period: string;
+    revenue: number;
+    costs: number;
+    profit: number;
+  };
+  growth: {
+    revenueGrowth: number;
+    costGrowth: number;
+    profitGrowth: number;
+  };
 }
