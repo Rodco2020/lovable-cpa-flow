@@ -78,10 +78,8 @@ export class MatrixServiceCore {
     
     try {
       // UNIFIED: Use DemandMatrixService for demand data (same as Demand Forecast Matrix)
-      const { matrixData: demandMatrix } = await DemandMatrixService.generateDemandMatrix(
-        'demand-only',
-        startDate
-      );
+      // Use single parameter method signature
+      const { matrixData: demandMatrix } = await DemandMatrixService.generateDemandMatrix('demand-only');
       
       // Generate capacity forecast using existing skill-aware service
       const capacityForecast = await SkillAwareForecastingService.generateCapacityForecast(
@@ -318,7 +316,7 @@ export class MatrixServiceCore {
    */
   static async generateMatrix(mode: string = 'demand-only'): Promise<any> {
     try {
-      // Use the correct method signature - DemandMatrixService.generateDemandMatrix only takes one parameter
+      // Use the correct method signature - single parameter
       const result = await DemandMatrixService.generateDemandMatrix(mode as any);
       return result;
     } catch (error) {

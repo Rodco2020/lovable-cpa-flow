@@ -1,6 +1,7 @@
+
 import { debugLog } from './logger';
 import { MatrixData } from './matrixUtils';
-import { DemandMatrixData } from '@/types/demand';
+import { DemandMatrixData as ImportedDemandMatrixData, DemandMatrixMode } from '@/types/demand';
 import { generateMatrixForecast, validateMatrixData, getMatrixCacheKey } from './matrixService';
 import { DemandMatrixService } from './demandMatrixService';
 
@@ -23,7 +24,7 @@ export class ExtendedMatrixService {
     startDate: Date = new Date()
   ): Promise<{
     matrixData?: MatrixData;
-    demandMatrixData?: DemandMatrixData;
+    demandMatrixData?: ImportedDemandMatrixData;
     matrixType: 'capacity' | 'demand';
   }> {
     debugLog('Generating UNIFIED matrix', { matrixType, forecastType, startDate });
@@ -38,11 +39,8 @@ export class ExtendedMatrixService {
           matrixType: 'capacity'
         };
       } else {
-        // Use new demand matrix service
-        const { matrixData: demandMatrixData } = await DemandMatrixService.generateDemandMatrix(
-          'demand-only',
-          startDate
-        );
+        // Use new demand matrix service with single parameter
+        const { matrixData: demandMatrixData } = await DemandMatrixService.generateDemandMatrix('demand-only');
         
         return {
           demandMatrixData,
@@ -59,7 +57,7 @@ export class ExtendedMatrixService {
    * Validate matrix data based on type
    */
   static validateMatrixData(
-    matrixData: MatrixData | DemandMatrixData,
+    matrixData: MatrixData | ImportedDemandMatrixData,
     matrixType: 'capacity' | 'demand'
   ): string[] {
     if (matrixType === 'capacity') {
@@ -67,7 +65,7 @@ export class ExtendedMatrixService {
       return validateMatrixData(matrixData as MatrixData);
     } else {
       // Use demand-specific validation
-      return DemandMatrixService.validateDemandMatrixData(matrixData as DemandMatrixData);
+      return DemandMatrixService.validateDemandMatrixData(matrixData as ImportedDemandMatrixData);
     }
   }
 
@@ -82,7 +80,7 @@ export class ExtendedMatrixService {
     if (matrixType === 'capacity') {
       return getMatrixCacheKey(forecastType as 'virtual' | 'actual', startDate);
     } else {
-      return DemandMatrixService.getDemandMatrixCacheKey('demand-only', startDate);
+      return DemandMatrixService.getDemandMatrixCacheKey('demand-only');
     }
   }
 
@@ -96,7 +94,7 @@ export class ExtendedMatrixService {
     const startTime = performance.now();
     
     try {
-      // Use the correct method signature
+      // Use the correct method signature with single parameter
       const { matrixData } = await DemandMatrixService.generateDemandMatrix(mode);
       
       // Apply any additional processing based on options
@@ -142,7 +140,7 @@ export class ExtendedMatrixService {
     }
   }
 
-  private static applyEnhancements(matrixData: DemandMatrixData, options?: ExtendedMatrixOptions): DemandMatrixData {
+  private static applyEnhancements(matrixData: ImportedDemandMatrixData, options?: ExtendedMatrixOptions): ImportedDemandMatrixData {
     // Apply any enhancements based on options
     return matrixData;
   }
@@ -155,23 +153,11 @@ interface ExtendedMatrixOptions {
 }
 
 interface ExtendedMatrixResult {
-  matrixData: DemandMatrixData;
+  matrixData: ImportedDemandMatrixData;
   metadata: {
     generatedAt: Date;
     processingTime: number;
     mode: DemandMatrixMode;
     options: ExtendedMatrixOptions;
   };
-}
-
-type DemandMatrixMode = 'demand-only' | 'capacity-vs-demand';
-
-interface DemandMatrixData {
-  months: Array<{ key: string; label: string }>;
-  skills: string[];
-  dataPoints: any[];
-  totalDemand: number;
-  totalTasks: number;
-  totalClients: number;
-  skillSummary: Record<string, any>;
 }
