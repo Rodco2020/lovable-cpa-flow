@@ -83,6 +83,13 @@ export class DemandMatrixService {
   }
 
   /**
+   * Get cache key for demand matrix
+   */
+  static getDemandMatrixCacheKey(mode: DemandMatrixMode = 'demand-only'): string {
+    return `demandMatrix-${mode}`;
+  }
+
+  /**
    * Generate demand matrix with enhanced error handling
    */
   static async generateDemandMatrix(
@@ -144,7 +151,7 @@ export class DemandMatrixService {
   static async generateAndCacheDemandMatrix(
     mode: DemandMatrixMode = 'demand-only'
   ): Promise<{ matrixData: DemandMatrixData }> {
-    const cacheKey = `demandMatrix-${mode}`;
+    const cacheKey = this.getDemandMatrixCacheKey(mode);
 
     try {
       // Try to get data from cache

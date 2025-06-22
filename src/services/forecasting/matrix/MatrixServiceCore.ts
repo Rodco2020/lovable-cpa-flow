@@ -1,4 +1,3 @@
-
 import { MatrixData, ForecastType, MatrixErrorContext, MonthInfo, MatrixDataPoint } from './types';
 import { MATRIX_CONSTANTS } from './constants';
 import { MatrixValidator } from './MatrixValidator';
@@ -314,6 +313,20 @@ export class MatrixServiceCore {
     return matrixData;
   }
   
+  /**
+   * Generate demand matrix using the correct service method
+   */
+  static async generateMatrix(mode: string = 'demand-only'): Promise<any> {
+    try {
+      // Use the correct method signature - DemandMatrixService.generateDemandMatrix only takes one parameter
+      const result = await DemandMatrixService.generateDemandMatrix(mode as any);
+      return result;
+    } catch (error) {
+      console.error('Error generating matrix in MatrixServiceCore:', error);
+      throw error;
+    }
+  }
+
   /**
    * Clear all cached data
    */
