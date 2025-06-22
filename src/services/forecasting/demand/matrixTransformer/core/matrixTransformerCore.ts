@@ -1,3 +1,4 @@
+
 import { DemandMatrixData, DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
@@ -44,7 +45,7 @@ export class MatrixTransformerCore {
     const skills = this.extractSkills(forecastData);
     const optimizedTasks = PerformanceOptimizer.optimizeDataStructures(tasks);
     
-    // Enhanced: Extract staff information from tasks
+    // Enhanced: Extract staff information from tasks using correct field names
     const staffInformation = this.extractStaffInformation(optimizedTasks);
     
     console.log(`📊 [MATRIX TRANSFORMER] Foundation data extracted:`, {
@@ -121,14 +122,17 @@ export class MatrixTransformerCore {
   }
 
   /**
-   * Enhanced: Extract staff information from tasks
+   * Enhanced: Extract staff information from tasks using correct database field names
    */
   private static extractStaffInformation(tasks: RecurringTaskDB[]): Array<{ id: string; name: string }> {
     const staffMap = new Map<string, string>();
     
     tasks.forEach(task => {
-      if (task.preferredStaffId && task.preferredStaffName) {
-        staffMap.set(task.preferredStaffId, task.preferredStaffName);
+      // Use correct database field names (snake_case)
+      if (task.preferred_staff_id) {
+        // For now, use the staff ID as the name since we don't have a separate name field
+        // This should be enhanced to lookup actual staff names from staff table
+        staffMap.set(task.preferred_staff_id, `Staff ${task.preferred_staff_id.slice(0, 8)}`);
       }
     });
     
@@ -200,7 +204,7 @@ export class MatrixTransformerCore {
   }
 
   /**
-   * Enhanced: Calculate demand for skill/month with staff information
+   * Enhanced: Calculate demand for skill/month with staff information using correct field names
    */
   private static calculateDemandForSkillMonth(
     forecastData: ForecastData[],
@@ -209,9 +213,14 @@ export class MatrixTransformerCore {
     month: string,
     staffInformation: Array<{ id: string; name: string }>
   ): Pick<DemandDataPoint, 'demandHours' | 'taskCount' | 'clientCount' | 'taskBreakdown'> {
-    const relevantTasks = tasks.filter(task => 
-      task.requiredSkill === skill && task.status === 'active'
-    );
+    // Filter tasks using correct field names and handle array skills
+    const relevantTasks = tasks.filter(task => {
+      // Check if the skill is in the required_skills array and task is active
+      const hasSkill = task.required_skills && Array.isArray(task.required_skills) && 
+                      task.required_skills.includes(skill);
+      const isActive = task.status === 'Unscheduled' || task.is_active === true; // Use correct status check
+      return hasSkill && isActive;
+    });
     
     let demandHours = 0;
     let taskCount = 0;
@@ -227,24 +236,24 @@ export class MatrixTransformerCore {
       if (monthlyHours > 0) {
         demandHours += monthlyHours;
         taskCount++;
-        clientIds.add(task.clientId);
+        clientIds.add(task.client_id); // Use correct field name
         
-        // Enhanced: Include staff information in task breakdown
+        // Enhanced: Include staff information in task breakdown using correct field names
         taskBreakdown.push({
-          clientId: task.clientId,
-          clientName: task.clientName || 'Unknown Client',
+          clientId: task.client_id, // Use correct field name
+          clientName: `Client ${task.client_id.slice(0, 8)}`, // Generate name from ID for now
           recurringTaskId: task.id,
-          taskName: task.taskName,
+          taskName: task.name, // Use correct field name
           skillType: skill,
-          estimatedHours: task.estimatedHours || this.DEFAULT_ESTIMATED_HOURS,
+          estimatedHours: task.estimated_hours || this.DEFAULT_ESTIMATED_HOURS, // Use correct field name
           recurrencePattern: {
-            type: task.recurrenceType || 'monthly',
-            interval: task.recurrenceInterval || 1,
+            type: task.recurrence_type || 'monthly', // Use correct field name
+            interval: task.recurrence_interval || 1, // Use correct field name
             frequency: 1
           },
           monthlyHours,
-          preferredStaffId: task.preferredStaffId, // Enhanced: Include preferred staff ID
-          preferredStaffName: task.preferredStaffId ? staffLookup.get(task.preferredStaffId) : undefined // Enhanced: Include preferred staff name
+          preferredStaffId: task.preferred_staff_id, // Use correct field name
+          preferredStaffName: task.preferred_staff_id ? staffLookup.get(task.preferred_staff_id) : undefined
         });
       }
     });
@@ -342,9 +351,9 @@ export class MatrixTransformerCore {
   }
 
   private static calculateMonthlyHours(task: RecurringTaskDB, month: string): number {
-    const estimatedHours = task.estimatedHours || this.DEFAULT_ESTIMATED_HOURS;
-    const recurrenceType = task.recurrenceType || 'monthly';
-    const recurrenceInterval = task.recurrenceInterval || 1;
+    const estimatedHours = task.estimated_hours || this.DEFAULT_ESTIMATED_HOURS; // Use correct field name
+    const recurrenceType = task.recurrence_type || 'monthly'; // Use correct field name
+    const recurrenceInterval = task.recurrence_interval || 1; // Use correct field name
     
     switch (recurrenceType) {
       case 'weekly':
@@ -394,6 +403,47 @@ export class MatrixTransformerCore {
       },
       5
     );
+  }
+
+  private static extractMonths(forecastData: ForecastData[]): Array<{ key: string; label: string }> {
+    const months = new Set<string>();
+    forecastData.forEach(item => {
+      if (item.period) {
+        months.add(item.period);
+      }
+    });
+    
+    return Array.from(months)
+      .sort()
+      .map(monthKey => ({
+        key: monthKey,
+        label: this.formatMonthLabel(monthKey)
+      }));
+  }
+
+  private static extractSkills(forecastData: ForecastData[]): string[] {
+    const skills = new Set<string>();
+    forecastData.forEach(item => {
+      item.demand?.forEach(d => {
+        if (d.skill) {
+          skills.add(d.skill);
+        }
+      });
+    });
+    
+    return Array.from(skills).sort();
+  }
+
+  private static formatMonthLabel(monthKey: string): string {
+    try {
+      const date = new Date(monthKey);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short' 
+      });
+    } catch {
+      return monthKey;
+    }
   }
 
   private static calculateSuggestedRevenue(dataPoint: DemandDataPoint, skillFeeRates: Map<string, number>): number {
