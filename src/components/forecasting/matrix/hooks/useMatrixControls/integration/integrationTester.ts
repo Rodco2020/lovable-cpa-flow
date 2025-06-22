@@ -1,374 +1,337 @@
 
 /**
- * Phase 1: Component Integration Tester
- * 
- * Tests the integration between useDemandMatrixControls and useDemandMatrixFiltering
- * to ensure the three-mode preferred staff filtering system works correctly
+ * Integration Tester
+ * Tests integration between matrix controls and data
  */
 
 import { DemandMatrixData } from '@/types/demand';
+import { SkillType } from '@/types/task';
+import { extractStaffId, extractStaffName } from '@/services/forecasting/demand/utils/staffExtractionUtils';
 
-export interface ComponentIntegrationResult {
-  success: boolean;
-  matrixControlsIntegration: {
-    threeModeStateManagement: boolean;
-    parameterPassing: boolean;
-    filterSynchronization: boolean;
-  };
-  filteringIntegration: {
-    allModeProcessing: boolean;
-    specificModeProcessing: boolean;
-    noneModeProcessing: boolean;
-  };
-  dataFlowValidation: {
-    controlsToFilteringFlow: boolean;
-    filteringToDisplayFlow: boolean;
-    stateConsistency: boolean;
-  };
+interface IntegrationTestResult {
+  isValid: boolean;
   errors: string[];
   warnings: string[];
+  testResults: {
+    skillsTest: boolean;
+    clientsTest: boolean;
+    staffTest: boolean;
+    dataConsistencyTest: boolean;
+  };
 }
 
-/**
- * Phase 1: Component Integration Tester
- * Validates that all components work together correctly
- */
-export class ComponentIntegrationTester {
+export class IntegrationTester {
   /**
-   * Test integration between matrix controls and filtering
+   * Run comprehensive integration tests
    */
-  static validateComponentIntegration(
-    mockMatrixData: DemandMatrixData,
-    mockControlsState: any,
-    mockFilteringResult: any
-  ): ComponentIntegrationResult {
-    console.log('🔍 [PHASE 1 INTEGRATION] Starting component integration validation');
+  static runIntegrationTests(
+    demandData: DemandMatrixData | null,
+    selectedSkills: SkillType[],
+    selectedClients: string[],
+    selectedPreferredStaff: string[]
+  ): IntegrationTestResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    console.log('🧪 [INTEGRATION TEST] Running comprehensive integration tests');
 
-    const result: ComponentIntegrationResult = {
-      success: false,
-      matrixControlsIntegration: {
-        threeModeStateManagement: false,
-        parameterPassing: false,
-        filterSynchronization: false
-      },
-      filteringIntegration: {
-        allModeProcessing: false,
-        specificModeProcessing: false,
-        noneModeProcessing: false
-      },
-      dataFlowValidation: {
-        controlsToFilteringFlow: false,
-        filteringToDisplayFlow: false,
-        stateConsistency: false
-      },
-      errors: [],
-      warnings: []
-    };
-
-    try {
-      // Test matrix controls integration
-      this.testMatrixControlsIntegration(result, mockControlsState);
-      
-      // Test filtering integration
-      this.testFilteringIntegration(result, mockMatrixData, mockFilteringResult);
-      
-      // Test data flow validation
-      this.testDataFlowValidation(result, mockControlsState, mockFilteringResult);
-      
-      // Calculate overall success
-      result.success = this.calculateIntegrationSuccess(result);
-      
-      console.log('✅ [PHASE 1 INTEGRATION] Component integration validation completed:', result);
-      return result;
-      
-    } catch (error) {
-      console.error('❌ [PHASE 1 INTEGRATION] Critical integration error:', error);
-      result.errors.push(`Critical integration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return result;
+    if (!demandData) {
+      errors.push('No demand data available for testing');
+      return {
+        isValid: false,
+        errors,
+        warnings,
+        testResults: {
+          skillsTest: false,
+          clientsTest: false,
+          staffTest: false,
+          dataConsistencyTest: false
+        }
+      };
     }
-  }
 
-  /**
-   * Test matrix controls integration
-   */
-  private static testMatrixControlsIntegration(
-    result: ComponentIntegrationResult,
-    mockControlsState: any
-  ): void {
-    console.log('🔍 [PHASE 1 INTEGRATION] Testing matrix controls integration...');
+    // Test 1: Skills integration
+    const skillsTest = this.testSkillsIntegration(demandData, selectedSkills, errors, warnings);
+    
+    // Test 2: Clients integration
+    const clientsTest = this.testClientsIntegration(demandData, selectedClients, errors, warnings);
+    
+    // Test 3: Staff integration
+    const staffTest = this.testStaffIntegration(demandData, selectedPreferredStaff, errors, warnings);
+    
+    // Test 4: Data consistency
+    const dataConsistencyTest = this.testDataConsistency(demandData, errors, warnings);
 
-    try {
-      // Test three-mode state management
-      const hasThreeModeState = mockControlsState.preferredStaffFilterMode &&
-        ['all', 'specific', 'none'].includes(mockControlsState.preferredStaffFilterMode);
-      
-      result.matrixControlsIntegration.threeModeStateManagement = hasThreeModeState;
-      
-      if (!hasThreeModeState) {
-        result.errors.push('Three-mode state management not properly implemented');
-      }
+    const isValid = errors.length === 0;
 
-      // Test parameter passing
-      const hasRequiredParameters = mockControlsState.selectedPreferredStaff &&
-        Array.isArray(mockControlsState.selectedPreferredStaff) &&
-        typeof mockControlsState.isAllPreferredStaffSelected === 'boolean';
-      
-      result.matrixControlsIntegration.parameterPassing = hasRequiredParameters;
-      
-      if (!hasRequiredParameters) {
-        result.errors.push('Required parameters not properly passed');
-      }
-
-      // Test filter synchronization
-      const hasFilterSync = mockControlsState.onPreferredStaffToggle &&
-        typeof mockControlsState.onPreferredStaffToggle === 'function' &&
-        mockControlsState.onPreferredStaffFilterModeChange &&
-        typeof mockControlsState.onPreferredStaffFilterModeChange === 'function';
-      
-      result.matrixControlsIntegration.filterSynchronization = hasFilterSync;
-      
-      if (!hasFilterSync) {
-        result.errors.push('Filter synchronization handlers not properly implemented');
-      }
-
-      console.log('✅ [PHASE 1 INTEGRATION] Matrix controls integration validated:', {
-        threeModeState: hasThreeModeState,
-        parameterPassing: hasRequiredParameters,
-        filterSync: hasFilterSync
-      });
-
-    } catch (error) {
-      result.errors.push(`Matrix controls integration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Test filtering integration
-   */
-  private static testFilteringIntegration(
-    result: ComponentIntegrationResult,
-    mockMatrixData: DemandMatrixData,
-    mockFilteringResult: any
-  ): void {
-    console.log('🔍 [PHASE 1 INTEGRATION] Testing filtering integration...');
-
-    try {
-      // Test all mode processing
-      const allModeWorks = this.simulateAllModeFiltering(mockMatrixData);
-      result.filteringIntegration.allModeProcessing = allModeWorks;
-      
-      if (!allModeWorks) {
-        result.errors.push('All mode filtering not working correctly');
-      }
-
-      // Test specific mode processing
-      const specificModeWorks = this.simulateSpecificModeFiltering(mockMatrixData);
-      result.filteringIntegration.specificModeProcessing = specificModeWorks;
-      
-      if (!specificModeWorks) {
-        result.errors.push('Specific mode filtering not working correctly');
-      }
-
-      // Test none mode processing
-      const noneModeWorks = this.simulateNoneModeFiltering(mockMatrixData);
-      result.filteringIntegration.noneModeProcessing = noneModeWorks;
-      
-      if (!noneModeWorks) {
-        result.errors.push('None mode filtering not working correctly');
-      }
-
-      console.log('✅ [PHASE 1 INTEGRATION] Filtering integration validated:', {
-        allMode: allModeWorks,
-        specificMode: specificModeWorks,
-        noneMode: noneModeWorks
-      });
-
-    } catch (error) {
-      result.errors.push(`Filtering integration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Simulate all mode filtering
-   */
-  private static simulateAllModeFiltering(mockMatrixData: DemandMatrixData): boolean {
-    try {
-      // All mode should include all tasks (both assigned and unassigned)
-      const totalTasks = mockMatrixData.dataPoints.reduce(
-        (sum, point) => sum + point.taskBreakdown.length, 0
-      );
-      
-      const tasksWithPreferredStaff = mockMatrixData.dataPoints.reduce(
-        (sum, point) => sum + point.taskBreakdown.filter(task => task.preferredStaff?.staffId).length, 0
-      );
-      
-      const tasksWithoutPreferredStaff = totalTasks - tasksWithPreferredStaff;
-      
-      // All mode should show both types of tasks
-      const allModeWorks = totalTasks > 0 && (tasksWithPreferredStaff > 0 || tasksWithoutPreferredStaff > 0);
-      
-      console.log('🎯 [PHASE 1 INTEGRATION] All mode simulation:', {
-        totalTasks,
-        tasksWithPreferredStaff,
-        tasksWithoutPreferredStaff,
-        allModeWorks
-      });
-      
-      return allModeWorks;
-    } catch (error) {
-      console.error('❌ [PHASE 1 INTEGRATION] All mode simulation error:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Simulate specific mode filtering
-   */
-  private static simulateSpecificModeFiltering(mockMatrixData: DemandMatrixData): boolean {
-    try {
-      // Get unique staff IDs from the data
-      const staffIds = new Set<string>();
-      mockMatrixData.dataPoints.forEach(point => {
-        point.taskBreakdown.forEach(task => {
-          if (task.preferredStaff?.staffId) {
-            staffIds.add(task.preferredStaff.staffId);
-          }
-        });
-      });
-      
-      if (staffIds.size === 0) {
-        console.warn('⚠️ [PHASE 1 INTEGRATION] No preferred staff assignments found for specific mode test');
-        return true; // Not a failure - just no data to test with
-      }
-      
-      // Test filtering by first staff ID
-      const testStaffId = Array.from(staffIds)[0];
-      const filteredTasks = mockMatrixData.dataPoints.reduce((tasks, point) => {
-        return tasks.concat(point.taskBreakdown.filter(task => 
-          task.preferredStaff?.staffId === testStaffId
-        ));
-      }, [] as any[]);
-      
-      const specificModeWorks = filteredTasks.length > 0 && 
-        filteredTasks.every(task => task.preferredStaff?.staffId === testStaffId);
-      
-      console.log('🎯 [PHASE 1 INTEGRATION] Specific mode simulation:', {
-        testStaffId,
-        filteredTasksCount: filteredTasks.length,
-        specificModeWorks
-      });
-      
-      return specificModeWorks;
-    } catch (error) {
-      console.error('❌ [PHASE 1 INTEGRATION] Specific mode simulation error:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Simulate none mode filtering
-   */
-  private static simulateNoneModeFiltering(mockMatrixData: DemandMatrixData): boolean {
-    try {
-      // Filter for tasks without preferred staff
-      const unassignedTasks = mockMatrixData.dataPoints.reduce((tasks, point) => {
-        return tasks.concat(point.taskBreakdown.filter(task => 
-          !task.preferredStaff?.staffId
-        ));
-      }, [] as any[]);
-      
-      const noneModeWorks = unassignedTasks.every(task => !task.preferredStaff?.staffId);
-      
-      console.log('🎯 [PHASE 1 INTEGRATION] None mode simulation:', {
-        unassignedTasksCount: unassignedTasks.length,
-        noneModeWorks
-      });
-      
-      return noneModeWorks;
-    } catch (error) {
-      console.error('❌ [PHASE 1 INTEGRATION] None mode simulation error:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Test data flow validation
-   */
-  private static testDataFlowValidation(
-    result: ComponentIntegrationResult,
-    mockControlsState: any,
-    mockFilteringResult: any
-  ): void {
-    console.log('🔍 [PHASE 1 INTEGRATION] Testing data flow validation...');
-
-    try {
-      // Test controls to filtering flow
-      const controlsToFilteringFlow = mockControlsState.preferredStaffFilterMode &&
-        mockFilteringResult &&
-        typeof mockFilteringResult === 'object';
-      
-      result.dataFlowValidation.controlsToFilteringFlow = controlsToFilteringFlow;
-      
-      if (!controlsToFilteringFlow) {
-        result.errors.push('Controls to filtering data flow not working');
-      }
-
-      // Test filtering to display flow
-      const filteringToDisplayFlow = mockFilteringResult.dataPoints &&
-        Array.isArray(mockFilteringResult.dataPoints);
-      
-      result.dataFlowValidation.filteringToDisplayFlow = filteringToDisplayFlow;
-      
-      if (!filteringToDisplayFlow) {
-        result.errors.push('Filtering to display data flow not working');
-      }
-
-      // Test state consistency
-      const stateConsistency = mockControlsState.preferredStaffFilterMode &&
-        ['all', 'specific', 'none'].includes(mockControlsState.preferredStaffFilterMode);
-      
-      result.dataFlowValidation.stateConsistency = stateConsistency;
-      
-      if (!stateConsistency) {
-        result.errors.push('State consistency not maintained');
-      }
-
-      console.log('✅ [PHASE 1 INTEGRATION] Data flow validation completed:', {
-        controlsToFiltering: controlsToFilteringFlow,
-        filteringToDisplay: filteringToDisplayFlow,
-        stateConsistency
-      });
-
-    } catch (error) {
-      result.errors.push(`Data flow validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Calculate overall integration success
-   */
-  private static calculateIntegrationSuccess(result: ComponentIntegrationResult): boolean {
-    const matrixControlsScore = Object.values(result.matrixControlsIntegration).filter(Boolean).length;
-    const filteringScore = Object.values(result.filteringIntegration).filter(Boolean).length;
-    const dataFlowScore = Object.values(result.dataFlowValidation).filter(Boolean).length;
-
-    const totalScore = matrixControlsScore + filteringScore + dataFlowScore;
-    const maxScore = 9; // 3 + 3 + 3
-
-    const successRate = totalScore / maxScore;
-    const isSuccess = successRate >= 0.8 && result.errors.length === 0;
-
-    console.log('📊 [PHASE 1 INTEGRATION] Overall integration score:', {
-      matrixControlsScore: `${matrixControlsScore}/3`,
-      filteringScore: `${filteringScore}/3`,
-      dataFlowScore: `${dataFlowScore}/3`,
-      totalScore: `${totalScore}/${maxScore}`,
-      successRate: `${(successRate * 100).toFixed(1)}%`,
-      isSuccess,
-      errorCount: result.errors.length,
-      warningCount: result.warnings.length
+    console.log('🧪 [INTEGRATION TEST] Tests completed:', {
+      isValid,
+      errorsCount: errors.length,
+      warningsCount: warnings.length,
+      skillsTest,
+      clientsTest,
+      staffTest,
+      dataConsistencyTest
     });
 
-    return isSuccess;
+    return {
+      isValid,
+      errors,
+      warnings,
+      testResults: {
+        skillsTest,
+        clientsTest,
+        staffTest,
+        dataConsistencyTest
+      }
+    };
+  }
+
+  /**
+   * Test skills integration
+   */
+  private static testSkillsIntegration(
+    demandData: DemandMatrixData,
+    selectedSkills: SkillType[],
+    errors: string[],
+    warnings: string[]
+  ): boolean {
+    try {
+      // Test 1: Skills array exists and is valid
+      if (!demandData.skills || !Array.isArray(demandData.skills)) {
+        errors.push('Skills array is missing or invalid');
+        return false;
+      }
+
+      // Test 2: Selected skills are valid
+      const invalidSkills = selectedSkills.filter(skill => 
+        !demandData.skills.includes(skill)
+      );
+      
+      if (invalidSkills.length > 0) {
+        warnings.push(`Selected skills not found in data: ${invalidSkills.join(', ')}`);
+      }
+
+      // Test 3: Data points have valid skill types
+      const dataSkills = new Set(demandData.dataPoints.map(point => point.skillType));
+      const availableSkills = new Set(demandData.skills);
+      
+      const orphanedSkills = Array.from(dataSkills).filter(skill => !availableSkills.has(skill));
+      if (orphanedSkills.length > 0) {
+        warnings.push(`Data points contain skills not in skills array: ${orphanedSkills.join(', ')}`);
+      }
+
+      return true;
+
+    } catch (error) {
+      errors.push(`Skills integration test failed: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Test clients integration
+   */
+  private static testClientsIntegration(
+    demandData: DemandMatrixData,
+    selectedClients: string[],
+    errors: string[],
+    warnings: string[]
+  ): boolean {
+    try {
+      // Extract clients from data points
+      const clientsInData = new Set<string>();
+      
+      demandData.dataPoints.forEach(point => {
+        if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+          point.taskBreakdown.forEach((task: any) => {
+            if (task.clientId) {
+              clientsInData.add(task.clientId);
+            }
+          });
+        }
+      });
+
+      // Test selected clients exist in data
+      const invalidClients = selectedClients.filter(clientId => 
+        !clientsInData.has(clientId)
+      );
+      
+      if (invalidClients.length > 0) {
+        warnings.push(`Selected clients not found in data: ${invalidClients.join(', ')}`);
+      }
+
+      // Test client consistency
+      demandData.dataPoints.forEach((point, index) => {
+        if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+          point.taskBreakdown.forEach((task: any, taskIndex) => {
+            if (!task.clientId) {
+              warnings.push(`Missing client ID in data point ${index}, task ${taskIndex}`);
+            }
+            if (!task.clientName) {
+              warnings.push(`Missing client name in data point ${index}, task ${taskIndex}`);
+            }
+          });
+        }
+      });
+
+      return true;
+
+    } catch (error) {
+      errors.push(`Clients integration test failed: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Test staff integration with proper extraction
+   */
+  private static testStaffIntegration(
+    demandData: DemandMatrixData,
+    selectedPreferredStaff: string[],
+    errors: string[],
+    warnings: string[]
+  ): boolean {
+    try {
+      // Extract staff from data points using safe extraction
+      const staffInData = new Set<string>();
+      
+      demandData.dataPoints.forEach(point => {
+        if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+          point.taskBreakdown.forEach((task: any) => {
+            if (task.preferredStaff) {
+              // FIXED: Use extractStaffId utility for safe extraction
+              const staffId = extractStaffId(task.preferredStaff);
+              if (staffId) {
+                staffInData.add(staffId);
+              }
+            }
+          });
+        }
+      });
+
+      // Test selected staff exist in data
+      const invalidStaff = selectedPreferredStaff.filter(staffId => 
+        !staffInData.has(staffId)
+      );
+      
+      if (invalidStaff.length > 0) {
+        warnings.push(`Selected staff not found in data: ${invalidStaff.join(', ')}`);
+      }
+
+      // Test staff data consistency
+      demandData.dataPoints.forEach((point, index) => {
+        if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+          point.taskBreakdown.forEach((task: any, taskIndex) => {
+            if (task.preferredStaff) {
+              // FIXED: Use extractStaffId for validation
+              const staffId = extractStaffId(task.preferredStaff);
+              const staffName = extractStaffName(task.preferredStaff);
+              
+              if (!staffId && !staffName) {
+                warnings.push(`Invalid preferred staff structure in data point ${index}, task ${taskIndex}`);
+              }
+            }
+          });
+        }
+      });
+
+      return true;
+
+    } catch (error) {
+      errors.push(`Staff integration test failed: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Test data consistency
+   */
+  private static testDataConsistency(
+    demandData: DemandMatrixData,
+    errors: string[],
+    warnings: string[]
+  ): boolean {
+    try {
+      // Test 1: Data points exist
+      if (!demandData.dataPoints || !Array.isArray(demandData.dataPoints)) {
+        errors.push('Data points array is missing or invalid');
+        return false;
+      }
+
+      // Test 2: Required fields in data points
+      demandData.dataPoints.forEach((point, index) => {
+        if (typeof point.demandHours !== 'number') {
+          errors.push(`Invalid demandHours in data point ${index}`);
+        }
+        if (typeof point.taskCount !== 'number') {
+          errors.push(`Invalid taskCount in data point ${index}`);
+        }
+        if (!point.skillType) {
+          errors.push(`Missing skillType in data point ${index}`);
+        }
+        if (!point.month) {
+          errors.push(`Missing month in data point ${index}`);
+        }
+      });
+
+      // Test 3: Totals consistency
+      const calculatedTotalDemand = demandData.dataPoints.reduce((sum, point) => sum + point.demandHours, 0);
+      if (Math.abs(calculatedTotalDemand - demandData.totalDemand) > 0.01) {
+        warnings.push(`Total demand mismatch: calculated ${calculatedTotalDemand}, stored ${demandData.totalDemand}`);
+      }
+
+      // Test 4: Task breakdown consistency
+      demandData.dataPoints.forEach((point, index) => {
+        if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
+          const breakdownHours = point.taskBreakdown.reduce((sum: number, task: any) => 
+            sum + (task.monthlyHours || 0), 0);
+          
+          if (Math.abs(breakdownHours - point.demandHours) > 0.01) {
+            warnings.push(`Hours mismatch in data point ${index}: breakdown ${breakdownHours}, total ${point.demandHours}`);
+          }
+        }
+      });
+
+      return true;
+
+    } catch (error) {
+      errors.push(`Data consistency test failed: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Generate integration report
+   */
+  static generateIntegrationReport(result: IntegrationTestResult): string {
+    const lines: string[] = [];
+    
+    lines.push('=== INTEGRATION TEST REPORT ===');
+    lines.push(`Overall Status: ${result.isValid ? 'PASS' : 'FAIL'}`);
+    lines.push('');
+    
+    lines.push('Test Results:');
+    lines.push(`• Skills Integration: ${result.testResults.skillsTest ? 'PASS' : 'FAIL'}`);
+    lines.push(`• Clients Integration: ${result.testResults.clientsTest ? 'PASS' : 'FAIL'}`);
+    lines.push(`• Staff Integration: ${result.testResults.staffTest ? 'PASS' : 'FAIL'}`);
+    lines.push(`• Data Consistency: ${result.testResults.dataConsistencyTest ? 'PASS' : 'FAIL'}`);
+    lines.push('');
+    
+    if (result.errors.length > 0) {
+      lines.push('ERRORS:');
+      result.errors.forEach(error => lines.push(`• ${error}`));
+      lines.push('');
+    }
+    
+    if (result.warnings.length > 0) {
+      lines.push('WARNINGS:');
+      result.warnings.forEach(warning => lines.push(`• ${warning}`));
+      lines.push('');
+    }
+    
+    lines.push('=== END REPORT ===');
+    
+    return lines.join('\n');
   }
 }

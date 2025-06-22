@@ -1,9 +1,12 @@
+
 /**
  * Enhanced Export Service
  * Provides advanced export functionality for matrix data
  */
 
 import { DemandMatrixData } from '@/types/demand';
+import { SkillType } from '@/types/task';
+import { EnhancedExportOptions, ExportMetadata, ExportDataRow } from '@/types/export';
 import { extractStaffId } from '@/services/forecasting/demand/utils/staffExtractionUtils';
 
 export class EnhancedExportService {
@@ -45,7 +48,6 @@ export class EnhancedExportService {
     data.dataPoints.forEach(point => {
       if (point.taskBreakdown && Array.isArray(point.taskBreakdown)) {
         point.taskBreakdown.forEach((task: any) => {
-          // FIXED: Use extractStaffId utility for safe staff extraction
           const preferredStaffId = extractStaffId(task.preferredStaff) || 'Unassigned';
           
           const row = [
@@ -83,7 +85,6 @@ export class EnhancedExportService {
     });
 
     try {
-      // Phase 3: Generate export metadata with filter information
       const metadata = this.generateExportMetadata(
         data,
         selectedSkills,
@@ -93,13 +94,9 @@ export class EnhancedExportService {
         options
       );
 
-      // Phase 3: Enhanced data formatting with skill resolution info
       const formattedData = this.formatDataForExport(data, metadata, options);
-
-      // Phase 3: Generate filename with timestamp and filter info
       const filename = options.filename || this.generateFilename(metadata, options);
 
-      // Phase 3: Export based on format
       switch (options.format || 'csv') {
         case 'csv':
           await this.exportAsCSV(formattedData, metadata, filename);
@@ -144,7 +141,6 @@ export class EnhancedExportService {
       }
     };
 
-    // Phase 3: Add skill resolution information if requested
     if (options.includeSkillResolutionInfo) {
       const allSkills = new Set<string>();
       data.dataPoints.forEach(point => {
@@ -153,7 +149,7 @@ export class EnhancedExportService {
 
       metadata.skillResolutionInfo = {
         totalSkills: allSkills.size,
-        resolvedSkills: allSkills.size, // All skills in data are resolved
+        resolvedSkills: allSkills.size,
         unresolvedSkills: 0
       };
     }
@@ -173,7 +169,7 @@ export class EnhancedExportService {
 
     const formattedData: ExportDataRow[] = data.dataPoints.map(point => {
       const baseData: ExportDataRow = {
-        skill: point.skillType, // Phase 3: Using resolved skill name
+        skill: point.skillType,
         month: point.monthLabel || point.month,
         demandHours: point.demandHours,
         taskCount: point.taskCount,
@@ -181,7 +177,6 @@ export class EnhancedExportService {
         totalTasks: point.taskBreakdown?.length || 0
       };
 
-      // Phase 3: Add detailed task breakdown if available
       if (point.taskBreakdown && point.taskBreakdown.length > 0) {
         const taskDetails = point.taskBreakdown.map(task => ({
           clientName: task.clientName,
@@ -189,7 +184,7 @@ export class EnhancedExportService {
           estimatedHours: task.estimatedHours,
           monthlyHours: task.monthlyHours,
           preferredStaff: this.formatPreferredStaffForExport(task.preferredStaff),
-          recurrencePattern: task.recurrencePattern?.type || 'N/A'
+          recurrencePattern: task.recurrencePattern || 'N/A'
         }));
 
         return {
@@ -201,17 +196,17 @@ export class EnhancedExportService {
       return baseData;
     });
 
-    // Phase 3: Add metadata section if requested - Fixed type issues
     if (options.includeFilterSummary) {
       const metadataRow: ExportDataRow = {
         skill: '--- EXPORT METADATA ---',
         month: `Export Date: ${metadata.exportDate}`,
-        demandHours: `Total Data Points: ${metadata.totalDataPoints}`,
-        taskCount: `Applied Filters: ${JSON.stringify(metadata.appliedFilters)}`,
-        clientCount: metadata.skillResolutionInfo 
-          ? `Skill Resolution: ${JSON.stringify(metadata.skillResolutionInfo)}`
-          : 'N/A',
-        totalTasks: '--- END METADATA ---'
+        demandHours: metadata.totalDataPoints,
+        taskCount: 0,
+        clientCount: 0,
+        totalTasks: 0,
+        taskDetails: metadata.skillResolutionInfo 
+          ? JSON.stringify(metadata.skillResolutionInfo)
+          : 'N/A'
       };
       
       formattedData.unshift(metadataRow);
@@ -241,9 +236,6 @@ export class EnhancedExportService {
     return 'Invalid Staff Data';
   }
 
-  /**
-   * Phase 3: Generate descriptive filename
-   */
   private static generateFilename(metadata: ExportMetadata, options: EnhancedExportOptions): string {
     const date = new Date().toISOString().split('T')[0];
     const filterSummary = this.generateFilterSummary(metadata.appliedFilters);
@@ -252,9 +244,6 @@ export class EnhancedExportService {
     return `demand-matrix-${date}${filterSummary}.${extension}`;
   }
 
-  /**
-   * Phase 3: Generate filter summary for filename
-   */
   private static generateFilterSummary(filters: ExportMetadata['appliedFilters']): string {
     const parts: string[] = [];
     
@@ -277,9 +266,6 @@ export class EnhancedExportService {
     return parts.length > 0 ? `-filtered-${parts.join('-')}` : '';
   }
 
-  /**
-   * Phase 3: Export as CSV with enhanced formatting
-   */
   private static async exportAsCSV(data: ExportDataRow[], metadata: ExportMetadata, filename: string): Promise<void> {
     if (data.length === 0) return;
 
@@ -289,7 +275,6 @@ export class EnhancedExportService {
       ...data.map(row => 
         headers.map(header => {
           const value = row[header as keyof ExportDataRow];
-          // Handle values that might contain commas or quotes
           if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
             return `"${value.replace(/"/g, '""')}"`;
           }
@@ -302,9 +287,6 @@ export class EnhancedExportService {
     this.downloadBlob(blob, filename);
   }
 
-  /**
-   * Phase 3: Export as JSON with metadata
-   */
   private static async exportAsJSON(data: ExportDataRow[], metadata: ExportMetadata, filename: string): Promise<void> {
     const exportData = {
       metadata,
@@ -316,19 +298,11 @@ export class EnhancedExportService {
     this.downloadBlob(blob, filename);
   }
 
-  /**
-   * Phase 3: Export as XLSX (placeholder - would need xlsx library)
-   */
   private static async exportAsXLSX(data: ExportDataRow[], metadata: ExportMetadata, filename: string): Promise<void> {
-    // Phase 3: For now, fallback to CSV format
-    // In a real implementation, this would use a library like xlsx
     console.log('📋 [PHASE 3 EXPORT] XLSX export not yet implemented, falling back to CSV');
     await this.exportAsCSV(data, metadata, filename.replace('.xlsx', '.csv'));
   }
 
-  /**
-   * Phase 3: Download blob as file
-   */
   private static downloadBlob(blob: Blob, filename: string): void {
     const link = document.createElement('a');
     if (link.download !== undefined) {

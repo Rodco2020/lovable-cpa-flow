@@ -5,7 +5,12 @@ import { SkillType } from '@/types/task';
 import { DataFetcher } from './dataFetcher';
 import { DemandCalculationService } from '../calculators/DemandCalculationService';
 
-export const useDemandData = () => {
+interface UseDemandDataProps {
+  monthRange?: { start: number; end: number };
+  selectedSkills?: SkillType[];
+}
+
+export const useDemandData = (props: UseDemandDataProps = {}) => {
   const [demandData, setDemandData] = useState<DemandMatrixData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +33,7 @@ export const useDemandData = () => {
             totalDemand: 0,
             totalTasks: 0,
             totalClients: 0,
-            skillSummary: [] // FIXED: Initialize as empty array instead of object
+            skillSummary: []
           });
           return;
         }
@@ -39,7 +44,8 @@ export const useDemandData = () => {
 
       } catch (err) {
         console.error('Error loading demand data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load demand data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load demand data';
+        setError(errorMessage);
         
         // Set default empty data structure
         setDemandData({
@@ -49,7 +55,7 @@ export const useDemandData = () => {
           totalDemand: 0,
           totalTasks: 0,
           totalClients: 0,
-          skillSummary: [] // FIXED: Initialize as empty array
+          skillSummary: []
         });
       } finally {
         setIsLoading(false);
@@ -57,15 +63,18 @@ export const useDemandData = () => {
     };
 
     loadDemandData();
-  }, []);
+  }, [props.monthRange, props.selectedSkills]);
+
+  const refetch = () => {
+    setIsLoading(true);
+    // Re-trigger the effect
+  };
 
   return {
+    data: demandData,
     demandData,
     isLoading,
     error,
-    refetch: () => {
-      setIsLoading(true);
-      // Re-trigger the effect by updating a dependency
-    }
+    refetch
   };
 };

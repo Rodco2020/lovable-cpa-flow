@@ -9,12 +9,6 @@ interface UseDemandMatrixControlsProps {
   enablePreferredStaffFiltering?: boolean;
 }
 
-/**
- * Enhanced Demand Matrix Controls Hook
- * 
- * Phase 2 Enhancement: Integrated with enhanced data fetching that includes
- * proper skill resolution and validation.
- */
 export const useDemandMatrixControls = ({
   groupingMode,
   enablePreferredStaffFiltering = true
@@ -26,7 +20,7 @@ export const useDemandMatrixControls = ({
   const [selectedPreferredStaff, setSelectedPreferredStaff] = useState<string[]>([]);
   const [preferredStaffFilterMode, setPreferredStaffFilterMode] = useState<'all' | 'specific' | 'none'>('all');
 
-  // Phase 2: Enhanced demand data fetching with skill resolution
+  // FIXED: Use correct hook interface
   const {
     data: demandData,
     isLoading,
@@ -47,7 +41,7 @@ export const useDemandMatrixControls = ({
   const isAllClientsSelected = selectedClients.length === 0 || selectedClients.length === availableClients.length;
   const isAllPreferredStaffSelected = selectedPreferredStaff.length === 0 || selectedPreferredStaff.length === availablePreferredStaff.length;
 
-  // Phase 2: Enhanced data availability debugging
+  // Enhanced data availability debugging
   useEffect(() => {
     if (demandData) {
       console.log('📊 [PHASE 2 MATRIX CONTROLS] Enhanced data received:', {
@@ -56,10 +50,10 @@ export const useDemandMatrixControls = ({
         staffCount: availablePreferredStaff.length,
         dataPointsCount: demandData.dataPoints?.length || 0,
         totalDemand: demandData.totalDemand,
-        skillTypes: availableSkills.slice(0, 5) // Show first 5 skills for debugging
+        skillTypes: availableSkills.slice(0, 5)
       });
 
-      // Phase 2: Enhanced data validation with skill resolution
+      // Enhanced data validation with skill resolution
       const validation = EnhancedDataService.validateDataAvailability({
         clients: availableClients,
         staff: availablePreferredStaff,
@@ -75,7 +69,7 @@ export const useDemandMatrixControls = ({
     }
   }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
 
-  // Phase 2: Enhanced debug info generation when no data is available
+  // Enhanced debug info generation when no data is available
   useEffect(() => {
     if (!isLoading && (!demandData || demandData.dataPoints?.length === 0)) {
       console.log('🔧 [PHASE 2 MATRIX CONTROLS] No demand data available, generating enhanced debug info...');
@@ -127,7 +121,6 @@ export const useDemandMatrixControls = ({
 
   const handlePreferredStaffFilterModeChange = useCallback((mode: 'all' | 'specific' | 'none') => {
     setPreferredStaffFilterMode(mode);
-    // Reset selected staff when changing modes
     if (mode === 'all' || mode === 'none') {
       setSelectedPreferredStaff([]);
     }
@@ -139,7 +132,6 @@ export const useDemandMatrixControls = ({
 
   const handleExport = useCallback(() => {
     console.log('📤 [PHASE 2 MATRIX CONTROLS] Export functionality triggered');
-    // Export logic will be implemented separately
   }, []);
 
   const handleReset = useCallback(() => {
@@ -161,7 +153,7 @@ export const useDemandMatrixControls = ({
     isLoading,
     hasData: !!demandData,
     dataPointsCount: demandData?.dataPoints?.length || 0,
-    skillResolutionActive: true // Phase 2 indicator
+    skillResolutionActive: true
   });
 
   return {
