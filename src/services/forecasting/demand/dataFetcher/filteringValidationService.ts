@@ -29,8 +29,6 @@ import {
   PerformanceReport
 } from './validation';
 
-export interface { FilteringDiagnostics, FilterConfigValidationResult, PerformanceReport };
-
 export class FilteringValidationService {
   /**
    * Validate data structure before filtering
