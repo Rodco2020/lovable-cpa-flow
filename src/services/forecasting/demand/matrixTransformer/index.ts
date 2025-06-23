@@ -2,16 +2,19 @@
 /**
  * Matrix Transformer Module Exports
  * 
- * Enhanced with client totals calculation functionality
+ * Enhanced with refactored core module and client totals calculation functionality
  */
 
-export { MatrixTransformerCore } from './matrixTransformerCore';
+export { MatrixTransformerCore } from './core/matrixTransformerCore';
 export { SkillMappingService } from './skillMappingService';
 export { DataPointGenerationService } from './dataPointGenerationService';
 export { PeriodProcessingService } from './periodProcessingService';
 export { CalculationUtils } from './calculationUtils';
 export { DemandCalculationService } from './demandCalculationService';
 export { ClientTotalsCalculator } from './clientTotalsCalculator';
+
+// Export refactored core components
+export * from './core';
 
 // Export types
 export type {
@@ -20,4 +23,3 @@ export type {
   MatrixTotals,
   SkillSummary
 } from './types';
-
