@@ -1,73 +1,91 @@
 
 import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { useSelectAllLogic } from '@/components/forecasting/matrix/DemandMatrixControls/hooks/useSelectAllLogic';
+import { Eye, EyeOff } from 'lucide-react';
+import { isAllItemsSelected } from './utils/selectionUtils';
 
 interface ClientsFilterSectionProps {
   selectedClients: string[];
-  setSelectedClients: (clients: string[]) => void;
-  availableClients: Array<{ id: string; name: string; }>;
+  availableClients: Array<{ id: string; name: string }>;
+  onClientToggle: (client: string) => void;
+  isControlsExpanded: boolean;
 }
 
+/**
+ * Clients Filter Section Component
+ * Handles client selection with individual checkboxes and select all/none functionality
+ */
 export const ClientsFilterSection: React.FC<ClientsFilterSectionProps> = ({
   selectedClients,
-  setSelectedClients,
-  availableClients
+  availableClients,
+  onClientToggle,
+  isControlsExpanded
 }) => {
-  // Extract client IDs for the select all logic
-  const clientIds = availableClients.map(client => client.id);
-  
-  const { isAllSelected, handleSelectAll } = useSelectAllLogic({
-    selectedItems: selectedClients,
-    setSelectedItems: setSelectedClients,
-    availableItems: clientIds,
-    itemType: 'client'
-  });
+  const isAllClientsSelected = isAllItemsSelected(selectedClients, availableClients);
 
-  const handleClientToggle = (clientId: string) => {
-    setSelectedClients(
-      selectedClients.includes(clientId)
-        ? selectedClients.filter(id => id !== clientId)
-        : [...selectedClients, clientId]
-    );
+  const handleSelectAllToggle = () => {
+    if (isAllClientsSelected) {
+      availableClients.forEach(client => onClientToggle(client.name));
+    } else {
+      availableClients.forEach(client => {
+        if (!selectedClients.includes(client.name)) {
+          onClientToggle(client.name);
+        }
+      });
+    }
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Clients</Label>
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-sm font-medium">Clients Filter</label>
         <Button
           variant="ghost"
           size="sm"
-          onClick={handleSelectAll}
-          className="text-xs"
+          onClick={handleSelectAllToggle}
+          className="h-6 px-2 text-xs"
         >
-          {isAllSelected ? 'Deselect All' : 'Select All'}
+          {isAllClientsSelected ? (
+            <>
+              <EyeOff className="h-3 w-3 mr-1" />
+              Hide All
+            </>
+          ) : (
+            <>
+              <Eye className="h-3 w-3 mr-1" />
+              Show All
+            </>
+          )}
         </Button>
       </div>
       
-      <ScrollArea className="h-32">
-        <div className="space-y-2">
+      {isControlsExpanded && (
+        <div className="space-y-2 max-h-40 overflow-y-auto">
           {availableClients.map((client) => (
             <div key={client.id} className="flex items-center space-x-2">
               <Checkbox
                 id={`client-${client.id}`}
-                checked={selectedClients.includes(client.id)}
-                onCheckedChange={() => handleClientToggle(client.id)}
+                checked={isAllClientsSelected || selectedClients.includes(client.name)}
+                onCheckedChange={() => onClientToggle(client.name)}
               />
-              <Label
-                htmlFor={`client-${client.id}`}
-                className="text-sm cursor-pointer"
+              <label 
+                htmlFor={`client-${client.id}`} 
+                className="text-sm cursor-pointer flex-1 truncate"
+                title={client.name}
               >
                 {client.name}
-              </Label>
+              </label>
             </div>
           ))}
         </div>
-      </ScrollArea>
+      )}
+      
+      {!isControlsExpanded && (
+        <div className="text-xs text-muted-foreground">
+          {isAllClientsSelected ? 'All clients visible' : `${selectedClients.length}/${availableClients.length} clients selected`}
+        </div>
+      )}
     </div>
   );
 };
