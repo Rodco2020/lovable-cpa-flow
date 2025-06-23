@@ -6,16 +6,3 @@
 
 // Re-export everything from the staff module
 export * from './staff';
-
-// Add specific backward compatibility exports
-export {
-  getAllStaff,
-  getStaffById,
-  getTimeSlotsByStaffAndDate,
-  getTimeSlotsByDate,
-  updateTimeSlot,
-  calculateAvailabilitySummary,
-  ensureStaffHasAvailability,
-  getWeeklyAvailabilityByStaff,
-  batchUpdateWeeklyAvailability
-} from './staff';

@@ -1,3 +1,4 @@
+
 import { format } from 'date-fns';
 import { debugLog } from '../logger';
 import { DemandForecastParameters, DemandFilters } from '@/types/demand';
@@ -19,13 +20,12 @@ export class ForecastGenerator {
   ): Promise<ForecastData[]> {
     debugLog('Generating demand forecast', { parameters });
 
-    const { dateRange, includeSkills, includeClients, includePreferredStaff } = parameters;
+    const { dateRange, includeSkills, includeClients } = parameters;
     
-    // Create filters from parameters with updated interface
+    // Create filters from parameters
     const filters: DemandFilters = {
       skills: includeSkills === 'all' ? [] : includeSkills,
       clients: includeClients === 'all' ? [] : includeClients,
-      preferredStaff: includePreferredStaff === 'all' ? [] : (includePreferredStaff || []), // NEW: Add missing preferredStaff
       timeHorizon: {
         start: dateRange.startDate,
         end: dateRange.endDate

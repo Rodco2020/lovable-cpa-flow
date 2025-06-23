@@ -1,4 +1,5 @@
-import { DemandMatrixData, DemandDataPoint, ClientTaskDemand, ClientRevenueData } from '@/types/demand';
+
+import { DemandMatrixData, DemandDataPoint, ClientTaskDemand, ClientRevenueData, MatrixRevenueComparison } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB, SkillType } from '@/types/task';
 

@@ -19,9 +19,9 @@ export interface AvailabilityMask {
 }
 
 /**
- * Initialize scheduler integrations
+ * Initialize integrations between the Scheduler module and other modules
  */
-export const initializeSchedulerIntegrations = () => {
+export function initializeSchedulerIntegrations() {
   // Listen for staff availability updates to refresh scheduling constraints
   eventService.subscribe("availability.updated", (event) => {
     // Extract staff ID from the event payload if available
@@ -30,23 +30,28 @@ export const initializeSchedulerIntegrations = () => {
       : null;
     
     console.log(`[Scheduler Integration] Refreshing scheduling constraints for staff: ${staffId || 'all staff'}`);
+    
+    // Additional logic to update scheduler constraints would go here
   });
   
   // Listen for task completion events to refresh task lists
   eventService.subscribe("task.completed", (event) => {
     console.log("[Scheduler Integration] Task completed, refreshing task lists");
+    
+    // Additional logic to update task lists would go here
   });
   
   console.log("[Scheduler Integration] Initialized");
-};
+}
 
 /**
  * Generate availability masks for a staff member for a given date range
+ * This is a placeholder implementation that would typically fetch from a service
  */
 export async function generateAvailabilityMasks(staffId: string, startDate: Date, days: number): Promise<AvailabilityMask[]> {
   const masks: AvailabilityMask[] = [];
   
-  // Create availability masks for the specified date range
+  // Create a simple placeholder mask for demo purposes
   for (let i = 0; i < days; i++) {
     const date = new Date(startDate);
     date.setDate(date.getDate() + i);
@@ -85,17 +90,3 @@ export async function generateAvailabilityMasks(staffId: string, startDate: Date
   
   return masks;
 }
-
-/**
- * Integration service for scheduler functionality
- */
-export class SchedulerIntegrationService {
-  /**
-   * Initialize scheduler integrations
-   */
-  static initialize() {
-    initializeSchedulerIntegrations();
-  }
-}
-
-export default SchedulerIntegrationService;

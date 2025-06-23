@@ -192,33 +192,3 @@ export const deleteStaff = async (id: string): Promise<boolean> => {
   
   return true;
 };
-
-/**
- * Staff Service class for backwards compatibility
- * This class wraps the functional exports above
- */
-export class StaffService {
-  static async getAllStaff(): Promise<Staff[]> {
-    return getAllStaff();
-  }
-
-  static async getActiveStaff(): Promise<Staff[]> {
-    return getActiveStaff();
-  }
-
-  static async getStaffById(id: string): Promise<Staff | undefined> {
-    return getStaffById(id);
-  }
-
-  static async createStaff(staffData: Omit<Staff, 'id' | 'createdAt' | 'updatedAt'>): Promise<Staff> {
-    return createStaff(staffData);
-  }
-
-  static async updateStaff(id: string, staffData: Partial<Omit<Staff, "id" | "createdAt">>): Promise<Staff | undefined> {
-    return updateStaff(id, staffData);
-  }
-
-  static async deleteStaff(id: string): Promise<boolean> {
-    return deleteStaff(id);
-  }
-}

@@ -1,3 +1,4 @@
+
 import { debugLog } from './logger';
 import { 
   DemandForecastParameters, 
@@ -91,11 +92,10 @@ export class DemandDataService {
       // Generate forecast data
       const forecastData = await this.generateDemandForecast(parameters);
       
-      // Fetch related tasks for matrix generation with updated filters
+      // Fetch related tasks for matrix generation
       const tasks = await DataFetcher.fetchClientAssignedTasks({
         skills: parameters.includeSkills === 'all' ? [] : parameters.includeSkills,
         clients: parameters.includeClients === 'all' ? [] : parameters.includeClients,
-        preferredStaff: parameters.includePreferredStaff === 'all' ? [] : (parameters.includePreferredStaff || []), // NEW: Add missing preferredStaff
         timeHorizon: {
           start: parameters.dateRange.startDate,
           end: parameters.dateRange.endDate

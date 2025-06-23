@@ -1,39 +1,52 @@
 
 /**
  * Performance Optimization Types
- * Common type definitions for performance optimization modules
+ * Core type definitions for demand matrix performance optimization
  */
 
-export interface PerformanceMetrics {
-  fetchTime: number;
-  cacheHit: boolean;
-  dataSize: number;
-  filterTime?: number;
-  calculationTime?: number;
-  renderTime?: number;
+import { DemandMatrixData, DemandFilters } from '@/types/demand';
+
+export interface PerformanceMetric {
+  operation: string;
+  timeMs: number;
+  timestamp: Date;
+  metadata?: Record<string, any>;
 }
 
-export interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  expiryMs: number;
+export interface MemoryUsageMetric {
+  deltaBytes: number;
+  timestamp: Date;
+  operation?: string;
 }
 
-export interface FilterPerformanceConfig {
-  enableCaching?: boolean;
-  cacheExpiryMs?: number;
-  enableMetrics?: boolean;
-  maxCacheSize?: number;
+export interface PerformanceStats {
+  operations: {
+    [operation: string]: {
+      average: string;
+      max: string;
+      min: string;
+      samples: number;
+    };
+  };
+  memory: {
+    totalDelta: string;
+    averageDelta: string;
+    samples: number;
+  };
 }
 
-export interface BatchOperationConfig {
-  batchSize?: number;
-  concurrentLimit?: number;
-  enableProgressTracking?: boolean;
+export interface ChunkProcessorOptions {
+  chunkSize?: number;
+  enableLogging?: boolean;
 }
 
-export interface LoadTestConfig {
-  iterations: number;
-  concurrentFilters: number;
-  dataMultiplier: number;
+export interface FilteringOptions {
+  enableEarlyExit?: boolean;
+  enablePreCalculation?: boolean;
+  enableLogging?: boolean;
+}
+
+export interface CacheManagementOptions {
+  maxSize?: number;
+  enableLogging?: boolean;
 }

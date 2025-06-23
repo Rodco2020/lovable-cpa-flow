@@ -1,32 +1,14 @@
 
-// Staff Services Exports
-export { StaffService } from './staffService';
-export { 
-  getActiveStaffForDropdown, 
-  validateStaffId,
-  getStaffById as getStaffByIdFromDropdown
-} from './staffDropdownService';
+/**
+ * Staff Service Module
+ * Centralizes all staff-related services and functions
+ */
 
-// Core staff operations - export all functions from staffService
-export {
-  getAllStaff,
-  getActiveStaff,
-  getStaffById,
-  createStaff,
-  updateStaff,
-  deleteStaff
-} from './staffService';
-
-// Staff availability operations - these need to be implemented
-export {
-  getWeeklyAvailabilityByStaff,
-  batchUpdateWeeklyAvailability,
-  calculateAvailabilitySummary,
-  ensureStaffHasAvailability,
-  getTimeSlotsByStaffAndDate,
-  getTimeSlotsByDate,
-  updateTimeSlot,
-  mapStaffSkillsToForecastSkills
-} from './staffAvailabilityService';
-
-export type { StaffOption } from '@/types/staffOption';
+// Re-export all individual services
+export * from './staffService';
+export * from './timeSlotService';
+export * from './availabilityService';
+export * from './defaultTemplateService';
+export * from './skillMappingService';
+export * from './staffMapper';
+export * from './staffDropdownService';

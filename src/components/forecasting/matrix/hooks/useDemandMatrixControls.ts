@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { SkillType } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
@@ -12,7 +13,6 @@ interface UseDemandMatrixControlsProps {
 interface DemandMatrixControlsState {
   selectedSkills: SkillType[];
   selectedClients: string[];
-  selectedPreferredStaff: string[];
   monthRange: { start: number; end: number };
 }
 
@@ -24,7 +24,6 @@ export const useDemandMatrixControls = ({
   const [state, setState] = useState<DemandMatrixControlsState>({
     selectedSkills: [],
     selectedClients: [],
-    selectedPreferredStaff: [],
     monthRange: { start: 0, end: 11 }
   });
 
@@ -47,52 +46,34 @@ export const useDemandMatrixControls = ({
     ) || []
   ));
 
-  // Enhanced: Extract available preferred staff from demand data
-  const availablePreferredStaff = Array.from(new Set(
-    demandData?.dataPoints.flatMap(point => 
-      point.taskBreakdown
-        .filter(task => task.preferredStaffId && task.preferredStaffName)
-        .map(task => ({
-          id: task.preferredStaffId!,
-          name: task.preferredStaffName!
-        }))
-    ) || []
-  ));
-
-  // Enhanced: Calculate selection state flags for proper filtering logic
+  // FIXED: Calculate selection state flags for proper filtering logic
   const isAllSkillsSelected = availableSkills.length > 0 && state.selectedSkills.length === availableSkills.length;
   const isAllClientsSelected = availableClients.length > 0 && state.selectedClients.length === availableClients.length;
-  const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && state.selectedPreferredStaff.length === availablePreferredStaff.length;
 
   console.log(`🎛️ [MATRIX CONTROLS] Available options:`, {
     availableSkills: availableSkills.length,
     availableClients: availableClients.length,
-    availablePreferredStaff: availablePreferredStaff.length,
     selectedSkills: state.selectedSkills.length,
     selectedClients: state.selectedClients.length,
-    selectedPreferredStaff: state.selectedPreferredStaff.length,
     isAllSkillsSelected,
-    isAllClientsSelected,
-    isAllPreferredStaffSelected
+    isAllClientsSelected
   });
 
   // Initialize selections when data becomes available - SELECT ALL by default
   useEffect(() => {
-    if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0 && state.selectedPreferredStaff.length === 0) {
+    if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0) {
       setState(prev => ({
         ...prev,
         selectedSkills: availableSkills,
-        selectedClients: availableClients.map(client => client.id),
-        selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id)
+        selectedClients: availableClients.map(client => client.id)
       }));
       
-      console.log(`🎛️ [MATRIX CONTROLS] Initialized with ALL skills, clients, and staff selected:`, {
+      console.log(`🎛️ [MATRIX CONTROLS] Initialized with ALL skills and clients selected:`, {
         skillsCount: availableSkills.length,
-        clientsCount: availableClients.length,
-        staffCount: availablePreferredStaff.length
+        clientsCount: availableClients.length
       });
     }
-  }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
+  }, [demandData, availableSkills, availableClients]);
 
   // Handle skill toggle
   const handleSkillToggle = useCallback((skill: SkillType) => {
@@ -138,28 +119,6 @@ export const useDemandMatrixControls = ({
     });
   }, [availableClients.length]);
 
-  // Enhanced: Handle preferred staff toggle
-  const handlePreferredStaffToggle = useCallback((staffId: string) => {
-    setState(prev => {
-      const newSelectedPreferredStaff = prev.selectedPreferredStaff.includes(staffId)
-        ? prev.selectedPreferredStaff.filter(s => s !== staffId)
-        : [...prev.selectedPreferredStaff, staffId];
-
-      console.log(`🔧 [MATRIX CONTROLS] Preferred staff toggle:`, {
-        staffId,
-        action: prev.selectedPreferredStaff.includes(staffId) ? 'removed' : 'added',
-        newCount: newSelectedPreferredStaff.length,
-        totalAvailable: availablePreferredStaff.length,
-        willBeAllSelected: newSelectedPreferredStaff.length === availablePreferredStaff.length
-      });
-
-      return {
-        ...prev,
-        selectedPreferredStaff: newSelectedPreferredStaff
-      };
-    });
-  }, [availablePreferredStaff.length]);
-
   // Handle month range change
   const handleMonthRangeChange = useCallback((monthRange: { start: number; end: number }) => {
     setState(prev => ({
@@ -168,38 +127,33 @@ export const useDemandMatrixControls = ({
     }));
   }, []);
 
-  // Enhanced: Handle reset - SELECT ALL clients, skills, and staff
+  // Handle reset - SELECT ALL clients and skills
   const handleReset = useCallback(() => {
     setState({
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
-      selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id),
       monthRange: { start: 0, end: 11 }
     });
     
-    console.log(`🔄 [MATRIX CONTROLS] Reset to ALL skills, clients, and staff:`, {
+    console.log(`🔄 [MATRIX CONTROLS] Reset to ALL skills and clients:`, {
       skillsCount: availableSkills.length,
-      clientsCount: availableClients.length,
-      staffCount: availablePreferredStaff.length
+      clientsCount: availableClients.length
     });
-  }, [availableSkills, availableClients, availablePreferredStaff]);
+  }, [availableSkills, availableClients]);
 
-  // Enhanced export with staff filtering
+  // Handle export
   const handleExport = useCallback(() => {
     if (!demandData) return;
 
-    // Enhanced CSV headers to include staff information
-    const headers = groupingMode === 'skill' 
-      ? ['Skill/Client', 'Month', 'Demand (Hours)', 'Task Count', 'Client Count', 'Preferred Staff', 'Staff Hours']
-      : ['Client', 'Month', 'Demand (Hours)', 'Task Count', 'Preferred Staff', 'Staff Hours'];
-    
+    // Generate CSV export for demand data
+    const headers = ['Skill/Client', 'Month', 'Demand (Hours)', 'Task Count', 'Client Count'];
     let csvData = headers.join(',') + '\n';
     
     const filteredMonths = demandData.months.slice(state.monthRange.start, state.monthRange.end + 1);
     
     if (groupingMode === 'skill') {
+      // Export skills - use ALL if all are selected, otherwise use filtered list
       const skillsToExport = isAllSkillsSelected ? availableSkills : state.selectedSkills;
-      const staffToExport = isAllPreferredStaffSelected ? availablePreferredStaff.map(s => s.id) : state.selectedPreferredStaff;
       
       skillsToExport.forEach(skill => {
         filteredMonths.forEach(month => {
@@ -208,26 +162,12 @@ export const useDemandMatrixControls = ({
           );
           
           if (dataPoint) {
-            // Filter tasks by selected staff
-            const filteredTasks = dataPoint.taskBreakdown?.filter(task => 
-              !task.preferredStaffId || staffToExport.length === 0 || staffToExport.includes(task.preferredStaffId)
-            ) || [];
-            
-            const staffHours = filteredTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
-            const staffNames = Array.from(new Set(
-              filteredTasks
-                .filter(task => task.preferredStaffName)
-                .map(task => task.preferredStaffName!)
-            )).join('; ');
-            
             const row = [
               `"${skill}"`,
               `"${month.label}"`,
-              staffHours.toFixed(1),
-              filteredTasks.length.toString(),
-              new Set(filteredTasks.map(task => task.clientId)).size.toString(),
-              `"${staffNames || 'Unassigned'}"`,
-              staffHours.toFixed(1)
+              dataPoint.demandHours.toFixed(1),
+              dataPoint.taskCount.toString(),
+              dataPoint.clientCount.toString()
             ];
             
             csvData += row.join(',') + '\n';
@@ -235,31 +175,21 @@ export const useDemandMatrixControls = ({
         });
       });
     } else {
+      // Export clients - use ALL if all are selected, otherwise use filtered list
       const clientsToExport = isAllClientsSelected ? availableClients : availableClients.filter(client => state.selectedClients.includes(client.id));
-      const staffToExport = isAllPreferredStaffSelected ? availablePreferredStaff.map(s => s.id) : state.selectedPreferredStaff;
       
       clientsToExport.forEach(client => {
         filteredMonths.forEach(month => {
           const monthData = demandData.dataPoints.find(point => point.month === month.key);
-          const clientTasks = monthData?.taskBreakdown.filter(task => 
-            task.clientId === client.id && 
-            (!task.preferredStaffId || staffToExport.length === 0 || staffToExport.includes(task.preferredStaffId))
-          ) || [];
-          
+          const clientTasks = monthData?.taskBreakdown.filter(task => task.clientId === client.id) || [];
           const totalHours = clientTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
-          const staffNames = Array.from(new Set(
-            clientTasks
-              .filter(task => task.preferredStaffName)
-              .map(task => task.preferredStaffName!)
-          )).join('; ');
           
           const row = [
             `"${client.name}"`,
             `"${month.label}"`,
             totalHours.toFixed(1),
             clientTasks.length.toString(),
-            `"${staffNames || 'Unassigned'}"`,
-            totalHours.toFixed(1)
+            clientTasks.length > 0 ? '1' : '0'
           ];
           
           csvData += row.join(',') + '\n';
@@ -267,43 +197,35 @@ export const useDemandMatrixControls = ({
       });
     }
     
-    // Download CSV with enhanced filename
+    // Download CSV
     const blob = new Blob([csvData], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    
-    const staffFilterSuffix = isAllPreferredStaffSelected ? 'all-staff' : `${state.selectedPreferredStaff.length}-staff`;
-    a.download = `demand-matrix-${groupingMode}-${staffFilterSuffix}-${new Date().toISOString().split('T')[0]}.csv`;
-    
+    a.download = `demand-matrix-${groupingMode}-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
     
-    console.log(`📁 [MATRIX CONTROLS] Enhanced export with staff filtering:`, {
+    console.log(`📁 [MATRIX CONTROLS] Exported ${groupingMode} data:`, {
       itemCount: groupingMode === 'skill' ? (isAllSkillsSelected ? availableSkills.length : state.selectedSkills.length) : (isAllClientsSelected ? availableClients.length : state.selectedClients.length),
-      monthCount: filteredMonths.length,
-      staffFilterEnabled: !isAllPreferredStaffSelected,
-      staffCount: isAllPreferredStaffSelected ? availablePreferredStaff.length : state.selectedPreferredStaff.length
+      monthCount: filteredMonths.length
     });
-  }, [demandData, state, groupingMode, availableSkills, availableClients, availablePreferredStaff, isAllSkillsSelected, isAllClientsSelected, isAllPreferredStaffSelected]);
+  }, [demandData, state, groupingMode, availableSkills, availableClients, isAllSkillsSelected, isAllClientsSelected]);
 
   return {
     ...state,
     handleSkillToggle,
     handleClientToggle,
-    handlePreferredStaffToggle,
     handleMonthRangeChange,
     handleReset,
     handleExport,
     availableSkills,
     availableClients,
-    availablePreferredStaff,
     skillsLoading,
     clientsLoading,
     isAllSkillsSelected,
-    isAllClientsSelected,
-    isAllPreferredStaffSelected
+    isAllClientsSelected
   };
 };
