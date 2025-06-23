@@ -1,9 +1,8 @@
 
 /**
- * Matrix Transformer Core Module Exports - Phase 4 Enhanced
+ * Matrix Transformer Core Module Exports - Enhanced with Refactored Services
  * 
- * Enhanced with advanced features for handling unassigned tasks,
- * staff information, and comprehensive error handling
+ * Enhanced with focused services for better maintainability and separation of concerns
  */
 
 export { MatrixTransformerCore } from './matrixTransformerCore';
@@ -13,6 +12,13 @@ export { SummaryBuilders } from './summaryBuilders';
 export { DataPointBuilder } from './dataPointBuilder';
 export { RevenueEnhancer } from './revenueEnhancer';
 export { MatrixValidator } from './matrixValidator';
+
+// Export refactored services
+export { PerformanceOptimizer } from './performanceOptimizer';
+export { ValidationService } from './validationService';
+export { RevenueCalculatorService } from './revenueCalculatorService';
+export { MatrixAssemblerService } from './matrixAssemblerService';
+export { LoggingService } from './loggingService';
 
 // Export types and constants
 export type {
@@ -25,8 +31,8 @@ export type {
   ClientMaps,
   RevenueTotals,
   MatrixSummaries,
-  StaffValidationResult, // Phase 4: Enhanced validation
-  ProcessingError        // Phase 4: Error handling
+  StaffValidationResult,
+  ProcessingError
 } from './types';
 
 export { 
@@ -35,5 +41,5 @@ export {
   MONTH_FORMAT_OPTIONS 
 } from './constants';
 
-// Phase 4: Additional utilities for advanced features
+// Additional utilities for advanced features
 export { DemandDrillDownService } from '../../demandDrillDownService';
