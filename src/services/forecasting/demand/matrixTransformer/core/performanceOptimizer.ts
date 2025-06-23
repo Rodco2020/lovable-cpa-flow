@@ -27,6 +27,18 @@ export interface PerformanceMetrics {
 
 export class PerformanceOptimizer {
   /**
+   * Helper function to get current memory usage
+   */
+  private static getCurrentMemoryUsage(): number {
+    // In browser environment, we can use performance.memory if available
+    if (typeof performance !== 'undefined' && 'memory' in performance) {
+      const memory = (performance as any).memory;
+      return memory.usedJSHeapSize || 0;
+    }
+    return 0;
+  }
+
+  /**
    * Create a performance monitor for tracking transformation metrics
    */
   static createPerformanceMonitor(operationName: string): PerformanceMonitor {
@@ -37,7 +49,7 @@ export class PerformanceOptimizer {
     return {
       start() {
         startTime = performance.now();
-        const initialMemory = this.getCurrentMemoryUsage();
+        const initialMemory = PerformanceOptimizer.getCurrentMemoryUsage();
         memoryUsages.push(initialMemory);
         checkpoints.push({
           name: 'Start',
@@ -48,7 +60,7 @@ export class PerformanceOptimizer {
 
       checkpoint(name: string) {
         const currentTime = performance.now();
-        const currentMemory = this.getCurrentMemoryUsage();
+        const currentMemory = PerformanceOptimizer.getCurrentMemoryUsage();
         memoryUsages.push(currentMemory);
         checkpoints.push({
           name,
@@ -59,7 +71,7 @@ export class PerformanceOptimizer {
 
       finish(): PerformanceMetrics {
         const endTime = performance.now();
-        const finalMemory = this.getCurrentMemoryUsage();
+        const finalMemory = PerformanceOptimizer.getCurrentMemoryUsage();
         memoryUsages.push(finalMemory);
         
         checkpoints.push({
@@ -76,15 +88,6 @@ export class PerformanceOptimizer {
           },
           checkpoints
         };
-      },
-
-      getCurrentMemoryUsage(): number {
-        // In browser environment, we can use performance.memory if available
-        if (typeof performance !== 'undefined' && 'memory' in performance) {
-          const memory = (performance as any).memory;
-          return memory.usedJSHeapSize || 0;
-        }
-        return 0;
       }
     };
   }
