@@ -36,7 +36,10 @@ export const useDemandMatrix = () => {
       skills: [],
       clients: [],
       preferredStaff: [],
-      timeHorizon: 'month'
+      timeHorizon: {
+        start: new Date(),
+        end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year from now
+      }
     },
     groupingMode: 'skill',
     monthRange: { start: 0, end: 11 }
@@ -126,7 +129,10 @@ export const useDemandMatrix = () => {
         skills: [],
         clients: [],
         preferredStaff: [],
-        timeHorizon: 'month'
+        timeHorizon: {
+          start: new Date(),
+          end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        }
       }
     }));
   }, []);

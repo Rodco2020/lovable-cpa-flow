@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RefreshCw, Download, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Download, RotateCcw, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 
 interface DemandMatrixControlsPanelProps {
   isControlsExpanded: boolean;
@@ -24,6 +24,7 @@ interface DemandMatrixControlsPanelProps {
   onMonthRangeChange: (range: { start: number; end: number }) => void;
   onExport: () => void;
   onReset: () => void;
+  onPrintExport: () => void;
   groupingMode: 'skill' | 'client';
   availableSkills: string[];
   availableClients: Array<{ id: string; name: string }>;
@@ -43,6 +44,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   onMonthRangeChange,
   onExport,
   onReset,
+  onPrintExport,
   groupingMode,
   availableSkills,
   availableClients,
@@ -73,6 +75,15 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
           >
             <Download className="h-4 w-4" />
             Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onPrintExport}
+            className="flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Print
           </Button>
           <Button
             variant="outline"

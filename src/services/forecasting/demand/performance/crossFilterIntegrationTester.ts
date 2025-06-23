@@ -24,12 +24,35 @@ export interface IntegrationTestResult {
     fetchTime: number;
     cacheHit: boolean;
     dataSize: number;
+    filterTime: number;
+    calculationTime: number;
   };
   performanceMetrics: {
     fetchTime: number;
     cacheHit: boolean;
     dataSize: number;
+    filterTime: number;
+    calculationTime: number;
   };
+}
+
+export interface PerformanceLoadTestOptions {
+  iterations?: number;
+  concurrentFilters?: number;
+  dataMultiplier?: number;
+}
+
+export interface PerformanceLoadTestResult {
+  averageFilterTime: number;
+  maxFilterTime: number;
+  memoryUsageMB: number;
+  passed: boolean;
+}
+
+export interface RealtimeUpdateTestResult {
+  updateLatency: number;
+  dataConsistency: boolean;
+  performanceImpact: number;
 }
 
 export class CrossFilterIntegrationTester {
@@ -38,7 +61,7 @@ export class CrossFilterIntegrationTester {
    */
   static async fetchStaffForDropdown(): Promise<{
     data: StaffFilterOption[];
-    metrics: { fetchTime: number; cacheHit: boolean; dataSize: number };
+    metrics: { fetchTime: number; cacheHit: boolean; dataSize: number; filterTime: number; calculationTime: number };
   }> {
     const monitor = PerformanceMonitor.create('Staff Dropdown Fetch');
     monitor.start();
@@ -55,7 +78,9 @@ export class CrossFilterIntegrationTester {
           metrics: {
             fetchTime: metrics.duration,
             cacheHit: true,
-            dataSize: cachedData.length
+            dataSize: cachedData.length,
+            filterTime: 0,
+            calculationTime: 0
           }
         };
       }
@@ -78,7 +103,9 @@ export class CrossFilterIntegrationTester {
         metrics: {
           fetchTime: metrics.duration,
           cacheHit: false,
-          dataSize: staffOptions.length
+          dataSize: staffOptions.length,
+          filterTime: 0,
+          calculationTime: 0
         }
       };
       
@@ -90,7 +117,9 @@ export class CrossFilterIntegrationTester {
         metrics: {
           fetchTime: metrics.duration,
           cacheHit: false,
-          dataSize: 0
+          dataSize: 0,
+          filterTime: 0,
+          calculationTime: 0
         }
       };
     }
@@ -166,12 +195,16 @@ export class CrossFilterIntegrationTester {
         performance: {
           fetchTime: metrics.duration,
           cacheHit: false,
-          dataSize: 0
+          dataSize: 0,
+          filterTime: 0,
+          calculationTime: 0
         },
         performanceMetrics: {
           fetchTime: metrics.duration,
           cacheHit: false,
-          dataSize: 0
+          dataSize: 0,
+          filterTime: 0,
+          calculationTime: 0
         }
       };
     }
@@ -180,11 +213,9 @@ export class CrossFilterIntegrationTester {
   /**
    * Run comprehensive tests
    */
-  static async runComprehensiveTests(demandData: DemandMatrixData): Promise<IntegrationTestResult[]> {
+  static async runComprehensiveTests(demandData: DemandMatrixData, staffOptions: StaffFilterOption[]): Promise<IntegrationTestResult[]> {
     const tests = [
       this.testStaffDropdownIntegration(demandData),
-      this.testPerformanceUnderLoad(demandData),
-      this.testRealtimeUpdatesWithStaffFiltering(demandData)
     ];
     
     return Promise.all(tests);
@@ -193,62 +224,34 @@ export class CrossFilterIntegrationTester {
   /**
    * Test performance under load
    */
-  static async testPerformanceUnderLoad(demandData: DemandMatrixData): Promise<IntegrationTestResult> {
+  static async testPerformanceUnderLoad(demandData: DemandMatrixData, options: PerformanceLoadTestOptions = {}): Promise<PerformanceLoadTestResult> {
+    const { iterations = 10, concurrentFilters = 5, dataMultiplier = 2 } = options;
     const monitor = PerformanceMonitor.create('Performance Load Test');
     monitor.start();
     
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    
     try {
       // Simulate multiple concurrent requests
-      const promises = Array(10).fill(null).map(() => this.fetchStaffForDropdown());
+      const promises = Array(iterations).fill(null).map(() => this.fetchStaffForDropdown());
       const results = await Promise.all(promises);
       
       const avgFetchTime = results.reduce((sum, result) => sum + result.metrics.fetchTime, 0) / results.length;
+      const maxFetchTime = Math.max(...results.map(r => r.metrics.fetchTime));
       const testMetrics = monitor.finish();
       
-      if (avgFetchTime > 1000) {
-        warnings.push('Average fetch time exceeds 1 second');
-      }
-      
       return {
-        staffDataAvailable: results.every(r => r.data.length > 0),
-        dropdownFunctional: true,
-        filteringWorks: true,
-        passed: avgFetchTime < 2000,
-        testName: 'Performance Load Test',
-        duration: testMetrics.duration,
-        dataPointsCount: demandData.dataPoints.length,
-        errors,
-        warnings,
-        performance: {
-          fetchTime: avgFetchTime,
-          cacheHit: results.some(r => r.metrics.cacheHit),
-          dataSize: results[0]?.data.length || 0
-        },
-        performanceMetrics: {
-          fetchTime: avgFetchTime,
-          cacheHit: results.some(r => r.metrics.cacheHit),
-          dataSize: results[0]?.data.length || 0
-        }
+        averageFilterTime: avgFetchTime,
+        maxFilterTime,
+        memoryUsageMB: (performance as any).memory?.usedJSHeapSize / (1024 * 1024) || 0,
+        passed: avgFetchTime < 2000
       };
     } catch (error) {
-      const testMetrics = monitor.finish();
-      errors.push(`Load test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Performance load test failed:', error);
       
       return {
-        staffDataAvailable: false,
-        dropdownFunctional: false,
-        filteringWorks: false,
-        passed: false,
-        testName: 'Performance Load Test',
-        duration: testMetrics.duration,
-        dataPointsCount: 0,
-        errors,
-        warnings,
-        performance: { fetchTime: 0, cacheHit: false, dataSize: 0 },
-        performanceMetrics: { fetchTime: 0, cacheHit: false, dataSize: 0 }
+        averageFilterTime: 0,
+        maxFilterTime: 0,
+        memoryUsageMB: 0,
+        passed: false
       };
     }
   }
@@ -256,57 +259,28 @@ export class CrossFilterIntegrationTester {
   /**
    * Test realtime updates with staff filtering
    */
-  static async testRealtimeUpdatesWithStaffFiltering(demandData: DemandMatrixData): Promise<IntegrationTestResult> {
+  static async testRealtimeUpdatesWithStaffFiltering(demandData: DemandMatrixData, staffOptions: StaffFilterOption[]): Promise<RealtimeUpdateTestResult> {
     const monitor = PerformanceMonitor.create('Realtime Updates Test');
     monitor.start();
     
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    
     try {
       // Test filtering updates
-      const { data: staffData } = await this.fetchStaffForDropdown();
-      const filteringWorks = this.testStaffFiltering(staffData, demandData);
+      const filteringWorks = this.testStaffFiltering(staffOptions, demandData);
       
       const testMetrics = monitor.finish();
       
       return {
-        staffDataAvailable: staffData.length > 0,
-        dropdownFunctional: true,
-        filteringWorks,
-        passed: filteringWorks,
-        testName: 'Realtime Updates Test',
-        duration: testMetrics.duration,
-        dataPointsCount: demandData.dataPoints.length,
-        errors,
-        warnings,
-        performance: {
-          fetchTime: testMetrics.duration,
-          cacheHit: false,
-          dataSize: staffData.length
-        },
-        performanceMetrics: {
-          fetchTime: testMetrics.duration,
-          cacheHit: false,
-          dataSize: staffData.length
-        }
+        updateLatency: testMetrics.duration,
+        dataConsistency: filteringWorks,
+        performanceImpact: testMetrics.duration > 100 ? (testMetrics.duration / 1000) * 100 : 0
       };
     } catch (error) {
-      const testMetrics = monitor.finish();
-      errors.push(`Realtime test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Realtime test failed:', error);
       
       return {
-        staffDataAvailable: false,
-        dropdownFunctional: false,
-        filteringWorks: false,
-        passed: false,
-        testName: 'Realtime Updates Test',
-        duration: testMetrics.duration,
-        dataPointsCount: 0,
-        errors,
-        warnings,
-        performance: { fetchTime: 0, cacheHit: false, dataSize: 0 },
-        performanceMetrics: { fetchTime: 0, cacheHit: false, dataSize: 0 }
+        updateLatency: 0,
+        dataConsistency: false,
+        performanceImpact: 100
       };
     }
   }

@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Play, RefreshCw, CheckCircle, XCircle, AlertTriangle, BarChart3 } from 'lucide-react';
 import { DemandMatrixData } from '@/types/demand';
-import { CrossFilterIntegrationTester, IntegrationTestResult } from '@/services/forecasting/demand/performance/crossFilterIntegrationTester';
+import { CrossFilterIntegrationTester, IntegrationTestResult, PerformanceLoadTestResult, RealtimeUpdateTestResult } from '@/services/forecasting/demand/performance/crossFilterIntegrationTester';
 import { StaffDataOptimizer } from '@/services/forecasting/demand/performance/staffDataOptimizer';
 
 interface IntegrationTestPanelProps {
@@ -27,8 +27,8 @@ export const IntegrationTestPanel: React.FC<IntegrationTestPanelProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [testResults, setTestResults] = useState<IntegrationTestResult[]>([]);
-  const [performanceResults, setPerformanceResults] = useState<any>(null);
-  const [realtimeResults, setRealtimeResults] = useState<any>(null);
+  const [performanceResults, setPerformanceResults] = useState<PerformanceLoadTestResult | null>(null);
+  const [realtimeResults, setRealtimeResults] = useState<RealtimeUpdateTestResult | null>(null);
 
   /**
    * Run comprehensive integration tests
