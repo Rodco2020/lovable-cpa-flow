@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,22 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   const isAllSkillsSelected = selectedSkills.length === 0 || selectedSkills.length === availableSkills.length;
   const isAllClientsSelected = selectedClients.length === 0 || selectedClients.length === availableClients.length;
   const isAllPreferredStaffSelected = selectedPreferredStaff.length === 0 || selectedPreferredStaff.length === availablePreferredStaff.length;
+
+  // Convert toggle function to setter function for PreferredStaffFilterSection
+  const handlePreferredStaffChange = (staffIds: string[]) => {
+    // Calculate which items to toggle based on the difference
+    const currentSet = new Set(selectedPreferredStaff);
+    const newSet = new Set(staffIds);
+    
+    // Find items that were added or removed
+    const toAdd = staffIds.filter(id => !currentSet.has(id));
+    const toRemove = selectedPreferredStaff.filter(id => !newSet.has(id));
+    
+    // Apply toggles for added items
+    toAdd.forEach(staffId => onPreferredStaffToggle(staffId));
+    // Apply toggles for removed items
+    toRemove.forEach(staffId => onPreferredStaffToggle(staffId));
+  };
 
   return (
     <Card>
@@ -255,10 +272,10 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
 
         <Separator />
 
-        {/* Preferred Staff Filter - New Section */}
+        {/* Preferred Staff Filter - Fixed prop to use setter function */}
         <PreferredStaffFilterSection
           selectedPreferredStaff={selectedPreferredStaff}
-          setSelectedPreferredStaff={onPreferredStaffToggle}
+          setSelectedPreferredStaff={handlePreferredStaffChange}
           availablePreferredStaff={availablePreferredStaff}
           isControlsExpanded={isControlsExpanded}
         />
