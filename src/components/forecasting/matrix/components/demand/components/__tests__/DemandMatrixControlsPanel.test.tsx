@@ -2,7 +2,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { DemandMatrixControlsPanel } from '../DemandMatrixControlsPanel';
+import { DemandMatrixControlsPanel } from '../../DemandMatrixControlsPanel';
 
 // Mock data for testing
 const mockProps = {
