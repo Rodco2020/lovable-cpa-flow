@@ -1,12 +1,12 @@
 
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
-import { MonthInfo, StaffInformation } from './types';
+import { MonthInfo, StaffInformation, StaffValidationResult } from './types';
 import { MONTH_FORMAT_OPTIONS } from './constants';
 
 /**
- * Data Extraction Utilities
- * Handles extraction of foundational data from raw inputs
+ * Data Extraction Utilities - Phase 4 Enhanced
+ * Handles extraction with unassigned tasks support and enhanced staff validation
  */
 export class DataExtractors {
   /**
@@ -47,26 +47,104 @@ export class DataExtractors {
   }
 
   /**
-   * Extract staff information from tasks using correct database field names
+   * Phase 4: Enhanced staff information extraction with unassigned task handling
    */
-  static extractStaffInformation(tasks: RecurringTaskDB[]): StaffInformation[] {
+  static extractStaffInformationWithUnassigned(tasks: RecurringTaskDB[]): StaffValidationResult {
     const staffMap = new Map<string, string>();
+    let unassignedTasksDetected = 0;
+    const validationErrors: Array<{ staff: any; errors: string[] }> = [];
     
-    tasks.forEach(task => {
-      if (task.preferred_staff_id) {
-        // Generate a display name from staff ID (should be enhanced with actual staff lookup)
-        staffMap.set(task.preferred_staff_id, `Staff ${task.preferred_staff_id.slice(0, 8)}`);
+    console.log('🔍 [PHASE 4] Starting enhanced staff extraction with unassigned task detection');
+    
+    tasks.forEach((task, index) => {
+      if (task.preferred_staff_id === null || task.preferred_staff_id === undefined) {
+        unassignedTasksDetected++;
+        console.log(`📋 [PHASE 4] Unassigned task detected: ${task.id} (${task.name})`);
+      } else if (task.preferred_staff_id) {
+        try {
+          // Validate staff ID format
+          if (typeof task.preferred_staff_id === 'string' && task.preferred_staff_id.trim().length > 0) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(task.preferred_staff_id)) {
+              staffMap.set(task.preferred_staff_id, `Staff ${task.preferred_staff_id.slice(0, 8)}`);
+            } else {
+              validationErrors.push({
+                staff: { id: task.preferred_staff_id, taskId: task.id },
+                errors: ['Invalid staff ID format']
+              });
+            }
+          }
+        } catch (error) {
+          validationErrors.push({
+            staff: { id: task.preferred_staff_id, taskId: task.id },
+            errors: [`Staff validation error: ${error}`]
+          });
+        }
       }
     });
+
+    // Create staff information array including unassigned placeholder
+    const validStaff: StaffInformation[] = Array.from(staffMap.entries()).map(([id, name]) => ({ 
+      id, 
+      name,
+      isUnassigned: false 
+    }));
+
+    // Add special "Unassigned" entry if there are unassigned tasks
+    if (unassignedTasksDetected > 0) {
+      validStaff.push({
+        id: 'UNASSIGNED',
+        name: 'Unassigned Tasks',
+        isUnassigned: true
+      });
+    }
     
-    const staffArray = Array.from(staffMap.entries()).map(([id, name]) => ({ id, name }));
-    
-    console.log(`👥 [STAFF EXTRACTION] Extracted staff information:`, {
-      uniqueStaffCount: staffArray.length,
-      staffList: staffArray
+    console.log(`👥 [PHASE 4] Enhanced staff extraction complete:`, {
+      uniqueAssignedStaff: staffMap.size,
+      unassignedTasksDetected,
+      validationErrors: validationErrors.length,
+      totalStaffEntries: validStaff.length
     });
     
-    return staffArray;
+    return {
+      validStaff,
+      invalidStaff: validationErrors,
+      unassignedTasksDetected
+    };
+  }
+
+  /**
+   * Legacy method maintained for backward compatibility
+   */
+  static extractStaffInformation(tasks: RecurringTaskDB[]): StaffInformation[] {
+    const result = this.extractStaffInformationWithUnassigned(tasks);
+    return result.validStaff;
+  }
+
+  /**
+   * Phase 4: Extract unassigned tasks specifically
+   */
+  static extractUnassignedTasks(tasks: RecurringTaskDB[]): RecurringTaskDB[] {
+    const unassignedTasks = tasks.filter(task => 
+      task.preferred_staff_id === null || task.preferred_staff_id === undefined
+    );
+    
+    console.log(`📋 [PHASE 4] Extracted ${unassignedTasks.length} unassigned tasks from ${tasks.length} total tasks`);
+    
+    return unassignedTasks;
+  }
+
+  /**
+   * Phase 4: Extract assigned tasks specifically
+   */
+  static extractAssignedTasks(tasks: RecurringTaskDB[]): RecurringTaskDB[] {
+    const assignedTasks = tasks.filter(task => 
+      task.preferred_staff_id !== null && task.preferred_staff_id !== undefined
+    );
+    
+    console.log(`👤 [PHASE 4] Extracted ${assignedTasks.length} assigned tasks from ${tasks.length} total tasks`);
+    
+    return assignedTasks;
   }
 
   /**

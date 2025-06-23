@@ -1,115 +1,151 @@
 
-import { DemandDataPoint } from '@/types/demand';
 import { ClientMaps, RevenueTotals } from './types';
-import { MATRIX_TRANSFORMER_CONFIG } from './constants';
 
 /**
- * Summary Builders for Matrix Data
- * Handles creation of various summary data structures
+ * Summary Builders - Phase 4 Enhanced
+ * Handles summary calculations with unassigned task support
  */
 export class SummaryBuilders {
   /**
-   * Build skill summary from data points
+   * Build skill summary with enhanced information
    */
-  static buildSkillSummary(dataPoints: DemandDataPoint[]): { [key: string]: any } {
+  static buildSkillSummary(dataPoints: any[]): { [key: string]: any } {
     const skillSummary: { [key: string]: any } = {};
     
-    dataPoints.forEach(dataPoint => {
-      const skill = dataPoint.skillType;
-      
-      if (!skillSummary[skill]) {
-        skillSummary[skill] = {
+    dataPoints.forEach(point => {
+      if (!skillSummary[point.skillType]) {
+        skillSummary[point.skillType] = {
           totalHours: 0,
-          taskCount: 0,
-          clientCount: new Set<string>(),
-          totalSuggestedRevenue: 0,
-          totalExpectedLessSuggested: 0
+          totalTasks: 0,
+          totalClients: 0,
+          // Phase 4: Enhanced with assignment tracking
+          unassignedHours: 0,
+          assignedHours: 0,
+          unassignedTasks: 0,
+          assignedTasks: 0
         };
       }
       
-      skillSummary[skill].totalHours += dataPoint.demandHours;
-      skillSummary[skill].taskCount += dataPoint.taskCount;
-      skillSummary[skill].totalSuggestedRevenue += dataPoint.suggestedRevenue || 0;
-      skillSummary[skill].totalExpectedLessSuggested += dataPoint.expectedLessSuggested || 0;
+      const summary = skillSummary[point.skillType];
+      summary.totalHours += point.demandHours;
+      summary.totalTasks += point.taskCount;
+      summary.totalClients += point.clientCount;
       
-      dataPoint.taskBreakdown?.forEach(task => {
-        skillSummary[skill].clientCount.add(task.clientId);
-      });
+      // Phase 4: Track assignment statistics
+      if (point.unassignedHours !== undefined) {
+        summary.unassignedHours += point.unassignedHours;
+      }
+      if (point.assignedHours !== undefined) {
+        summary.assignedHours += point.assignedHours;
+      }
+      
+      // Count unassigned vs assigned tasks
+      if (point.taskBreakdown) {
+        point.taskBreakdown.forEach((task: any) => {
+          if (task.isUnassigned) {
+            summary.unassignedTasks += 1;
+          } else {
+            summary.assignedTasks += 1;
+          }
+        });
+      }
     });
     
-    // Convert client count sets to numbers and calculate averages
-    Object.keys(skillSummary).forEach(skill => {
-      const summary = skillSummary[skill];
-      summary.clientCount = summary.clientCount.size;
-      summary.averageFeeRate = summary.totalHours > 0 ? 
-        summary.totalSuggestedRevenue / summary.totalHours : 0;
+    console.log('📊 [PHASE 4] Enhanced skill summary built:', {
+      skillsCount: Object.keys(skillSummary).length,
+      sampleSkill: Object.keys(skillSummary)[0],
+      sampleData: skillSummary[Object.keys(skillSummary)[0]]
     });
     
     return skillSummary;
   }
 
   /**
-   * Build staff summary from data points
+   * Phase 4: Build staff summary with unassigned task handling
    */
-  static buildStaffSummary(dataPoints: DemandDataPoint[]): { [key: string]: any } {
+  static buildStaffSummary(dataPoints: any[]): { [key: string]: any } {
     const staffSummary: { [key: string]: any } = {};
     
-    dataPoints.forEach(dataPoint => {
-      dataPoint.taskBreakdown?.forEach(task => {
-        if (task.preferredStaffId && task.preferredStaffName) {
-          const staffKey = task.preferredStaffId;
+    // Initialize unassigned category
+    staffSummary['UNASSIGNED'] = {
+      staffId: 'UNASSIGNED',
+      staffName: 'Unassigned Tasks',
+      totalHours: 0,
+      totalTasks: 0,
+      skillBreakdown: {},
+      clientBreakdown: {}
+    };
+    
+    dataPoints.forEach(point => {
+      if (point.taskBreakdown) {
+        point.taskBreakdown.forEach((task: any) => {
+          const staffKey = task.isUnassigned ? 'UNASSIGNED' : (task.preferredStaffId || 'UNKNOWN');
           
           if (!staffSummary[staffKey]) {
             staffSummary[staffKey] = {
-              staffId: task.preferredStaffId,
-              staffName: task.preferredStaffName,
+              staffId: staffKey,
+              staffName: task.isUnassigned ? 'Unassigned Tasks' : (task.staffInfo?.name || `Staff ${staffKey.slice(0, 8)}`),
               totalHours: 0,
-              taskCount: 0,
-              clientCount: new Set<string>()
+              totalTasks: 0,
+              skillBreakdown: {},
+              clientBreakdown: {},
+              isUnassigned: task.isUnassigned || false
             };
           }
           
-          staffSummary[staffKey].totalHours += task.monthlyHours;
-          staffSummary[staffKey].taskCount += 1;
-          staffSummary[staffKey].clientCount.add(task.clientId);
-        }
-      });
+          const summary = staffSummary[staffKey];
+          summary.totalHours += task.monthlyHours || 0;
+          summary.totalTasks += 1;
+          
+          // Build skill breakdown
+          if (!summary.skillBreakdown[task.skillType]) {
+            summary.skillBreakdown[task.skillType] = 0;
+          }
+          summary.skillBreakdown[task.skillType] += task.monthlyHours || 0;
+          
+          // Build client breakdown
+          if (!summary.clientBreakdown[task.clientName]) {
+            summary.clientBreakdown[task.clientName] = 0;
+          }
+          summary.clientBreakdown[task.clientName] += task.monthlyHours || 0;
+        });
+      }
     });
     
-    // Convert client count sets to numbers
-    Object.keys(staffSummary).forEach(staffKey => {
-      const clientCountSet = staffSummary[staffKey].clientCount;
-      staffSummary[staffKey].clientCount = clientCountSet.size;
-    });
-    
-    console.log(`👥 [STAFF SUMMARY] Built staff summary:`, {
+    console.log('👥 [PHASE 4] Enhanced staff summary built:', {
       staffCount: Object.keys(staffSummary).length,
-      sampleStaffEntry: Object.values(staffSummary)[0]
+      unassignedHours: staffSummary['UNASSIGNED']?.totalHours || 0,
+      unassignedTasks: staffSummary['UNASSIGNED']?.totalTasks || 0
     });
     
     return staffSummary;
   }
 
   /**
-   * Build client maps from data points
+   * Build client maps (unchanged)
    */
-  static buildClientMaps(dataPoints: DemandDataPoint[]): ClientMaps {
+  static buildClientMaps(dataPoints: any[]): ClientMaps {
     const clientTotals = new Map<string, number>();
     const clientRevenue = new Map<string, number>();
     const clientHourlyRates = new Map<string, number>();
     const clientSuggestedRevenue = new Map<string, number>();
     const clientExpectedLessSuggested = new Map<string, number>();
     
-    dataPoints.forEach(dataPoint => {
-      dataPoint.taskBreakdown?.forEach(task => {
-        const clientId = task.clientId;
-        const currentHours = clientTotals.get(clientId) || 0;
-        const currentSuggested = clientSuggestedRevenue.get(clientId) || 0;
-        const taskSuggested = task.suggestedRevenue || 0;
-        
-        clientTotals.set(clientId, currentHours + task.monthlyHours);
-        clientSuggestedRevenue.set(clientId, currentSuggested + taskSuggested);
-      });
+    dataPoints.forEach(point => {
+      if (point.taskBreakdown) {
+        point.taskBreakdown.forEach((task: any) => {
+          const clientName = task.clientName;
+          const hours = task.monthlyHours || 0;
+          
+          clientTotals.set(clientName, (clientTotals.get(clientName) || 0) + hours);
+          
+          if (task.suggestedRevenue) {
+            clientSuggestedRevenue.set(clientName, 
+              (clientSuggestedRevenue.get(clientName) || 0) + task.suggestedRevenue
+            );
+          }
+        });
+      }
     });
     
     return {
@@ -122,17 +158,66 @@ export class SummaryBuilders {
   }
 
   /**
-   * Calculate revenue totals from data points
+   * Calculate revenue totals (unchanged)
    */
-  static calculateRevenueTotals(dataPoints: DemandDataPoint[]): RevenueTotals {
-    const totalSuggestedRevenue = dataPoints.reduce((sum, dp) => sum + (dp.suggestedRevenue || 0), 0);
-    const totalExpectedLessSuggested = dataPoints.reduce((sum, dp) => sum + (dp.expectedLessSuggested || 0), 0);
-    const totalExpectedRevenue = totalSuggestedRevenue + totalExpectedLessSuggested;
+  static calculateRevenueTotals(dataPoints: any[]): RevenueTotals {
+    let totalSuggestedRevenue = 0;
+    let totalExpectedRevenue = 0;
+    
+    dataPoints.forEach(point => {
+      if (point.suggestedRevenue) {
+        totalSuggestedRevenue += point.suggestedRevenue;
+      }
+      if (point.expectedRevenue) {
+        totalExpectedRevenue += point.expectedRevenue;
+      }
+    });
     
     return {
       totalSuggestedRevenue,
       totalExpectedRevenue,
-      totalExpectedLessSuggested
+      totalExpectedLessSuggested: totalExpectedRevenue - totalSuggestedRevenue
+    };
+  }
+
+  /**
+   * Phase 4: Build unassigned tasks summary
+   */
+  static buildUnassignedSummary(dataPoints: any[]): {
+    totalUnassignedTasks: number;
+    totalUnassignedHours: number;
+    skillBreakdown: { [skill: string]: number };
+  } {
+    let totalUnassignedTasks = 0;
+    let totalUnassignedHours = 0;
+    const skillBreakdown: { [skill: string]: number } = {};
+    
+    dataPoints.forEach(point => {
+      if (point.unassignedHours && point.unassignedHours > 0) {
+        totalUnassignedHours += point.unassignedHours;
+        
+        if (!skillBreakdown[point.skillType]) {
+          skillBreakdown[point.skillType] = 0;
+        }
+        skillBreakdown[point.skillType] += point.unassignedHours;
+      }
+      
+      if (point.taskBreakdown) {
+        const unassignedTasksInPoint = point.taskBreakdown.filter((task: any) => task.isUnassigned);
+        totalUnassignedTasks += unassignedTasksInPoint.length;
+      }
+    });
+    
+    console.log('📋 [PHASE 4] Unassigned summary built:', {
+      totalUnassignedTasks,
+      totalUnassignedHours,
+      skillsAffected: Object.keys(skillBreakdown).length
+    });
+    
+    return {
+      totalUnassignedTasks,
+      totalUnassignedHours,
+      skillBreakdown
     };
   }
 }
