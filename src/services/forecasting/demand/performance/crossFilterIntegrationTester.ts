@@ -241,7 +241,7 @@ export class CrossFilterIntegrationTester {
       
       return {
         averageFilterTime: avgFetchTime,
-        maxFilterTime,
+        maxFilterTime: maxFetchTime,
         memoryUsageMB: (performance as any).memory?.usedJSHeapSize / (1024 * 1024) || 0,
         passed: avgFetchTime < 2000
       };
