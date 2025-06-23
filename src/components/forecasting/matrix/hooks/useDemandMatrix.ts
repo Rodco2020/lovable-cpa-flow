@@ -23,6 +23,7 @@ export interface DemandMatrixActions {
   setGroupingMode: (mode: 'skill' | 'client') => void;
   setMonthRange: (range: { start: number; end: number }) => void;
   exportData: () => void;
+  printExport: () => void;
   resetFilters: () => void;
   refreshData: () => Promise<void>;
 }
@@ -120,6 +121,17 @@ export const useDemandMatrix = () => {
   }, [toast]);
   
   /**
+   * Print export
+   */
+  const printExport = useCallback(() => {
+    console.log('Preparing print export...');
+    toast({
+      title: "Print export started",
+      description: "Demand matrix print export is being prepared",
+    });
+  }, [toast]);
+  
+  /**
    * Reset filters
    */
   const resetFilters = useCallback(() => {
@@ -154,6 +166,7 @@ export const useDemandMatrix = () => {
     setGroupingMode,
     setMonthRange,
     exportData,
+    printExport,
     resetFilters,
     refreshData
   };

@@ -32,6 +32,7 @@ export const DemandMatrixTab: React.FC = () => {
     setGroupingMode,
     setMonthRange,
     exportData,
+    printExport,
     resetFilters
   } = useDemandMatrix();
 
@@ -211,6 +212,7 @@ export const DemandMatrixTab: React.FC = () => {
                 onMonthRangeChange={setMonthRange}
                 onExport={exportData}
                 onReset={resetFilters}
+                onPrintExport={printExport}
                 groupingMode={groupingMode}
                 availableSkills={availableSkills}
                 availableClients={availableClients}
@@ -260,6 +262,7 @@ export const DemandMatrixTab: React.FC = () => {
             onMonthRangeChange={setMonthRange}
             onExport={exportData}
             onReset={resetFilters}
+            onPrintExport={printExport}
             groupingMode={groupingMode}
             availableSkills={availableSkills}
             availableClients={availableClients}

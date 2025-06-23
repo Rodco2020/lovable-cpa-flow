@@ -234,8 +234,9 @@ export class CrossFilterIntegrationTester {
       const promises = Array(iterations).fill(null).map(() => this.fetchStaffForDropdown());
       const results = await Promise.all(promises);
       
-      const avgFetchTime = results.reduce((sum, result) => sum + result.metrics.fetchTime, 0) / results.length;
-      const maxFetchTime = Math.max(...results.map(r => r.metrics.fetchTime));
+      const fetchTimes = results.map(result => result.metrics.fetchTime);
+      const avgFetchTime = fetchTimes.reduce((sum, time) => sum + time, 0) / fetchTimes.length;
+      const maxFetchTime = Math.max(...fetchTimes);
       const testMetrics = monitor.finish();
       
       return {
