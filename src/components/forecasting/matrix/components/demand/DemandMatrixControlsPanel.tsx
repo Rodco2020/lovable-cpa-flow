@@ -15,16 +15,17 @@ import {
   FileText, 
   Printer 
 } from 'lucide-react';
+import { PreferredStaffFilterSection } from './components/PreferredStaffFilterSection';
 
 interface DemandMatrixControlsPanelProps {
   isControlsExpanded: boolean;
   onToggleControls: () => void;
   selectedSkills: string[];
   selectedClients: string[];
-  selectedPreferredStaff: string[]; // Enhanced: Added staff support
+  selectedPreferredStaff: string[];
   onSkillToggle: (skill: string) => void;
   onClientToggle: (client: string) => void;
-  onPreferredStaffToggle: (staffId: string) => void; // Enhanced: Added staff toggle
+  onPreferredStaffToggle: (staffId: string) => void;
   monthRange: { start: number; end: number };
   onMonthRangeChange: (range: { start: number; end: number }) => void;
   onExport: () => void;
@@ -32,7 +33,7 @@ interface DemandMatrixControlsPanelProps {
   groupingMode: 'skill' | 'client';
   availableSkills: string[];
   availableClients: Array<{ id: string; name: string }>;
-  availablePreferredStaff: Array<{ id: string; name: string }>; // Enhanced: Added staff support
+  availablePreferredStaff: Array<{ id: string; name: string }>;
   onPrintExport?: () => void;
 }
 
@@ -41,10 +42,10 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   onToggleControls,
   selectedSkills,
   selectedClients,
-  selectedPreferredStaff, // Enhanced: Added staff selection
+  selectedPreferredStaff,
   onSkillToggle,
   onClientToggle,
-  onPreferredStaffToggle, // Enhanced: Added staff toggle handler
+  onPreferredStaffToggle,
   monthRange,
   onMonthRangeChange,
   onExport,
@@ -52,7 +53,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   groupingMode,
   availableSkills,
   availableClients,
-  availablePreferredStaff, // Enhanced: Added available staff
+  availablePreferredStaff,
   onPrintExport
 }) => {
   const monthNames = [
@@ -62,49 +63,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
 
   const isAllSkillsSelected = selectedSkills.length === 0 || selectedSkills.length === availableSkills.length;
   const isAllClientsSelected = selectedClients.length === 0 || selectedClients.length === availableClients.length;
-  const isAllPreferredStaffSelected = selectedPreferredStaff.length === 0 || selectedPreferredStaff.length === availablePreferredStaff.length; // Enhanced: Added staff selection check
-
-  const handleSkillSelectAll = () => {
-    if (isAllSkillsSelected) {
-      // If all are selected, deselect all (empty array means "all selected" in our logic)
-      availableSkills.forEach(skill => onSkillToggle(skill));
-    } else {
-      // If not all are selected, select all remaining
-      availableSkills.forEach(skill => {
-        if (!selectedSkills.includes(skill)) {
-          onSkillToggle(skill);
-        }
-      });
-    }
-  };
-
-  const handleClientSelectAll = () => {
-    if (isAllClientsSelected) {
-      // If all are selected, deselect all
-      availableClients.forEach(client => onClientToggle(client.name));
-    } else {
-      // If not all are selected, select all remaining
-      availableClients.forEach(client => {
-        if (!selectedClients.includes(client.name)) {
-          onClientToggle(client.name);
-        }
-      });
-    }
-  };
-
-  const handlePreferredStaffSelectAll = () => {
-    if (isAllPreferredStaffSelected) {
-      // If all are selected, deselect all
-      availablePreferredStaff.forEach(staff => onPreferredStaffToggle(staff.id));
-    } else {
-      // If not all are selected, select all remaining
-      availablePreferredStaff.forEach(staff => {
-        if (!selectedPreferredStaff.includes(staff.id)) {
-          onPreferredStaffToggle(staff.id);
-        }
-      });
-    }
-  };
+  const isAllPreferredStaffSelected = selectedPreferredStaff.length === 0 || selectedPreferredStaff.length === availablePreferredStaff.length;
 
   return (
     <Card>
@@ -296,57 +255,13 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
 
         <Separator />
 
-        {/* Enhanced: Preferred Staff Filter */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium">Preferred Staff Filter</label>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePreferredStaffSelectAll}
-              className="h-6 px-2 text-xs"
-            >
-              {isAllPreferredStaffSelected ? (
-                <>
-                  <EyeOff className="h-3 w-3 mr-1" />
-                  Hide All
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3 w-3 mr-1" />
-                  Show All
-                </>
-              )}
-            </Button>
-          </div>
-          
-          {isControlsExpanded && (
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {availablePreferredStaff.map((staff) => (
-                <div key={staff.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`staff-${staff.id}`}
-                    checked={isAllPreferredStaffSelected || selectedPreferredStaff.includes(staff.id)}
-                    onCheckedChange={() => onPreferredStaffToggle(staff.id)}
-                  />
-                  <label 
-                    htmlFor={`staff-${staff.id}`} 
-                    className="text-sm cursor-pointer flex-1 truncate"
-                    title={staff.name}
-                  >
-                    {staff.name}
-                  </label>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {!isControlsExpanded && (
-            <div className="text-xs text-muted-foreground">
-              {isAllPreferredStaffSelected ? 'All staff visible' : `${selectedPreferredStaff.length}/${availablePreferredStaff.length} staff selected`}
-            </div>
-          )}
-        </div>
+        {/* Preferred Staff Filter - New Section */}
+        <PreferredStaffFilterSection
+          selectedPreferredStaff={selectedPreferredStaff}
+          setSelectedPreferredStaff={onPreferredStaffToggle}
+          availablePreferredStaff={availablePreferredStaff}
+          isControlsExpanded={isControlsExpanded}
+        />
 
         <Separator />
 
