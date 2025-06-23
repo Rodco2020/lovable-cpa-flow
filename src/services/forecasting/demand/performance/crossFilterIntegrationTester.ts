@@ -1,11 +1,16 @@
-
 /**
  * Cross-Filter Integration Tester
- * Comprehensive testing for all filter combinations
+ * Comprehensive testing for all filter combinations including staff dropdown integration
  */
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { StaffFilterOption } from '@/types/demand';
+import { getActiveStaffForDropdown } from '@/services/staff/staffDropdownService';
+import { CacheManager } from './cacheManager';
+import { DataProcessor } from './dataProcessor';
+import { DataFilter } from './dataFilter';
+import { PerformanceMonitor } from './performanceMonitor';
+import { CACHE_KEYS, PERFORMANCE_CONSTANTS } from './constants';
 
 export interface FilterCombinationTest {
   name: string;
@@ -35,6 +40,133 @@ export interface IntegrationTestResult {
 
 export class CrossFilterIntegrationTester {
   /**
+   * Fetch staff data for dropdown integration
+   */
+  static async fetchStaffForDropdown(): Promise<{ 
+    data: StaffFilterOption[]; 
+    metrics: any 
+  }> {
+    const monitor = PerformanceMonitor.create('Staff Dropdown Fetch');
+    monitor.start();
+    
+    try {
+      // Check cache first
+      const cacheKey = `${CACHE_KEYS.STAFF_DATA}_dropdown`;
+      const cached = CacheManager.get<StaffFilterOption[]>(cacheKey);
+      
+      if (cached) {
+        const metrics = monitor.finish();
+        console.log('✅ [Staff Dropdown] Cache hit for staff data');
+        return {
+          data: cached,
+          metrics: {
+            fetchTime: metrics.duration,
+            cacheHit: true,
+            dataSize: cached.length
+          }
+        };
+      }
+      
+      // Fetch from service
+      monitor.checkpoint('Database Fetch');
+      const staffOptions = await getActiveStaffForDropdown();
+      
+      // Transform to StaffFilterOption format
+      monitor.checkpoint('Data Transformation');
+      const transformedStaff: StaffFilterOption[] = staffOptions.map(staff => ({
+        id: staff.id,
+        name: staff.full_name
+      }));
+      
+      // Cache the results
+      CacheManager.set(cacheKey, transformedStaff);
+      
+      const metrics = monitor.finish();
+      console.log(`✅ [Staff Dropdown] Fetched ${transformedStaff.length} staff members`);
+      
+      return {
+        data: transformedStaff,
+        metrics: {
+          fetchTime: metrics.duration,
+          cacheHit: false,
+          dataSize: transformedStaff.length
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ [Staff Dropdown] Error fetching staff data:', error);
+      const metrics = monitor.finish();
+      
+      return {
+        data: [],
+        metrics: {
+          fetchTime: metrics.duration,
+          cacheHit: false,
+          dataSize: 0
+        }
+      };
+    }
+  }
+  
+  /**
+   * Test staff dropdown integration with demand matrix
+   */
+  static async testStaffDropdownIntegration(
+    matrixData: DemandMatrixData
+  ): Promise<{
+    staffDataAvailable: boolean;
+    dropdownFunctional: boolean;
+    filteringWorks: boolean;
+    performanceMetrics: any;
+  }> {
+    console.log('🧪 Testing staff dropdown integration...');
+    
+    const monitor = PerformanceMonitor.create('Staff Dropdown Integration Test');
+    monitor.start();
+    
+    try {
+      // Test 1: Staff data availability
+      monitor.checkpoint('Staff Data Fetch');
+      const { data: staffData, metrics: fetchMetrics } = await this.fetchStaffForDropdown();
+      const staffDataAvailable = staffData.length > 0;
+      
+      // Test 2: Dropdown functionality
+      monitor.checkpoint('Dropdown Functionality');
+      const dropdownFunctional = await this.testDropdownFunctionality(staffData);
+      
+      // Test 3: Filtering integration
+      monitor.checkpoint('Filter Integration');
+      const filteringWorks = await this.testStaffFiltering(matrixData, staffData);
+      
+      const performanceMetrics = monitor.finish();
+      
+      console.log(`✅ Staff dropdown integration test completed:`, {
+        staffDataAvailable,
+        dropdownFunctional,
+        filteringWorks,
+        staffCount: staffData.length,
+        duration: `${performanceMetrics.duration.toFixed(2)}ms`
+      });
+      
+      return {
+        staffDataAvailable,
+        dropdownFunctional,
+        filteringWorks,
+        performanceMetrics
+      };
+      
+    } catch (error) {
+      console.error('❌ Staff dropdown integration test failed:', error);
+      return {
+        staffDataAvailable: false,
+        dropdownFunctional: false,
+        filteringWorks: false,
+        performanceMetrics: monitor.finish()
+      };
+    }
+  }
+  
+  /**
    * Run comprehensive cross-filter integration tests
    */
   static async runComprehensiveTests(
@@ -43,7 +175,14 @@ export class CrossFilterIntegrationTester {
   ): Promise<IntegrationTestResult[]> {
     console.log('🧪 Starting comprehensive cross-filter integration tests...');
     
-    const testSuites = this.generateTestSuites(matrixData, availableStaff);
+    // Ensure we have staff data
+    let staffData = availableStaff;
+    if (!staffData.length) {
+      const { data } = await this.fetchStaffForDropdown();
+      staffData = data;
+    }
+    
+    const testSuites = this.generateTestSuites(matrixData, staffData);
     const results: IntegrationTestResult[] = [];
     
     for (const test of testSuites) {
@@ -196,6 +335,49 @@ export class CrossFilterIntegrationTester {
   }
   
   // Private helper methods
+  private static async testDropdownFunctionality(staffData: StaffFilterOption[]): Promise<boolean> {
+    try {
+      // Test dropdown data structure
+      const hasValidStructure = staffData.every(staff => 
+        staff && 
+        typeof staff.id === 'string' && 
+        typeof staff.name === 'string' &&
+        staff.id.length > 0 &&
+        staff.name.length > 0
+      );
+      
+      return hasValidStructure && staffData.length > 0;
+    } catch (error) {
+      console.error('Dropdown functionality test failed:', error);
+      return false;
+    }
+  }
+  
+  private static async testStaffFiltering(
+    matrixData: DemandMatrixData,
+    staffData: StaffFilterOption[]
+  ): Promise<boolean> {
+    try {
+      if (!staffData.length) return false;
+      
+      const testFilters: DemandFilters = {
+        skills: [],
+        clients: [],
+        preferredStaff: [staffData[0].id],
+        timeHorizon: {
+          start: new Date('2024-01-01'),
+          end: new Date('2024-12-31')
+        }
+      };
+      
+      const result = await this.performFilterOperation(matrixData, testFilters);
+      return Array.isArray(result.dataPoints);
+    } catch (error) {
+      console.error('Staff filtering test failed:', error);
+      return false;
+    }
+  }
+  
   private static generateTestSuites(
     matrixData: DemandMatrixData,
     availableStaff: StaffFilterOption[]
@@ -352,8 +534,8 @@ export class CrossFilterIntegrationTester {
       }
       
       // Check performance thresholds
-      if (filterTime > 500) {
-        warnings.push(`Filter time exceeded 500ms: ${filterTime.toFixed(2)}ms`);
+      if (filterTime > PERFORMANCE_CONSTANTS.PERFORMANCE_THRESHOLDS.FILTER_TIME_WARNING) {
+        warnings.push(`Filter time exceeded ${PERFORMANCE_CONSTANTS.PERFORMANCE_THRESHOLDS.FILTER_TIME_WARNING}ms: ${filterTime.toFixed(2)}ms`);
       }
       
       if (calculationTime > 200) {

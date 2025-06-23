@@ -1,10 +1,14 @@
 
 /**
  * Staff Data Performance Optimizer
- * Optimizes staff data fetching, caching, and filtering operations
+ * Enhanced with CrossFilterIntegrationTester integration
  */
 
 import { StaffFilterOption } from '@/types/demand';
+import { CrossFilterIntegrationTester } from './crossFilterIntegrationTester';
+import { CacheManager } from './cacheManager';
+import { PerformanceMonitor } from './performanceMonitor';
+import { CACHE_KEYS } from './constants';
 
 export interface StaffDataCache {
   data: StaffFilterOption[];
@@ -20,59 +24,42 @@ export interface PerformanceMetrics {
 }
 
 export class StaffDataOptimizer {
-  private static cache = new Map<string, StaffDataCache>();
   private static readonly DEFAULT_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   
   /**
    * Optimized staff data fetching with intelligent caching
+   * Now delegates to CrossFilterIntegrationTester for consistency
    */
   static async fetchStaffDataOptimized(
     forceRefresh = false,
     cacheKey = 'default'
   ): Promise<{ data: StaffFilterOption[]; metrics: PerformanceMetrics }> {
-    const startTime = performance.now();
-    
-    // Check cache first
-    if (!forceRefresh) {
-      const cached = this.getCachedData(cacheKey);
-      if (cached) {
-        const fetchTime = performance.now() - startTime;
-        return {
-          data: cached,
-          metrics: {
-            fetchTime,
-            cacheHit: true,
-            dataSize: cached.length
-          }
-        };
-      }
-    }
+    const monitor = PerformanceMonitor.create('Staff Data Optimization');
+    monitor.start();
     
     try {
-      // Simulate staff data fetch - replace with actual implementation
-      const staffData = await this.fetchStaffFromSource();
+      // Delegate to CrossFilterIntegrationTester for consistency
+      const result = await CrossFilterIntegrationTester.fetchStaffForDropdown();
       
-      // Cache the results
-      this.setCachedData(cacheKey, staffData);
-      
-      const fetchTime = performance.now() - startTime;
+      const metrics = monitor.finish();
       
       return {
-        data: staffData,
+        data: result.data,
         metrics: {
-          fetchTime,
-          cacheHit: false,
-          dataSize: staffData.length
+          fetchTime: metrics.duration,
+          cacheHit: result.metrics.cacheHit,
+          dataSize: result.data.length
         }
       };
-    } catch (error) {
-      console.error('Error fetching staff data:', error);
       
-      // Return empty data with error metrics
+    } catch (error) {
+      console.error('Error in staff data optimization:', error);
+      const metrics = monitor.finish();
+      
       return {
         data: [],
         metrics: {
-          fetchTime: performance.now() - startTime,
+          fetchTime: metrics.duration,
           cacheHit: false,
           dataSize: 0
         }
@@ -164,9 +151,9 @@ export class StaffDataOptimizer {
    */
   static clearCache(cacheKey?: string): void {
     if (cacheKey) {
-      this.cache.delete(cacheKey);
+      CacheManager.delete(`${CACHE_KEYS.STAFF_DATA}_${cacheKey}`);
     } else {
-      this.cache.clear();
+      CacheManager.clear();
     }
   }
   
@@ -178,56 +165,6 @@ export class StaffDataOptimizer {
     totalMemoryMB: number;
     oldestEntry: number;
   } {
-    let totalMemory = 0;
-    let oldestTimestamp = Date.now();
-    
-    for (const [, cacheEntry] of this.cache) {
-      totalMemory += JSON.stringify(cacheEntry.data).length;
-      if (cacheEntry.timestamp < oldestTimestamp) {
-        oldestTimestamp = cacheEntry.timestamp;
-      }
-    }
-    
-    return {
-      totalEntries: this.cache.size,
-      totalMemoryMB: totalMemory / (1024 * 1024),
-      oldestEntry: oldestTimestamp
-    };
-  }
-  
-  // Private helper methods
-  private static getCachedData(cacheKey: string): StaffFilterOption[] | null {
-    const cached = this.cache.get(cacheKey);
-    
-    if (!cached) return null;
-    
-    const now = Date.now();
-    if (now - cached.timestamp > cached.expiryMs) {
-      this.cache.delete(cacheKey);
-      return null;
-    }
-    
-    return cached.data;
-  }
-  
-  private static setCachedData(
-    cacheKey: string,
-    data: StaffFilterOption[],
-    expiryMs = this.DEFAULT_CACHE_DURATION
-  ): void {
-    this.cache.set(cacheKey, {
-      data: [...data],
-      timestamp: Date.now(),
-      expiryMs
-    });
-  }
-  
-  private static async fetchStaffFromSource(): Promise<StaffFilterOption[]> {
-    // Mock implementation - replace with actual database call
-    return [
-      { id: 'staff1', name: 'John Smith' },
-      { id: 'staff2', name: 'Sarah Johnson' },
-      { id: 'staff3', name: 'Mike Wilson' }
-    ];
+    return CacheManager.getStats();
   }
 }

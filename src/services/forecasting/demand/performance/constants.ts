@@ -1,22 +1,24 @@
 
 /**
  * Performance Optimization Constants
- * Configuration values for performance optimization features
+ * Shared constants for performance optimization modules
  */
 
 export const PERFORMANCE_CONSTANTS = {
-  CHUNK_SIZE: 100,
-  CACHE_SIZE_LIMIT: 50,
-  PERFORMANCE_THRESHOLD_MS: 1000,
-  MEMORY_ALERT_THRESHOLD_MB: 10,
-  MAX_PERFORMANCE_METRICS: 100,
-  MAX_MEMORY_METRICS: 50
+  DEFAULT_CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+  MAX_CACHE_SIZE: 100,
+  DEFAULT_BATCH_SIZE: 50,
+  MAX_CONCURRENT_OPERATIONS: 10,
+  PERFORMANCE_THRESHOLDS: {
+    FILTER_TIME_WARNING: 500, // ms
+    FILTER_TIME_ERROR: 1000, // ms
+    MEMORY_WARNING: 50, // MB
+    MEMORY_ERROR: 100, // MB
+  }
 } as const;
 
-export const PERFORMANCE_OPERATIONS = {
-  DATA_PROCESSING_SMALL: 'data-processing-small',
-  DATA_PROCESSING_CHUNKED: 'data-processing-chunked',
-  FILTERING_NO_OP: 'filtering-no-op',
-  FILTERING_OPTIMIZED: 'filtering-optimized',
-  MATRIX_TRANSFORMATION: 'matrix-transformation'
+export const CACHE_KEYS = {
+  STAFF_DATA: 'staff_data',
+  FILTER_RESULTS: 'filter_results',
+  PERFORMANCE_METRICS: 'performance_metrics'
 } as const;
