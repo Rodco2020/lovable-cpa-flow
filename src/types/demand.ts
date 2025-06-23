@@ -18,6 +18,11 @@ export interface DemandDataPoint {
    * Positive = expected exceeds suggested, Negative = suggested exceeds expected
    */
   expectedLessSuggested?: number;
+  /** 
+   * PHASE 4: Enhanced with staff assignment tracking
+   */
+  unassignedHours?: number;
+  assignedHours?: number;
 }
 
 export interface ClientTaskDemand {
@@ -37,6 +42,13 @@ export interface ClientTaskDemand {
   /** NEW: Preferred staff information for task breakdown */
   preferredStaffId?: string;
   preferredStaffName?: string;
+  /** PHASE 4: Enhanced with staff assignment properties */
+  isUnassigned?: boolean;
+  staffInfo?: {
+    id: string;
+    name: string;
+    hasError?: boolean;
+  } | null;
 }
 
 export interface RecurrencePattern {

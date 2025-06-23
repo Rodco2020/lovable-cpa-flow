@@ -1,4 +1,3 @@
-
 import { SkillType } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
 import { DemandDrillDownData, DemandClientBreakdown, DemandTaskBreakdown, RecurrencePatternSummary } from '@/types/demandDrillDown';
@@ -149,24 +148,35 @@ export class DemandDrillDownService {
    * Phase 4: Generate task breakdown with enhanced staff information
    */
   private static generateTaskBreakdownWithStaff(tasks: any[]): DemandTaskBreakdown[] {
-    return tasks.map(task => ({
-      taskId: task.recurringTaskId || `adhoc-${Date.now()}`,
-      taskName: task.taskName,
-      clientId: task.clientId,
-      clientName: task.clientName,
-      skillType: task.skillType,
-      estimatedHours: task.estimatedHours,
-      monthlyHours: task.monthlyHours,
-      recurrenceType: task.recurrencePattern?.type || 'None',
-      recurrenceFrequency: task.recurrencePattern?.frequency || 0,
-      isRecurring: !!task.recurrencePattern?.type,
-      // Phase 4: Enhanced with staff assignment details
-      preferredStaffId: task.preferredStaffId,
-      isUnassigned: task.isUnassigned || false,
-      staffInfo: task.staffInfo || null,
-      assignmentStatus: task.isUnassigned ? 'Unassigned' : 
-        (task.preferredStaffId ? 'Assigned' : 'Unknown')
-    })).sort((a, b) => b.monthlyHours - a.monthlyHours);
+    return tasks.map(task => {
+      // Determine assignment status with proper typing
+      let assignmentStatus: 'Assigned' | 'Unassigned' | 'Unknown';
+      if (task.isUnassigned) {
+        assignmentStatus = 'Unassigned';
+      } else if (task.preferredStaffId) {
+        assignmentStatus = 'Assigned';
+      } else {
+        assignmentStatus = 'Unknown';
+      }
+
+      return {
+        taskId: task.recurringTaskId || `adhoc-${Date.now()}`,
+        taskName: task.taskName,
+        clientId: task.clientId,
+        clientName: task.clientName,
+        skillType: task.skillType,
+        estimatedHours: task.estimatedHours,
+        monthlyHours: task.monthlyHours,
+        recurrenceType: task.recurrencePattern?.type || 'None',
+        recurrenceFrequency: task.recurrencePattern?.frequency || 0,
+        isRecurring: !!task.recurrencePattern?.type,
+        // Phase 4: Enhanced with staff assignment details
+        preferredStaffId: task.preferredStaffId,
+        isUnassigned: task.isUnassigned || false,
+        staffInfo: task.staffInfo || null,
+        assignmentStatus
+      };
+    }).sort((a, b) => b.monthlyHours - a.monthlyHours);
   }
 
   /**

@@ -1,4 +1,3 @@
-
 import { DemandMatrixData } from '@/types/demand';
 import { ValidationResult, ProcessingError } from './types';
 
@@ -119,7 +118,7 @@ export class MatrixValidator {
       staffRelatedIssues.push('Staff summary unavailable - assignment analysis limited');
     }
 
-    // Validate staff assignment consistency
+    // Phase 4: Validate staff assignment consistency with safe property access
     const dataPointsWithStaffInfo = matrixData.dataPoints.filter(dp => 
       dp.taskBreakdown?.some(task => task.preferredStaffId || task.isUnassigned)
     );
@@ -147,7 +146,7 @@ export class MatrixValidator {
   }
 
   /**
-   * Phase 4: Validate unassigned tasks handling
+   * Phase 4: Validate unassigned tasks handling with safe property access
    */
   private static validateUnassignedTasksHandling(
     matrixData: DemandMatrixData,
@@ -158,6 +157,7 @@ export class MatrixValidator {
     let totalUnassignedHours = 0;
 
     matrixData.dataPoints.forEach(dp => {
+      // Safe property access for Phase 4 properties
       if (dp.unassignedHours && dp.unassignedHours > 0) {
         totalUnassignedHours += dp.unassignedHours;
       }
