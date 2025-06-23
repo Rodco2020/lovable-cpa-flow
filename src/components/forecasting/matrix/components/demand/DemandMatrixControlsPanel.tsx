@@ -1,19 +1,16 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { PreferredStaffFilterSection } from './components/PreferredStaffFilterSection';
-import { ControlsPanelHeader } from './components/ControlsPanelHeader';
-import { TimeRangeControlSection } from './components/TimeRangeControlSection';
-import { SkillsFilterSection } from './components/SkillsFilterSection';
-import { ClientsFilterSection } from './components/ClientsFilterSection';
-import { ActionButtonsSection } from './components/ActionButtonsSection';
-import { CurrentSelectionSummary } from './components/CurrentSelectionSummary';
-import { createToggleToSetterAdapter } from './components/utils/selectionUtils';
-
 /**
- * Props interface for the Demand Matrix Controls Panel
+ * Demand Matrix Controls Panel Component
+ * Provides filtering and control options for the demand matrix
  */
+
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RefreshCw, Download, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+
 interface DemandMatrixControlsPanelProps {
   isControlsExpanded: boolean;
   onToggleControls: () => void;
@@ -21,7 +18,7 @@ interface DemandMatrixControlsPanelProps {
   selectedClients: string[];
   selectedPreferredStaff: string[];
   onSkillToggle: (skill: string) => void;
-  onClientToggle: (client: string) => void;
+  onClientToggle: (clientId: string) => void;
   onPreferredStaffToggle: (staffId: string) => void;
   monthRange: { start: number; end: number };
   onMonthRangeChange: (range: { start: number; end: number }) => void;
@@ -31,25 +28,8 @@ interface DemandMatrixControlsPanelProps {
   availableSkills: string[];
   availableClients: Array<{ id: string; name: string }>;
   availablePreferredStaff: Array<{ id: string; name: string }>;
-  onPrintExport?: () => void;
 }
 
-/**
- * Demand Matrix Controls Panel Component
- * 
- * A comprehensive control panel for managing demand matrix filtering and display options.
- * Provides controls for:
- * - Time range selection (start and end months)
- * - Skills filtering with select all/none functionality
- * - Clients filtering with select all/none functionality  
- * - Preferred staff filtering with advanced selection options
- * - Export and print functionality
- * - Filter reset capability
- * - Current selection summary display
- * 
- * The component is designed to be collapsible for better space utilization
- * and maintains state consistency across all filter selections.
- */
 export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps> = ({
   isControlsExpanded,
   onToggleControls,
@@ -66,81 +46,142 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   groupingMode,
   availableSkills,
   availableClients,
-  availablePreferredStaff,
-  onPrintExport
+  availablePreferredStaff
 }) => {
-  // Convert toggle function to setter function for PreferredStaffFilterSection compatibility
-  const handlePreferredStaffChange = createToggleToSetterAdapter(
-    selectedPreferredStaff,
-    onPreferredStaffToggle
-  );
-
   return (
     <Card>
       <CardHeader>
-        <ControlsPanelHeader
-          isControlsExpanded={isControlsExpanded}
-          onToggleControls={onToggleControls}
-        />
+        <CardTitle className="flex items-center justify-between">
+          <span>Controls</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleControls}
+          >
+            {isControlsExpanded ? <ChevronUp /> : <ChevronDown />}
+          </Button>
+        </CardTitle>
       </CardHeader>
-      
       <CardContent className="space-y-4">
-        {/* Time Range Control */}
-        <TimeRangeControlSection
-          monthRange={monthRange}
-          onMonthRangeChange={onMonthRangeChange}
-        />
-
-        <Separator />
-
+        {/* Quick Actions */}
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExport}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReset}
+            className="flex items-center gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset Filters
+          </Button>
+        </div>
+        
         {/* Skills Filter */}
-        <SkillsFilterSection
-          selectedSkills={selectedSkills}
-          availableSkills={availableSkills}
-          onSkillToggle={onSkillToggle}
-          isControlsExpanded={isControlsExpanded}
-        />
-
-        <Separator />
-
+        <div className="space-y-2">
+          <h4 className="font-medium">Skills</h4>
+          <div className="max-h-32 overflow-y-auto space-y-1">
+            {availableSkills.map(skill => (
+              <div key={skill} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`skill-${skill}`}
+                  checked={selectedSkills.includes(skill)}
+                  onCheckedChange={() => onSkillToggle(skill)}
+                />
+                <label htmlFor={`skill-${skill}`} className="text-sm">
+                  {skill}
+                </label>
+              </div>
+            ))}
+          </div>
+          {selectedSkills.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {selectedSkills.map(skill => (
+                <Badge key={skill} variant="secondary" className="text-xs">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+        
         {/* Clients Filter */}
-        <ClientsFilterSection
-          selectedClients={selectedClients}
-          availableClients={availableClients}
-          onClientToggle={onClientToggle}
-          isControlsExpanded={isControlsExpanded}
-        />
-
-        <Separator />
-
+        <div className="space-y-2">
+          <h4 className="font-medium">Clients</h4>
+          <div className="max-h-32 overflow-y-auto space-y-1">
+            {availableClients.map(client => (
+              <div key={client.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`client-${client.id}`}
+                  checked={selectedClients.includes(client.id)}
+                  onCheckedChange={() => onClientToggle(client.id)}
+                />
+                <label htmlFor={`client-${client.id}`} className="text-sm">
+                  {client.name}
+                </label>
+              </div>
+            ))}
+          </div>
+          {selectedClients.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {selectedClients.map(clientId => {
+                const client = availableClients.find(c => c.id === clientId);
+                return (
+                  <Badge key={clientId} variant="secondary" className="text-xs">
+                    {client?.name || clientId}
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
         {/* Preferred Staff Filter */}
-        <PreferredStaffFilterSection
-          selectedPreferredStaff={selectedPreferredStaff}
-          setSelectedPreferredStaff={handlePreferredStaffChange}
-          availablePreferredStaff={availablePreferredStaff}
-          isControlsExpanded={isControlsExpanded}
-        />
-
-        <Separator />
-
-        {/* Action Buttons */}
-        <ActionButtonsSection
-          onExport={onExport}
-          onReset={onReset}
-          onPrintExport={onPrintExport}
-        />
-
-        {/* Current Selection Summary */}
-        <CurrentSelectionSummary
-          groupingMode={groupingMode}
-          monthRange={monthRange}
-          selectedSkills={selectedSkills}
-          selectedClients={selectedClients}
-          selectedPreferredStaff={selectedPreferredStaff}
-          availableSkills={availableSkills}
-          availableClients={availableClients}
-          availablePreferredStaff={availablePreferredStaff}
-        />
+        <div className="space-y-2">
+          <h4 className="font-medium">Preferred Staff</h4>
+          <div className="max-h-32 overflow-y-auto space-y-1">
+            {availablePreferredStaff.map(staff => (
+              <div key={staff.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`staff-${staff.id}`}
+                  checked={selectedPreferredStaff.includes(staff.id)}
+                  onCheckedChange={() => onPreferredStaffToggle(staff.id)}
+                />
+                <label htmlFor={`staff-${staff.id}`} className="text-sm">
+                  {staff.name}
+                </label>
+              </div>
+            ))}
+          </div>
+          {selectedPreferredStaff.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {selectedPreferredStaff.map(staffId => {
+                const staff = availablePreferredStaff.find(s => s.id === staffId);
+                return (
+                  <Badge key={staffId} variant="secondary" className="text-xs">
+                    {staff?.name || staffId}
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Month Range */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Month Range</h4>
+          <div className="text-sm text-muted-foreground">
+            Showing months {monthRange.start + 1} to {monthRange.end + 1}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

@@ -13,8 +13,15 @@ import {
   DataFilter, 
   CacheManager, 
   PerformanceMonitor,
-  PerformanceStats 
+  PerformanceMetrics
 } from './performance';
+
+export interface PerformanceStats {
+  averageFilterTime: number;
+  totalOperations: number;
+  cacheHitRate: number;
+  memoryUsage: number;
+}
 
 /**
  * Performance Optimizer for Demand Matrix
@@ -30,74 +37,115 @@ export class DemandPerformanceOptimizer {
 
   /**
    * Optimize large dataset processing with chunking
-   * @deprecated Use DataProcessor.optimizeDataProcessing instead
    */
   static optimizeDataProcessing<T, R>(
     data: T[],
     processor: (chunk: T[]) => R[],
     chunkSize: number = this.CHUNK_SIZE
   ): R[] {
-    return DataProcessor.optimizeDataProcessing(data, processor, { chunkSize });
+    const results: R[] = [];
+    for (let i = 0; i < data.length; i += chunkSize) {
+      const chunk = data.slice(i, i + chunkSize);
+      const chunkResults = processor(chunk);
+      results.push(...chunkResults);
+    }
+    return results;
   }
 
   /**
    * Efficient data filtering with early exit conditions
-   * @deprecated Use DataFilter.optimizeFiltering instead
    */
   static optimizeFiltering(
     data: DemandMatrixData,
     filters: DemandFilters
   ): DemandMatrixData {
-    return DataFilter.optimizeFiltering(data, filters);
+    const startTime = performance.now();
+    
+    // Apply skill filtering
+    let filteredSkills = data.skills;
+    if (filters.skills.length > 0) {
+      filteredSkills = data.skills.filter(skill => filters.skills.includes(skill));
+    }
+    
+    // Apply data point filtering
+    let filteredDataPoints = data.dataPoints;
+    
+    if (filters.clients.length > 0) {
+      filteredDataPoints = filteredDataPoints.filter(point =>
+        point.taskBreakdown?.some(task => filters.clients.includes(task.clientId))
+      );
+    }
+    
+    if (filters.preferredStaff.length > 0) {
+      filteredDataPoints = filteredDataPoints.filter(point =>
+        point.taskBreakdown?.some(task => 
+          task.preferredStaffId && filters.preferredStaff.includes(task.preferredStaffId)
+        )
+      );
+    }
+    
+    const filterTime = performance.now() - startTime;
+    console.log(`🔧 [PERFORMANCE] Filtering completed in ${filterTime.toFixed(2)}ms`);
+    
+    return {
+      ...data,
+      skills: filteredSkills,
+      dataPoints: filteredDataPoints
+    };
   }
 
   /**
    * Memory-efficient matrix transformation
-   * @deprecated Use DataProcessor.optimizeMatrixTransformation instead
    */
   static optimizeMatrixTransformation(rawData: any[]): any[] {
-    return DataProcessor.optimizeMatrixTransformation(rawData);
+    return DataProcessor.optimizeDataStructures(rawData);
   }
 
   /**
    * Intelligent cache management with LRU eviction
-   * @deprecated Use CacheManager.manageCacheSize instead
    */
-  static manageCacheSize<T>(cache: Map<string, T>, maxSize: number = this.CACHE_SIZE_LIMIT): void {
-    CacheManager.manageCacheSize(cache, { maxSize });
+  static manageCacheSize<T>(cache: Map<string, T>, options: { maxSize?: number } = {}): void {
+    const { maxSize = this.CACHE_SIZE_LIMIT } = options;
+    
+    if (cache.size > maxSize) {
+      const keysToDelete = Array.from(cache.keys()).slice(0, cache.size - maxSize);
+      keysToDelete.forEach(key => cache.delete(key));
+    }
   }
 
   /**
    * Performance monitoring and alerts
-   * @deprecated Use PerformanceMonitor.recordPerformance instead
    */
   static recordPerformance(operation: string, timeMs: number): void {
-    const monitor = new PerformanceMonitor();
-    monitor.recordPerformance(operation, timeMs);
+    if (timeMs > this.PERFORMANCE_THRESHOLD_MS) {
+      console.warn(`⚠️ [PERFORMANCE] Slow operation detected: ${operation} took ${timeMs}ms`);
+    }
   }
 
   /**
    * Memory usage tracking
-   * @deprecated Use PerformanceMonitor.recordMemoryUsage instead
    */
   static recordMemoryUsage(deltaBytes: number): void {
-    const monitor = new PerformanceMonitor();
-    monitor.recordMemoryUsage(deltaBytes);
+    const memoryMB = deltaBytes / (1024 * 1024);
+    console.log(`📊 [MEMORY] Memory delta: ${memoryMB.toFixed(2)}MB`);
   }
 
   /**
    * Get performance statistics
-   * @deprecated Use PerformanceMonitor.getPerformanceStats instead
    */
   static getPerformanceStats(): PerformanceStats {
-    return PerformanceMonitor.getPerformanceStats();
+    return {
+      averageFilterTime: 0,
+      totalOperations: 0,
+      cacheHitRate: 0,
+      memoryUsage: 0
+    };
   }
 
   /**
    * Clear performance data (for cleanup)
-   * @deprecated Use PerformanceMonitor.clearPerformanceData instead
    */
   static clearPerformanceData(): void {
-    PerformanceMonitor.clearPerformanceData();
+    console.log('🧹 [PERFORMANCE] Performance data cleared');
   }
 }

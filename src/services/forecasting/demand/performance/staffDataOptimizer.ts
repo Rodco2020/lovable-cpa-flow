@@ -165,6 +165,11 @@ export class StaffDataOptimizer {
     totalMemoryMB: number;
     oldestEntry: number;
   } {
-    return CacheManager.getStats();
+    const stats = CacheManager.getStats();
+    return {
+      totalEntries: stats.size,
+      totalMemoryMB: stats.memoryUsageMB,
+      oldestEntry: stats.oldestEntry
+    };
   }
 }

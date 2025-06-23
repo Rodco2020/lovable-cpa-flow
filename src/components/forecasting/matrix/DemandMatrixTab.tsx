@@ -47,18 +47,21 @@ export const DemandMatrixTab: React.FC = () => {
 
   // Extract available options from demand data
   const availableSkills = demandData?.skills || [];
-  const availableClients = demandData?.dataPoints
+  const availableClients: Array<{ id: string; name: string }> = demandData?.dataPoints
     ? Array.from(new Set(
         demandData.dataPoints
           .flatMap(dp => dp.taskBreakdown?.map(task => ({
             id: task.clientId,
             name: task.clientName
           })) || [])
-      ))
+      )).map(item => ({
+        id: item.id || '',
+        name: item.name || ''
+      }))
     : [];
 
   // Transform staff options to expected format
-  const availablePreferredStaff = staffOptions.map(staff => ({
+  const availablePreferredStaff: Array<{ id: string; name: string }> = staffOptions.map(staff => ({
     id: staff.id,
     name: staff.name
   }));
