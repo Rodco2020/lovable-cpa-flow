@@ -7,6 +7,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DemandMatrixData } from '@/types/demand';
 
 interface DemandMatrixVisualizationProps {
@@ -36,12 +37,20 @@ export const DemandMatrixVisualization: React.FC<DemandMatrixVisualizationProps>
         <CardTitle className="flex items-center justify-between">
           <span>Demand Matrix - {groupingMode === 'skill' ? 'By Skills' : 'By Clients'}</span>
           <div className="flex gap-2">
-            <Badge variant={groupingMode === 'skill' ? 'default' : 'outline'}>
+            <Button
+              variant={groupingMode === 'skill' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onGroupingModeChange('skill')}
+            >
               Skills
-            </Badge>
-            <Badge variant={groupingMode === 'client' ? 'default' : 'outline'}>
+            </Button>
+            <Button
+              variant={groupingMode === 'client' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onGroupingModeChange('client')}
+            >
               Clients
-            </Badge>
+            </Button>
           </div>
         </CardTitle>
       </CardHeader>
