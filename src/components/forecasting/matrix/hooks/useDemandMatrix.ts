@@ -35,7 +35,8 @@ export const useDemandMatrix = () => {
     filters: {
       skills: [],
       clients: [],
-      preferredStaff: []
+      preferredStaff: [],
+      timeHorizon: 'month'
     },
     groupingMode: 'skill',
     monthRange: { start: 0, end: 11 }
@@ -124,7 +125,8 @@ export const useDemandMatrix = () => {
       filters: {
         skills: [],
         clients: [],
-        preferredStaff: []
+        preferredStaff: [],
+        timeHorizon: 'month'
       }
     }));
   }, []);
