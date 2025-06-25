@@ -9,3 +9,6 @@ export { DemandMatrixCacheService } from './demandMatrixCacheService';
 export { DemandMatrixValidationService } from './demandMatrixValidationService';
 export { DemandMatrixOrchestrator } from './demandMatrixOrchestrator';
 export { SkillResolutionService } from './skillResolutionService';
+
+// Re-export RecurrenceCalculator from the recurrenceCalculator module
+export { RecurrenceCalculator } from './recurrenceCalculator';
