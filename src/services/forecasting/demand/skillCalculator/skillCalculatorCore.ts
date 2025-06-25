@@ -1,4 +1,3 @@
-
 import { debugLog } from '../../logger';
 import { SkillHours } from '@/types/forecasting';
 import { RecurringTaskDB, SkillType } from '@/types/task';
@@ -7,46 +6,16 @@ import { DataValidator } from '../dataValidator';
 import { SkillValidationUtils } from './validationUtils';
 import { AnnualTaskTracker } from './annualTaskTracker';
 import { SkillDataProcessor } from './skillDataProcessor';
-import { MatrixCalculationMonitor } from '../matrixCalculationMonitor';
+import { SkillCalculationMonitor } from './skillCalculationMonitor';
+import { WeekdayCalculationService } from './weekdayCalculationService';
 
 /**
  * Core skill calculation engine with enhanced weekday calculation logic
- * 
- * WEEKDAY CALCULATION DOCUMENTATION:
- * 
- * The system now supports accurate weekday-specific calculations for weekly recurring tasks.
- * Instead of using a fixed 4.33 weeks/month approximation, the system calculates based on:
- * 
- * Formula: estimatedHours × numberOfSelectedWeekdays × (30.44 days/month ÷ 7 days/week) ÷ recurrenceInterval
- * 
- * Examples:
- * - Task: 5 hours, Weekly (every 1 week), Weekdays: [1, 3, 5] (Mon, Wed, Fri)
- *   Calculation: 5 × 3 × 4.35 ÷ 1 = 65.25 hours/month
- * 
- * - Task: 8 hours, Bi-weekly (every 2 weeks), Weekdays: [2, 4] (Tue, Thu)
- *   Calculation: 8 × 2 × 4.35 ÷ 2 = 34.8 hours/month
- * 
- * - Task: 12 hours, Weekly, No specific weekdays (legacy behavior)
- *   Calculation: 12 × 4.33 ÷ 1 = 51.96 hours/month
- * 
- * Phase 4 Enhancements:
- * - Integrated performance monitoring for matrix calculations
- * - Enhanced integration testing support
- * - System-wide consistency validation
- * - Regression testing safeguards
+ * Refactored to use focused services for monitoring and weekday calculations
  */
 export class SkillCalculatorCore {
   /**
    * Calculate monthly demand by skill with enhanced weekday-aware calculations
-   * 
-   * This method processes recurring tasks and calculates accurate demand forecasts
-   * by considering specific weekdays for weekly recurring tasks. The calculation
-   * ensures proper integration with the matrix visualization system.
-   * 
-   * @param tasks Array of recurring tasks to process
-   * @param monthStart Start date of the calculation period
-   * @param monthEnd End date of the calculation period
-   * @returns Promise<SkillHours[]> Array of skill demands with calculated hours
    */
   static async calculateMonthlyDemandBySkill(
     tasks: RecurringTaskDB[],
@@ -61,35 +30,26 @@ export class SkillCalculatorCore {
       monthStart: monthStart.toISOString(),
       monthEnd: monthEnd.toISOString(),
       periodMonth,
-      periodMonthName,
-      monitoringActive: MatrixCalculationMonitor.isMonitoringActive()
+      periodMonthName
     });
 
-    // Use performance monitoring if active
-    if (MatrixCalculationMonitor.isMonitoringActive()) {
-      return MatrixCalculationMonitor.monitorSkillCalculation(
-        'monthly-demand-by-skill',
-        () => this.performCalculationWithMonitoring(tasks, monthStart, monthEnd, periodMonth, periodMonthName),
-        {
-          tasksCount: tasks.length,
-          periodMonth: periodMonthName,
-          hasWeeklyTasks: tasks.some(t => t.recurrence_type?.toLowerCase() === 'weekly'),
-          hasAnnualTasks: tasks.some(t => t.recurrence_type?.toLowerCase().includes('annual'))
-        }
-      );
-    } else {
-      return this.performCalculationWithMonitoring(tasks, monthStart, monthEnd, periodMonth, periodMonthName);
-    }
+    // Use monitoring service for performance tracking
+    return SkillCalculationMonitor.monitorSkillCalculation(
+      'monthly-demand-by-skill',
+      () => this.performCalculationWithEnhancedServices(tasks, monthStart, monthEnd, periodMonth, periodMonthName),
+      {
+        tasksCount: tasks.length,
+        periodMonth: periodMonthName,
+        hasWeeklyTasks: tasks.some(t => t.recurrence_type?.toLowerCase() === 'weekly'),
+        hasAnnualTasks: tasks.some(t => t.recurrence_type?.toLowerCase().includes('annual'))
+      }
+    );
   }
 
   /**
-   * Perform calculation with integrated monitoring and enhanced weekday processing
-   * 
-   * This private method handles the core calculation logic while maintaining
-   * performance monitoring and ensuring accurate weekday-based calculations
-   * for weekly recurring tasks.
+   * Perform calculation with enhanced services integration
    */
-  private static async performCalculationWithMonitoring(
+  private static async performCalculationWithEnhancedServices(
     tasks: RecurringTaskDB[],
     monthStart: Date,
     monthEnd: Date,
@@ -104,7 +64,6 @@ export class SkillCalculatorCore {
       
       if (!inputValidation.isValid) {
         console.error('❌ [SKILL CALCULATOR] Input validation failed:', inputValidation.errors);
-        MatrixCalculationMonitor.logPerformanceWarning('input-validation', validationTime, 100);
         return [];
       }
 
@@ -116,6 +75,9 @@ export class SkillCalculatorCore {
       if (annualTasks.length > 0) {
         this.logAnnualTasksAnalysis(annualTasks, periodMonth, periodMonthName);
       }
+
+      // Log weekday calculation summary using the service
+      WeekdayCalculationService.logCalculationSummary(tasks, periodMonthName);
 
       // Clear annual task tracker for this calculation
       AnnualTaskTracker.clearTracker();
@@ -140,7 +102,7 @@ export class SkillCalculatorCore {
 
       // Process tasks and calculate demand with monitoring
       const processingStart = performance.now();
-      const { skillDemandMap, processingStats } = await this.processTasksForDemand(
+      const { skillDemandMap, processingStats } = await this.processTasksForDemandWithServices(
         validTasks, 
         monthStart, 
         monthEnd,
@@ -148,11 +110,8 @@ export class SkillCalculatorCore {
       );
       const processingTime = performance.now() - processingStart;
 
-      // Performance warning for slow processing
-      MatrixCalculationMonitor.logPerformanceWarning('task-processing', processingTime, 1000);
-
-      // Log processing summary
-      this.logProcessingSummary(processingStats, periodMonthName);
+      // Use monitoring service for processing statistics
+      SkillCalculationMonitor.logProcessingStats(processingStats, periodMonthName);
 
       // Convert to SkillHours array with monitoring
       const conversionStart = performance.now();
@@ -166,7 +125,7 @@ export class SkillCalculatorCore {
         periodMonth: periodMonthName,
         annualTasksProcessed: processingStats.annualTasksProcessed,
         annualTasksIncluded: processingStats.annualTasksIncluded,
-        weeklyTasksProcessed: processingStats.weeklyTasksProcessed || 0, // Added weekly tracking
+        weeklyTasksProcessed: processingStats.weeklyTasksProcessed || 0,
         performanceMetrics: {
           validationTime: validationTime.toFixed(2) + 'ms',
           taskValidationTime: taskValidationTime.toFixed(2) + 'ms',
@@ -189,23 +148,9 @@ export class SkillCalculatorCore {
   }
 
   /**
-   * Process all tasks for demand calculation with enhanced weekday-aware processing
-   * 
-   * This method processes each task through the RecurrenceCalculator, which now
-   * includes enhanced weekday calculation logic for weekly recurring tasks.
-   * 
-   * WEEKDAY PROCESSING LOGIC:
-   * - Weekly tasks with weekdays array: Uses accurate weekday-based calculation
-   * - Weekly tasks without weekdays: Falls back to legacy 4.33 weeks/month formula
-   * - Non-weekly tasks: Processed using existing recurrence logic
-   * 
-   * @param validTasks Array of validated recurring tasks
-   * @param monthStart Start date of calculation period
-   * @param monthEnd End date of calculation period
-   * @param periodMonth Month number for logging purposes
-   * @returns Processing results including skill demand map and statistics
+   * Process all tasks for demand calculation with enhanced services integration
    */
-  private static async processTasksForDemand(
+  private static async processTasksForDemandWithServices(
     validTasks: RecurringTaskDB[],
     monthStart: Date,
     monthEnd: Date,
@@ -217,8 +162,8 @@ export class SkillCalculatorCore {
       totalCalculatedHours: number;
       annualTasksProcessed: number;
       annualTasksIncluded: number;
-      weeklyTasksProcessed: number; // Added weekly tracking
-      weeklyTasksWithWeekdays: number; // Added weekday-specific tracking
+      weeklyTasksProcessed: number;
+      weeklyTasksWithWeekdays: number;
     };
   }> {
     const skillDemandMap = new Map<SkillType, number>();
@@ -241,10 +186,13 @@ export class SkillCalculatorCore {
           annualTasksProcessed++;
         }
         
-        // Enhanced weekly task tracking with weekday analysis
+        // Enhanced weekly task tracking with weekday analysis using service
         if (isWeeklyTask) {
           weeklyTasksProcessed++;
-          if (task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0) {
+          
+          // Use WeekdayCalculationService to check for enhanced calculation
+          const weekdayResult = WeekdayCalculationService.calculateWeeklyTaskOccurrences(task);
+          if (weekdayResult.usedWeekdayCalculation) {
             weeklyTasksWithWeekdays++;
           }
         }
@@ -262,19 +210,7 @@ export class SkillCalculatorCore {
           weekdays: isWeeklyTask ? task.weekdays : 'N/A'
         });
 
-        /**
-         * ENHANCED RECURRENCE CALCULATION WITH WEEKDAY SUPPORT
-         * 
-         * The RecurrenceCalculator.calculateMonthlyDemand method now includes:
-         * - Weekday-aware calculations for weekly tasks
-         * - Proper validation and fallback mechanisms
-         * - Enhanced logging for debugging purposes
-         * 
-         * Weekly Task Calculation Examples:
-         * - Task with weekdays [1,3,5]: 3 days × 4.35 weeks = 13.05 occurrences/month
-         * - Task with weekdays [2,4]: 2 days × 4.35 weeks = 8.7 occurrences/month
-         * - Task without weekdays: Uses legacy 4.33 weeks/month calculation
-         */
+        // Enhanced recurrence calculation with performance tracking
         const recurrenceStart = performance.now();
         const recurrenceCalc = RecurrenceCalculator.calculateMonthlyDemand(
           task, 
@@ -283,10 +219,13 @@ export class SkillCalculatorCore {
         );
         const recurrenceTime = performance.now() - recurrenceStart;
 
-        // Log performance warning for slow recurrence calculations
-        if (recurrenceTime > 100) {
-          console.warn(`⚠️ [SKILL CALCULATOR] Slow recurrence calculation for task ${task.id}: ${recurrenceTime.toFixed(2)}ms`);
-        }
+        // Use monitoring service for task performance tracking
+        SkillCalculationMonitor.trackTaskProcessing(task.id, recurrenceTime, {
+          isAnnualTask,
+          isWeeklyTask,
+          hasWeekdays: isWeeklyTask && task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0,
+          monthlyHours: recurrenceCalc.monthlyHours
+        });
 
         // Track annual tasks specifically
         if (isAnnualTask) {
@@ -341,9 +280,6 @@ export class SkillCalculatorCore {
 
   /**
    * Log annual tasks analysis with detailed breakdown
-   * 
-   * Provides comprehensive analysis of annual tasks for debugging and
-   * validation purposes, helping ensure accurate monthly inclusion logic.
    */
   private static logAnnualTasksAnalysis(
     annualTasks: RecurringTaskDB[],
@@ -366,51 +302,6 @@ export class SkillCalculatorCore {
         dayOfMonth: task.day_of_month,
         shouldIncludePrediction: AnnualTaskTracker.predictAnnualTaskInclusion(task, periodMonth)
       }))
-    });
-  }
-
-  /**
-   * Log comprehensive processing summary with enhanced weekly task metrics
-   * 
-   * Provides detailed breakdown of processing results including specific
-   * metrics for weekly tasks with weekday calculations.
-   */
-  private static logProcessingSummary(
-    stats: {
-      processedTaskCount: number;
-      totalCalculatedHours: number;
-      annualTasksProcessed: number;
-      annualTasksIncluded: number;
-      weeklyTasksProcessed: number;
-      weeklyTasksWithWeekdays: number;
-    },
-    periodMonthName: string
-  ): void {
-    // Enhanced annual task summary
-    if (stats.annualTasksProcessed > 0) {
-      const summary = AnnualTaskTracker.getSummary();
-      console.log('📈 [ANNUAL TASK SUMMARY]:', {
-        totalAnnualTasks: summary.totalAnnualTasks,
-        includedAnnualTasks: summary.includedAnnualTasks,
-        excludedAnnualTasks: summary.excludedAnnualTasks,
-        periodMonth: periodMonthName,
-        detailedBreakdown: AnnualTaskTracker.getAllTrackedTasks()
-      });
-    }
-
-    // Enhanced processing summary with weekly task metrics
-    console.log('📊 [SKILL CALCULATOR] Processing summary:', {
-      processedTasks: stats.processedTaskCount,
-      totalCalculatedHours: stats.totalCalculatedHours,
-      annualTasksProcessed: stats.annualTasksProcessed,
-      annualTasksIncluded: stats.annualTasksIncluded,
-      annualTasksSkipped: stats.annualTasksProcessed - stats.annualTasksIncluded,
-      weeklyTasksProcessed: stats.weeklyTasksProcessed,
-      weeklyTasksWithWeekdays: stats.weeklyTasksWithWeekdays,
-      weeklyTasksLegacyCalculation: stats.weeklyTasksProcessed - stats.weeklyTasksWithWeekdays,
-      weekdayCalculationRate: stats.weeklyTasksProcessed > 0 
-        ? `${((stats.weeklyTasksWithWeekdays / stats.weeklyTasksProcessed) * 100).toFixed(1)}%` 
-        : 'N/A'
     });
   }
 }
