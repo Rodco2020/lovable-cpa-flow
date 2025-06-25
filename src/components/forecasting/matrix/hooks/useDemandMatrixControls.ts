@@ -4,6 +4,8 @@ import { SkillType } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
 import { useClients } from '@/hooks/useClients';
 import { useSkills } from '@/hooks/useSkills';
+import { useMatrixFiltering } from './useMatrixFiltering';
+import { useMatrixExport } from './useMatrixExport';
 
 interface UseDemandMatrixControlsProps {
   demandData?: DemandMatrixData | null;
@@ -16,45 +18,51 @@ interface DemandMatrixControlsState {
   monthRange: { start: number; end: number };
 }
 
+/**
+ * Hook for managing demand matrix controls UI state
+ * 
+ * Focused on UI state management and user interactions.
+ * Delegates filtering logic to useMatrixFiltering and export logic to useMatrixExport.
+ * Maintains exact same functionality as the original implementation.
+ */
 export const useDemandMatrixControls = ({ 
   demandData, 
   groupingMode 
 }: UseDemandMatrixControlsProps) => {
-  // Initialize state
+  // Initialize UI state
   const [state, setState] = useState<DemandMatrixControlsState>({
     selectedSkills: [],
     selectedClients: [],
     monthRange: { start: 0, end: 11 }
   });
 
-  // Fetch available skills and clients
+  // Fetch external data for loading states
   const { data: skillsData, isLoading: skillsLoading } = useSkills();
   const { data: clientsData, isLoading: clientsLoading } = useClients();
 
-  // Extract available options from demand data and external sources
-  const availableSkills = demandData?.skills || [];
-  
-  // Extract ALL unique clients from task breakdowns without any limits
-  const availableClients = Array.from(new Set(
-    demandData?.dataPoints.flatMap(point => 
-      point.taskBreakdown
-        .filter(task => task.clientName && !task.clientName.includes('...'))
-        .map(task => ({
-          id: task.clientId,
-          name: task.clientName
-        }))
-    ) || []
-  ));
+  // Use filtering logic hook
+  const {
+    availableSkills,
+    availableClients,
+    isAllSkillsSelected,
+    isAllClientsSelected
+  } = useMatrixFiltering({
+    demandData,
+    selectedSkills: state.selectedSkills,
+    selectedClients: state.selectedClients,
+    monthRange: state.monthRange,
+    groupingMode
+  });
 
-  // FIXED: Calculate selection state flags for proper filtering logic
-  const isAllSkillsSelected = availableSkills.length > 0 && state.selectedSkills.length === availableSkills.length;
-  const isAllClientsSelected = availableClients.length > 0 && state.selectedClients.length === availableClients.length;
-
-  console.log(`🎛️ [MATRIX CONTROLS] Available options:`, {
-    availableSkills: availableSkills.length,
-    availableClients: availableClients.length,
-    selectedSkills: state.selectedSkills.length,
-    selectedClients: state.selectedClients.length,
+  // Use export functionality hook
+  const { handleExport } = useMatrixExport({
+    demandData,
+    selectedSkills: state.selectedSkills,
+    selectedClients: state.selectedClients,
+    monthRange: state.monthRange,
+    groupingMode,
+    availableSkills,
+    availableClients,
     isAllSkillsSelected,
     isAllClientsSelected
   });
@@ -140,79 +148,6 @@ export const useDemandMatrixControls = ({
       clientsCount: availableClients.length
     });
   }, [availableSkills, availableClients]);
-
-  // Handle export
-  const handleExport = useCallback(() => {
-    if (!demandData) return;
-
-    // Generate CSV export for demand data
-    const headers = ['Skill/Client', 'Month', 'Demand (Hours)', 'Task Count', 'Client Count'];
-    let csvData = headers.join(',') + '\n';
-    
-    const filteredMonths = demandData.months.slice(state.monthRange.start, state.monthRange.end + 1);
-    
-    if (groupingMode === 'skill') {
-      // Export skills - use ALL if all are selected, otherwise use filtered list
-      const skillsToExport = isAllSkillsSelected ? availableSkills : state.selectedSkills;
-      
-      skillsToExport.forEach(skill => {
-        filteredMonths.forEach(month => {
-          const dataPoint = demandData.dataPoints.find(
-            point => point.skillType === skill && point.month === month.key
-          );
-          
-          if (dataPoint) {
-            const row = [
-              `"${skill}"`,
-              `"${month.label}"`,
-              dataPoint.demandHours.toFixed(1),
-              dataPoint.taskCount.toString(),
-              dataPoint.clientCount.toString()
-            ];
-            
-            csvData += row.join(',') + '\n';
-          }
-        });
-      });
-    } else {
-      // Export clients - use ALL if all are selected, otherwise use filtered list
-      const clientsToExport = isAllClientsSelected ? availableClients : availableClients.filter(client => state.selectedClients.includes(client.id));
-      
-      clientsToExport.forEach(client => {
-        filteredMonths.forEach(month => {
-          const monthData = demandData.dataPoints.find(point => point.month === month.key);
-          const clientTasks = monthData?.taskBreakdown.filter(task => task.clientId === client.id) || [];
-          const totalHours = clientTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
-          
-          const row = [
-            `"${client.name}"`,
-            `"${month.label}"`,
-            totalHours.toFixed(1),
-            clientTasks.length.toString(),
-            clientTasks.length > 0 ? '1' : '0'
-          ];
-          
-          csvData += row.join(',') + '\n';
-        });
-      });
-    }
-    
-    // Download CSV
-    const blob = new Blob([csvData], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `demand-matrix-${groupingMode}-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    
-    console.log(`📁 [MATRIX CONTROLS] Exported ${groupingMode} data:`, {
-      itemCount: groupingMode === 'skill' ? (isAllSkillsSelected ? availableSkills.length : state.selectedSkills.length) : (isAllClientsSelected ? availableClients.length : state.selectedClients.length),
-      monthCount: filteredMonths.length
-    });
-  }, [demandData, state, groupingMode, availableSkills, availableClients, isAllSkillsSelected, isAllClientsSelected]);
 
   return {
     ...state,
