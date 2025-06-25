@@ -2,22 +2,23 @@
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
-import { RecurringTaskDB, TaskPriority, TaskCategory, TaskStatus } from '@/types/task';
-import { DataValidator } from './dataValidator';
+import { RecurringTaskDB } from '@/types/task';
+import { DataTransformationService } from './dataTransformationService';
 
 /**
- * Enhanced Data Fetcher Service with validation, error handling, and skill resolution
+ * Pure Data Fetcher Service
+ * Focused on database queries and data retrieval without validation logic
  */
 export class DataFetcher {
   /**
-   * Fetch client-assigned tasks with comprehensive validation and error recovery
+   * Fetch client-assigned tasks with basic error handling
    */
   static async fetchClientAssignedTasks(filters: DemandFilters = { 
     skills: [], 
     clients: [], 
     timeHorizon: { start: new Date(), end: new Date() } 
   }): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching client-assigned tasks with enhanced validation', { filters });
+    debugLog('Fetching client-assigned tasks', { filters });
 
     try {
       // Build query with proper error handling
@@ -25,12 +26,10 @@ export class DataFetcher {
         .from('recurring_tasks')
         .select('*, clients!inner(id, legal_name, expected_monthly_revenue)')
         .eq('is_active', true)
-        // Explicit range to avoid default 10 row limit in some environments
-        .range(0, 999);
+        .range(0, 999); // Explicit range to avoid default 10 row limit
 
       // Apply filters safely
       if (filters.clients && filters.clients.length > 0) {
-        // Validate client IDs
         const validClientIds = filters.clients.filter(id => 
           typeof id === 'string' && id.length > 0
         );
@@ -40,7 +39,7 @@ export class DataFetcher {
         }
       }
 
-      // Execute query with timeout and retry logic - REMOVED LIMIT
+      // Execute query
       const { data, error } = await query;
 
       if (error) {
@@ -55,45 +54,18 @@ export class DataFetcher {
 
       debugLog(`Fetched ${data.length} recurring tasks from database`);
 
-      // Type-cast the raw data to ensure proper typing
-      const typedData: RecurringTaskDB[] = data.map(task => ({
-        ...task,
-        priority: task.priority as TaskPriority,
-        category: task.category as TaskCategory,
-        status: task.status as TaskStatus
-      }));
-
-      // Enhanced validation and cleaning with skill resolution
-      const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(typedData);
-
-      // Provide detailed feedback about data quality
-      if (invalidTasks.length > 0) {
-        console.warn(`Data quality issues: ${invalidTasks.length}/${typedData.length} tasks excluded`);
-        
-        // Group errors for better reporting
-        const errorSummary = this.summarizeValidationErrors(invalidTasks);
-        console.warn('Validation error summary:', errorSummary);
-      }
-
-      if (resolvedTasks.length > 0) {
-        console.log(`Successfully resolved skill references for ${resolvedTasks.length} tasks`);
-      }
-
-      const successRate = ((validTasks.length / typedData.length) * 100).toFixed(1);
-      debugLog(`Data validation complete: ${validTasks.length}/${typedData.length} tasks valid (${successRate}%)`);
-      
-      return validTasks;
+      // Transform raw data to typed objects
+      const typedData = DataTransformationService.transformRecurringTasks(data);
+      return typedData;
 
     } catch (error) {
       console.error('Error in fetchClientAssignedTasks:', error);
-      
-      // Instead of returning empty array, try a fallback approach
       return this.attemptFallbackDataFetch();
     }
   }
 
   /**
-   * Attempt fallback data fetch with minimal filtering - REMOVED LIMIT
+   * Attempt fallback data fetch with minimal filtering
    */
   private static async attemptFallbackDataFetch(): Promise<RecurringTaskDB[]> {
     try {
@@ -103,7 +75,7 @@ export class DataFetcher {
         .from('recurring_tasks')
         .select('*, clients(id, legal_name, expected_monthly_revenue)')
         .eq('is_active', true)
-        .range(0, 999); // explicitly fetch up to 1000 rows
+        .range(0, 999);
 
       if (error) {
         console.error('Fallback query also failed:', error);
@@ -116,16 +88,7 @@ export class DataFetcher {
       }
 
       // Apply basic type casting and minimal validation
-      const fallbackTasks: RecurringTaskDB[] = data
-        .filter(task => task && task.id && task.client_id) // Basic existence check
-        .map(task => ({
-          ...task,
-          priority: (task.priority as TaskPriority) || 'Medium',
-          category: (task.category as TaskCategory) || 'Other',
-          status: (task.status as TaskStatus) || 'Unscheduled',
-          required_skills: Array.isArray(task.required_skills) ? task.required_skills : []
-        }));
-
+      const fallbackTasks = DataTransformationService.createFallbackTasks(data);
       console.log(`Fallback fetch recovered ${fallbackTasks.length} tasks`);
       return fallbackTasks;
 
@@ -136,31 +99,7 @@ export class DataFetcher {
   }
 
   /**
-   * Summarize validation errors for better reporting
-   */
-  private static summarizeValidationErrors(invalidTasks: Array<{ task: RecurringTaskDB; errors: string[] }>): Record<string, number> {
-    const errorCounts: Record<string, number> = {};
-
-    invalidTasks.forEach(({ errors }) => {
-      errors.forEach(error => {
-        // Categorize errors for cleaner reporting
-        let category = 'Other';
-        
-        if (error.includes('skill')) category = 'Invalid Skills';
-        else if (error.includes('hours')) category = 'Invalid Hours';
-        else if (error.includes('date')) category = 'Invalid Dates';
-        else if (error.includes('ID')) category = 'Missing IDs';
-        else if (error.includes('recurrence')) category = 'Invalid Recurrence';
-
-        errorCounts[category] = (errorCounts[category] || 0) + 1;
-      });
-    });
-
-    return errorCounts;
-  }
-
-  /**
-   * Fetch available skills with validation - REMOVED LIMIT
+   * Fetch available skills
    */
   static async fetchAvailableSkills(): Promise<string[]> {
     try {
@@ -168,26 +107,14 @@ export class DataFetcher {
         .from('skills')
         .select('id, name')
         .order('name')
-        .range(0, 999); // ensure all skills retrieved
-        // REMOVED: .limit(100) - Now fetches all skills
+        .range(0, 999);
 
       if (error) {
         console.error('Error fetching skills:', error);
         return [];
       }
 
-      if (!Array.isArray(data)) {
-        console.warn('Skills data is not an array');
-        return [];
-      }
-
-      // Validate and extract skill names
-      const validSkills = data
-        .filter(skill => skill && typeof skill.name === 'string' && skill.name.trim().length > 0)
-        .map(skill => skill.name.trim());
-
-      debugLog(`Fetched ${validSkills.length} valid skills`);
-      return validSkills;
+      return DataTransformationService.transformSkillData(data);
 
     } catch (error) {
       console.error('Error fetching skills:', error);
@@ -196,7 +123,7 @@ export class DataFetcher {
   }
 
   /**
-   * Fetch available clients with validation - INCREASED LIMIT
+   * Fetch available clients
    */
   static async fetchAvailableClients(): Promise<Array<{ id: string; name: string }>> {
     try {
@@ -205,35 +132,14 @@ export class DataFetcher {
         .select('id, legal_name')
         .eq('status', 'Active')
         .order('legal_name')
-        .range(0, 999); // ensure all active clients fetched
-        // REMOVED: .limit(1000) - Now fetches all active clients
+        .range(0, 999);
 
       if (error) {
         console.error('Error fetching clients:', error);
         return [];
       }
 
-      if (!Array.isArray(data)) {
-        console.warn('Clients data is not an array');
-        return [];
-      }
-
-      // Validate and format client data
-      const validClients = data
-        .filter(client => 
-          client && 
-          typeof client.id === 'string' && 
-          typeof client.legal_name === 'string' &&
-          client.id.trim().length > 0 &&
-          client.legal_name.trim().length > 0
-        )
-        .map(client => ({
-          id: client.id.trim(),
-          name: client.legal_name.trim()
-        }));
-
-      debugLog(`Fetched ${validClients.length} valid clients`);
-      return validClients;
+      return DataTransformationService.transformClientData(data);
 
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -242,7 +148,7 @@ export class DataFetcher {
   }
 
   /**
-   * NEW: Fetch clients with revenue data for matrix calculations
+   * Fetch clients with revenue data for matrix calculations
    */
   static async fetchClientsWithRevenue(): Promise<Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>> {
     try {
@@ -258,29 +164,7 @@ export class DataFetcher {
         return [];
       }
 
-      if (!Array.isArray(data)) {
-        console.warn('Clients revenue data is not an array');
-        return [];
-      }
-
-      // Validate and format client revenue data
-      const validClients = data
-        .filter(client => 
-          client && 
-          typeof client.id === 'string' && 
-          typeof client.legal_name === 'string' &&
-          client.id.trim().length > 0 &&
-          client.legal_name.trim().length > 0 &&
-          typeof client.expected_monthly_revenue === 'number'
-        )
-        .map(client => ({
-          id: client.id.trim(),
-          legal_name: client.legal_name.trim(),
-          expected_monthly_revenue: Number(client.expected_monthly_revenue) || 0
-        }));
-
-      debugLog(`Fetched ${validClients.length} clients with revenue data`);
-      return validClients;
+      return DataTransformationService.transformClientsWithRevenue(data);
 
     } catch (error) {
       console.error('Error fetching clients with revenue:', error);

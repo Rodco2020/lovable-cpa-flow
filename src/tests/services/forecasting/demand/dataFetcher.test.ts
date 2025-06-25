@@ -1,6 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DataFetcher } from '@/services/forecasting/demand/dataFetcher';
+import { DataTransformationService } from '@/services/forecasting/demand/dataTransformationService';
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -8,7 +9,11 @@ vi.mock('@/integrations/supabase/client', () => ({
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          in: vi.fn(() => ({
+          range: vi.fn(() => ({
+            in: vi.fn(() => ({
+              data: [],
+              error: null
+            })),
             data: [],
             error: null
           }))
@@ -23,13 +28,14 @@ vi.mock('@/services/forecasting/logger', () => ({
   debugLog: vi.fn()
 }));
 
-// Mock DataValidator
-vi.mock('@/services/forecasting/demand/dataValidator', () => ({
-  DataValidator: {
-    validateRecurringTasks: vi.fn().mockReturnValue({
-      validTasks: [],
-      invalidTasks: []
-    })
+// Mock DataTransformationService
+vi.mock('@/services/forecasting/demand/dataTransformationService', () => ({
+  DataTransformationService: {
+    transformRecurringTasks: vi.fn().mockReturnValue([]),
+    createFallbackTasks: vi.fn().mockReturnValue([]),
+    transformClientData: vi.fn().mockReturnValue([]),
+    transformClientsWithRevenue: vi.fn().mockReturnValue([]),
+    transformSkillData: vi.fn().mockReturnValue([])
   }
 }));
 
@@ -51,6 +57,7 @@ describe('DataFetcher', () => {
 
       const result = await DataFetcher.fetchClientAssignedTasks(filters);
       expect(result).toEqual([]);
+      expect(DataTransformationService.transformRecurringTasks).toHaveBeenCalled();
     });
 
     it('should apply skill filters correctly', async () => {
@@ -65,6 +72,23 @@ describe('DataFetcher', () => {
 
       const result = await DataFetcher.fetchClientAssignedTasks(filters);
       expect(result).toEqual([]);
+      expect(DataTransformationService.transformRecurringTasks).toHaveBeenCalled();
+    });
+  });
+
+  describe('fetchAvailableSkills', () => {
+    it('should fetch and transform skills', async () => {
+      const result = await DataFetcher.fetchAvailableSkills();
+      expect(result).toEqual([]);
+      expect(DataTransformationService.transformSkillData).toHaveBeenCalled();
+    });
+  });
+
+  describe('fetchAvailableClients', () => {
+    it('should fetch and transform clients', async () => {
+      const result = await DataFetcher.fetchAvailableClients();
+      expect(result).toEqual([]);
+      expect(DataTransformationService.transformClientData).toHaveBeenCalled();
     });
   });
 });

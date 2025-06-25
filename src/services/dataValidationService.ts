@@ -1,14 +1,14 @@
 
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/services/errorLoggingService';
 
 /**
- * Data Validation Service
+ * General Data Validation Service
  * 
- * Provides validation functions for data integrity checks
- * across the application
+ * Provides validation functions for general data integrity checks
+ * across the application. This is separate from the demand-specific
+ * validation services.
  */
-
 class DataValidationService {
   /**
    * Validate that a client reference exists and is active

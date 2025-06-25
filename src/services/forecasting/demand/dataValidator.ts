@@ -1,6 +1,8 @@
+
 import { debugLog } from '../logger';
 import { RecurringTaskDB } from '@/types/task';
 import { SkillResolutionService } from './skillResolutionService';
+import { DataTransformationService } from './dataTransformationService';
 
 /**
  * Enhanced Data Validator with detailed skill resolution tracking
@@ -139,7 +141,8 @@ export class DataValidator {
       validTasks: validTasks.length,
       invalidTasks: invalidTasks.length,
       resolvedTasks: resolvedTasks.length,
-      validationRate: ((validTasks.length / tasks.length) * 100).toFixed(1) + '%'
+      validationRate: ((validTasks.length / tasks.length) * 100).toFixed(1) + '%',
+      errorSummary: DataTransformationService.summarizeValidationErrors(invalidTasks)
     });
 
     return result;
@@ -149,9 +152,6 @@ export class DataValidator {
    * Sanitize array length to prevent excessive calculations
    */
   static sanitizeArrayLength(value: number, maxValue: number): number {
-    if (typeof value !== 'number' || isNaN(value)) {
-      return 0;
-    }
-    return Math.min(Math.max(0, value), maxValue);
+    return DataTransformationService.sanitizeArrayLength(value, maxValue);
   }
 }
