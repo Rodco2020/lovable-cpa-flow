@@ -1,7 +1,6 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { QueryClient, QueryProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DemandMatrix } from '@/components/forecasting/matrix/DemandMatrix';
 import { DemandMatrixStateProvider } from '@/components/forecasting/matrix/DemandMatrixStateProvider';
 import { DemandMatrixContainer } from '@/components/forecasting/matrix/DemandMatrixContainer';
@@ -81,9 +80,9 @@ describe('DemandMatrix Refactored Components', () => {
 
   const renderWithProviders = (component: React.ReactElement) => {
     return render(
-      <QueryProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
         {component}
-      </QueryProvider>
+      </QueryClientProvider>
     );
   };
 
@@ -133,9 +132,9 @@ describe('DemandMatrix Refactored Components', () => {
       expect(screen.getByTestId('demand-matrix-loading')).toBeInTheDocument();
 
       rerender(
-        <QueryProvider client={queryClient}>
+        <QueryClientProvider client={queryClient}>
           <DemandMatrix className="test-class" groupingMode="client" />
-        </QueryProvider>
+        </QueryClientProvider>
       );
 
       expect(screen.getByTestId('demand-matrix-loading')).toBeInTheDocument();

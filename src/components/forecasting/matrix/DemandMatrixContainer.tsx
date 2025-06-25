@@ -102,8 +102,8 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
       setError(errorMessage);
       console.error('Error loading demand matrix data:', err);
       
-      // Increment retry count for tracking
-      setRetryCount(prev => prev + 1);
+      // FIXED: Increment retry count properly by passing the new value directly
+      setRetryCount(retryCount + 1);
       
       toast({
         title: "Error loading demand matrix",
