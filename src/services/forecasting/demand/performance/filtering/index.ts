@@ -7,7 +7,8 @@
  */
 
 // Core interfaces and base classes
-export { BaseFilterStrategy, AbstractFilterStrategy } from './baseFilterStrategy';
+export type { BaseFilterStrategy } from './baseFilterStrategy';
+export { AbstractFilterStrategy } from './baseFilterStrategy';
 
 // Concrete filter strategies
 export { SkillFilterStrategy } from './skillFilterStrategy';
