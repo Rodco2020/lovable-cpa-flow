@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, Clock, AlertTriangle } from 'lucide-react';
+import { format, differenceInDays, addMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DemandMatrixTimeControlsProps {
   timeHorizon: 'quarter' | 'half-year' | 'year' | 'custom';
@@ -42,6 +43,58 @@ export const DemandMatrixTimeControls: React.FC<DemandMatrixTimeControlsProps> =
         ? `${format(customDateRange.start, 'MMM dd')} - ${format(customDateRange.end, 'MMM dd, yyyy')}`
         : 'Select date range';
       default: return '';
+    }
+  };
+
+  // Validate custom date range
+  const validateDateRange = (range?: { start: Date; end: Date }) => {
+    if (!range) return { isValid: true, message: '' };
+
+    const daysDiff = differenceInDays(range.end, range.start);
+    
+    if (daysDiff < 0) {
+      return { isValid: false, message: 'End date must be after start date' };
+    }
+    
+    if (daysDiff === 0) {
+      return { isValid: false, message: 'Single-day ranges are not supported. Please select at least a monthly range.' };
+    }
+    
+    if (daysDiff < 7) {
+      return { isValid: false, message: 'Range too short. Please select at least a weekly range for meaningful forecasting.' };
+    }
+
+    return { isValid: true, message: '' };
+  };
+
+  const dateRangeValidation = validateDateRange(customDateRange);
+
+  // Enhanced date change handler with validation
+  const handleDateChange = (field: 'start' | 'end', date: Date | undefined) => {
+    if (!date || !customDateRange) return;
+
+    const newRange = {
+      ...customDateRange,
+      [field]: date
+    };
+
+    // Auto-expand to monthly boundaries for better data matching
+    if (field === 'start') {
+      newRange.start = startOfMonth(date);
+    } else {
+      newRange.end = endOfMonth(date);
+    }
+
+    // Validate the new range
+    const validation = validateDateRange(newRange);
+    
+    if (validation.isValid) {
+      onCustomDateRangeChange(newRange);
+      console.log(`✅ [TIME CONTROLS] Updated ${field} date to:`, newRange[field].toISOString());
+    } else {
+      console.warn(`⚠️ [TIME CONTROLS] Invalid date range:`, validation.message);
+      // Still update to show the validation message
+      onCustomDateRangeChange(newRange);
     }
   };
 
@@ -92,6 +145,16 @@ export const DemandMatrixTimeControls: React.FC<DemandMatrixTimeControlsProps> =
           <div className="space-y-3">
             <label className="text-sm font-medium">Custom Date Range</label>
             
+            {/* Validation Alert */}
+            {customDateRange && !dateRangeValidation.isValid && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {dateRangeValidation.message}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="grid grid-cols-1 gap-2">
               <Popover>
                 <PopoverTrigger asChild>
@@ -107,14 +170,7 @@ export const DemandMatrixTimeControls: React.FC<DemandMatrixTimeControlsProps> =
                   <Calendar
                     mode="single"
                     selected={customDateRange?.start}
-                    onSelect={(date) => {
-                      if (date && customDateRange?.end) {
-                        onCustomDateRangeChange({
-                          start: date,
-                          end: customDateRange.end
-                        });
-                      }
-                    }}
+                    onSelect={(date) => handleDateChange('start', date)}
                     initialFocus
                   />
                 </PopoverContent>
@@ -134,18 +190,18 @@ export const DemandMatrixTimeControls: React.FC<DemandMatrixTimeControlsProps> =
                   <Calendar
                     mode="single"
                     selected={customDateRange?.end}
-                    onSelect={(date) => {
-                      if (date && customDateRange?.start) {
-                        onCustomDateRangeChange({
-                          start: customDateRange.start,
-                          end: date
-                        });
-                      }
-                    }}
+                    onSelect={(date) => handleDateChange('end', date)}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+
+            {/* Helper Text */}
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div>• Dates will be automatically expanded to month boundaries</div>
+              <div>• Minimum range: 1 week for meaningful forecasting</div>
+              <div>• Recommended: Use monthly ranges for best results</div>
             </div>
           </div>
         )}
