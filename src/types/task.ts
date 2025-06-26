@@ -80,6 +80,12 @@ export interface RecurringTaskDB {
     id: string;
     legal_name: string;
   };
+  // FIXED: Add staff join data for preferred staff information
+  staff?: {
+    id: string;
+    full_name: string;
+    role_title?: string;
+  };
 }
 
 // Client-assigned recurring task (application-level interface)
