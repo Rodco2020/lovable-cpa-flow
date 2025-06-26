@@ -127,6 +127,7 @@ export class DemandMatrixOrchestrator {
     const filters: DemandFilters = {
       skills: [],
       clients: [],
+      preferredStaff: [], // Phase 3: Add preferredStaff field
       timeHorizon: {
         start: parameters.dateRange.startDate,
         end: parameters.dateRange.endDate

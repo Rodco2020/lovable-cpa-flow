@@ -1,4 +1,3 @@
-
 /**
  * Demand Matrix Test Suite
  * 
@@ -100,6 +99,7 @@ export class DemandMatrixTestSuite {
     const skillFilters = {
       skills: [matrixData.skills[0]],
       clients: [],
+      preferredStaff: [], // Phase 3: Add preferredStaff field
       timeHorizon: {
         start: new Date('2024-01-01'),
         end: new Date('2024-12-31')
@@ -179,6 +179,7 @@ export class DemandMatrixTestSuite {
     const filters = {
       skills: [],
       clients: [],
+      preferredStaff: [], // Phase 3: Add preferredStaff field
       timeHorizon: {
         start: new Date('2024-01-01'),
         end: new Date('2024-12-31')

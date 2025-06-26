@@ -108,6 +108,7 @@ export class PerformanceBenchmarkRunner {
         const filters = {
           skills: matrixData.skills.slice(0, Math.min(50, matrixData.skills.length)),
           clients: [],
+          preferredStaff: [], // Phase 3: Add preferredStaff field
           timeHorizon: {
             start: new Date('2024-01-01'),
             end: new Date('2024-12-31')
@@ -141,6 +142,7 @@ export class PerformanceBenchmarkRunner {
             DemandPerformanceOptimizer.optimizeFiltering(matrixData, {
               skills: [],
               clients: [],
+              preferredStaff: [], // Phase 3: Add preferredStaff field
               timeHorizon: { start: new Date(), end: new Date() }
             });
           }

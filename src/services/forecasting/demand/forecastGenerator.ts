@@ -26,6 +26,7 @@ export class ForecastGenerator {
     const filters: DemandFilters = {
       skills: includeSkills === 'all' ? [] : includeSkills,
       clients: includeClients === 'all' ? [] : includeClients,
+      preferredStaff: [], // Phase 3: Add preferredStaff field
       timeHorizon: {
         start: dateRange.startDate,
         end: dateRange.endDate

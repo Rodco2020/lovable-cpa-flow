@@ -86,6 +86,7 @@ export class IntegrationTestSuite {
     const filters = {
       skills: [matrixData.skills[0]], // Filter to first skill only
       clients: [],
+      preferredStaff: [], // Phase 3: Add preferredStaff field
       timeHorizon: {
         start: new Date('2024-01-01'),
         end: new Date('2024-06-30')
@@ -222,6 +223,7 @@ export class IntegrationTestSuite {
       const invalidFilters = {
         skills: ['NonexistentSkill'],
         clients: ['NonexistentClient'],
+        preferredStaff: [], // Phase 3: Add preferredStaff field
         timeHorizon: {
           start: new Date('2099-01-01'), // Future date
           end: new Date('2099-12-31')
@@ -288,17 +290,18 @@ export class IntegrationTestSuite {
     const testScenarios = [
       {
         name: 'No filters',
-        filters: { skills: [], clients: [], timeHorizon: { start: new Date(), end: new Date() } }
+        filters: { skills: [], clients: [], preferredStaff: [], timeHorizon: { start: new Date(), end: new Date() } }
       },
       {
         name: 'Single skill filter',
-        filters: { skills: [matrixData.skills[0] || 'TestSkill'], clients: [], timeHorizon: { start: new Date(), end: new Date() } }
+        filters: { skills: [matrixData.skills[0] || 'TestSkill'], clients: [], preferredStaff: [], timeHorizon: { start: new Date(), end: new Date() } }
       },
       {
         name: 'Multiple skill filter',
         filters: { 
           skills: matrixData.skills.slice(0, Math.min(3, matrixData.skills.length)), 
           clients: [], 
+          preferredStaff: [], // Phase 3: Add preferredStaff field
           timeHorizon: { start: new Date(), end: new Date() } 
         }
       }
@@ -370,6 +373,7 @@ export class IntegrationTestSuite {
     const userFilters = {
       skills: matrixData.skills.slice(0, 2), // Select first 2 skills
       clients: [],
+      preferredStaff: [], // Phase 3: Add preferredStaff field
       timeHorizon: {
         start: new Date('2024-01-01'),
         end: new Date('2024-06-30')

@@ -49,6 +49,7 @@ describe('DataFetcher', () => {
       const filters = {
         skills: [],
         clients: [],
+        preferredStaff: [], // Phase 3: Add preferredStaff field
         timeHorizon: {
           start: new Date('2025-01-01'),
           end: new Date('2025-12-31')
@@ -64,6 +65,7 @@ describe('DataFetcher', () => {
       const filters = {
         skills: ['Tax Preparation'],
         clients: [],
+        preferredStaff: [], // Phase 3: Add preferredStaff field
         timeHorizon: {
           start: new Date('2025-01-01'),
           end: new Date('2025-12-31')
