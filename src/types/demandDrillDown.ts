@@ -13,6 +13,10 @@ export interface DemandDrillDownData {
   taskCount: number;
   clientCount: number;
   
+  // Properties expected by handlers
+  tasks?: DemandTaskBreakdown[];
+  totalHours?: number;
+  
   // Demand-specific breakdowns
   clientBreakdown: DemandClientBreakdown[];
   taskBreakdown: DemandTaskBreakdown[];

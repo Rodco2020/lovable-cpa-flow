@@ -1,7 +1,7 @@
 
 import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { DemandMatrixData } from '@/types/demand';
-import { startOfMonth, endOfMonth, differenceInDays, addDays } from 'date-fns';
+import { startOfMonth, endOfMonth, differenceInDays, addDays, format } from 'date-fns';
 
 /**
  * Enhanced Hook for managing demand matrix data filtering
@@ -48,15 +48,21 @@ export const useDemandMatrixFiltering = (
       filteredMonths.push(...demandData.months);
     }
 
-    console.log(`📅 [DEMAND MATRIX] Filtered months:`, filteredMonths.map(m => m.key));
+    // Ensure months have both key and label properties
+    const normalizedMonths = filteredMonths.map(month => ({
+      key: month.key,
+      label: month.label || format(new Date(month.key + '-01'), 'MMM yyyy')
+    }));
+
+    console.log(`📅 [DEMAND MATRIX] Filtered months:`, normalizedMonths.map(m => m.key));
 
     // Enhanced time horizon creation with validation
-    const timeHorizon = createValidatedTimeHorizon(filteredMonths);
+    const timeHorizon = createValidatedTimeHorizon(normalizedMonths);
     console.log(`🕐 [DEMAND MATRIX] Created time horizon:`, {
       start: timeHorizon.start.toISOString(),
       end: timeHorizon.end.toISOString(),
       daysDifference: differenceInDays(timeHorizon.end, timeHorizon.start),
-      monthsCovered: filteredMonths.length
+      monthsCovered: normalizedMonths.length
     });
     
     // Create enhanced filters with proper "no active filtering" logic
@@ -78,33 +84,39 @@ export const useDemandMatrixFiltering = (
     // Use the performance optimizer with enhanced filtering
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
     
+    // Ensure the optimized data has properly formatted months
+    const finalOptimizedData = {
+      ...optimizedData,
+      months: normalizedMonths
+    };
+    
     console.log(`📊 [DEMAND MATRIX] Enhanced filter results:`, {
       originalDataPoints: demandData.dataPoints.length,
-      filteredDataPoints: optimizedData.dataPoints.length,
+      filteredDataPoints: finalOptimizedData.dataPoints.length,
       originalSkills: demandData.skills.length,
-      filteredSkills: optimizedData.skills.length,
-      totalDemandHours: optimizedData.totalDemand || 0,
-      totalTasks: optimizedData.totalTasks,
-      totalClients: optimizedData.totalClients,
+      filteredSkills: finalOptimizedData.skills.length,
+      totalDemandHours: finalOptimizedData.totalDemand || 0,
+      totalTasks: finalOptimizedData.totalTasks,
+      totalClients: finalOptimizedData.totalClients,
       preferredStaffFilterApplied: filters.preferredStaff.length > 0,
-      filteringEfficiency: `${((optimizedData.dataPoints.length / demandData.dataPoints.length) * 100).toFixed(1)}%`
+      filteringEfficiency: `${((finalOptimizedData.dataPoints.length / demandData.dataPoints.length) * 100).toFixed(1)}%`
     });
 
     // Enhanced safeguard with detailed diagnostics
-    if (optimizedData.dataPoints.length === 0) {
+    if (finalOptimizedData.dataPoints.length === 0) {
       console.error(`❌ [DEMAND MATRIX] All data was filtered out! Running diagnostics...`);
-      runFilteringDiagnostics(demandData, filters, filteredMonths);
+      runFilteringDiagnostics(demandData, filters, normalizedMonths);
       
       // Return a minimal dataset to prevent complete failure
-      return createFallbackDataset(demandData, filteredMonths);
+      return createFallbackDataset(demandData, normalizedMonths);
     }
 
     // Handle grouping mode transformation
     if (groupingMode === 'client') {
-      return transformForClientGrouping(optimizedData);
+      return transformForClientGrouping(finalOptimizedData);
     }
 
-    return optimizedData;
+    return finalOptimizedData;
   };
 
   return {
@@ -129,7 +141,7 @@ function validateMonthRange(monthRange: { start: number; end: number }, maxMonth
 /**
  * Create a validated time horizon that prevents filtering issues
  */
-function createValidatedTimeHorizon(filteredMonths: Array<{ key: string }>) {
+function createValidatedTimeHorizon(filteredMonths: Array<{ key: string; label: string }>) {
   try {
     if (filteredMonths.length === 0) {
       // Fallback to current month

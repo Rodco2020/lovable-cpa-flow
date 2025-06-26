@@ -52,7 +52,10 @@ export class DemandDrillDownService {
       clientBreakdown,
       taskBreakdown,
       recurrencePatternSummary,
-      trends
+      trends,
+      // Add properties expected by handlers
+      tasks: taskBreakdown,
+      totalHours: dataPoint.demandHours
     };
   }
 
