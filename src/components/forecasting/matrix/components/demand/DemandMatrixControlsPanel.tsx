@@ -23,6 +23,7 @@ interface DemandMatrixControlsPanelProps {
   monthRange: { start: number; end: number };
   onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
   onExport: () => void;
+  onPrintExport: () => void; // Add missing onPrintExport prop
   onReset: () => void;
   groupingMode: 'skill' | 'client';
   availableSkills: SkillType[];
@@ -48,6 +49,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   monthRange,
   onMonthRangeChange,
   onExport,
+  onPrintExport, // Add missing onPrintExport prop
   onReset,
   groupingMode,
   availableSkills,
@@ -85,6 +87,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
           monthRange={monthRange}
           onMonthRangeChange={onMonthRangeChange}
           onExport={onExport}
+          onPrintExport={onPrintExport} // Pass through onPrintExport prop
           onReset={onReset}
           groupingMode={groupingMode}
           availableSkills={availableSkills}
