@@ -6,8 +6,7 @@ import { BaseFilterStrategy } from './baseFilterStrategy';
  * FIXED: Preferred Staff Filter Strategy
  * 
  * Filters demand matrix data based on preferred staff assignments for tasks.
- * Only includes data points for tasks that have a preferred staff member
- * matching the selected staff filter criteria.
+ * Handles both specific staff selection and "None" (show all) selection properly.
  */
 export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   getName(): string {
@@ -19,6 +18,7 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   }
 
   shouldApply(filters: DemandFilters): boolean {
+    // Only apply filtering if preferred staff is selected AND it's not empty
     return Array.isArray(filters.preferredStaff) && filters.preferredStaff.length > 0;
   }
 
@@ -28,6 +28,12 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
 
     const startTime = performance.now();
     
+    // FIXED: If no preferred staff selected, return all data (no filtering)
+    if (!filters.preferredStaff || filters.preferredStaff.length === 0) {
+      console.log(`✅ [PREFERRED STAFF FILTER] No preferred staff filter applied - showing all data`);
+      return data;
+    }
+
     // Filter data points based on preferred staff assignments
     const filteredDataPoints = data.dataPoints.map(dataPoint => {
       if (!dataPoint.taskBreakdown || dataPoint.taskBreakdown.length === 0) {
@@ -43,6 +49,8 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
         
         if (hasMatchingPreferredStaff) {
           console.log(`✅ [PREFERRED STAFF FILTER] Including task "${task.taskName}" with preferred staff "${task.preferredStaffName}"`);
+        } else {
+          console.log(`❌ [PREFERRED STAFF FILTER] Excluding task "${task.taskName}" - preferred staff: ${task.preferredStaffId ? task.preferredStaffName || 'Unknown' : 'None'}`);
         }
         
         return hasMatchingPreferredStaff;
@@ -114,6 +122,21 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
       skillsRetained: remainingSkills.length,
       filterEffectiveness: `${((1 - filteredDataPoints.length / data.dataPoints.length) * 100).toFixed(1)}% filtered out`
     });
+
+    // FIXED: If filtering results in no data, log detailed diagnostics
+    if (filteredDataPoints.length === 0) {
+      console.warn(`⚠️ [PREFERRED STAFF FILTER] No data remains after filtering. Diagnostics:`);
+      console.log(`🔍 Original data points:`, data.dataPoints.length);
+      console.log(`🔍 Tasks with preferred staff:`, data.dataPoints.flatMap(dp => 
+        dp.taskBreakdown?.filter(task => task.preferredStaffId) || []
+      ).length);
+      console.log(`🔍 Available preferred staff IDs:`, Array.from(new Set(
+        data.dataPoints.flatMap(dp => 
+          dp.taskBreakdown?.map(task => task.preferredStaffId).filter(Boolean) || []
+        )
+      )));
+      console.log(`🔍 Filter staff IDs:`, filters.preferredStaff);
+    }
 
     return {
       ...data,

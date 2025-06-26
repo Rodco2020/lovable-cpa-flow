@@ -43,17 +43,9 @@ export class DataFetcher {
         }
       }
 
-      // FIXED: Apply preferred staff filters with proper validation
-      if (filters.preferredStaff && filters.preferredStaff.length > 0) {
-        const validStaffIds = filters.preferredStaff.filter(id => 
-          typeof id === 'string' && id.length > 0
-        );
-        
-        if (validStaffIds.length > 0) {
-          console.log(`🎯 [DATA FETCHER] FIXED: Applying preferred staff filter for ${validStaffIds.length} staff members:`, validStaffIds);
-          query = query.in('preferred_staff_id', validStaffIds);
-        }
-      }
+      // FIXED: Don't apply preferred staff filters at database level
+      // Let the filtering happen in the filtering strategy instead
+      // This ensures we get all data and can filter properly for "None" selection
 
       // Execute query
       const { data, error } = await query;
@@ -72,15 +64,22 @@ export class DataFetcher {
 
       // Log preferred staff statistics
       const tasksWithPreferredStaff = data.filter(task => task.preferred_staff_id);
-      console.log(`📊 [DATA FETCHER] Preferred staff statistics:`, {
+      const availablePreferredStaffIds = Array.from(new Set(
+        tasksWithPreferredStaff.map(task => task.preferred_staff_id)
+      ));
+      const preferredStaffNames = Array.from(new Set(
+        tasksWithPreferredStaff
+          .filter(task => task.staff?.full_name)
+          .map(task => task.staff.full_name)
+      ));
+
+      console.log(`📊 [DATA FETCHER] FIXED: Preferred staff statistics:`, {
         totalTasks: data.length,
         tasksWithPreferredStaff: tasksWithPreferredStaff.length,
-        uniquePreferredStaff: new Set(tasksWithPreferredStaff.map(task => task.preferred_staff_id)).size,
-        preferredStaffNames: Array.from(new Set(
-          tasksWithPreferredStaff
-            .filter(task => task.staff?.full_name)
-            .map(task => task.staff.full_name)
-        ))
+        uniquePreferredStaff: availablePreferredStaffIds.length,
+        availablePreferredStaffIds,
+        preferredStaffNames,
+        tasksWithoutPreferredStaff: data.length - tasksWithPreferredStaff.length
       });
 
       // Transform raw data to typed objects

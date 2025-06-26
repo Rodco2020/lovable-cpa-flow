@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { SkillType } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
@@ -17,33 +16,32 @@ interface DemandMatrixControlsState {
   selectedSkills: SkillType[];
   selectedClients: string[];
   monthRange: { start: number; end: number };
-  selectedPreferredStaff: string[]; // Phase 1: Add preferred staff to state
+  selectedPreferredStaff: string[];
 }
 
 /**
- * Hook for managing demand matrix controls UI state
+ * FIXED: Hook for managing demand matrix controls UI state
  * 
- * Enhanced with Phase 1 preferred staff filtering capability.
- * Maintains exact same functionality as the original implementation while adding
- * preferred staff state management and operations.
+ * Enhanced with proper preferred staff filtering that handles "None" selection correctly.
+ * When no preferred staff are selected, all data is shown (no filtering applied).
  */
 export const useDemandMatrixControls = ({ 
   demandData, 
   groupingMode 
 }: UseDemandMatrixControlsProps) => {
-  // Initialize UI state with Phase 1 preferred staff
+  // FIXED: Initialize state with empty preferred staff array (shows all data by default)
   const [state, setState] = useState<DemandMatrixControlsState>({
     selectedSkills: [],
     selectedClients: [],
     monthRange: { start: 0, end: 11 },
-    selectedPreferredStaff: [] // Phase 1: Initialize with empty array (no filtering by default)
+    selectedPreferredStaff: [] // FIXED: Start with empty array = no filtering
   });
 
   // Fetch external data for loading states
   const { data: skillsData, isLoading: skillsLoading } = useSkills();
   const { data: clientsData, isLoading: clientsLoading } = useClients();
 
-  // Phase 1: Fetch preferred staff data
+  // Fetch preferred staff data
   const { 
     availablePreferredStaff, 
     isLoading: preferredStaffLoading, 
@@ -51,7 +49,7 @@ export const useDemandMatrixControls = ({
     refetch: refetchPreferredStaff 
   } = useAvailablePreferredStaff();
 
-  // Use filtering logic hook (enhanced to include preferred staff in Phase 2)
+  // Use filtering logic hook
   const {
     availableSkills,
     availableClients,
@@ -61,15 +59,16 @@ export const useDemandMatrixControls = ({
     demandData,
     selectedSkills: state.selectedSkills,
     selectedClients: state.selectedClients,
-    selectedPreferredStaff: state.selectedPreferredStaff, // Phase 3: Add preferred staff parameter
+    selectedPreferredStaff: state.selectedPreferredStaff,
     monthRange: state.monthRange,
     groupingMode
   });
 
-  // Phase 1: Calculate if all preferred staff are selected
-  const isAllPreferredStaffSelected = state.selectedPreferredStaff.length === availablePreferredStaff.length;
+  // FIXED: Calculate if all preferred staff are selected properly
+  const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && 
+    state.selectedPreferredStaff.length === availablePreferredStaff.length;
 
-  // Use export functionality hook (will be enhanced in Phase 3)
+  // Use export functionality hook
   const { handleExport } = useMatrixExport({
     demandData,
     selectedSkills: state.selectedSkills,
@@ -82,21 +81,22 @@ export const useDemandMatrixControls = ({
     isAllClientsSelected
   });
 
-  // Initialize selections when data becomes available - SELECT ALL by default
+  // FIXED: Initialize selections when data becomes available - SELECT ALL by default
   useEffect(() => {
     if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0) {
       setState(prev => ({
         ...prev,
         selectedSkills: availableSkills,
         selectedClients: availableClients.map(client => client.id),
-        // Phase 1: Initialize with all preferred staff selected by default
-        selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id)
+        // FIXED: Keep preferred staff empty initially (shows all data)
+        selectedPreferredStaff: []
       }));
       
-      console.log(`🎛️ [MATRIX CONTROLS] Initialized with ALL selections:`, {
+      console.log(`🎛️ [MATRIX CONTROLS] FIXED: Initialized with ALL selections:`, {
         skillsCount: availableSkills.length,
         clientsCount: availableClients.length,
-        preferredStaffCount: availablePreferredStaff.length
+        preferredStaffCount: 0, // Start with no preferred staff filter
+        preferredStaffAvailable: availablePreferredStaff.length
       });
     }
   }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
@@ -112,8 +112,7 @@ export const useDemandMatrixControls = ({
         skill,
         action: prev.selectedSkills.includes(skill) ? 'removed' : 'added',
         newCount: newSelectedSkills.length,
-        totalAvailable: availableSkills.length,
-        willBeAllSelected: newSelectedSkills.length === availableSkills.length
+        totalAvailable: availableSkills.length
       });
 
       return {
@@ -134,8 +133,7 @@ export const useDemandMatrixControls = ({
         clientId,
         action: prev.selectedClients.includes(clientId) ? 'removed' : 'added',
         newCount: newSelectedClients.length,
-        totalAvailable: availableClients.length,
-        willBeAllSelected: newSelectedClients.length === availableClients.length
+        totalAvailable: availableClients.length
       });
 
       return {
@@ -145,20 +143,23 @@ export const useDemandMatrixControls = ({
     });
   }, [availableClients.length]);
 
-  // Phase 1: Handle preferred staff toggle
+  // FIXED: Handle preferred staff toggle with proper logging
   const handlePreferredStaffToggle = useCallback((staffId: string) => {
     setState(prev => {
       const newSelectedPreferredStaff = prev.selectedPreferredStaff.includes(staffId)
         ? prev.selectedPreferredStaff.filter(s => s !== staffId)
         : [...prev.selectedPreferredStaff, staffId];
 
-      console.log(`🔧 [MATRIX CONTROLS] Preferred staff toggle:`, {
+      const staffName = availablePreferredStaff.find(s => s.id === staffId)?.name || 'Unknown';
+
+      console.log(`🔧 [MATRIX CONTROLS] FIXED: Preferred staff toggle:`, {
         staffId,
-        staffName: availablePreferredStaff.find(s => s.id === staffId)?.name || 'Unknown',
+        staffName,
         action: prev.selectedPreferredStaff.includes(staffId) ? 'removed' : 'added',
         newCount: newSelectedPreferredStaff.length,
         totalAvailable: availablePreferredStaff.length,
-        willBeAllSelected: newSelectedPreferredStaff.length === availablePreferredStaff.length
+        newSelection: newSelectedPreferredStaff,
+        willShowAllData: newSelectedPreferredStaff.length === 0
       });
 
       return {
@@ -176,19 +177,20 @@ export const useDemandMatrixControls = ({
     }));
   }, []);
 
-  // Phase 1: Enhanced reset - SELECT ALL clients, skills, and preferred staff
+  // FIXED: Enhanced reset - SELECT ALL clients and skills, CLEAR preferred staff (shows all data)
   const handleReset = useCallback(() => {
     setState({
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
       monthRange: { start: 0, end: 11 },
-      selectedPreferredStaff: availablePreferredStaff.map(staff => staff.id) // Phase 1: Reset includes all preferred staff
+      selectedPreferredStaff: [] // FIXED: Reset to empty = show all data
     });
     
-    console.log(`🔄 [MATRIX CONTROLS] Reset to ALL selections:`, {
+    console.log(`🔄 [MATRIX CONTROLS] FIXED: Reset to show all data:`, {
       skillsCount: availableSkills.length,
       clientsCount: availableClients.length,
-      preferredStaffCount: availablePreferredStaff.length
+      preferredStaffCount: 0, // Reset to no filter
+      preferredStaffAvailable: availablePreferredStaff.length
     });
   }, [availableSkills, availableClients, availablePreferredStaff]);
 
@@ -206,7 +208,7 @@ export const useDemandMatrixControls = ({
     isAllSkillsSelected,
     isAllClientsSelected,
     
-    // Phase 1: New preferred staff functionality
+    // Preferred staff functionality
     handlePreferredStaffToggle,
     availablePreferredStaff,
     preferredStaffLoading,
