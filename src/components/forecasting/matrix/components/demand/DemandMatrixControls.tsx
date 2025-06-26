@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
-import { Download, RotateCcw, Users, AlertCircle, RefreshCw } from 'lucide-react';
+import { Download, RotateCcw, Users, AlertCircle, RefreshCw, Printer } from 'lucide-react';
 import { SkillType } from '@/types/task';
 
 interface PreferredStaffOption {
@@ -23,6 +22,7 @@ interface DemandMatrixControlsProps {
   monthRange: { start: number; end: number };
   onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
   onExport: () => void;
+  onPrintExport: () => void; // Add missing onPrintExport prop
   onReset: () => void;
   groupingMode: 'skill' | 'client';
   availableSkills: SkillType[];
@@ -48,6 +48,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
   monthRange,
   onMonthRangeChange,
   onExport,
+  onPrintExport, // Add missing onPrintExport prop
   onReset,
   groupingMode,
   availableSkills,
@@ -328,15 +329,26 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
         {/* Actions */}
         <div>
           <label className="text-sm font-medium mb-3 block">Actions</label>
-          <Button 
-            onClick={onExport} 
-            variant="outline" 
-            size="sm"
-            className="w-full"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Data
-          </Button>
+          <div className="space-y-2">
+            <Button 
+              onClick={onExport} 
+              variant="outline" 
+              size="sm"
+              className="w-full"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Data
+            </Button>
+            <Button 
+              onClick={onPrintExport} 
+              variant="outline" 
+              size="sm"
+              className="w-full"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Export
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

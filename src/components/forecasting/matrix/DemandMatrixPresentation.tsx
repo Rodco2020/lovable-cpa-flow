@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DemandMatrixData } from '@/types/demand';
@@ -146,16 +145,23 @@ export const DemandMatrixPresentation: React.FC<DemandMatrixPresentationProps> =
                 onToggleControls={onToggleControls}
                 selectedSkills={demandMatrixControls.selectedSkills}
                 selectedClients={demandMatrixControls.selectedClients}
+                selectedPreferredStaff={demandMatrixControls.selectedPreferredStaff}
                 onSkillToggle={demandMatrixControls.handleSkillToggle}
                 onClientToggle={demandMatrixControls.handleClientToggle}
+                onPreferredStaffToggle={demandMatrixControls.handlePreferredStaffToggle}
                 monthRange={demandMatrixControls.monthRange}
                 onMonthRangeChange={demandMatrixControls.handleMonthRangeChange}
                 onExport={onShowExport}
+                onPrintExport={onShowPrintExport}
                 onReset={demandMatrixControls.handleReset}
                 groupingMode={groupingMode}
                 availableSkills={demandMatrixControls.availableSkills}
                 availableClients={demandMatrixControls.availableClients}
-                onPrintExport={onShowPrintExport}
+                availablePreferredStaff={demandMatrixControls.availablePreferredStaff}
+                preferredStaffLoading={demandMatrixControls.preferredStaffLoading}
+                preferredStaffError={demandMatrixControls.preferredStaffError}
+                isAllPreferredStaffSelected={demandMatrixControls.isAllPreferredStaffSelected}
+                onRetryPreferredStaff={demandMatrixControls.refetchPreferredStaff}
               />
             </div>
           </div>
