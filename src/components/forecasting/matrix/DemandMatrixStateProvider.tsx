@@ -22,6 +22,9 @@ interface DemandMatrixState {
   showPrintExportDialog: boolean;
   timeHorizon: 'quarter' | 'half-year' | 'year' | 'custom';
   customDateRange: {start: Date; end: Date} | undefined;
+  
+  // Phase 1: Preferred Staff Filter state
+  selectedPreferredStaff: string[];
 }
 
 /**
@@ -40,6 +43,9 @@ interface DemandMatrixActions {
   setShowPrintExportDialog: (show: boolean) => void;
   setTimeHorizon: (horizon: 'quarter' | 'half-year' | 'year' | 'custom') => void;
   setCustomDateRange: (range: {start: Date; end: Date} | undefined) => void;
+  
+  // Phase 1: Preferred Staff Filter actions
+  setSelectedPreferredStaff: (staffIds: string[]) => void;
 }
 
 /**
@@ -63,6 +69,9 @@ const initialState: DemandMatrixState = {
   showPrintExportDialog: false,
   timeHorizon: 'year',
   customDateRange: undefined,
+  
+  // Phase 1: Initialize preferred staff filter with empty array (no filtering by default)
+  selectedPreferredStaff: [],
 };
 
 /**
@@ -93,6 +102,12 @@ export const DemandMatrixStateProvider: React.FC<DemandMatrixStateProviderProps>
     setShowPrintExportDialog: (show) => setState(prev => ({ ...prev, showPrintExportDialog: show })),
     setTimeHorizon: (horizon) => setState(prev => ({ ...prev, timeHorizon: horizon })),
     setCustomDateRange: (range) => setState(prev => ({ ...prev, customDateRange: range })),
+    
+    // Phase 1: Preferred Staff Filter action implementation
+    setSelectedPreferredStaff: (staffIds) => {
+      console.log('🔧 [PREFERRED STAFF] Setting selected preferred staff:', staffIds);
+      setState(prev => ({ ...prev, selectedPreferredStaff: staffIds }));
+    },
   };
 
   const contextValue: DemandMatrixContextType = {
