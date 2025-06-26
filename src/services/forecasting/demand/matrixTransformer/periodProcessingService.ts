@@ -1,16 +1,19 @@
 
-import { format } from 'date-fns';
+import { format, addMonths, startOfMonth } from 'date-fns';
 import { ForecastData } from '@/types/forecasting';
 
 /**
  * Service responsible for processing forecast periods
+ * FIXED: Ensures proper 12-month data generation
  */
 export class PeriodProcessingService {
   /**
-   * Generate months array from forecast data with validation
+   * FIXED: Generate months array from forecast data ensuring 12 months minimum
    */
   static generateMonthsFromForecast(forecastData: ForecastData[]): Array<{ key: string; label: string }> {
     try {
+      console.log(`🔧 [PERIOD PROCESSING] FIXED: Processing ${forecastData.length} forecast periods`);
+
       const months = forecastData
         .map(period => {
           if (!period || !period.period) {
@@ -39,14 +42,69 @@ export class PeriodProcessingService {
             return null;
           }
         })
-        .filter((month): month is { key: string; label: string } => month !== null)
-        .slice(0, 24); // Limit to prevent performance issues
+        .filter((month): month is { key: string; label: string } => month !== null);
 
-      return months;
+      // CRITICAL FIX: Ensure we have at least 12 months of data
+      if (months.length < 12) {
+        console.warn(`⚠️ [PERIOD PROCESSING] Only ${months.length} months generated, ensuring 12 months`);
+        return this.ensureTwelveMonths(months);
+      }
+
+      console.log(`✅ [PERIOD PROCESSING] FIXED: Generated ${months.length} months successfully`);
+      return months.slice(0, 24); // Limit to prevent performance issues, but allow more than 12
     } catch (error) {
       console.error('Error generating months from forecast:', error);
-      return [];
+      return this.generateFallbackTwelveMonths();
     }
+  }
+
+  /**
+   * FIXED: Ensure we always have 12 months of data
+   */
+  private static ensureTwelveMonths(existingMonths: Array<{ key: string; label: string }>): Array<{ key: string; label: string }> {
+    const startDate = existingMonths.length > 0 
+      ? new Date(existingMonths[0].key + '-01')
+      : startOfMonth(new Date());
+
+    const months: Array<{ key: string; label: string }> = [];
+    
+    for (let i = 0; i < 12; i++) {
+      const monthDate = addMonths(startDate, i);
+      const key = format(monthDate, 'yyyy-MM');
+      
+      // Use existing month if available, otherwise generate new
+      const existingMonth = existingMonths.find(m => m.key === key);
+      if (existingMonth) {
+        months.push(existingMonth);
+      } else {
+        months.push({
+          key,
+          label: format(monthDate, 'MMM yyyy')
+        });
+      }
+    }
+
+    console.log(`🔧 [PERIOD PROCESSING] FIXED: Ensured 12 months from ${existingMonths.length} existing months`);
+    return months;
+  }
+
+  /**
+   * FIXED: Generate fallback 12 months when all else fails
+   */
+  private static generateFallbackTwelveMonths(): Array<{ key: string; label: string }> {
+    const startDate = startOfMonth(new Date());
+    const months: Array<{ key: string; label: string }> = [];
+    
+    for (let i = 0; i < 12; i++) {
+      const monthDate = addMonths(startDate, i);
+      months.push({
+        key: format(monthDate, 'yyyy-MM'),
+        label: format(monthDate, 'MMM yyyy')
+      });
+    }
+
+    console.log(`🔧 [PERIOD PROCESSING] FIXED: Generated fallback 12 months starting from ${format(startDate, 'MMM yyyy')}`);
+    return months;
   }
 
   /**

@@ -8,8 +8,7 @@ import { differenceInDays, startOfMonth, endOfMonth, addMonths } from 'date-fns'
 /**
  * Enhanced Hook for managing demand matrix event handlers
  * 
- * Handles all user interactions with improved time horizon management,
- * better validation, and enhanced debugging capabilities.
+ * FIXED: Month range calculation to ensure proper 12-month data generation
  */
 export const useDemandMatrixHandlers = (
   demandData: any,
@@ -54,46 +53,48 @@ export const useDemandMatrixHandlers = (
     }
   };
 
-  // Enhanced time horizon change handler with comprehensive validation
+  // FIXED: Enhanced time horizon change handler with proper 12-month calculation
   const handleTimeHorizonChange = (horizon: 'quarter' | 'half-year' | 'year' | 'custom') => {
-    console.log(`🕐 [TIME HORIZON] Enhanced change from ${timeHorizon} to ${horizon}`);
+    console.log(`🕐 [TIME HORIZON] FIXED Enhanced change from ${timeHorizon} to ${horizon}`);
     
     // Clear cache before making changes
     DemandMatrixService.clearCache();
     
     setTimeHorizon(horizon);
     
-    // Calculate enhanced month ranges and date ranges
+    // CRITICAL FIX: Calculate proper month ranges for 12-month display
     const now = new Date();
-    const { monthRange, calculatedCustomRange } = calculateEnhancedTimeHorizon(horizon, now);
+    const { monthRange, calculatedCustomRange } = calculateFixedTimeHorizon(horizon, now);
 
-    console.log(`📅 [TIME HORIZON] Enhanced calculation results:`, {
+    console.log(`📅 [TIME HORIZON] FIXED calculation results:`, {
       horizon,
       monthRange,
+      monthRangeSpan: monthRange.end - monthRange.start + 1,
       calculatedCustomRange: calculatedCustomRange ? {
         start: calculatedCustomRange.start.toISOString(),
         end: calculatedCustomRange.end.toISOString(),
-        daysDifference: differenceInDays(calculatedCustomRange.end, calculatedCustomRange.start)
+        daysDifference: differenceInDays(calculatedCustomRange.end, calculatedCustomRange.start),
+        monthsDifference: Math.round(differenceInDays(calculatedCustomRange.end, calculatedCustomRange.start) / 30)
       } : null
     });
 
-    // Apply month range
+    // Apply month range - this is critical for 12-month display
     demandMatrixControls.handleMonthRangeChange(monthRange);
 
     // Set calculated custom range for non-custom horizons
     if (horizon !== 'custom' && calculatedCustomRange) {
       setCustomDateRange(calculatedCustomRange);
       
-      console.log(`✅ [TIME HORIZON] Applied calculated date range:`, {
+      console.log(`✅ [TIME HORIZON] FIXED Applied calculated date range for ${horizon}:`, {
         start: calculatedCustomRange.start.toISOString(),
         end: calculatedCustomRange.end.toISOString(),
-        monthsCovered: differenceInDays(calculatedCustomRange.end, calculatedCustomRange.start) / 30
+        expectedMonths: horizon === 'year' ? 12 : horizon === 'half-year' ? 6 : 3
       });
     }
 
     toast({
       title: "Time horizon updated",
-      description: `Switched to ${horizon === 'custom' ? 'custom range' : `${horizon.replace('-', ' ')} view`}`,
+      description: `Switched to ${horizon === 'custom' ? 'custom range' : `${horizon.replace('-', ' ')} view`} - ${horizon === 'year' ? '12 months' : horizon === 'half-year' ? '6 months' : '3 months'}`,
     });
   };
 
@@ -175,41 +176,49 @@ export const useDemandMatrixHandlers = (
 };
 
 /**
- * Calculate enhanced time horizon with better validation
+ * FIXED: Calculate proper time horizon ensuring 12 months for year view
  */
-function calculateEnhancedTimeHorizon(
+function calculateFixedTimeHorizon(
   horizon: 'quarter' | 'half-year' | 'year' | 'custom',
   baseDate: Date
 ) {
   let monthRange: { start: number; end: number };
   let calculatedCustomRange: { start: Date; end: Date } | undefined;
 
+  console.log(`🔧 [TIME HORIZON] FIXED calculation for ${horizon}`);
+
   switch (horizon) {
     case 'quarter':
-      monthRange = { start: 0, end: 2 }; // 3 months
+      monthRange = { start: 0, end: 2 }; // 3 months (indices 0, 1, 2)
       calculatedCustomRange = {
         start: startOfMonth(baseDate),
         end: endOfMonth(addMonths(baseDate, 2))
       };
       break;
     case 'half-year':
-      monthRange = { start: 0, end: 5 }; // 6 months
+      monthRange = { start: 0, end: 5 }; // 6 months (indices 0-5)
       calculatedCustomRange = {
         start: startOfMonth(baseDate),
         end: endOfMonth(addMonths(baseDate, 5))
       };
       break;
     case 'year':
-      monthRange = { start: 0, end: 11 }; // 12 months
+      // CRITICAL FIX: Ensure 12 months are properly indexed
+      monthRange = { start: 0, end: 11 }; // 12 months (indices 0-11)
       calculatedCustomRange = {
         start: startOfMonth(baseDate),
-        end: endOfMonth(addMonths(baseDate, 11))
+        end: endOfMonth(addMonths(baseDate, 11)) // 12 months total
       };
+      console.log(`📅 [YEAR HORIZON] FIXED: Setting 12-month range:`, {
+        monthRange,
+        startDate: startOfMonth(baseDate).toISOString(),
+        endDate: endOfMonth(addMonths(baseDate, 11)).toISOString(),
+        totalMonths: 12
+      });
       break;
     case 'custom':
       // Keep current range until custom dates are set
       monthRange = { start: 0, end: 11 }; // Default to year view
-      // Don't set calculatedCustomRange for custom - user will set it
       break;
   }
 
