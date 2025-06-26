@@ -1,4 +1,3 @@
-
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
@@ -35,6 +34,11 @@ export interface ClientTaskDemand {
    * Calculated using task hours × skill fee rate
    */
   suggestedRevenue?: number;
+  /** 
+   * FIXED: Add preferred staff information for filtering
+   */
+  preferredStaffId?: string;
+  preferredStaffName?: string;
 }
 
 export interface RecurrencePattern {

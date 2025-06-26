@@ -3,7 +3,7 @@ import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { BaseFilterStrategy } from './baseFilterStrategy';
 
 /**
- * Preferred Staff Filter Strategy
+ * FIXED: Preferred Staff Filter Strategy
  * 
  * Filters demand matrix data based on preferred staff assignments for tasks.
  * Only includes data points for tasks that have a preferred staff member
@@ -23,33 +23,54 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   }
 
   apply(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
-    console.log(`🎯 [PREFERRED STAFF FILTER] Applying filter with ${filters.preferredStaff.length} selected staff`);
+    console.log(`🎯 [PREFERRED STAFF FILTER] FIXED: Applying filter with ${filters.preferredStaff.length} selected staff`);
     console.log(`🎯 [PREFERRED STAFF FILTER] Selected staff IDs:`, filters.preferredStaff);
 
     const startTime = performance.now();
     
     // Filter data points based on preferred staff assignments
-    const filteredDataPoints = data.dataPoints.filter(dataPoint => {
+    const filteredDataPoints = data.dataPoints.map(dataPoint => {
       if (!dataPoint.taskBreakdown || dataPoint.taskBreakdown.length === 0) {
         console.log(`⚠️ [PREFERRED STAFF FILTER] No task breakdown for ${dataPoint.skillType}/${dataPoint.month}`);
-        return true; // Include data points without task breakdown to maintain matrix integrity
+        return { ...dataPoint, taskBreakdown: [], demandHours: 0, taskCount: 0, clientCount: 0 };
       }
 
-      // Check if any task in the breakdown has a preferred staff member that matches our filter
-      const hasMatchingPreferredStaff = dataPoint.taskBreakdown.some(task => {
-        // For this Phase 3 implementation, we'll need to extend the ClientTaskDemand interface
-        // to include preferred staff information. For now, we'll include all tasks to maintain functionality.
-        // In a future enhancement, we would check: task.preferredStaffId in filters.preferredStaff
-        return true; // Temporary: include all tasks to maintain existing functionality
+      // FIXED: Filter tasks based on preferred staff
+      const filteredTasks = dataPoint.taskBreakdown.filter(task => {
+        // Include tasks that have a preferred staff ID matching our filter
+        const hasMatchingPreferredStaff = task.preferredStaffId && 
+          filters.preferredStaff.includes(task.preferredStaffId);
+        
+        if (hasMatchingPreferredStaff) {
+          console.log(`✅ [PREFERRED STAFF FILTER] Including task "${task.taskName}" with preferred staff "${task.preferredStaffName}"`);
+        }
+        
+        return hasMatchingPreferredStaff;
       });
 
-      return hasMatchingPreferredStaff;
-    });
+      // Recalculate metrics for filtered tasks
+      const demandHours = filteredTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const taskCount = filteredTasks.length;
+      const uniqueClients = new Set(filteredTasks.map(task => task.clientId));
+      const clientCount = uniqueClients.size;
+
+      return {
+        ...dataPoint,
+        taskBreakdown: filteredTasks,
+        demandHours,
+        taskCount,
+        clientCount
+      };
+    }).filter(dataPoint => dataPoint.demandHours > 0); // Remove empty data points
 
     // Recalculate totals for filtered data
     const totalDemand = filteredDataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
     const totalTasks = filteredDataPoints.reduce((sum, dp) => sum + dp.taskCount, 0);
-    const totalClients = filteredDataPoints.reduce((sum, dp) => sum + dp.clientCount, 0);
+    const totalClients = new Set(
+      filteredDataPoints.flatMap(dp => 
+        dp.taskBreakdown?.map(task => task.clientId) || []
+      )
+    ).size;
 
     // Update skill summary based on filtered data
     const skillSummary: { [key: string]: any } = {};
@@ -77,22 +98,27 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
       }
     });
 
+    // Update skills list to only include skills that have data after filtering
+    const remainingSkills = Array.from(new Set(filteredDataPoints.map(dp => dp.skillType)));
+
     const endTime = performance.now();
     const processingTime = endTime - startTime;
 
-    console.log(`✅ [PREFERRED STAFF FILTER] Filtering completed:`, {
+    console.log(`✅ [PREFERRED STAFF FILTER] FIXED: Filtering completed:`, {
       processingTime: `${processingTime.toFixed(2)}ms`,
       originalDataPoints: data.dataPoints.length,
       filteredDataPoints: filteredDataPoints.length,
       totalDemand: totalDemand.toFixed(1),
       totalTasks,
       totalClients,
-      skillsRetained: Object.keys(skillSummary).length
+      skillsRetained: remainingSkills.length,
+      filterEffectiveness: `${((1 - filteredDataPoints.length / data.dataPoints.length) * 100).toFixed(1)}% filtered out`
     });
 
     return {
       ...data,
       dataPoints: filteredDataPoints,
+      skills: remainingSkills,
       totalDemand,
       totalTasks,
       totalClients,

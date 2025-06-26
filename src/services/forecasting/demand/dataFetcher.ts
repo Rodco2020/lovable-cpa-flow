@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { debugLog } from '../logger';
 import { DemandFilters } from '@/types/demand';
@@ -6,24 +5,23 @@ import { RecurringTaskDB } from '@/types/task';
 import { DataTransformationService } from './dataTransformationService';
 
 /**
- * Pure Data Fetcher Service
- * Focused on database queries and data retrieval without validation logic
+ * FIXED: Pure Data Fetcher Service - Enhanced with preferred staff information
+ * Focused on database queries and data retrieval including staff details
  */
 export class DataFetcher {
   /**
-   * Fetch client-assigned tasks with basic error handling
-   * Phase 3: Enhanced to include preferred staff filtering
+   * FIXED: Fetch client-assigned tasks with preferred staff information
    */
   static async fetchClientAssignedTasks(filters: DemandFilters = { 
     skills: [], 
     clients: [], 
-    preferredStaff: [], // Phase 3: Include preferred staff in default filters
+    preferredStaff: [], 
     timeHorizon: { start: new Date(), end: new Date() } 
   }): Promise<RecurringTaskDB[]> {
-    debugLog('Fetching client-assigned tasks', { filters });
+    debugLog('FIXED: Fetching client-assigned tasks with preferred staff info', { filters });
 
     try {
-      // Build query with proper error handling and preferred staff information
+      // FIXED: Enhanced query to include staff information for preferred staff filtering
       let query = supabase
         .from('recurring_tasks')
         .select(`
@@ -32,7 +30,7 @@ export class DataFetcher {
           staff(id, full_name, role_title)
         `)
         .eq('is_active', true)
-        .range(0, 999); // Explicit range to avoid default 10 row limit
+        .range(0, 999);
 
       // Apply client filters safely
       if (filters.clients && filters.clients.length > 0) {
@@ -45,14 +43,14 @@ export class DataFetcher {
         }
       }
 
-      // Phase 3: Apply preferred staff filters
+      // FIXED: Apply preferred staff filters with proper validation
       if (filters.preferredStaff && filters.preferredStaff.length > 0) {
         const validStaffIds = filters.preferredStaff.filter(id => 
           typeof id === 'string' && id.length > 0
         );
         
         if (validStaffIds.length > 0) {
-          console.log(`🎯 [DATA FETCHER] Applying preferred staff filter for ${validStaffIds.length} staff members`);
+          console.log(`🎯 [DATA FETCHER] FIXED: Applying preferred staff filter for ${validStaffIds.length} staff members:`, validStaffIds);
           query = query.in('preferred_staff_id', validStaffIds);
         }
       }
@@ -61,7 +59,7 @@ export class DataFetcher {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Database query failed:', error);
+        console.error('❌ [DATA FETCHER] Database query failed:', error);
         throw new Error(`Database query failed: ${error.message}`);
       }
 
@@ -70,28 +68,39 @@ export class DataFetcher {
         return [];
       }
 
-      debugLog(`Fetched ${data.length} recurring tasks from database`);
+      console.log(`✅ [DATA FETCHER] FIXED: Fetched ${data.length} recurring tasks from database with staff info`);
+
+      // Log preferred staff statistics
+      const tasksWithPreferredStaff = data.filter(task => task.preferred_staff_id);
+      console.log(`📊 [DATA FETCHER] Preferred staff statistics:`, {
+        totalTasks: data.length,
+        tasksWithPreferredStaff: tasksWithPreferredStaff.length,
+        uniquePreferredStaff: new Set(tasksWithPreferredStaff.map(task => task.preferred_staff_id)).size,
+        preferredStaffNames: Array.from(new Set(
+          tasksWithPreferredStaff
+            .filter(task => task.staff?.full_name)
+            .map(task => task.staff.full_name)
+        ))
+      });
 
       // Transform raw data to typed objects
       const typedData = DataTransformationService.transformRecurringTasks(data);
       return typedData;
 
     } catch (error) {
-      console.error('Error in fetchClientAssignedTasks:', error);
+      console.error('❌ [DATA FETCHER] Error in fetchClientAssignedTasks:', error);
       return this.attemptFallbackDataFetch();
     }
   }
 
-  /**
-   * Attempt fallback data fetch with minimal filtering
-   */
+  
   private static async attemptFallbackDataFetch(): Promise<RecurringTaskDB[]> {
     try {
       console.log('Attempting fallback data fetch with minimal filtering...');
       
       const { data, error } = await supabase
         .from('recurring_tasks')
-        .select('*, clients(id, legal_name, expected_monthly_revenue)')
+        .select('*, clients(id, legal_name, expected_monthly_revenue), staff(id, full_name, role_title)')
         .eq('is_active', true)
         .range(0, 999);
 
@@ -105,7 +114,6 @@ export class DataFetcher {
         return [];
       }
 
-      // Apply basic type casting and minimal validation
       const fallbackTasks = DataTransformationService.createFallbackTasks(data);
       console.log(`Fallback fetch recovered ${fallbackTasks.length} tasks`);
       return fallbackTasks;
@@ -116,9 +124,6 @@ export class DataFetcher {
     }
   }
 
-  /**
-   * Fetch available skills
-   */
   static async fetchAvailableSkills(): Promise<string[]> {
     try {
       const { data, error } = await supabase
@@ -140,9 +145,6 @@ export class DataFetcher {
     }
   }
 
-  /**
-   * Fetch available clients
-   */
   static async fetchAvailableClients(): Promise<Array<{ id: string; name: string }>> {
     try {
       const { data, error } = await supabase
@@ -165,9 +167,6 @@ export class DataFetcher {
     }
   }
 
-  /**
-   * Fetch clients with revenue data for matrix calculations
-   */
   static async fetchClientsWithRevenue(): Promise<Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>> {
     try {
       const { data, error } = await supabase
