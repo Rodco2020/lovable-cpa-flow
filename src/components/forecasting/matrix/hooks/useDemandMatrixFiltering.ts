@@ -1,4 +1,3 @@
-
 import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { DemandMatrixData } from '@/types/demand';
 import { startOfMonth, endOfMonth, differenceInDays, addDays, format } from 'date-fns';
@@ -48,8 +47,8 @@ export const useDemandMatrixFiltering = (
       filteredMonths.push(...demandData.months);
     }
 
-    // Ensure months have both key and label properties
-    const normalizedMonths = filteredMonths.map(month => ({
+    // CRITICAL FIX: Ensure months have both key and label properties with proper typing
+    const normalizedMonths: Array<{ key: string; label: string }> = filteredMonths.map(month => ({
       key: month.key,
       label: month.label || format(new Date(month.key + '-01'), 'MMM yyyy')
     }));
@@ -84,10 +83,10 @@ export const useDemandMatrixFiltering = (
     // Use the performance optimizer with enhanced filtering
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
     
-    // CRITICAL FIX: Ensure the optimized data has properly formatted months with both key and label
-    const finalOptimizedData = {
+    // CRITICAL TYPE FIX: Create properly typed filtered data with guaranteed month structure
+    const finalOptimizedData: DemandMatrixData = {
       ...optimizedData,
-      months: normalizedMonths // Use the properly normalized months instead of whatever the optimizer returned
+      months: normalizedMonths // Ensure months always have both key and label properties
     };
     
     console.log(`📊 [DEMAND MATRIX] Enhanced filter results:`, {
@@ -191,7 +190,7 @@ function createValidatedTimeHorizon(filteredMonths: Array<{ key: string; label: 
 function runFilteringDiagnostics(
   originalData: DemandMatrixData, 
   filters: any, 
-  filteredMonths: Array<{ key: string }>
+  filteredMonths: Array<{ key: string; label: string }>
 ) {
   console.log(`🔍 [FILTERING DIAGNOSTICS] Analyzing why all data was filtered out:`);
   console.log(`📊 Original data summary:`, {
@@ -217,7 +216,7 @@ function runFilteringDiagnostics(
 /**
  * Create a fallback dataset when all data is filtered out
  */
-function createFallbackDataset(originalData: DemandMatrixData, filteredMonths: Array<{ key: string }>) {
+function createFallbackDataset(originalData: DemandMatrixData, filteredMonths: Array<{ key: string; label: string }>): DemandMatrixData {
   console.log(`🔧 [FALLBACK] Creating minimal dataset to prevent complete failure`);
   
   return {
@@ -233,7 +232,7 @@ function createFallbackDataset(originalData: DemandMatrixData, filteredMonths: A
 /**
  * Transform data for client-based grouping view
  */
-function transformForClientGrouping(optimizedData: DemandMatrixData) {
+function transformForClientGrouping(optimizedData: DemandMatrixData): DemandMatrixData {
   const clientGroupedData = {
     ...optimizedData,
     skills: Array.from(new Set(
