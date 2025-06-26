@@ -96,6 +96,7 @@ export class DemandDataService {
       const tasks = await DataFetcher.fetchClientAssignedTasks({
         skills: parameters.includeSkills === 'all' ? [] : parameters.includeSkills,
         clients: parameters.includeClients === 'all' ? [] : parameters.includeClients,
+        preferredStaff: [], // Phase 3: Add preferredStaff field
         timeHorizon: {
           start: parameters.dateRange.startDate,
           end: parameters.dateRange.endDate

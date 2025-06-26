@@ -61,6 +61,7 @@ export const useDemandMatrixControls = ({
     demandData,
     selectedSkills: state.selectedSkills,
     selectedClients: state.selectedClients,
+    selectedPreferredStaff: state.selectedPreferredStaff, // Phase 3: Add preferred staff parameter
     monthRange: state.monthRange,
     groupingMode
   });

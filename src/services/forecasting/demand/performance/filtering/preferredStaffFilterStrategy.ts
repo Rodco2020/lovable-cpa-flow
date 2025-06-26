@@ -9,7 +9,7 @@ import { BaseFilterStrategy } from './baseFilterStrategy';
  * Only includes data points for tasks that have a preferred staff member
  * matching the selected staff filter criteria.
  */
-export class PreferredStaffFilterStrategy extends BaseFilterStrategy {
+export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   getName(): string {
     return 'PreferredStaffFilter';
   }

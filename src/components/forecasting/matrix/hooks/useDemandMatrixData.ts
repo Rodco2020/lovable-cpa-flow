@@ -63,10 +63,14 @@ export const useDemandMatrixData = (groupingMode: 'skill' | 'client') => {
       const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(newDemandData, {
         skills: [],
         clients: [],
+        preferredStaff: [], // Phase 3: Add preferredStaff field
         timeHorizon: customDateRange ? {
           start: customDateRange.start,
           end: customDateRange.end
-        } : undefined
+        } : {
+          start: new Date(),
+          end: new Date()
+        }
       });
 
       setDemandData(optimizedData);
