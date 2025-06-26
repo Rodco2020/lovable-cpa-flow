@@ -12,23 +12,29 @@ import { DataTransformationService } from './dataTransformationService';
 export class DataFetcher {
   /**
    * Fetch client-assigned tasks with basic error handling
+   * Phase 3: Enhanced to include preferred staff filtering
    */
   static async fetchClientAssignedTasks(filters: DemandFilters = { 
     skills: [], 
     clients: [], 
+    preferredStaff: [], // Phase 3: Include preferred staff in default filters
     timeHorizon: { start: new Date(), end: new Date() } 
   }): Promise<RecurringTaskDB[]> {
     debugLog('Fetching client-assigned tasks', { filters });
 
     try {
-      // Build query with proper error handling
+      // Build query with proper error handling and preferred staff information
       let query = supabase
         .from('recurring_tasks')
-        .select('*, clients!inner(id, legal_name, expected_monthly_revenue)')
+        .select(`
+          *, 
+          clients!inner(id, legal_name, expected_monthly_revenue),
+          staff(id, full_name, role_title)
+        `)
         .eq('is_active', true)
         .range(0, 999); // Explicit range to avoid default 10 row limit
 
-      // Apply filters safely
+      // Apply client filters safely
       if (filters.clients && filters.clients.length > 0) {
         const validClientIds = filters.clients.filter(id => 
           typeof id === 'string' && id.length > 0
@@ -36,6 +42,18 @@ export class DataFetcher {
         
         if (validClientIds.length > 0) {
           query = query.in('client_id', validClientIds);
+        }
+      }
+
+      // Phase 3: Apply preferred staff filters
+      if (filters.preferredStaff && filters.preferredStaff.length > 0) {
+        const validStaffIds = filters.preferredStaff.filter(id => 
+          typeof id === 'string' && id.length > 0
+        );
+        
+        if (validStaffIds.length > 0) {
+          console.log(`🎯 [DATA FETCHER] Applying preferred staff filter for ${validStaffIds.length} staff members`);
+          query = query.in('preferred_staff_id', validStaffIds);
         }
       }
 

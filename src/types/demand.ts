@@ -1,3 +1,4 @@
+
 import { RecurringTaskDB } from './task';
 
 export interface DemandDataPoint {
@@ -93,6 +94,7 @@ export interface DemandMatrixData {
 export interface DemandFilters {
   skills: string[];
   clients: string[];
+  preferredStaff: string[]; // Phase 3: Add preferred staff filtering
   timeHorizon: {
     start: Date;
     end: Date;

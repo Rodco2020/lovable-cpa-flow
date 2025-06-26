@@ -4,6 +4,7 @@ import { BaseFilterStrategy } from './baseFilterStrategy';
 import { SkillFilterStrategy } from './skillFilterStrategy';
 import { ClientFilterStrategy } from './clientFilterStrategy';
 import { TimeHorizonFilterStrategy } from './timeHorizonFilterStrategy';
+import { PreferredStaffFilterStrategy } from './preferredStaffFilterStrategy'; // Phase 3: Import new strategy
 
 /**
  * Filter Strategy Factory
@@ -16,7 +17,8 @@ export class FilterStrategyFactory {
   private static strategies: BaseFilterStrategy[] = [
     new SkillFilterStrategy(),
     new ClientFilterStrategy(),
-    new TimeHorizonFilterStrategy()
+    new TimeHorizonFilterStrategy(),
+    new PreferredStaffFilterStrategy() // Phase 3: Register preferred staff filter
   ];
 
   /**
