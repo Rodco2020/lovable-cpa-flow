@@ -84,10 +84,10 @@ export const useDemandMatrixFiltering = (
     // Use the performance optimizer with enhanced filtering
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
     
-    // Ensure the optimized data has properly formatted months
+    // CRITICAL FIX: Ensure the optimized data has properly formatted months with both key and label
     const finalOptimizedData = {
       ...optimizedData,
-      months: normalizedMonths
+      months: normalizedMonths // Use the properly normalized months instead of whatever the optimizer returned
     };
     
     console.log(`📊 [DEMAND MATRIX] Enhanced filter results:`, {
@@ -95,6 +95,8 @@ export const useDemandMatrixFiltering = (
       filteredDataPoints: finalOptimizedData.dataPoints.length,
       originalSkills: demandData.skills.length,
       filteredSkills: finalOptimizedData.skills.length,
+      monthsWithLabels: finalOptimizedData.months.length,
+      sampleMonth: finalOptimizedData.months[0], // Log sample month to verify structure
       totalDemandHours: finalOptimizedData.totalDemand || 0,
       totalTasks: finalOptimizedData.totalTasks,
       totalClients: finalOptimizedData.totalClients,
