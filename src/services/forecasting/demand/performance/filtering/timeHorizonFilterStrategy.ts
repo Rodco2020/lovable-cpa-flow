@@ -1,14 +1,13 @@
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { AbstractFilterStrategy } from './baseFilterStrategy';
-import { format, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isSameMonth, differenceInDays, addDays } from 'date-fns';
 
 /**
- * Time Horizon Filter Strategy
+ * Enhanced Time Horizon Filter Strategy
  * 
- * Handles filtering of demand matrix data by time range.
- * Filters data points that fall outside the specified time horizon.
- * Enhanced to prevent filtering out all data with single-day ranges.
+ * Handles filtering of demand matrix data by time range with improved edge case handling.
+ * Prevents filtering out all data with single-day ranges and provides better validation.
  */
 export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
   constructor() {
@@ -22,29 +21,18 @@ export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
   apply(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
     if (!this.shouldApply(filters)) {
       console.log(`🎯 [TIME FILTER] No time horizon filter needed, returning original data`);
-      return data; // No filtering needed
+      return data;
     }
 
     const { start, end } = filters.timeHorizon!;
     console.log(`🎯 [TIME FILTER] Applying time horizon filter: ${start.toISOString()} to ${end.toISOString()}`);
 
-    // Check if this is a problematic single-day range
-    const timeDiff = end.getTime() - start.getTime();
-    const isVeryShortRange = timeDiff < 24 * 60 * 60 * 1000; // Less than 24 hours
+    // Enhanced range validation and expansion
+    const { expandedStart, expandedEnd } = this.validateAndExpandRange(start, end);
+    
+    console.log(`🔧 [TIME FILTER] Using expanded range: ${expandedStart.toISOString()} to ${expandedEnd.toISOString()}`);
 
-    if (isVeryShortRange) {
-      console.warn(`⚠️ [TIME FILTER] Detected very short time range (${timeDiff}ms), expanding to monthly boundaries`);
-      
-      // Expand to monthly boundaries to prevent filtering out all data
-      const expandedStart = startOfMonth(start);
-      const expandedEnd = endOfMonth(end);
-      
-      console.log(`🔧 [TIME FILTER] Expanded range: ${expandedStart.toISOString()} to ${expandedEnd.toISOString()}`);
-      
-      return this.filterByExpandedRange(data, expandedStart, expandedEnd);
-    }
-
-    // Filter data points by time horizon using month-based comparison
+    // Filter data points by time horizon using enhanced month-based comparison
     const filteredDataPoints = data.dataPoints.filter(point => {
       try {
         // Parse the month string (format: "YYYY-MM")
@@ -55,15 +43,11 @@ export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
           return true; // Keep point if date is invalid
         }
 
-        // Use month-based comparison for more reliable filtering
-        const pointInRange = (
-          (pointDate >= startOfMonth(start) && pointDate <= endOfMonth(end)) ||
-          isSameMonth(pointDate, start) ||
-          isSameMonth(pointDate, end)
-        );
+        // Use enhanced month-based comparison with expanded range
+        const pointInRange = this.isPointInRange(pointDate, expandedStart, expandedEnd);
 
         if (!pointInRange) {
-          console.log(`🔍 [TIME FILTER] Filtering out point for ${point.month} (outside range)`);
+          console.log(`🔍 [TIME FILTER] Filtering out point for ${point.month} (outside expanded range)`);
         }
 
         return pointInRange;
@@ -73,11 +57,18 @@ export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
       }
     });
 
-    // Safeguard: If filtering would remove all data, return original data
+    // Enhanced safeguard: If filtering would remove all data, return original data
     if (filteredDataPoints.length === 0) {
       console.warn(`⚠️ [TIME FILTER] Time filtering would remove all data points, returning original data`);
-      console.log(`🔍 [TIME FILTER] Original data had ${data.dataPoints.length} points covering months:`, 
-        data.dataPoints.map(p => p.month).slice(0, 5));
+      console.log(`🔍 [TIME FILTER] Diagnostic:`, {
+        originalDataPoints: data.dataPoints.length,
+        originalMonths: data.dataPoints.map(p => p.month).slice(0, 5),
+        filterRange: `${expandedStart.toISOString().split('T')[0]} to ${expandedEnd.toISOString().split('T')[0]}`,
+        samplePointDates: data.dataPoints.slice(0, 3).map(p => ({
+          month: p.month,
+          parsedDate: new Date(p.month + '-01').toISOString().split('T')[0]
+        }))
+      });
       return data;
     }
 
@@ -90,19 +81,81 @@ export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
   }
 
   /**
-   * Filter by expanded range with additional validation
+   * Validate and expand the time range to prevent problematic filtering
    */
-  private filterByExpandedRange(data: DemandMatrixData, expandedStart: Date, expandedEnd: Date): DemandMatrixData {
-    const filteredDataPoints = data.dataPoints.filter(point => {
-      try {
-        const pointDate = new Date(point.month + '-01');
-        return pointDate >= expandedStart && pointDate <= expandedEnd;
-      } catch (error) {
-        console.warn(`⚠️ [TIME FILTER] Error in expanded range filtering:`, error);
-        return true;
-      }
+  private validateAndExpandRange(start: Date, end: Date): { expandedStart: Date; expandedEnd: Date } {
+    const timeDiff = end.getTime() - start.getTime();
+    const daysDiff = differenceInDays(end, start);
+    
+    console.log(`🔧 [TIME FILTER] Range validation:`, {
+      originalStart: start.toISOString(),
+      originalEnd: end.toISOString(),
+      timeDiffMs: timeDiff,
+      daysDiff: daysDiff
     });
 
-    return this.recalculateTotals(data, filteredDataPoints);
+    // Handle problematic ranges
+    if (daysDiff < 0) {
+      console.warn(`⚠️ [TIME FILTER] Invalid range: end before start, swapping dates`);
+      return this.validateAndExpandRange(end, start); // Swap and retry
+    }
+
+    if (daysDiff === 0) {
+      console.warn(`⚠️ [TIME FILTER] Single-day range detected, expanding to monthly boundaries`);
+      return {
+        expandedStart: startOfMonth(start),
+        expandedEnd: endOfMonth(start)
+      };
+    }
+
+    if (daysDiff < 7) {
+      console.warn(`⚠️ [TIME FILTER] Very short range (${daysDiff} days), expanding to ensure data coverage`);
+      return {
+        expandedStart: startOfMonth(start),
+        expandedEnd: endOfMonth(addDays(start, 30)) // Expand to at least a month
+      };
+    }
+
+    // For normal ranges, expand to monthly boundaries for better data matching
+    return {
+      expandedStart: startOfMonth(start),
+      expandedEnd: endOfMonth(end)
+    };
+  }
+
+  /**
+   * Enhanced point-in-range check with multiple strategies
+   */
+  private isPointInRange(pointDate: Date, expandedStart: Date, expandedEnd: Date): boolean {
+    // Strategy 1: Direct range check
+    const directMatch = pointDate >= expandedStart && pointDate <= expandedEnd;
+    
+    // Strategy 2: Month-based comparison for edge cases
+    const monthMatch = (
+      isSameMonth(pointDate, expandedStart) ||
+      isSameMonth(pointDate, expandedEnd) ||
+      (pointDate > expandedStart && pointDate < expandedEnd)
+    );
+
+    // Strategy 3: Boundary month inclusion
+    const boundaryMatch = (
+      pointDate >= startOfMonth(expandedStart) && 
+      pointDate <= endOfMonth(expandedEnd)
+    );
+
+    const result = directMatch || monthMatch || boundaryMatch;
+
+    if (!result) {
+      console.log(`🔍 [TIME FILTER] Point ${format(pointDate, 'yyyy-MM')} not in range:`, {
+        pointDate: pointDate.toISOString(),
+        expandedStart: expandedStart.toISOString(),
+        expandedEnd: expandedEnd.toISOString(),
+        directMatch,
+        monthMatch,
+        boundaryMatch
+      });
+    }
+
+    return result;
   }
 }

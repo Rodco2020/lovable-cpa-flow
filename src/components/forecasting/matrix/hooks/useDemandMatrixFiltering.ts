@@ -1,30 +1,27 @@
 
 import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { DemandMatrixData } from '@/types/demand';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, differenceInDays, addDays } from 'date-fns';
 
 /**
- * Hook for managing demand matrix data filtering
+ * Enhanced Hook for managing demand matrix data filtering
  * 
- * Phase 3: Enhanced to handle preferred staff filtering along with existing filters
- * Handles all filtering logic including skill/client filtering, preferred staff filtering,
- * time horizon filtering, and grouping mode transformations.
- * 
- * Enhanced with better time horizon handling to prevent "No Demand Data Available" issues.
+ * Handles all filtering logic with improved time horizon handling to prevent 
+ * "No Demand Data Available" issues. Features enhanced debugging and validation.
  */
 export const useDemandMatrixFiltering = (
   demandData: DemandMatrixData | null,
   demandMatrixControls: any,
   groupingMode: 'skill' | 'client'
 ) => {
-  // Filter data based on controls and grouping mode
+  // Enhanced filter data function with better time horizon handling
   const getFilteredData = () => {
     if (!demandData) {
       console.log(`🔧 [DEMAND MATRIX] No demand data available for filtering`);
       return null;
     }
 
-    console.log(`🔧 [DEMAND MATRIX] Starting filter operation:`, {
+    console.log(`🔧 [DEMAND MATRIX] Starting enhanced filter operation:`, {
       groupingMode,
       selectedSkillsCount: demandMatrixControls.selectedSkills.length,
       availableSkillsCount: demandMatrixControls.availableSkills.length,
@@ -40,13 +37,9 @@ export const useDemandMatrixFiltering = (
       availableMonths: demandData.months.length
     });
 
-    // Enhanced month range handling with validation
-    const safeMonthRange = {
-      start: Math.max(0, demandMatrixControls.monthRange.start),
-      end: Math.min(demandData.months.length - 1, demandMatrixControls.monthRange.end)
-    };
-
-    console.log(`🔍 [DEMAND MATRIX] Safe month range: ${safeMonthRange.start} to ${safeMonthRange.end}`);
+    // Enhanced month range validation and handling
+    const safeMonthRange = validateMonthRange(demandMatrixControls.monthRange, demandData.months.length);
+    console.log(`🔍 [DEMAND MATRIX] Validated month range: ${safeMonthRange.start} to ${safeMonthRange.end}`);
 
     const filteredMonths = demandData.months.slice(safeMonthRange.start, safeMonthRange.end + 1);
     
@@ -57,58 +50,35 @@ export const useDemandMatrixFiltering = (
 
     console.log(`📅 [DEMAND MATRIX] Filtered months:`, filteredMonths.map(m => m.key));
 
-    // Create time horizon with proper monthly boundaries
-    let timeHorizonStart: Date, timeHorizonEnd: Date;
-    
-    try {
-      if (filteredMonths.length > 0) {
-        // Use month boundaries for better data matching
-        timeHorizonStart = startOfMonth(new Date(filteredMonths[0].key + '-01'));
-        timeHorizonEnd = endOfMonth(new Date(filteredMonths[filteredMonths.length - 1].key + '-01'));
-      } else {
-        // Fallback to current month
-        const now = new Date();
-        timeHorizonStart = startOfMonth(now);
-        timeHorizonEnd = endOfMonth(now);
-      }
-    } catch (error) {
-      console.error(`❌ [DEMAND MATRIX] Error creating time horizon:`, error);
-      const now = new Date();
-      timeHorizonStart = startOfMonth(now);
-      timeHorizonEnd = endOfMonth(now);
-    }
-
-    console.log(`🕐 [DEMAND MATRIX] Time horizon:`, {
-      start: timeHorizonStart.toISOString(),
-      end: timeHorizonEnd.toISOString(),
-      daysDifference: Math.ceil((timeHorizonEnd.getTime() - timeHorizonStart.getTime()) / (1000 * 60 * 60 * 24))
+    // Enhanced time horizon creation with validation
+    const timeHorizon = createValidatedTimeHorizon(filteredMonths);
+    console.log(`🕐 [DEMAND MATRIX] Created time horizon:`, {
+      start: timeHorizon.start.toISOString(),
+      end: timeHorizon.end.toISOString(),
+      daysDifference: differenceInDays(timeHorizon.end, timeHorizon.start),
+      monthsCovered: filteredMonths.length
     });
     
-    // Phase 3: Create filters with correct "no active filtering" logic including preferred staff
+    // Create enhanced filters with proper "no active filtering" logic
     const filters = {
-      // Only include skills filter if we're NOT selecting all skills
       skills: demandMatrixControls.isAllSkillsSelected ? [] : demandMatrixControls.selectedSkills,
-      // Only include clients filter if we're NOT selecting all clients  
       clients: demandMatrixControls.isAllClientsSelected ? [] : demandMatrixControls.selectedClients,
-      // Phase 3: Only include preferred staff filter if we're NOT selecting all staff
       preferredStaff: demandMatrixControls.isAllPreferredStaffSelected ? [] : demandMatrixControls.selectedPreferredStaff,
-      timeHorizon: {
-        start: timeHorizonStart,
-        end: timeHorizonEnd
-      }
+      timeHorizon
     };
 
-    console.log(`🎯 [DEMAND MATRIX] Applied filters:`, {
+    console.log(`🎯 [DEMAND MATRIX] Applied enhanced filters:`, {
       skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
       clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
       preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL STAFF (no filter)' : filters.preferredStaff,
-      timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`
+      timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`,
+      timeHorizonDays: differenceInDays(filters.timeHorizon.end, filters.timeHorizon.start)
     });
 
     // Use the performance optimizer with enhanced filtering
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
     
-    console.log(`📊 [DEMAND MATRIX] Filter results:`, {
+    console.log(`📊 [DEMAND MATRIX] Enhanced filter results:`, {
       originalDataPoints: demandData.dataPoints.length,
       filteredDataPoints: optimizedData.dataPoints.length,
       originalSkills: demandData.skills.length,
@@ -116,45 +86,22 @@ export const useDemandMatrixFiltering = (
       totalDemandHours: optimizedData.totalDemand || 0,
       totalTasks: optimizedData.totalTasks,
       totalClients: optimizedData.totalClients,
-      preferredStaffFilterApplied: filters.preferredStaff.length > 0
+      preferredStaffFilterApplied: filters.preferredStaff.length > 0,
+      filteringEfficiency: `${((optimizedData.dataPoints.length / demandData.dataPoints.length) * 100).toFixed(1)}%`
     });
 
-    // Safeguard: If filtering resulted in no data, provide diagnostic information
+    // Enhanced safeguard with detailed diagnostics
     if (optimizedData.dataPoints.length === 0) {
-      console.error(`❌ [DEMAND MATRIX] All data was filtered out!`);
-      console.log(`🔍 [DEMAND MATRIX] Diagnostic information:`, {
-        originalMonths: demandData.months.map(m => m.key),
-        filteredMonthKeys: filteredMonths.map(m => m.key),
-        originalSkills: demandData.skills,
-        selectedSkills: filters.skills,
-        timeRange: `${filters.timeHorizon.start.toISOString()} to ${filters.timeHorizon.end.toISOString()}`,
-        sampleDataPoints: demandData.dataPoints.slice(0, 3).map(dp => ({
-          month: dp.month,
-          skillType: dp.skillType,
-          demandHours: dp.demandHours
-        }))
-      });
+      console.error(`❌ [DEMAND MATRIX] All data was filtered out! Running diagnostics...`);
+      runFilteringDiagnostics(demandData, filters, filteredMonths);
+      
+      // Return a minimal dataset to prevent complete failure
+      return createFallbackDataset(demandData, filteredMonths);
     }
 
     // Handle grouping mode transformation
     if (groupingMode === 'client') {
-      // Transform data for client-based view - use the optimized data
-      const clientGroupedData = {
-        ...optimizedData,
-        skills: Array.from(new Set(
-          optimizedData.dataPoints
-            .flatMap(point => point.taskBreakdown?.map(task => task.clientName) || [])
-            .filter(name => name && !name.includes('...'))
-        )),
-        dataPoints: optimizedData.dataPoints // Use the already filtered data points
-      };
-
-      console.log(`👥 [DEMAND MATRIX] Client grouping applied:`, {
-        uniqueClients: clientGroupedData.skills.length,
-        dataPointsAfterGrouping: clientGroupedData.dataPoints.length
-      });
-
-      return clientGroupedData;
+      return transformForClientGrouping(optimizedData);
     }
 
     return optimizedData;
@@ -164,3 +111,129 @@ export const useDemandMatrixFiltering = (
     getFilteredData
   };
 };
+
+/**
+ * Validate and correct month range to prevent out-of-bounds access
+ */
+function validateMonthRange(monthRange: { start: number; end: number }, maxMonths: number) {
+  const safeStart = Math.max(0, Math.min(monthRange.start, maxMonths - 1));
+  const safeEnd = Math.max(safeStart, Math.min(monthRange.end, maxMonths - 1));
+  
+  if (safeStart !== monthRange.start || safeEnd !== monthRange.end) {
+    console.warn(`⚠️ [DEMAND MATRIX] Month range adjusted from [${monthRange.start}, ${monthRange.end}] to [${safeStart}, ${safeEnd}]`);
+  }
+  
+  return { start: safeStart, end: safeEnd };
+}
+
+/**
+ * Create a validated time horizon that prevents filtering issues
+ */
+function createValidatedTimeHorizon(filteredMonths: Array<{ key: string }>) {
+  try {
+    if (filteredMonths.length === 0) {
+      // Fallback to current month
+      const now = new Date();
+      return {
+        start: startOfMonth(now),
+        end: endOfMonth(now)
+      };
+    }
+
+    // Use month boundaries for better data matching
+    const startDate = startOfMonth(new Date(filteredMonths[0].key + '-01'));
+    const endDate = endOfMonth(new Date(filteredMonths[filteredMonths.length - 1].key + '-01'));
+    
+    // Validate the range
+    const daysDiff = differenceInDays(endDate, startDate);
+    
+    if (daysDiff < 0) {
+      console.warn(`⚠️ [TIME HORIZON] Invalid range detected, swapping dates`);
+      return { start: endDate, end: startDate };
+    }
+    
+    if (daysDiff === 0) {
+      console.warn(`⚠️ [TIME HORIZON] Single-day range, expanding to monthly boundaries`);
+      return {
+        start: startDate,
+        end: endOfMonth(addDays(startDate, 30))
+      };
+    }
+    
+    return { start: startDate, end: endDate };
+  } catch (error) {
+    console.error(`❌ [TIME HORIZON] Error creating time horizon:`, error);
+    const now = new Date();
+    return {
+      start: startOfMonth(now),
+      end: endOfMonth(now)
+    };
+  }
+}
+
+/**
+ * Run detailed diagnostics when filtering removes all data
+ */
+function runFilteringDiagnostics(
+  originalData: DemandMatrixData, 
+  filters: any, 
+  filteredMonths: Array<{ key: string }>
+) {
+  console.log(`🔍 [FILTERING DIAGNOSTICS] Analyzing why all data was filtered out:`);
+  console.log(`📊 Original data summary:`, {
+    totalDataPoints: originalData.dataPoints.length,
+    availableMonths: originalData.months.map(m => m.key),
+    availableSkills: originalData.skills,
+    sampleDataPoints: originalData.dataPoints.slice(0, 5).map(dp => ({
+      month: dp.month,
+      skillType: dp.skillType,
+      demandHours: dp.demandHours,
+      taskCount: dp.taskBreakdown?.length || 0
+    }))
+  });
+  
+  console.log(`🎯 Applied filters:`, {
+    skills: filters.skills.length === 0 ? 'No skill filtering' : filters.skills,
+    clients: filters.clients.length === 0 ? 'No client filtering' : filters.clients,
+    timeHorizon: `${filters.timeHorizon.start.toISOString()} to ${filters.timeHorizon.end.toISOString()}`,
+    filteredMonthKeys: filteredMonths.map(m => m.key)
+  });
+}
+
+/**
+ * Create a fallback dataset when all data is filtered out
+ */
+function createFallbackDataset(originalData: DemandMatrixData, filteredMonths: Array<{ key: string }>) {
+  console.log(`🔧 [FALLBACK] Creating minimal dataset to prevent complete failure`);
+  
+  return {
+    ...originalData,
+    months: filteredMonths.length > 0 ? filteredMonths : originalData.months.slice(0, 1),
+    dataPoints: [], // Empty but valid
+    totalDemand: 0,
+    totalTasks: 0,
+    totalClients: 0
+  };
+}
+
+/**
+ * Transform data for client-based grouping view
+ */
+function transformForClientGrouping(optimizedData: DemandMatrixData) {
+  const clientGroupedData = {
+    ...optimizedData,
+    skills: Array.from(new Set(
+      optimizedData.dataPoints
+        .flatMap(point => point.taskBreakdown?.map(task => task.clientName) || [])
+        .filter(name => name && !name.includes('...'))
+    )),
+    dataPoints: optimizedData.dataPoints
+  };
+
+  console.log(`👥 [DEMAND MATRIX] Client grouping applied:`, {
+    uniqueClients: clientGroupedData.skills.length,
+    dataPointsAfterGrouping: clientGroupedData.dataPoints.length
+  });
+
+  return clientGroupedData;
+}
