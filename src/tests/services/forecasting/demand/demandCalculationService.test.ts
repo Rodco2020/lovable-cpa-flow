@@ -1,3 +1,4 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DemandCalculationService } from '@/services/forecasting/demand/matrixTransformer/demandCalculationService';
 import { RecurringTaskDB } from '@/types/task';
@@ -49,15 +50,9 @@ describe('DemandCalculationService', () => {
     period: '2025-01',
     demand: [{ skill: 'Junior', hours: 100 }],
     capacity: [{ skill: 'Junior', hours: 80 }],
-    gap: 20,
-    skills: ['Junior'],
-    details: {
-      Junior: {
-        demand: 100,
-        capacity: 80,
-        gap: 20
-      }
-    }
+    demandHours: 100,
+    capacityHours: 80,
+    gapHours: 20
   };
 
   beforeEach(() => {
