@@ -30,9 +30,18 @@ describe('useDemandMatrixFiltering', () => {
         clientCount: 2,
         taskBreakdown: [
           {
+            recurringTaskId: 'recurring-task-1',
             taskName: 'Test Task',
             clientId: 'client-1',
             clientName: 'Test Client',
+            skillType: 'Junior',
+            estimatedHours: 8,
+            recurrencePattern: {
+              type: 'monthly',
+              interval: 1,
+              frequency: 12
+            },
+            monthlyHours: 8,
             preferredStaffId: 'staff-1',
             preferredStaffName: 'Test Staff'
           }
@@ -43,7 +52,14 @@ describe('useDemandMatrixFiltering', () => {
     skills: ['Junior'],
     totalDemand: 40,
     totalTasks: 5,
-    totalClients: 2
+    totalClients: 2,
+    skillSummary: {
+      'Junior': {
+        totalHours: 40,
+        taskCount: 5,
+        clientCount: 2
+      }
+    }
   };
 
   const mockControls = {
