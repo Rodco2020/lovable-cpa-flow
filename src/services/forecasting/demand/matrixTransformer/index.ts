@@ -16,6 +16,9 @@ export { ClientTotalsCalculator } from './clientTotalsCalculator';
 // New focused services
 export { MatrixRevenueCalculator } from './matrixRevenueCalculator';
 export { MatrixDataEnricher } from './matrixDataEnricher';
+export { RevenueCalculationService } from './revenueCalculationService';
+export { TaskBreakdownService } from './taskBreakdownService';
+export { DataPointFactoryService } from './dataPointFactoryService';
 
 // Export types
 export type {
