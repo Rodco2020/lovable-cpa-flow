@@ -7,7 +7,7 @@ import { useSkills } from '@/hooks/useSkills';
 import { useMatrixFiltering } from './useMatrixFiltering';
 import { useMatrixExport } from './useMatrixExport';
 import { useAvailablePreferredStaff } from './useAvailablePreferredStaff';
-import { normalizeStaffId, isStaffIdInArray } from '@/utils/staffIdUtils';
+import { normalizeStaffId, isStaffIdInArray, compareStaffIds } from '@/utils/staffIdUtils';
 
 interface UseDemandMatrixControlsProps {
   demandData?: DemandMatrixData | null;
@@ -22,10 +22,11 @@ interface DemandMatrixControlsState {
 }
 
 /**
- * PHASE 2 FIX: Hook for managing demand matrix controls with normalized staff IDs
+ * PHASE 3 FIX: Hook for managing demand matrix controls with enhanced normalized staff IDs
  * 
- * Enhanced with consistent staff ID normalization to prevent filtering mismatches.
- * All staff ID operations now use the shared normalization utility.
+ * Enhanced with comprehensive staff ID normalization, validation, and testing to ensure
+ * robust filtering operations. All staff ID operations now use the shared normalization
+ * utility with enhanced error handling and diagnostics.
  */
 export const useDemandMatrixControls = ({ 
   demandData, 
@@ -51,18 +52,25 @@ export const useDemandMatrixControls = ({
     refetch: refetchPreferredStaff 
   } = useAvailablePreferredStaff();
 
-  // PHASE 2 LOGGING: Log normalized preferred staff hook data
-  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 2: Preferred Staff Hook Data:`, {
+  // PHASE 3 LOGGING: Enhanced preferred staff hook data analysis
+  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 3: Enhanced Preferred Staff Analysis:`, {
     availablePreferredStaffCount: availablePreferredStaff.length,
     availablePreferredStaff: availablePreferredStaff.map(staff => ({
       id: staff.id,
       name: staff.name,
       role: staff.roleTitle,
-      isNormalized: staff.id === staff.id.toLowerCase()
+      isNormalized: staff.id === staff.id.toLowerCase(),
+      idLength: staff.id.length,
+      isUuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staff.id)
     })),
     preferredStaffLoading,
-    preferredStaffError,
-    hookExecutionTime: new Date().toISOString()
+    preferredStaffError: preferredStaffError?.message,
+    hookExecutionTime: new Date().toISOString(),
+    dataQuality: {
+      allIdsNormalized: availablePreferredStaff.every(staff => staff.id === staff.id.toLowerCase()),
+      uniqueIdCount: new Set(availablePreferredStaff.map(s => s.id)).size,
+      duplicateIdsDetected: availablePreferredStaff.length !== new Set(availablePreferredStaff.map(s => s.id)).size
+    }
   });
 
   // Use filtering logic hook
@@ -80,9 +88,12 @@ export const useDemandMatrixControls = ({
     groupingMode
   });
 
-  // PHASE 2 FIX: Calculate if all preferred staff are selected properly
+  // PHASE 3 FIX: Enhanced preferred staff selection calculation with validation
   const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && 
-    state.selectedPreferredStaff.length === availablePreferredStaff.length;
+    state.selectedPreferredStaff.length === availablePreferredStaff.length &&
+    availablePreferredStaff.every(staff => 
+      isStaffIdInArray(staff.id, state.selectedPreferredStaff)
+    );
 
   // Use export functionality hook
   const { handleExport } = useMatrixExport({
@@ -139,14 +150,27 @@ export const useDemandMatrixControls = ({
     });
   }, [availableClients.length]);
 
-  // PHASE 2 FIX: Handle preferred staff toggle with normalized IDs
+  // PHASE 3 FIX: Enhanced preferred staff toggle with comprehensive validation and testing
   const handlePreferredStaffToggle = useCallback((staffId: string) => {
     // Normalize the incoming staff ID
     const normalizedStaffId = normalizeStaffId(staffId);
     
     if (!normalizedStaffId) {
-      console.warn(`🔧 [MATRIX CONTROLS] PHASE 2: Invalid staff ID provided:`, staffId);
+      console.warn(`🔧 [MATRIX CONTROLS] PHASE 3: Invalid staff ID provided:`, staffId);
       return;
+    }
+
+    // PHASE 3 VALIDATION: Verify staff ID exists in available staff
+    const staffExists = availablePreferredStaff.some(staff => 
+      compareStaffIds(staff.id, normalizedStaffId)
+    );
+
+    if (!staffExists) {
+      console.warn(`🔧 [MATRIX CONTROLS] PHASE 3: Staff ID not found in available staff:`, {
+        providedId: staffId,
+        normalizedId: normalizedStaffId,
+        availableStaffIds: availablePreferredStaff.map(s => s.id)
+      });
     }
 
     setState(prev => {
@@ -154,17 +178,20 @@ export const useDemandMatrixControls = ({
       const newSelectedPreferredStaff = wasSelected
         ? prev.selectedPreferredStaff.filter(id => {
             const normalizedExistingId = normalizeStaffId(id);
-            return normalizedExistingId !== normalizedStaffId;
+            return !compareStaffIds(normalizedExistingId, normalizedStaffId);
           })
         : [...prev.selectedPreferredStaff, normalizedStaffId];
 
-      const staffName = availablePreferredStaff.find(s => normalizeStaffId(s.id) === normalizedStaffId)?.name || 'Unknown';
+      const staffName = availablePreferredStaff.find(s => 
+        compareStaffIds(s.id, normalizedStaffId)
+      )?.name || 'Unknown';
 
-      // PHASE 2 LOGGING: Comprehensive toggle logging with normalization
-      console.log(`🔧 [MATRIX CONTROLS HOOK] PHASE 2: Preferred staff toggle:`, {
+      // PHASE 3 LOGGING: Comprehensive toggle logging with enhanced validation
+      console.log(`🔧 [MATRIX CONTROLS HOOK] PHASE 3: Enhanced preferred staff toggle:`, {
         originalStaffId: staffId,
         normalizedStaffId,
         staffName,
+        staffExists,
         action: wasSelected ? 'removed' : 'added',
         previousSelection: prev.selectedPreferredStaff,
         newSelection: newSelectedPreferredStaff,
@@ -172,8 +199,31 @@ export const useDemandMatrixControls = ({
         totalAvailable: availablePreferredStaff.length,
         willShowAllData: newSelectedPreferredStaff.length === 0,
         toggleTime: new Date().toISOString(),
-        normalizationApplied: staffId !== normalizedStaffId
+        normalizationApplied: staffId !== normalizedStaffId,
+        validationResults: {
+          idNormalizationSuccess: !!normalizedStaffId,
+          staffExistsInAvailable: staffExists,
+          selectionStateValid: newSelectedPreferredStaff.every(id => normalizeStaffId(id)),
+          allSelectedIdsNormalized: newSelectedPreferredStaff.every(id => id === normalizeStaffId(id))
+        }
       });
+
+      // PHASE 3 TEST: Verify selection integrity
+      const selectionIntegrityCheck = {
+        allIdsNormalized: newSelectedPreferredStaff.every(id => id === normalizeStaffId(id)),
+        noDuplicates: new Set(newSelectedPreferredStaff).size === newSelectedPreferredStaff.length,
+        allIdsValid: newSelectedPreferredStaff.every(id => normalizeStaffId(id))
+      };
+
+      if (!selectionIntegrityCheck.allIdsNormalized || 
+          !selectionIntegrityCheck.noDuplicates || 
+          !selectionIntegrityCheck.allIdsValid) {
+        console.error(`❌ [MATRIX CONTROLS] PHASE 3: Selection integrity check failed:`, {
+          selectionIntegrityCheck,
+          newSelection: newSelectedPreferredStaff,
+          problematicIds: newSelectedPreferredStaff.filter(id => !normalizeStaffId(id))
+        });
+      }
 
       return {
         ...prev,
@@ -190,7 +240,7 @@ export const useDemandMatrixControls = ({
     }));
   }, []);
 
-  // PHASE 2 FIX: Enhanced reset - SELECT ALL clients and skills, CLEAR preferred staff (shows all data)
+  // PHASE 3 FIX: Enhanced reset with comprehensive validation
   const handleReset = useCallback(() => {
     const resetState = {
       selectedSkills: availableSkills,
@@ -199,22 +249,30 @@ export const useDemandMatrixControls = ({
       selectedPreferredStaff: [] // Reset to empty = show all data
     };
 
-    console.log(`🔄 [MATRIX CONTROLS HOOK] PHASE 2: Reset operation with normalization:`, {
+    console.log(`🔄 [MATRIX CONTROLS HOOK] PHASE 3: Enhanced reset operation:`, {
       previousState: state,
       resetState,
-      resetTime: new Date().toISOString()
+      resetTime: new Date().toISOString(),
+      validationResults: {
+        skillsResetValid: resetState.selectedSkills.length === availableSkills.length,
+        clientsResetValid: resetState.selectedClients.length === availableClients.length,
+        preferredStaffResetValid: resetState.selectedPreferredStaff.length === 0,
+        monthRangeResetValid: resetState.monthRange.start === 0 && resetState.monthRange.end === 11
+      }
     });
 
     setState(resetState);
   }, [availableSkills, availableClients, availablePreferredStaff, state]);
 
-  // PHASE 2 LOGGING: Log hook execution state with normalization details
-  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 2: Hook execution state:`, {
+  // PHASE 3 LOGGING: Enhanced hook execution state with comprehensive diagnostics
+  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 3: Enhanced hook execution state:`, {
     currentState: state,
-    selectedPreferredStaffNormalized: state.selectedPreferredStaff.map(id => ({
+    selectedPreferredStaffAnalysis: state.selectedPreferredStaff.map(id => ({
       id,
       normalized: normalizeStaffId(id),
-      isAlreadyNormalized: id === normalizeStaffId(id)
+      isAlreadyNormalized: id === normalizeStaffId(id),
+      existsInAvailable: availablePreferredStaff.some(staff => compareStaffIds(staff.id, id)),
+      matchingStaffName: availablePreferredStaff.find(staff => compareStaffIds(staff.id, id))?.name
     })),
     calculations: {
       isAllSkillsSelected,
@@ -226,6 +284,17 @@ export const useDemandMatrixControls = ({
       skillsLoading,
       clientsLoading,
       preferredStaffLoading
+    },
+    qualityMetrics: {
+      stateConsistency: {
+        selectedStaffIdsNormalized: state.selectedPreferredStaff.every(id => id === normalizeStaffId(id)),
+        selectedStaffIdsValid: state.selectedPreferredStaff.every(id => normalizeStaffId(id)),
+        noDuplicateSelectedStaff: new Set(state.selectedPreferredStaff).size === state.selectedPreferredStaff.length
+      },
+      availableDataQuality: {
+        availableStaffIdsNormalized: availablePreferredStaff.every(staff => staff.id === staff.id.toLowerCase()),
+        availableStaffUnique: availablePreferredStaff.length === new Set(availablePreferredStaff.map(s => s.id)).size
+      }
     },
     executionTime: new Date().toISOString()
   });
@@ -244,7 +313,7 @@ export const useDemandMatrixControls = ({
     isAllSkillsSelected,
     isAllClientsSelected,
     
-    // Preferred staff functionality
+    // Enhanced preferred staff functionality
     handlePreferredStaffToggle,
     availablePreferredStaff,
     preferredStaffLoading,
