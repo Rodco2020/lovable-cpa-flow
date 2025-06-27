@@ -33,7 +33,9 @@ export const createMockDemandMatrixData = (): DemandMatrixData => ({
           skillType: 'Junior',
           estimatedHours: 15,
           recurrencePattern: { type: 'monthly', interval: 1, frequency: 1 },
-          monthlyHours: 25
+          monthlyHours: 25,
+          preferredStaffId: null,
+          preferredStaffName: null
         },
         { 
           clientId: 'client-b',
@@ -43,7 +45,9 @@ export const createMockDemandMatrixData = (): DemandMatrixData => ({
           skillType: 'Junior',
           estimatedHours: 10,
           recurrencePattern: { type: 'monthly', interval: 1, frequency: 1 },
-          monthlyHours: 15
+          monthlyHours: 15,
+          preferredStaffId: null,
+          preferredStaffName: null
         }
       ]
     },
@@ -63,7 +67,9 @@ export const createMockDemandMatrixData = (): DemandMatrixData => ({
           skillType: 'Senior',
           estimatedHours: 20,
           recurrencePattern: { type: 'monthly', interval: 1, frequency: 1 },
-          monthlyHours: 35
+          monthlyHours: 35,
+          preferredStaffId: null,
+          preferredStaffName: null
         },
         { 
           clientId: 'client-c',
@@ -73,7 +79,9 @@ export const createMockDemandMatrixData = (): DemandMatrixData => ({
           skillType: 'Senior',
           estimatedHours: 15,
           recurrencePattern: { type: 'monthly', interval: 1, frequency: 1 },
-          monthlyHours: 25
+          monthlyHours: 25,
+          preferredStaffId: null,
+          preferredStaffName: null
         }
       ]
     }

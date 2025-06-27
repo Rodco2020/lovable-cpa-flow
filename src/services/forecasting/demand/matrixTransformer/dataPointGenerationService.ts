@@ -201,7 +201,9 @@ export class DataPointGenerationService {
                 interval: task.recurrence_interval || 1,
                 frequency: monthlyDemand.monthlyOccurrences
               },
-              monthlyHours: monthlyDemand.monthlyHours
+              monthlyHours: monthlyDemand.monthlyHours,
+              preferredStaffId: task.preferred_staff_id || null,
+              preferredStaffName: null // Will be resolved separately if needed
             };
 
             taskBreakdown.push(taskDemand);

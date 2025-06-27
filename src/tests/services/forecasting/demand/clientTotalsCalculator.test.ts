@@ -21,7 +21,9 @@ describe('ClientTotalsCalculator', () => {
           skillType: 'Junior',
           estimatedHours: 10,
           recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-          monthlyHours: 10
+          monthlyHours: 10,
+          preferredStaffId: null,
+          preferredStaffName: null
         },
         {
           clientId: 'client-2',
@@ -31,7 +33,9 @@ describe('ClientTotalsCalculator', () => {
           skillType: 'Junior',
           estimatedHours: 10,
           recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-          monthlyHours: 10
+          monthlyHours: 10,
+          preferredStaffId: null,
+          preferredStaffName: null
         }
       ]
     },
@@ -51,7 +55,9 @@ describe('ClientTotalsCalculator', () => {
           skillType: 'Senior',
           estimatedHours: 15,
           recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-          monthlyHours: 15
+          monthlyHours: 15,
+          preferredStaffId: null,
+          preferredStaffName: null
         }
       ]
     }
