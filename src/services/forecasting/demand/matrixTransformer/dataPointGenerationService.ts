@@ -151,6 +151,7 @@ export class DataPointGenerationService {
 
   /**
    * Generate task breakdown for a data point with enhanced client resolution
+   * PHASE 2 FIX: Now includes preferred staff information from tasks
    */
   private static async generateTaskBreakdown(
     skill: string,
@@ -189,6 +190,7 @@ export class DataPointGenerationService {
           );
 
           if (monthlyDemand.monthlyHours > 0) {
+            // PHASE 2 FIX: Include preferred staff information from the task
             const taskDemand: ClientTaskDemand = {
               clientId: task.client_id,
               clientName: clientInfo,
@@ -203,8 +205,10 @@ export class DataPointGenerationService {
               },
               monthlyHours: monthlyDemand.monthlyHours,
               preferredStaffId: task.preferred_staff_id || null,
-              preferredStaffName: null // Will be resolved separately if needed
+              preferredStaffName: task.staff?.full_name || null
             };
+
+            console.log(`🎯 [TASK BREAKDOWN] Task ${task.id}: Preferred Staff ID = ${task.preferred_staff_id}, Name = ${task.staff?.full_name || 'None'}`);
 
             taskBreakdown.push(taskDemand);
           }
