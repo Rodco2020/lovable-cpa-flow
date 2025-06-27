@@ -35,10 +35,13 @@ export interface ClientTaskDemand {
    */
   suggestedRevenue?: number;
   /** 
-   * FIXED: Add preferred staff information for filtering
+   * NEW: Preferred staff member UUID from the database
    */
-  preferredStaffId?: string;
-  preferredStaffName?: string;
+  preferredStaffId: string | null;
+  /** 
+   * NEW: Preferred staff member name from the database
+   */
+  preferredStaffName: string | null;
 }
 
 export interface RecurrencePattern {
