@@ -1,7 +1,7 @@
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { BaseFilterStrategy } from './baseFilterStrategy';
-import { PerformanceOptimizer } from '../matrixTransformer/performanceOptimizer';
+import { PerformanceOptimizer } from '../../matrixTransformer/performanceOptimizer';
 
 /**
  * PHASE 4: Performance Optimized Filter Strategy Base Class
@@ -42,7 +42,7 @@ export abstract class PerformanceOptimizedFilterStrategy implements BaseFilterSt
 
       monitor.checkpoint('cache_miss');
 
-      // Apply optimized filtering
+      // Apply optimized filtering (synchronous)
       const result = this.processDataOptimized(data, filters, monitor);
       
       // Cache the result
@@ -71,22 +71,22 @@ export abstract class PerformanceOptimizedFilterStrategy implements BaseFilterSt
   }
 
   /**
-   * Process data with performance optimizations
+   * Process data with performance optimizations (now synchronous)
    */
-  private async processDataOptimized(
+  private processDataOptimized(
     data: DemandMatrixData,
     filters: DemandFilters,
     monitor: ReturnType<typeof PerformanceOptimizer.createPerformanceMonitor>
-  ): Promise<DemandMatrixData> {
+  ): DemandMatrixData {
     monitor.checkpoint('optimization_start');
 
     // Optimize data structures
     const optimizedDataPoints = PerformanceOptimizer.optimizeDataStructures(data.dataPoints);
     monitor.checkpoint('data_optimization');
 
-    // Process in batches for large datasets
+    // Process in batches for large datasets (synchronous batching)
     if (optimizedDataPoints.length > PerformanceOptimizedFilterStrategy.BATCH_SIZE) {
-      return await this.processBatchedData({
+      return this.processBatchedDataSync({
         ...data,
         dataPoints: optimizedDataPoints
       }, filters, monitor);
@@ -100,20 +100,22 @@ export abstract class PerformanceOptimizedFilterStrategy implements BaseFilterSt
   }
 
   /**
-   * Process large datasets in batches to prevent UI blocking
+   * Process large datasets in batches synchronously
    */
-  private async processBatchedData(
+  private processBatchedDataSync(
     data: DemandMatrixData,
     filters: DemandFilters,
     monitor: ReturnType<typeof PerformanceOptimizer.createPerformanceMonitor>
-  ): Promise<DemandMatrixData> {
-    const filteredDataPoints = await PerformanceOptimizer.processBatched(
-      data.dataPoints,
-      async (batch) => {
-        return batch.filter(dataPoint => this.shouldIncludeDataPoint(dataPoint, filters));
-      },
-      PerformanceOptimizedFilterStrategy.BATCH_SIZE
-    );
+  ): DemandMatrixData {
+    const batchSize = PerformanceOptimizedFilterStrategy.BATCH_SIZE;
+    const filteredDataPoints = [];
+
+    // Process in synchronous batches
+    for (let i = 0; i < data.dataPoints.length; i += batchSize) {
+      const batch = data.dataPoints.slice(i, i + batchSize);
+      const filteredBatch = batch.filter(dataPoint => this.shouldIncludeDataPoint(dataPoint, filters));
+      filteredDataPoints.push(...filteredBatch);
+    }
 
     monitor.checkpoint('batch_processing');
 
