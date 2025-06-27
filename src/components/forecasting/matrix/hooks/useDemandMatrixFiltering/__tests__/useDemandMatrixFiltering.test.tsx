@@ -24,6 +24,7 @@ describe('useDemandMatrixFiltering', () => {
     dataPoints: [
       {
         month: '2024-01',
+        monthLabel: 'Jan 2024',
         skillType: 'Junior',
         demandHours: 40,
         taskCount: 5,
