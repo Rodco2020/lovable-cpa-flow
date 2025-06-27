@@ -3,10 +3,10 @@ import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { BaseFilterStrategy } from './baseFilterStrategy';
 
 /**
- * FIXED: Preferred Staff Filter Strategy
+ * INVESTIGATION FIX: Preferred Staff Filter Strategy
  * 
- * Filters demand matrix data based on preferred staff assignments for tasks.
- * Handles both specific staff selection and "None" (show all) selection properly.
+ * Root cause identified: Data type mismatch in staff ID comparison
+ * Solution: Type-safe comparison with detailed logging for staff ID flow tracing
  */
 export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   getName(): string {
@@ -23,16 +23,37 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   }
 
   apply(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
-    console.log(`🎯 [PREFERRED STAFF FILTER] FIXED: Applying filter with ${filters.preferredStaff.length} selected staff`);
-    console.log(`🎯 [PREFERRED STAFF FILTER] Selected staff IDs:`, filters.preferredStaff);
+    console.log(`🔍 [PREFERRED STAFF FILTER] INVESTIGATION: Starting staff ID flow trace`);
+    console.log(`🔍 [PREFERRED STAFF FILTER] Filter staff selection:`, {
+      selectedStaff: filters.preferredStaff,
+      selectionType: typeof filters.preferredStaff[0],
+      selectionLength: filters.preferredStaff.length
+    });
 
     const startTime = performance.now();
     
-    // FIXED: If no preferred staff selected, return all data (no filtering)
+    // INVESTIGATION: If no preferred staff selected, return all data (no filtering)
     if (!filters.preferredStaff || filters.preferredStaff.length === 0) {
       console.log(`✅ [PREFERRED STAFF FILTER] No preferred staff filter applied - showing all data`);
       return data;
     }
+
+    // INVESTIGATION: Log data structure before filtering
+    const sampleDataPoint = data.dataPoints[0];
+    if (sampleDataPoint?.taskBreakdown?.[0]) {
+      const sampleTask = sampleDataPoint.taskBreakdown[0];
+      console.log(`🔍 [PREFERRED STAFF FILTER] Sample task structure:`, {
+        taskName: sampleTask.taskName,
+        preferredStaffId: sampleTask.preferredStaffId,
+        preferredStaffIdType: typeof sampleTask.preferredStaffId,
+        preferredStaffName: sampleTask.preferredStaffName,
+        hasPreferredStaff: !!sampleTask.preferredStaffId
+      });
+    }
+
+    // INVESTIGATION: Convert filter staff IDs to strings for consistent comparison
+    const normalizedFilterStaffIds = filters.preferredStaff.map(id => String(id).trim());
+    console.log(`🔍 [PREFERRED STAFF FILTER] Normalized filter staff IDs:`, normalizedFilterStaffIds);
 
     // Filter data points based on preferred staff assignments
     const filteredDataPoints = data.dataPoints.map(dataPoint => {
@@ -41,19 +62,48 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
         return { ...dataPoint, taskBreakdown: [], demandHours: 0, taskCount: 0, clientCount: 0 };
       }
 
-      // FIXED: Filter tasks based on preferred staff
-      const filteredTasks = dataPoint.taskBreakdown.filter(task => {
-        // Include tasks that have a preferred staff ID matching our filter
-        const hasMatchingPreferredStaff = task.preferredStaffId && 
-          filters.preferredStaff.includes(task.preferredStaffId);
+      // INVESTIGATION: Log task filtering process
+      console.log(`🔍 [PREFERRED STAFF FILTER] Processing ${dataPoint.taskBreakdown.length} tasks for ${dataPoint.skillType}/${dataPoint.month}`);
+
+      // FIXED: Type-safe filtering with detailed logging
+      const filteredTasks = dataPoint.taskBreakdown.filter((task, index) => {
+        // INVESTIGATION: Normalize task staff ID for comparison
+        const taskStaffId = task.preferredStaffId ? String(task.preferredStaffId).trim() : null;
+        
+        // INVESTIGATION: Log each comparison
+        const hasMatchingPreferredStaff = taskStaffId && normalizedFilterStaffIds.includes(taskStaffId);
+        
+        console.log(`🔍 [PREFERRED STAFF FILTER] Task ${index + 1}/${dataPoint.taskBreakdown.length} comparison:`, {
+          taskName: task.taskName,
+          taskStaffId: taskStaffId,
+          taskStaffIdType: typeof taskStaffId,
+          taskStaffName: task.preferredStaffName,
+          filterStaffIds: normalizedFilterStaffIds,
+          isMatch: hasMatchingPreferredStaff,
+          comparisonDetails: normalizedFilterStaffIds.map(filterId => ({
+            filterId,
+            taskId: taskStaffId,
+            exactMatch: filterId === taskStaffId,
+            caseInsensitiveMatch: filterId?.toLowerCase() === taskStaffId?.toLowerCase()
+          }))
+        });
         
         if (hasMatchingPreferredStaff) {
-          console.log(`✅ [PREFERRED STAFF FILTER] Including task "${task.taskName}" with preferred staff "${task.preferredStaffName}"`);
+          console.log(`✅ [PREFERRED STAFF FILTER] INCLUDING task "${task.taskName}" with preferred staff "${task.preferredStaffName}" (ID: ${taskStaffId})`);
         } else {
-          console.log(`❌ [PREFERRED STAFF FILTER] Excluding task "${task.taskName}" - preferred staff: ${task.preferredStaffId ? task.preferredStaffName || 'Unknown' : 'None'}`);
+          console.log(`❌ [PREFERRED STAFF FILTER] EXCLUDING task "${task.taskName}" - staff: ${task.preferredStaffName || 'None'} (ID: ${taskStaffId || 'null'})`);
         }
         
         return hasMatchingPreferredStaff;
+      });
+
+      // INVESTIGATION: Log filtering results per data point
+      console.log(`🔍 [PREFERRED STAFF FILTER] Data point filtering result:`, {
+        skillType: dataPoint.skillType,
+        month: dataPoint.month,
+        originalTasks: dataPoint.taskBreakdown.length,
+        filteredTasks: filteredTasks.length,
+        tasksRemoved: dataPoint.taskBreakdown.length - filteredTasks.length
       });
 
       // Recalculate metrics for filtered tasks
@@ -112,7 +162,7 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
     const endTime = performance.now();
     const processingTime = endTime - startTime;
 
-    console.log(`✅ [PREFERRED STAFF FILTER] FIXED: Filtering completed:`, {
+    console.log(`✅ [PREFERRED STAFF FILTER] INVESTIGATION COMPLETE:`, {
       processingTime: `${processingTime.toFixed(2)}ms`,
       originalDataPoints: data.dataPoints.length,
       filteredDataPoints: filteredDataPoints.length,
@@ -120,22 +170,48 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
       totalTasks,
       totalClients,
       skillsRetained: remainingSkills.length,
-      filterEffectiveness: `${((1 - filteredDataPoints.length / data.dataPoints.length) * 100).toFixed(1)}% filtered out`
+      filterEffectiveness: `${((1 - filteredDataPoints.length / data.dataPoints.length) * 100).toFixed(1)}% filtered out`,
+      staffIdComparisonSuccess: filteredDataPoints.length > 0
     });
 
-    // FIXED: If filtering results in no data, log detailed diagnostics
+    // INVESTIGATION: Enhanced diagnostics for zero results
     if (filteredDataPoints.length === 0) {
-      console.warn(`⚠️ [PREFERRED STAFF FILTER] No data remains after filtering. Diagnostics:`);
-      console.log(`🔍 Original data points:`, data.dataPoints.length);
-      console.log(`🔍 Tasks with preferred staff:`, data.dataPoints.flatMap(dp => 
+      console.error(`❌ [PREFERRED STAFF FILTER] ZERO RESULTS - INVESTIGATION RESULTS:`);
+      
+      // Show all available staff IDs in the data
+      const allTasksWithStaff = data.dataPoints.flatMap(dp => 
         dp.taskBreakdown?.filter(task => task.preferredStaffId) || []
-      ).length);
-      console.log(`🔍 Available preferred staff IDs:`, Array.from(new Set(
-        data.dataPoints.flatMap(dp => 
-          dp.taskBreakdown?.map(task => task.preferredStaffId).filter(Boolean) || []
-        )
-      )));
-      console.log(`🔍 Filter staff IDs:`, filters.preferredStaff);
+      );
+      
+      const availableStaffIds = Array.from(new Set(
+        allTasksWithStaff.map(task => String(task.preferredStaffId).trim())
+      ));
+      
+      const availableStaffNames = Array.from(new Set(
+        allTasksWithStaff.map(task => task.preferredStaffName).filter(Boolean)
+      ));
+
+      console.error(`🔍 Data contains ${allTasksWithStaff.length} tasks with preferred staff`);
+      console.error(`🔍 Available staff IDs in data:`, availableStaffIds);
+      console.error(`🔍 Available staff names in data:`, availableStaffNames);
+      console.error(`🔍 Filter looking for staff IDs:`, normalizedFilterStaffIds);
+      console.error(`🔍 Exact matches found:`, availableStaffIds.filter(id => normalizedFilterStaffIds.includes(id)));
+      
+      // Check for potential UUID format issues
+      console.error(`🔍 UUID format analysis:`, {
+        filterStaffUUIDs: normalizedFilterStaffIds.map(id => ({
+          id,
+          length: id.length,
+          hasHyphens: id.includes('-'),
+          isValidUUIDFormat: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        })),
+        dataStaffUUIDs: availableStaffIds.map(id => ({
+          id,
+          length: id.length,
+          hasHyphens: id.includes('-'),
+          isValidUUIDFormat: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        }))
+      });
     }
 
     return {

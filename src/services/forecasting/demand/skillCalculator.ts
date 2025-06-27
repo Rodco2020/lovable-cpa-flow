@@ -1,24 +1,43 @@
+
 import { addMonths, isSameMonth, isSameYear, parseISO, format } from 'date-fns';
 import { RecurringTaskDB, SkillType } from '@/types/task';
 import { ClientTaskDemand, RecurrenceCalculation } from '@/types/demand';
 import { debugLog } from '../logger';
 
 /**
- * FIXED: Skill Calculator Service - Enhanced with preferred staff information
- * Calculates demand hours by skill with proper staff attribution
+ * INVESTIGATION FIX: Skill Calculator Service - Enhanced with staff ID normalization
+ * Ensures consistent staff ID data types throughout the calculation pipeline
  */
 export class SkillCalculator {
   /**
-   * FIXED: Calculate monthly demand by skill including preferred staff information
+   * INVESTIGATION FIX: Calculate monthly demand by skill with normalized staff IDs
    */
   static async calculateMonthlyDemandBySkill(
     tasks: RecurringTaskDB[],
     monthStart: Date,
     monthEnd: Date
   ): Promise<Array<{ skill: SkillType; hours: number; tasks: ClientTaskDemand[] }>> {
-    debugLog(`FIXED: Calculating monthly demand for ${format(monthStart, 'MMM yyyy')} with preferred staff info`);
+    debugLog(`INVESTIGATION: Calculating monthly demand for ${format(monthStart, 'MMM yyyy')} with staff ID normalization`);
 
     const skillDemandMap = new Map<SkillType, { hours: number; tasks: ClientTaskDemand[] }>();
+
+    console.log(`🔍 [SKILL CALCULATOR] INVESTIGATION: Processing ${tasks.length} tasks`);
+    
+    // INVESTIGATION: Log sample task staff data
+    const tasksWithStaff = tasks.filter(task => task.preferred_staff_id);
+    console.log(`🔍 [SKILL CALCULATOR] Tasks with preferred staff: ${tasksWithStaff.length}/${tasks.length}`);
+    
+    if (tasksWithStaff.length > 0) {
+      const sampleTask = tasksWithStaff[0];
+      console.log(`🔍 [SKILL CALCULATOR] Sample task staff data:`, {
+        taskName: sampleTask.name,
+        preferred_staff_id: sampleTask.preferred_staff_id,
+        preferred_staff_id_type: typeof sampleTask.preferred_staff_id,
+        staff_full_name: sampleTask.staff?.full_name,
+        staff_id: sampleTask.staff?.id,
+        staff_id_type: typeof sampleTask.staff?.id
+      });
+    }
 
     for (const task of tasks) {
       if (!task.required_skills || task.required_skills.length === 0) {
@@ -31,7 +50,19 @@ export class SkillCalculator {
         continue;
       }
 
-      // FIXED: Include preferred staff information in task breakdown
+      // INVESTIGATION FIX: Normalize staff ID for consistent data type
+      const normalizedStaffId = task.preferred_staff_id ? String(task.preferred_staff_id).trim() : undefined;
+      
+      console.log(`🔍 [SKILL CALCULATOR] Task staff ID normalization:`, {
+        taskName: task.name,
+        originalStaffId: task.preferred_staff_id,
+        originalStaffIdType: typeof task.preferred_staff_id,
+        normalizedStaffId: normalizedStaffId,
+        normalizedStaffIdType: typeof normalizedStaffId,
+        staffName: task.staff?.full_name
+      });
+
+      // INVESTIGATION FIX: Include normalized preferred staff information in task breakdown
       const taskDemand: ClientTaskDemand = {
         clientId: task.client_id,
         clientName: task.clients?.legal_name || 'Unknown Client',
@@ -45,8 +76,8 @@ export class SkillCalculator {
           frequency: recurrenceCalc.monthlyOccurrences
         },
         monthlyHours: recurrenceCalc.monthlyHours,
-        // FIXED: Add preferred staff information
-        preferredStaffId: task.preferred_staff_id || undefined,
+        // INVESTIGATION FIX: Use normalized staff ID for consistent filtering
+        preferredStaffId: normalizedStaffId,
         preferredStaffName: task.staff?.full_name || undefined
       };
 
@@ -67,15 +98,23 @@ export class SkillCalculator {
       tasks: data.tasks
     }));
 
-    console.log(`✅ [SKILL CALCULATOR] FIXED: Processed ${tasks.length} tasks for ${result.length} skills with preferred staff info`);
+    console.log(`✅ [SKILL CALCULATOR] INVESTIGATION COMPLETE: Processed ${tasks.length} tasks for ${result.length} skills with normalized staff IDs`);
     
-    // Log preferred staff statistics
-    const tasksWithPreferredStaff = result.flatMap(r => r.tasks).filter(t => t.preferredStaffId);
-    console.log(`📊 [SKILL CALCULATOR] Preferred staff statistics:`, {
-      totalTasks: result.flatMap(r => r.tasks).length,
+    // INVESTIGATION: Log staff ID statistics
+    const allTasksInResult = result.flatMap(r => r.tasks);
+    const tasksWithPreferredStaff = allTasksInResult.filter(t => t.preferredStaffId);
+    const uniqueStaffIds = new Set(tasksWithPreferredStaff.map(t => t.preferredStaffId));
+    
+    console.log(`📊 [SKILL CALCULATOR] INVESTIGATION: Staff ID statistics:`, {
+      totalTasks: allTasksInResult.length,
       tasksWithPreferredStaff: tasksWithPreferredStaff.length,
-      uniquePreferredStaff: new Set(tasksWithPreferredStaff.map(t => t.preferredStaffId)).size,
-      coveragePercentage: ((tasksWithPreferredStaff.length / result.flatMap(r => r.tasks).length) * 100).toFixed(1)
+      uniqueStaffIds: Array.from(uniqueStaffIds),
+      staffIdFormats: Array.from(uniqueStaffIds).map(id => ({
+        id,
+        length: id?.length,
+        isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '')
+      })),
+      coveragePercentage: ((tasksWithPreferredStaff.length / allTasksInResult.length) * 100).toFixed(1)
     });
 
     return result;
