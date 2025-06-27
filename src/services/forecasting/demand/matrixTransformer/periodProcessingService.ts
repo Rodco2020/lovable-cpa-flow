@@ -1,126 +1,117 @@
 
-import { format, addMonths, startOfMonth } from 'date-fns';
 import { ForecastData } from '@/types/forecasting';
+import { debugLog } from '../../logger';
 
 /**
- * Service responsible for processing forecast periods
- * FIXED: Ensures proper 12-month data generation
+ * Period Processing Service
+ * Handles forecast period parsing and date range calculations
  */
 export class PeriodProcessingService {
   /**
-   * FIXED: Generate months array from forecast data ensuring 12 months minimum
+   * Generate month objects from forecast data
    */
-  static generateMonthsFromForecast(forecastData: ForecastData[]): Array<{ key: string; label: string }> {
-    try {
-      console.log(`🔧 [PERIOD PROCESSING] FIXED: Processing ${forecastData.length} forecast periods`);
-
-      const months = forecastData
-        .map(period => {
-          if (!period || !period.period) {
-            return null;
-          }
-          
-          try {
-            // Validate period format (should be YYYY-MM)
-            if (!/^\d{4}-\d{2}$/.test(period.period)) {
-              console.warn(`Invalid period format: ${period.period}`);
-              return null;
-            }
-            
-            const date = new Date(period.period + '-01');
-            if (isNaN(date.getTime())) {
-              console.warn(`Invalid date from period: ${period.period}`);
-              return null;
-            }
-            
-            return {
-              key: period.period,
-              label: format(date, 'MMM yyyy')
-            };
-          } catch (error) {
-            console.warn(`Error processing period ${period.period}:`, error);
-            return null;
-          }
-        })
-        .filter((month): month is { key: string; label: string } => month !== null);
-
-      // CRITICAL FIX: Ensure we have at least 12 months of data
-      if (months.length < 12) {
-        console.warn(`⚠️ [PERIOD PROCESSING] Only ${months.length} months generated, ensuring 12 months`);
-        return this.ensureTwelveMonths(months);
-      }
-
-      console.log(`✅ [PERIOD PROCESSING] FIXED: Generated ${months.length} months successfully`);
-      return months.slice(0, 24); // Limit to prevent performance issues, but allow more than 12
-    } catch (error) {
-      console.error('Error generating months from forecast:', error);
-      return this.generateFallbackTwelveMonths();
-    }
-  }
-
-  /**
-   * FIXED: Ensure we always have 12 months of data
-   */
-  private static ensureTwelveMonths(existingMonths: Array<{ key: string; label: string }>): Array<{ key: string; label: string }> {
-    const startDate = existingMonths.length > 0 
-      ? new Date(existingMonths[0].key + '-01')
-      : startOfMonth(new Date());
-
-    const months: Array<{ key: string; label: string }> = [];
-    
-    for (let i = 0; i < 12; i++) {
-      const monthDate = addMonths(startDate, i);
-      const key = format(monthDate, 'yyyy-MM');
+  static generateMonthsFromForecast(forecastData: ForecastData[]): Array<{ key: string; label: string; startDate: Date; endDate: Date }> {
+    return forecastData.map(period => {
+      const { startDate, endDate } = this.getPeriodDateRange(period.period);
       
-      // Use existing month if available, otherwise generate new
-      const existingMonth = existingMonths.find(m => m.key === key);
-      if (existingMonth) {
-        months.push(existingMonth);
-      } else {
-        months.push({
-          key,
-          label: format(monthDate, 'MMM yyyy')
-        });
-      }
-    }
-
-    console.log(`🔧 [PERIOD PROCESSING] FIXED: Ensured 12 months from ${existingMonths.length} existing months`);
-    return months;
+      return {
+        key: period.period,
+        label: this.formatPeriodLabel(period.period),
+        startDate,
+        endDate
+      };
+    });
   }
 
   /**
-   * FIXED: Generate fallback 12 months when all else fails
+   * Get start and end dates for a forecast period
    */
-  private static generateFallbackTwelveMonths(): Array<{ key: string; label: string }> {
-    const startDate = startOfMonth(new Date());
-    const months: Array<{ key: string; label: string }> = [];
-    
-    for (let i = 0; i < 12; i++) {
-      const monthDate = addMonths(startDate, i);
-      months.push({
-        key: format(monthDate, 'yyyy-MM'),
-        label: format(monthDate, 'MMM yyyy')
+  static getPeriodDateRange(period: string): { startDate: Date; endDate: Date } {
+    try {
+      // Parse period in format "YYYY-MM"
+      const [year, month] = period.split('-').map(Number);
+      
+      if (!year || !month || month < 1 || month > 12) {
+        throw new Error(`Invalid period format: ${period}`);
+      }
+
+      const startDate = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
+      const endDate = new Date(year, month, 0); // Last day of the month
+
+      debugLog(`Period ${period} date range:`, {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
       });
-    }
 
-    console.log(`🔧 [PERIOD PROCESSING] FIXED: Generated fallback 12 months starting from ${format(startDate, 'MMM yyyy')}`);
-    return months;
+      return { startDate, endDate };
+
+    } catch (error) {
+      console.error(`Error parsing period ${period}:`, error);
+      
+      // Fallback to current month
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      return { startDate, endDate };
+    }
   }
 
   /**
-   * Format month key from date for consistent formatting
+   * Format period for display
    */
-  static formatMonthKey(date: Date): string {
+  static formatPeriodLabel(period: string): string {
     try {
-      if (!date || isNaN(date.getTime())) {
-        console.warn('Invalid date provided to formatMonthKey');
-        return '';
-      }
+      const [year, month] = period.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
       
-      return format(date, 'yyyy-MM');
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long' 
+      });
     } catch (error) {
-      console.warn('Error formatting month key:', error);
-      return '';
+      console.warn(`Error formatting period label for ${period}:`, error);
+      return period;
     }
+  }
+
+  /**
+   * Validate if a period string is in the correct format
+   */
+  static isValidPeriod(period: string): boolean {
+    const periodRegex = /^\d{4}-\d{2}$/;
+    if (!periodRegex.test(period)) {
+      return false;
+    }
+
+    const [year, month] = period.split('-').map(Number);
+    return year >= 2000 && year <= 2100 && month >= 1 && month <= 12;
+  }
+
+  /**
+   * Get the current period in YYYY-MM format
+   */
+  static getCurrentPeriod(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    return `${year}-${month}`;
+  }
+
+  /**
+   * Get a list of periods for a given number of months from a start period
+   */
+  static generatePeriodSequence(startPeriod: string, monthCount: number): string[] {
+    const periods: string[] = [];
+    const [startYear, startMonth] = startPeriod.split('-').map(Number);
+    
+    for (let i = 0; i < monthCount; i++) {
+      const date = new Date(startYear, startMonth - 1 + i, 1);
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      periods.push(`${year}-${month}`);
+    }
+    
+    return periods;
   }
 }

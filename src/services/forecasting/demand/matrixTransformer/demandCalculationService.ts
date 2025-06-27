@@ -1,7 +1,9 @@
+
 import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { ClientResolutionService } from '../clientResolutionService';
+import { RecurrenceCalculator } from '../recurrenceCalculator';
 import { debugLog } from '../../logger';
 
 /**
@@ -125,40 +127,47 @@ export class DemandCalculationService {
   }
 
   /**
-   * Calculate monthly demand for a single task
+   * Calculate monthly demand for a single task using proper recurrence calculation
+   * 
+   * This method now uses the RecurrenceCalculator to properly handle different
+   * recurrence patterns, intervals, and specific date ranges instead of using
+   * static approximations.
    */
   static calculateMonthlyDemandForTask(
     task: RecurringTaskDB,
     forecastPeriod: ForecastData
   ): { monthlyOccurrences: number; monthlyHours: number } {
-    let monthlyOccurrences = 0;
+    try {
+      // Parse the forecast period to get start and end dates
+      const periodDate = new Date(forecastPeriod.period + '-01');
+      const startDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
+      const endDate = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0);
 
-    switch (task.recurrence_type) {
-      case 'Daily':
-        // Approximate daily tasks as occurring every weekday (22 days per month)
-        monthlyOccurrences = 22;
-        break;
-      case 'Weekly':
-        monthlyOccurrences = 4;
-        break;
-      case 'Monthly':
-        monthlyOccurrences = 1;
-        break;
-      case 'Quarterly':
-        monthlyOccurrences = 1 / 3;
-        break;
-      case 'Annual':
-        monthlyOccurrences = 1 / 12;
-        break;
-      default:
-        monthlyOccurrences = 1; // Default to monthly
+      // Use RecurrenceCalculator for accurate monthly demand calculation
+      const result = RecurrenceCalculator.calculateMonthlyDemand(task, startDate, endDate);
+
+      debugLog(`Calculated monthly demand for task ${task.id} in period ${forecastPeriod.period}:`, {
+        recurrenceType: task.recurrence_type,
+        interval: task.recurrence_interval,
+        estimatedHours: task.estimated_hours,
+        monthlyOccurrences: result.monthlyOccurrences,
+        monthlyHours: result.monthlyHours,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+
+      return {
+        monthlyOccurrences: result.monthlyOccurrences,
+        monthlyHours: result.monthlyHours
+      };
+
+    } catch (error) {
+      console.error(`Error calculating monthly demand for task ${task.id}:`, error);
+      // Return zero demand for failed calculations
+      return {
+        monthlyOccurrences: 0,
+        monthlyHours: 0
+      };
     }
-
-    const monthlyHours = monthlyOccurrences * task.estimated_hours;
-
-    return {
-      monthlyOccurrences,
-      monthlyHours
-    };
   }
 }

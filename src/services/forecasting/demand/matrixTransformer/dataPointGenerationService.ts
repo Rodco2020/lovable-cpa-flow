@@ -33,7 +33,7 @@ export class DataPointGenerationService {
       const dataPoints: DemandDataPoint[] = [];
       const months = PeriodProcessingService.generateMonthsFromForecast(forecastData);
 
-      console.log(`📊 [DATA POINTS] Generating ${months.length} × ${skills.length} data points with revenue calculations`);
+      console.log(`📊 [DATA POINTS] Generating ${months.length} × ${skills.length} data points with enhanced recurrence calculations`);
 
       // Generate data points for each month-skill combination
       for (const month of months) {
@@ -60,7 +60,7 @@ export class DataPointGenerationService {
         }
       }
 
-      console.log(`✅ [DATA POINTS] Generated ${dataPoints.length} data points with revenue calculations`);
+      console.log(`✅ [DATA POINTS] Generated ${dataPoints.length} data points with enhanced recurrence calculations`);
       return dataPoints;
 
     } catch (error) {
@@ -73,7 +73,7 @@ export class DataPointGenerationService {
    * Generate a single data point with revenue calculations
    */
   private static async generateSingleDataPoint(
-    month: { key: string; label: string },
+    month: { key: string; label: string; startDate: Date; endDate: Date },
     skill: string,
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[],
@@ -90,7 +90,7 @@ export class DataPointGenerationService {
         return null;
       }
 
-      // Calculate demand using existing logic
+      // Calculate demand using existing logic (now enhanced with proper recurrence calculation)
       const demandCalculation = DemandCalculationService.calculateDemandForSkillPeriod(
         skill,
         forecastPeriod,
@@ -106,7 +106,7 @@ export class DataPointGenerationService {
         skillMapping
       );
 
-      // NEW: Calculate revenue if enabled
+      // Calculate revenue if enabled
       let suggestedRevenue = 0;
       let expectedLessSuggested = 0;
 
@@ -136,7 +136,6 @@ export class DataPointGenerationService {
         taskCount: demandCalculation.totalTasks,
         clientCount: demandCalculation.totalClients,
         taskBreakdown,
-        // NEW: Revenue fields
         suggestedRevenue,
         expectedLessSuggested
       };
@@ -183,7 +182,7 @@ export class DataPointGenerationService {
             continue;
           }
 
-          // Calculate monthly demand for this task
+          // Calculate monthly demand for this task using enhanced calculation
           const monthlyDemand = DemandCalculationService.calculateMonthlyDemandForTask(
             task,
             forecastPeriod
