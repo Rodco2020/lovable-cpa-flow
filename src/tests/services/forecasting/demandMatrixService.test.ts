@@ -24,27 +24,28 @@ describe('DemandMatrixService', () => {
 
   describe('generateDemandMatrix', () => {
     it('should handle empty task data', async () => {
-      const result = await DemandMatrixService.generateDemandMatrix('skill');
+      const result = await DemandMatrixService.generateDemandMatrix('demand-only');
       
       expect(result).toBeDefined();
-      expect(result.totalDemand).toBe(0);
-      expect(result.totalTasks).toBe(0);
-      expect(result.totalClients).toBe(0);
-      expect(result.dataPoints).toEqual([]);
+      expect(result.matrixData).toBeDefined();
+      expect(result.matrixData.totalDemand).toBe(0);
+      expect(result.matrixData.totalTasks).toBe(0);
+      expect(result.matrixData.totalClients).toBe(0);
+      expect(result.matrixData.dataPoints).toEqual([]);
     });
 
     it('should process mock data correctly', async () => {
       // This test would normally require more complex mocking
       // For now, we'll test the structure
-      const result = await DemandMatrixService.generateDemandMatrix('skill');
+      const result = await DemandMatrixService.generateDemandMatrix('demand-only');
       
-      expect(result).toHaveProperty('months');
-      expect(result).toHaveProperty('skills');
-      expect(result).toHaveProperty('dataPoints');
-      expect(result).toHaveProperty('totalDemand');
-      expect(result).toHaveProperty('totalTasks');
-      expect(result).toHaveProperty('totalClients');
-      expect(result).toHaveProperty('skillSummary');
+      expect(result.matrixData).toHaveProperty('months');
+      expect(result.matrixData).toHaveProperty('skills');
+      expect(result.matrixData).toHaveProperty('dataPoints');
+      expect(result.matrixData).toHaveProperty('totalDemand');
+      expect(result.matrixData).toHaveProperty('totalTasks');
+      expect(result.matrixData).toHaveProperty('totalClients');
+      expect(result.matrixData).toHaveProperty('skillSummary');
     });
   });
 
