@@ -95,6 +95,18 @@ export function processTask(
   const hasMatchingPreferredStaff = isStaffIdInArray(task.preferredStaffId, normalizedFilterIds);
   const taskNormalizedId = normalizeStaffId(task.preferredStaffId);
   
+  // PHASE 3: Enhanced debugging logs for task processing
+  console.log('🔍 [PREFERRED STAFF FILTER] Processing Task Filter:', {
+    taskIndex: index,
+    taskName: task.taskName,
+    preferredStaffId: task.preferredStaffId,
+    preferredStaffName: task.preferredStaffName,
+    hasPreferredStaff: !!task.preferredStaffId,
+    normalizedTaskId: taskNormalizedId,
+    normalizedFilterIds: normalizedFilterIds,
+    isMatch: hasMatchingPreferredStaff
+  });
+  
   const filterResult: TaskFilterResult = {
     taskName: task.taskName,
     taskStaffId: task.preferredStaffId,

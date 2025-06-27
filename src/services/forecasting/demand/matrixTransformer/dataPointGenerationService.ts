@@ -208,6 +208,15 @@ export class DataPointGenerationService {
               preferredStaffName: task.staff?.full_name || null
             };
 
+            // PHASE 3: Add debugging logs to verify preferred staff data
+            console.log('🔍 [TASK BREAKDOWN] Task Breakdown Created:', {
+              taskName: taskDemand.taskName,
+              preferredStaffId: taskDemand.preferredStaffId,
+              preferredStaffName: taskDemand.preferredStaffName,
+              clientName: taskDemand.clientName,
+              skillType: taskDemand.skillType
+            });
+
             console.log(`🎯 [TASK BREAKDOWN] Task ${task.id}: Preferred Staff ID = ${task.preferred_staff_id}, Name = ${task.staff?.full_name || 'None'}`);
 
             taskBreakdown.push(taskDemand);
