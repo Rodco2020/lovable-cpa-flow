@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,22 +89,73 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
     }
   };
 
-  // Phase 2: Add preferred staff select all handler
+  // Phase 2: Add preferred staff select all handler with PHASE 1 LOGGING
   const handleSelectAllPreferredStaff = () => {
+    console.log(`🎛️ [MATRIX CONTROLS] PHASE 1 LOGGING: Select All Preferred Staff clicked:`, {
+      currentSelection: selectedPreferredStaff,
+      currentSelectionTypes: selectedPreferredStaff.map(id => ({ id, type: typeof id })),
+      availableStaff: availablePreferredStaff,
+      availableStaffTypes: availablePreferredStaff.map(staff => ({ id: staff.id, type: typeof staff.id, name: staff.name })),
+      isAllSelected: isAllPreferredStaffSelected,
+      willDeselect: isAllPreferredStaffSelected
+    });
+
     if (isAllPreferredStaffSelected) {
       // Deselect all
-      availablePreferredStaff.forEach(staff => onPreferredStaffToggle(staff.id));
+      console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Deselecting all ${availablePreferredStaff.length} staff members`);
+      availablePreferredStaff.forEach(staff => {
+        console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Deselecting staff:`, { id: staff.id, type: typeof staff.id, name: staff.name });
+        onPreferredStaffToggle(staff.id);
+      });
     } else {
       // Select all
+      console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Selecting all unselected staff members`);
       availablePreferredStaff
-        .filter(staff => !selectedPreferredStaff.includes(staff.id))
-        .forEach(staff => onPreferredStaffToggle(staff.id));
+        .filter(staff => {
+          const isNotSelected = !selectedPreferredStaff.includes(staff.id);
+          console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Staff ${staff.name} (${staff.id}) - currently selected: ${!isNotSelected}`);
+          return isNotSelected;
+        })
+        .forEach(staff => {
+          console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Selecting staff:`, { id: staff.id, type: typeof staff.id, name: staff.name });
+          onPreferredStaffToggle(staff.id);
+        });
     }
+  };
+
+  // PHASE 1 LOGGING: Enhanced preferred staff toggle handler
+  const handlePreferredStaffToggleWithLogging = (staffId: string) => {
+    const staff = availablePreferredStaff.find(s => s.id === staffId);
+    const isCurrentlySelected = selectedPreferredStaff.includes(staffId);
+    
+    console.log(`🎛️ [MATRIX CONTROLS] PHASE 1 LOGGING: Individual staff toggle:`, {
+      staffId,
+      staffIdType: typeof staffId,
+      staffName: staff?.name || 'Unknown',
+      isCurrentlySelected,
+      willBecome: isCurrentlySelected ? 'deselected' : 'selected',
+      currentFullSelection: selectedPreferredStaff,
+      currentSelectionTypes: selectedPreferredStaff.map(id => ({ id, type: typeof id }))
+    });
+
+    onPreferredStaffToggle(staffId);
   };
 
   const handleMonthRangeSliderChange = (values: number[]) => {
     onMonthRangeChange({ start: values[0], end: values[1] });
   };
+
+  // PHASE 1 LOGGING: Log component render state
+  console.log(`🎛️ [MATRIX CONTROLS] PHASE 1 LOGGING: Component render state:`, {
+    selectedPreferredStaffCount: selectedPreferredStaff.length,
+    selectedPreferredStaff: selectedPreferredStaff,
+    selectedPreferredStaffTypes: selectedPreferredStaff.map(id => ({ id, type: typeof id })),
+    availablePreferredStaffCount: availablePreferredStaff.length,
+    availablePreferredStaff: availablePreferredStaff.map(staff => ({ id: staff.id, type: typeof staff.id, name: staff.name })),
+    isAllPreferredStaffSelected,
+    preferredStaffLoading,
+    preferredStaffError
+  });
 
   return (
     <Card className={className}>
@@ -215,7 +267,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
 
         <Separator />
 
-        {/* Phase 2: Preferred Staff Filter Section */}
+        {/* Phase 2: Preferred Staff Filter Section with PHASE 1 LOGGING */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -280,7 +332,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
             </div>
           )}
 
-          {/* Preferred Staff List */}
+          {/* Preferred Staff List with PHASE 1 LOGGING */}
           {!preferredStaffLoading && !preferredStaffError && (
             <div 
               className="space-y-2 max-h-32 overflow-y-auto"
@@ -297,7 +349,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
                     <Checkbox
                       id={`preferred-staff-${staff.id}`}
                       checked={selectedPreferredStaff.includes(staff.id)}
-                      onCheckedChange={() => onPreferredStaffToggle(staff.id)}
+                      onCheckedChange={() => handlePreferredStaffToggleWithLogging(staff.id)}
                       aria-describedby={`preferred-staff-${staff.id}-name`}
                     />
                     <label
@@ -314,7 +366,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
             </div>
           )}
 
-          {/* Preferred Staff Selection Summary */}
+          {/* Preferred Staff Selection Summary with PHASE 1 LOGGING */}
           {!preferredStaffLoading && (
             <div className="flex flex-wrap gap-1 mt-2">
               <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">

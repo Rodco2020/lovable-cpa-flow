@@ -1,3 +1,4 @@
+
 import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { DemandMatrixData } from '@/types/demand';
 import { startOfMonth, endOfMonth, differenceInDays, addDays, format } from 'date-fns';
@@ -7,6 +8,8 @@ import { startOfMonth, endOfMonth, differenceInDays, addDays, format } from 'dat
  * 
  * Handles all filtering logic with improved time horizon handling to prevent 
  * "No Demand Data Available" issues. Features enhanced debugging and validation.
+ * 
+ * PHASE 1 LOGGING: Added comprehensive logging to trace preferred staff ID flow
  */
 export const useDemandMatrixFiltering = (
   demandData: DemandMatrixData | null,
@@ -20,20 +23,29 @@ export const useDemandMatrixFiltering = (
       return null;
     }
 
-    console.log(`🔧 [DEMAND MATRIX] Starting enhanced filter operation:`, {
+    // PHASE 1 LOGGING: Log filtering operation start
+    console.log(`🔧 [DEMAND MATRIX] PHASE 1 LOGGING: Starting enhanced filter operation:`, {
       groupingMode,
       selectedSkillsCount: demandMatrixControls.selectedSkills.length,
       availableSkillsCount: demandMatrixControls.availableSkills.length,
       selectedClientsCount: demandMatrixControls.selectedClients.length,
       availableClientsCount: demandMatrixControls.availableClients.length,
       selectedPreferredStaffCount: demandMatrixControls.selectedPreferredStaff.length,
+      selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
+      selectedPreferredStaffTypes: demandMatrixControls.selectedPreferredStaff.map(id => ({ id, type: typeof id })),
       availablePreferredStaffCount: demandMatrixControls.availablePreferredStaff.length,
+      availablePreferredStaff: demandMatrixControls.availablePreferredStaff.map(staff => ({
+        id: staff.id,
+        idType: typeof staff.id,
+        name: staff.name
+      })),
       isAllSkillsSelected: demandMatrixControls.isAllSkillsSelected,
       isAllClientsSelected: demandMatrixControls.isAllClientsSelected,
       isAllPreferredStaffSelected: demandMatrixControls.isAllPreferredStaffSelected,
       monthRange: demandMatrixControls.monthRange,
       originalDataPoints: demandData.dataPoints.length,
-      availableMonths: demandData.months.length
+      availableMonths: demandData.months.length,
+      filterStartTime: new Date().toISOString()
     });
 
     // Enhanced month range validation and handling
@@ -64,7 +76,7 @@ export const useDemandMatrixFiltering = (
       monthsCovered: normalizedMonths.length
     });
     
-    // Create enhanced filters with proper "no active filtering" logic
+    // Create enhanced filters with proper "no active filtering" logic and PHASE 1 LOGGING
     const filters = {
       skills: demandMatrixControls.isAllSkillsSelected ? [] : demandMatrixControls.selectedSkills,
       clients: demandMatrixControls.isAllClientsSelected ? [] : demandMatrixControls.selectedClients,
@@ -72,13 +84,43 @@ export const useDemandMatrixFiltering = (
       timeHorizon
     };
 
-    console.log(`🎯 [DEMAND MATRIX] Applied enhanced filters:`, {
+    // PHASE 1 LOGGING: Log filter creation with staff ID analysis
+    console.log(`🎯 [DEMAND MATRIX] PHASE 1 LOGGING: Applied enhanced filters:`, {
       skillsFilter: filters.skills.length === 0 ? 'ALL SKILLS (no filter)' : filters.skills,
       clientsFilter: filters.clients.length === 0 ? 'ALL CLIENTS (no filter)' : filters.clients,
       preferredStaffFilter: filters.preferredStaff.length === 0 ? 'ALL STAFF (no filter)' : filters.preferredStaff,
+      preferredStaffFilterTypes: filters.preferredStaff.map(id => ({ id, type: typeof id })),
       timeHorizonFilter: `${filters.timeHorizon.start.toISOString().split('T')[0]} to ${filters.timeHorizon.end.toISOString().split('T')[0]}`,
-      timeHorizonDays: differenceInDays(filters.timeHorizon.end, filters.timeHorizon.start)
+      timeHorizonDays: differenceInDays(filters.timeHorizon.end, filters.timeHorizon.start),
+      filterCreationTime: new Date().toISOString(),
+      willApplyPreferredStaffFilter: filters.preferredStaff.length > 0
     });
+
+    // PHASE 1 LOGGING: Log original data structure with staff ID analysis
+    if (demandData.dataPoints.length > 0) {
+      const sampleDataPoint = demandData.dataPoints[0];
+      if (sampleDataPoint?.taskBreakdown?.[0]) {
+        const tasksWithPreferredStaff = demandData.dataPoints
+          .flatMap(dp => dp.taskBreakdown || [])
+          .filter(task => task.preferredStaffId);
+
+        console.log(`🔍 [DEMAND MATRIX] PHASE 1 LOGGING: Original data staff ID analysis:`, {
+          totalDataPoints: demandData.dataPoints.length,
+          totalTasks: demandData.dataPoints.reduce((sum, dp) => sum + (dp.taskBreakdown?.length || 0), 0),
+          tasksWithPreferredStaff: tasksWithPreferredStaff.length,
+          sampleTaskStaffData: tasksWithPreferredStaff.slice(0, 3).map(task => ({
+            taskName: task.taskName,
+            preferredStaffId: task.preferredStaffId,
+            preferredStaffIdType: typeof task.preferredStaffId,
+            preferredStaffName: task.preferredStaffName,
+            clientName: task.clientName
+          })),
+          uniqueStaffIds: Array.from(new Set(tasksWithPreferredStaff.map(task => task.preferredStaffId))),
+          uniqueStaffIdTypes: Array.from(new Set(tasksWithPreferredStaff.map(task => typeof task.preferredStaffId))),
+          dataAnalysisTime: new Date().toISOString()
+        });
+      }
+    }
 
     // Use the performance optimizer with enhanced filtering
     const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(demandData, filters);
@@ -89,7 +131,8 @@ export const useDemandMatrixFiltering = (
       months: normalizedMonths // Ensure months always have both key and label properties
     };
     
-    console.log(`📊 [DEMAND MATRIX] Enhanced filter results:`, {
+    // PHASE 1 LOGGING: Log optimization results with staff filtering analysis
+    console.log(`📊 [DEMAND MATRIX] PHASE 1 LOGGING: Enhanced filter results:`, {
       originalDataPoints: demandData.dataPoints.length,
       filteredDataPoints: finalOptimizedData.dataPoints.length,
       originalSkills: demandData.skills.length,
@@ -100,7 +143,14 @@ export const useDemandMatrixFiltering = (
       totalTasks: finalOptimizedData.totalTasks,
       totalClients: finalOptimizedData.totalClients,
       preferredStaffFilterApplied: filters.preferredStaff.length > 0,
-      filteringEfficiency: `${((finalOptimizedData.dataPoints.length / demandData.dataPoints.length) * 100).toFixed(1)}%`
+      preferredStaffFilterDetails: {
+        filterIds: filters.preferredStaff,
+        filterIdTypes: filters.preferredStaff.map(id => ({ id, type: typeof id })),
+        originalTasksWithStaff: demandData.dataPoints.reduce((sum, dp) => sum + (dp.taskBreakdown?.filter(task => task.preferredStaffId).length || 0), 0),
+        filteredTasksWithStaff: finalOptimizedData.dataPoints.reduce((sum, dp) => sum + (dp.taskBreakdown?.filter(task => task.preferredStaffId).length || 0), 0)
+      },
+      filteringEfficiency: `${((finalOptimizedData.dataPoints.length / demandData.dataPoints.length) * 100).toFixed(1)}%`,
+      optimizationCompleteTime: new Date().toISOString()
     });
 
     // Enhanced safeguard with detailed diagnostics
@@ -185,14 +235,14 @@ function createValidatedTimeHorizon(filteredMonths: Array<{ key: string; label: 
 }
 
 /**
- * Run detailed diagnostics when filtering removes all data
+ * Run detailed diagnostics when filtering removes all data - PHASE 1 ENHANCED
  */
 function runFilteringDiagnostics(
   originalData: DemandMatrixData, 
   filters: any, 
   filteredMonths: Array<{ key: string; label: string }>
 ) {
-  console.log(`🔍 [FILTERING DIAGNOSTICS] Analyzing why all data was filtered out:`);
+  console.log(`🔍 [FILTERING DIAGNOSTICS] PHASE 1 LOGGING: Analyzing why all data was filtered out:`);
   console.log(`📊 Original data summary:`, {
     totalDataPoints: originalData.dataPoints.length,
     availableMonths: originalData.months.map(m => m.key),
@@ -205,11 +255,28 @@ function runFilteringDiagnostics(
     }))
   });
   
-  console.log(`🎯 Applied filters:`, {
+  // PHASE 1 LOGGING: Enhanced preferred staff diagnostics
+  const allTasksWithStaff = originalData.dataPoints
+    .flatMap(dp => dp.taskBreakdown || [])
+    .filter(task => task.preferredStaffId);
+
+  console.log(`🎯 [FILTERING DIAGNOSTICS] PHASE 1 LOGGING: Applied filters:`, {
     skills: filters.skills.length === 0 ? 'No skill filtering' : filters.skills,
     clients: filters.clients.length === 0 ? 'No client filtering' : filters.clients,
+    preferredStaff: filters.preferredStaff.length === 0 ? 'No preferred staff filtering' : filters.preferredStaff,
+    preferredStaffTypes: filters.preferredStaff.map(id => ({ id, type: typeof id })),
     timeHorizon: `${filters.timeHorizon.start.toISOString()} to ${filters.timeHorizon.end.toISOString()}`,
-    filteredMonthKeys: filteredMonths.map(m => m.key)
+    filteredMonthKeys: filteredMonths.map(m => m.key),
+    staffFilteringAnalysis: {
+      totalTasksWithStaff: allTasksWithStaff.length,
+      uniqueStaffIdsInData: Array.from(new Set(allTasksWithStaff.map(task => task.preferredStaffId))),
+      uniqueStaffIdTypesInData: Array.from(new Set(allTasksWithStaff.map(task => typeof task.preferredStaffId))),
+      filterStaffIds: filters.preferredStaff,
+      filterStaffIdTypes: Array.from(new Set(filters.preferredStaff.map(id => typeof id))),
+      potentialMatches: allTasksWithStaff.some(task => 
+        filters.preferredStaff.includes(task.preferredStaffId)
+      )
+    }
   });
 }
 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { SkillType } from '@/types/task';
 import { DemandMatrixData } from '@/types/demand';
@@ -24,6 +25,8 @@ interface DemandMatrixControlsState {
  * 
  * Enhanced with proper preferred staff filtering that handles "None" selection correctly.
  * When no preferred staff are selected, all data is shown (no filtering applied).
+ * 
+ * PHASE 1 LOGGING: Added comprehensive logging to trace staff ID flow
  */
 export const useDemandMatrixControls = ({ 
   demandData, 
@@ -49,6 +52,20 @@ export const useDemandMatrixControls = ({
     refetch: refetchPreferredStaff 
   } = useAvailablePreferredStaff();
 
+  // PHASE 1 LOGGING: Log preferred staff hook data
+  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 1 LOGGING: Preferred Staff Hook Data:`, {
+    availablePreferredStaffCount: availablePreferredStaff.length,
+    availablePreferredStaff: availablePreferredStaff.map(staff => ({
+      id: staff.id,
+      idType: typeof staff.id,
+      name: staff.name,
+      role: staff.roleTitle
+    })),
+    preferredStaffLoading,
+    preferredStaffError,
+    hookExecutionTime: new Date().toISOString()
+  });
+
   // Use filtering logic hook
   const {
     availableSkills,
@@ -68,6 +85,15 @@ export const useDemandMatrixControls = ({
   const isAllPreferredStaffSelected = availablePreferredStaff.length > 0 && 
     state.selectedPreferredStaff.length === availablePreferredStaff.length;
 
+  // PHASE 1 LOGGING: Log selection calculations
+  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 1 LOGGING: Selection calculations:`, {
+    isAllPreferredStaffSelected,
+    selectedCount: state.selectedPreferredStaff.length,
+    availableCount: availablePreferredStaff.length,
+    selectionRatio: availablePreferredStaff.length > 0 ? (state.selectedPreferredStaff.length / availablePreferredStaff.length) : 0,
+    calculationTime: new Date().toISOString()
+  });
+
   // Use export functionality hook
   const { handleExport } = useMatrixExport({
     demandData,
@@ -84,20 +110,25 @@ export const useDemandMatrixControls = ({
   // FIXED: Initialize selections when data becomes available - SELECT ALL by default
   useEffect(() => {
     if (demandData && state.selectedSkills.length === 0 && state.selectedClients.length === 0) {
-      setState(prev => ({
-        ...prev,
+      const newState = {
+        ...state,
         selectedSkills: availableSkills,
         selectedClients: availableClients.map(client => client.id),
         // FIXED: Keep preferred staff empty initially (shows all data)
         selectedPreferredStaff: []
-      }));
-      
-      console.log(`🎛️ [MATRIX CONTROLS] FIXED: Initialized with ALL selections:`, {
-        skillsCount: availableSkills.length,
-        clientsCount: availableClients.length,
-        preferredStaffCount: 0, // Start with no preferred staff filter
-        preferredStaffAvailable: availablePreferredStaff.length
+      };
+
+      // PHASE 1 LOGGING: Log initialization
+      console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 1 LOGGING: State initialization:`, {
+        previousState: state,
+        newState,
+        availableSkillsCount: availableSkills.length,
+        availableClientsCount: availableClients.length,
+        availablePreferredStaffCount: availablePreferredStaff.length,
+        initializationTime: new Date().toISOString()
       });
+
+      setState(newState);
     }
   }, [demandData, availableSkills, availableClients, availablePreferredStaff]);
 
@@ -143,23 +174,36 @@ export const useDemandMatrixControls = ({
     });
   }, [availableClients.length]);
 
-  // FIXED: Handle preferred staff toggle with proper logging
+  // FIXED: Handle preferred staff toggle with PHASE 1 LOGGING
   const handlePreferredStaffToggle = useCallback((staffId: string) => {
     setState(prev => {
-      const newSelectedPreferredStaff = prev.selectedPreferredStaff.includes(staffId)
+      const wasSelected = prev.selectedPreferredStaff.includes(staffId);
+      const newSelectedPreferredStaff = wasSelected
         ? prev.selectedPreferredStaff.filter(s => s !== staffId)
         : [...prev.selectedPreferredStaff, staffId];
 
       const staffName = availablePreferredStaff.find(s => s.id === staffId)?.name || 'Unknown';
 
-      console.log(`🔧 [MATRIX CONTROLS] FIXED: Preferred staff toggle:`, {
+      // PHASE 1 LOGGING: Comprehensive toggle logging
+      console.log(`🔧 [MATRIX CONTROLS HOOK] PHASE 1 LOGGING: Preferred staff toggle:`, {
         staffId,
+        staffIdType: typeof staffId,
         staffName,
-        action: prev.selectedPreferredStaff.includes(staffId) ? 'removed' : 'added',
+        action: wasSelected ? 'removed' : 'added',
+        previousSelection: prev.selectedPreferredStaff,
+        previousSelectionTypes: prev.selectedPreferredStaff.map(id => ({ id, type: typeof id })),
+        newSelection: newSelectedPreferredStaff,
+        newSelectionTypes: newSelectedPreferredStaff.map(id => ({ id, type: typeof id })),
         newCount: newSelectedPreferredStaff.length,
         totalAvailable: availablePreferredStaff.length,
-        newSelection: newSelectedPreferredStaff,
-        willShowAllData: newSelectedPreferredStaff.length === 0
+        willShowAllData: newSelectedPreferredStaff.length === 0,
+        toggleTime: new Date().toISOString(),
+        availableStaffContext: availablePreferredStaff.map(staff => ({
+          id: staff.id,
+          idType: typeof staff.id,
+          name: staff.name,
+          isBeingToggled: staff.id === staffId
+        }))
       });
 
       return {
@@ -179,20 +223,48 @@ export const useDemandMatrixControls = ({
 
   // FIXED: Enhanced reset - SELECT ALL clients and skills, CLEAR preferred staff (shows all data)
   const handleReset = useCallback(() => {
-    setState({
+    const resetState = {
       selectedSkills: availableSkills,
       selectedClients: availableClients.map(client => client.id),
       monthRange: { start: 0, end: 11 },
       selectedPreferredStaff: [] // FIXED: Reset to empty = show all data
-    });
-    
-    console.log(`🔄 [MATRIX CONTROLS] FIXED: Reset to show all data:`, {
+    };
+
+    // PHASE 1 LOGGING: Log reset operation
+    console.log(`🔄 [MATRIX CONTROLS HOOK] PHASE 1 LOGGING: Reset operation:`, {
+      previousState: state,
+      resetState,
       skillsCount: availableSkills.length,
       clientsCount: availableClients.length,
       preferredStaffCount: 0, // Reset to no filter
-      preferredStaffAvailable: availablePreferredStaff.length
+      availablePreferredStaffCount: availablePreferredStaff.length,
+      resetTime: new Date().toISOString()
     });
-  }, [availableSkills, availableClients, availablePreferredStaff]);
+
+    setState(resetState);
+  }, [availableSkills, availableClients, availablePreferredStaff, state]);
+
+  // PHASE 1 LOGGING: Log hook execution state
+  console.log(`🎛️ [MATRIX CONTROLS HOOK] PHASE 1 LOGGING: Hook execution state:`, {
+    currentState: state,
+    currentStateTypes: {
+      selectedSkills: state.selectedSkills.map(skill => ({ skill, type: typeof skill })),
+      selectedClients: state.selectedClients.map(id => ({ id, type: typeof id })),
+      selectedPreferredStaff: state.selectedPreferredStaff.map(id => ({ id, type: typeof id }))
+    },
+    calculations: {
+      isAllSkillsSelected,
+      isAllClientsSelected,
+      isAllPreferredStaffSelected
+    },
+    dataAvailability: {
+      demandDataAvailable: !!demandData,
+      skillsLoading,
+      clientsLoading,
+      preferredStaffLoading
+    },
+    executionTime: new Date().toISOString()
+  });
 
   return {
     ...state,
