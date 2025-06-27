@@ -51,7 +51,9 @@ export class SkillCalculator {
       }
 
       // INVESTIGATION FIX: Normalize staff ID for consistent data type
-      const normalizedStaffId = task.preferred_staff_id ? String(task.preferred_staff_id).trim() : undefined;
+      const normalizedStaffId = task.preferred_staff_id
+        ? String(task.preferred_staff_id).trim().toLowerCase()
+        : undefined;
       
       console.log(`🔍 [SKILL CALCULATOR] Task staff ID normalization:`, {
         taskName: task.name,

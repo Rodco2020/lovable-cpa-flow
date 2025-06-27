@@ -14,7 +14,9 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   }
 
   getPriority(): number {
-    return 30; // Apply after skill and client filters
+    // Apply after skill, client and time horizon filters
+    // Lower numeric priority keeps order predictable
+    return 4;
   }
 
   shouldApply(filters: DemandFilters): boolean {
@@ -52,7 +54,10 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
     }
 
     // INVESTIGATION: Convert filter staff IDs to strings for consistent comparison
-    const normalizedFilterStaffIds = filters.preferredStaff.map(id => String(id).trim());
+    // Normalise IDs to lower case strings for reliable comparison
+    const normalizedFilterStaffIds = filters.preferredStaff.map(id =>
+      String(id).trim().toLowerCase()
+    );
     console.log(`🔍 [PREFERRED STAFF FILTER] Normalized filter staff IDs:`, normalizedFilterStaffIds);
 
     // Filter data points based on preferred staff assignments
@@ -68,10 +73,13 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
       // FIXED: Type-safe filtering with detailed logging
       const filteredTasks = dataPoint.taskBreakdown.filter((task, index) => {
         // INVESTIGATION: Normalize task staff ID for comparison
-        const taskStaffId = task.preferredStaffId ? String(task.preferredStaffId).trim() : null;
+        const taskStaffId = task.preferredStaffId
+          ? String(task.preferredStaffId).trim().toLowerCase()
+          : null;
         
         // INVESTIGATION: Log each comparison
-        const hasMatchingPreferredStaff = taskStaffId && normalizedFilterStaffIds.includes(taskStaffId);
+        const hasMatchingPreferredStaff =
+          !!taskStaffId && normalizedFilterStaffIds.includes(taskStaffId);
         
         console.log(`🔍 [PREFERRED STAFF FILTER] Task ${index + 1}/${dataPoint.taskBreakdown.length} comparison:`, {
           taskName: task.taskName,
