@@ -85,10 +85,15 @@ describe('MatrixTransformerCore', () => {
         totalClients: 1
       };
 
-      // Mock service calls
+      // Mock service calls with correct return types
       vi.mocked(DataValidator.validateRecurringTasks).mockResolvedValue(mockValidationResult);
       vi.mocked(PeriodProcessingService.generateMonthsFromForecast).mockReturnValue([
-        { key: '2024-01', label: 'Jan 2024' }
+        { 
+          key: '2024-01', 
+          label: 'Jan 2024',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31')
+        }
       ]);
       vi.mocked(SkillMappingService.extractUniqueSkillsWithMapping).mockResolvedValue(mockSkillMapping);
       vi.mocked(DataPointGenerationService.generateDataPointsWithSkillMapping).mockResolvedValue(mockDataPoints);
@@ -100,7 +105,12 @@ describe('MatrixTransformerCore', () => {
 
       // Assert
       expect(result).toEqual({
-        months: [{ key: '2024-01', label: 'Jan 2024' }],
+        months: [{ 
+          key: '2024-01', 
+          label: 'Jan 2024',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31')
+        }],
         skills: ['Tax Preparation'],
         dataPoints: mockDataPoints,
         totalDemand: 120,

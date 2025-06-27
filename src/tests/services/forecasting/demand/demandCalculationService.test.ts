@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DemandCalculationService } from '@/services/forecasting/demand/matrixTransformer/demandCalculationService';
 import { RecurringTaskDB } from '@/types/task';
@@ -48,8 +47,8 @@ describe('DemandCalculationService', () => {
 
   const mockForecastPeriod: ForecastData = {
     period: '2025-01',
-    demand: 100,
-    capacity: 80,
+    demand: [{ skill: 'Junior', hours: 100 }],
+    capacity: [{ skill: 'Junior', hours: 80 }],
     gap: 20,
     skills: ['Junior'],
     details: {
