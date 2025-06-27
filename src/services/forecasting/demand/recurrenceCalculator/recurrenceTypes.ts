@@ -1,55 +1,44 @@
-
 import { RecurringTaskDB } from '@/types/task';
 import { MonthlyDemandResult } from './recurrenceCalculator';
 import { WeekdayUtils } from './weekdayUtils';
 import { MonthUtils } from './monthUtils';
 import { AnnualTaskCalculator } from './annualTaskCalculator';
+import { QuarterlyTaskCalculator } from './quarterlyTaskCalculator';
 
 /**
- * Enhanced Recurrence Type Calculator with Weekday-Aware Weekly Calculations
+ * Enhanced Recurrence Type Calculator with Accurate Quarterly Calculations
  * 
- * ENHANCED WEEKLY CALCULATION LOGIC:
+ * ENHANCED QUARTERLY CALCULATION LOGIC:
  * 
- * This calculator implements the core enhancement for weekly recurring tasks,
- * providing accurate demand calculations based on specific weekdays rather
- * than using a fixed 4.33 weeks/month approximation.
+ * This calculator now implements accurate quarterly task calculations that
+ * allocate hours only to the months when the task is actually due, rather
+ * than distributing hours across all months using a static formula.
  * 
  * CALCULATION METHODOLOGY BY TYPE:
  * 
- * 1. WEEKLY WITH WEEKDAYS (NEW ENHANCED LOGIC):
+ * 1. QUARTERLY (ENHANCED):
+ *    - Uses QuarterlyTaskCalculator for accurate due month determination
+ *    - Allocates full hours only to due months (0 or estimated_hours)
+ *    - Respects recurrence intervals (quarterly, semi-annually, etc.)
+ *    - Example: Q1 task with 10 hours shows 10h in March, 0h in other months
+ * 
+ * 2. WEEKLY WITH WEEKDAYS (EXISTING ENHANCEMENT):
  *    - Uses WeekdayUtils.calculateWeeklyOccurrences()
  *    - Formula: numberOfWeekdays × 4.35 weeks/month ÷ interval
- *    - Example: [1,3,5] = 3 × 4.35 ÷ 1 = 13.05 occurrences/month
- * 
- * 2. WEEKLY WITHOUT WEEKDAYS (LEGACY COMPATIBILITY):
- *    - Uses traditional 4.33 weeks/month calculation
- *    - Formula: 4.33 ÷ interval
- *    - Maintains backward compatibility for existing tasks
  * 
  * 3. OTHER RECURRENCE TYPES (UNCHANGED):
  *    - Monthly: 1 occurrence per interval months
- *    - Quarterly: 1 occurrence per 3×interval months  
  *    - Annual: Uses AnnualTaskCalculator for month-specific logic
- *    - Custom: Falls back to legacy calculation patterns
- * 
- * INTEGRATION FEATURES:
- * - Comprehensive logging for debugging and monitoring
- * - Graceful fallback mechanisms for invalid data
- * - Performance optimization for large task volumes
- * - Full backward compatibility with existing calculations
+ *    - Daily: Uses average days per month calculation
  */
 
 export class RecurrenceTypeCalculator {
   /**
-   * Calculate monthly demand based on recurrence type with enhanced weekly support
+   * Calculate monthly demand based on recurrence type with enhanced quarterly support
    * 
    * This method serves as the main routing hub for different recurrence types,
-   * with special enhanced handling for weekly tasks that include weekday specifications.
-   * 
-   * ROUTING LOGIC:
-   * - Weekly tasks: Route to enhanced weekday-aware calculation
-   * - Annual tasks: Use specialized AnnualTaskCalculator
-   * - Other types: Use standard mathematical formulas
+   * with special enhanced handling for quarterly tasks that include accurate
+   * due month calculations and weekly tasks with weekday specifications.
    * 
    * @param task The recurring task to calculate
    * @param startDate Start of calculation period
@@ -71,28 +60,31 @@ export class RecurrenceTypeCalculator {
       estimatedHours,
       interval,
       hasWeekdays: !!(task.weekdays && Array.isArray(task.weekdays) && task.weekdays.length > 0),
-      weekdays: task.weekdays
+      weekdays: task.weekdays,
+      dueDate: task.due_date
     });
 
     try {
       let monthlyOccurrences = 0;
 
       /**
-       * ENHANCED WEEKLY CALCULATION WITH WEEKDAY SUPPORT
+       * ENHANCED QUARTERLY CALCULATION WITH ACCURATE DUE MONTH LOGIC
        * 
-       * This is the core enhancement that provides accurate weekly recurring
-       * task calculations based on selected weekdays rather than using a
-       * fixed weeks-per-month approximation.
+       * This is the core enhancement that provides accurate quarterly recurring
+       * task calculations based on the task's due_date and recurrence interval,
+       * allocating hours only to the months when the task is actually due.
        */
-      if (recurrenceType === 'weekly') {
+      if (recurrenceType === 'quarterly') {
+        monthlyOccurrences = this.calculateQuarterlyOccurrences(task, startDate);
+      }
+      /**
+       * ENHANCED WEEKLY CALCULATION WITH WEEKDAY SUPPORT
+       */
+      else if (recurrenceType === 'weekly') {
         monthlyOccurrences = this.calculateWeeklyOccurrences(task, interval);
       }
       /**
        * ANNUAL TASK CALCULATION
-       * 
-       * Uses specialized AnnualTaskCalculator to determine if the task
-       * should be included in the current month based on month_of_year
-       * or due_date configuration.
        */
       else if (recurrenceType.includes('annual')) {
         monthlyOccurrences = AnnualTaskCalculator.calculateAnnualOccurrences(
@@ -103,15 +95,9 @@ export class RecurrenceTypeCalculator {
       }
       /**
        * STANDARD RECURRENCE TYPE CALCULATIONS
-       * 
-       * These calculations remain unchanged from the original implementation
-       * to ensure backward compatibility and maintain existing functionality.
        */
       else if (recurrenceType === 'monthly') {
         monthlyOccurrences = 1 / interval;
-      }
-      else if (recurrenceType === 'quarterly') {
-        monthlyOccurrences = (1 / 3) / interval; // Once every 3 months, adjusted for interval
       }
       else if (recurrenceType === 'daily') {
         // Daily tasks: ~30.44 days per month / interval
@@ -132,7 +118,9 @@ export class RecurrenceTypeCalculator {
         monthlyOccurrences: monthlyOccurrences.toFixed(3),
         estimatedHours,
         monthlyHours: monthlyHours.toFixed(2),
-        calculationMethod: recurrenceType === 'weekly' && task.weekdays 
+        calculationMethod: recurrenceType === 'quarterly' 
+          ? 'Enhanced due-month based'
+          : recurrenceType === 'weekly' && task.weekdays 
           ? 'Enhanced weekday-based'
           : 'Standard recurrence formula'
       });
@@ -152,6 +140,58 @@ export class RecurrenceTypeCalculator {
         monthlyHours: 0,
         taskId
       };
+    }
+  }
+
+  /**
+   * Calculate quarterly occurrences using the new enhanced logic
+   * 
+   * This method uses the QuarterlyTaskCalculator to determine if the
+   * current month is a due month for the quarterly task, providing
+   * accurate hour allocation instead of distributing across all months.
+   * 
+   * @param task The quarterly recurring task
+   * @param startDate The calculation period start date
+   * @returns Number of monthly occurrences (0 or 1)
+   */
+  private static calculateQuarterlyOccurrences(
+    task: RecurringTaskDB,
+    startDate: Date
+  ): number {
+    const taskId = task.id;
+    const targetMonth = startDate.getMonth(); // 0-based
+    const targetYear = startDate.getFullYear();
+
+    console.log(`📅 [QUARTERLY CALCULATION] Using enhanced calculation for task ${taskId}:`, {
+      targetMonth: targetMonth + 1, // Convert to 1-based for logging
+      targetYear,
+      interval: task.recurrence_interval,
+      dueDate: task.due_date
+    });
+
+    try {
+      // Use the new QuarterlyTaskCalculator for accurate calculation
+      const result = QuarterlyTaskCalculator.calculateQuarterlyOccurrences(
+        task,
+        targetMonth,
+        targetYear
+      );
+
+      console.log(`✅ [QUARTERLY CALCULATION] Enhanced calculation complete for task ${taskId}:`, {
+        targetMonth: targetMonth + 1,
+        targetYear,
+        monthlyOccurrences: result,
+        description: QuarterlyTaskCalculator.getQuarterlyDescription(task)
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error(`❌ [QUARTERLY CALCULATION] Error in enhanced calculation for task ${taskId}:`, error);
+      
+      // Fall back to zero occurrences on error
+      console.warn(`⚠️ [QUARTERLY CALCULATION] Falling back to zero occurrences for task ${taskId}`);
+      return 0;
     }
   }
 
@@ -183,12 +223,6 @@ export class RecurrenceTypeCalculator {
     const taskId = task.id;
     const weekdays = task.weekdays;
 
-    /**
-     * ENHANCED WEEKDAY-BASED CALCULATION
-     * 
-     * When weekdays are properly specified, use the enhanced calculation
-     * that considers the specific days of the week the task occurs.
-     */
     if (weekdays && Array.isArray(weekdays) && weekdays.length > 0) {
       console.log(`📅 [WEEKLY CALCULATION] Using enhanced weekday calculation for task ${taskId}:`, {
         weekdays,
@@ -197,7 +231,6 @@ export class RecurrenceTypeCalculator {
       });
 
       try {
-        // Validate and normalize weekdays
         const validation = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
         
         if (!validation.isValid) {
@@ -207,16 +240,13 @@ export class RecurrenceTypeCalculator {
             fallbackBehavior: 'Using legacy calculation'
           });
           
-          // Fall back to legacy calculation
           return 4.33 / interval;
         }
 
-        // Log validation warnings
         if (validation.warnings.length > 0) {
           console.info(`ℹ️ [WEEKLY CALCULATION] Weekday warnings for task ${taskId}:`, validation.warnings);
         }
 
-        // Calculate using enhanced weekday logic
         const result = WeekdayUtils.calculateWeeklyOccurrences(
           validation.validWeekdays,
           interval
@@ -234,19 +264,11 @@ export class RecurrenceTypeCalculator {
 
       } catch (error) {
         console.error(`❌ [WEEKLY CALCULATION] Error in enhanced calculation for task ${taskId}:`, error);
-        
-        // Fall back to legacy calculation on error
         console.warn(`⚠️ [WEEKLY CALCULATION] Falling back to legacy calculation for task ${taskId}`);
         return 4.33 / interval;
       }
     }
 
-    /**
-     * LEGACY WEEKLY CALCULATION
-     * 
-     * When weekdays are not specified or invalid, use the traditional
-     * 4.33 weeks per month calculation to maintain backward compatibility.
-     */
     console.log(`📅 [WEEKLY CALCULATION] Using legacy calculation for task ${taskId}:`, {
       reason: !weekdays ? 'No weekdays specified' : 
               !Array.isArray(weekdays) ? 'Weekdays not an array' :
@@ -279,14 +301,12 @@ export class RecurrenceTypeCalculator {
 
     if (type === 'weekly') {
       if (weekdays && Array.isArray(weekdays) && weekdays.length > 0) {
-        // Use enhanced weekday calculation
         const validation = WeekdayUtils.validateAndNormalizeWeekdays(weekdays);
         if (validation.isValid) {
           const result = WeekdayUtils.calculateWeeklyOccurrences(validation.validWeekdays, interval);
           return result.occurrences;
         }
       }
-      // Fall back to legacy calculation
       return 4.33 / interval;
     }
 
@@ -295,7 +315,7 @@ export class RecurrenceTypeCalculator {
     }
 
     if (type === 'quarterly') {
-      // Check if we're in an active quarter
+      // For testing: simple quarterly logic based on month alignment
       const quarterMonth = Math.floor(periodMonth / 3) * 3;
       const startQuarter = Math.floor(startMonth / 3) * 3;
       
@@ -306,7 +326,7 @@ export class RecurrenceTypeCalculator {
     }
 
     if (type === 'daily') {
-      return 30 / interval; // Simplified daily calculation
+      return 30 / interval;
     }
 
     return 0;
@@ -331,5 +351,15 @@ export class RecurrenceTypeCalculator {
     }
     
     return `Every ${intervalText}`;
+  }
+
+  /**
+   * Get quarterly recurrence description for display purposes
+   * 
+   * @param task The quarterly task
+   * @returns Human-readable description
+   */
+  static getQuarterlyRecurrenceDescription(task: RecurringTaskDB): string {
+    return QuarterlyTaskCalculator.getQuarterlyDescription(task);
   }
 }
