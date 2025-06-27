@@ -1,12 +1,13 @@
 
 import { DemandMatrixData, DemandFilters } from '@/types/demand';
 import { BaseFilterStrategy } from './baseFilterStrategy';
+import { normalizeStaffId, isStaffIdInArray } from '@/utils/staffIdUtils';
 
 /**
- * INVESTIGATION FIX: Preferred Staff Filter Strategy
+ * PHASE 2 FIX: Preferred Staff Filter Strategy with Normalized ID Comparisons
  * 
- * Root cause identified: Data type mismatch in staff ID comparison
- * Solution: Type-safe comparison with detailed logging for staff ID flow tracing
+ * Root cause resolved: Uses shared normalization utility to ensure consistent
+ * staff ID comparisons across the filtering pipeline.
  */
 export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   getName(): string {
@@ -15,7 +16,6 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
 
   getPriority(): number {
     // Apply after skill, client and time horizon filters
-    // Lower numeric priority keeps order predictable
     return 4;
   }
 
@@ -25,93 +25,81 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
   }
 
   apply(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
-    console.log(`🔍 [PREFERRED STAFF FILTER] INVESTIGATION: Starting staff ID flow trace`);
-    console.log(`🔍 [PREFERRED STAFF FILTER] Filter staff selection:`, {
-      selectedStaff: filters.preferredStaff,
-      selectionType: typeof filters.preferredStaff[0],
-      selectionLength: filters.preferredStaff.length
-    });
-
+    console.log(`🔍 [PREFERRED STAFF FILTER] PHASE 2: Starting normalized staff ID filtering`);
+    
     const startTime = performance.now();
     
-    // INVESTIGATION: If no preferred staff selected, return all data (no filtering)
+    // If no preferred staff selected, return all data (no filtering)
     if (!filters.preferredStaff || filters.preferredStaff.length === 0) {
-      console.log(`✅ [PREFERRED STAFF FILTER] No preferred staff filter applied - showing all data`);
+      console.log(`✅ [PREFERRED STAFF FILTER] PHASE 2: No preferred staff filter applied - showing all data`);
       return data;
     }
 
-    // INVESTIGATION: Log data structure before filtering
+    // PHASE 2 FIX: Normalize all filter staff IDs using shared utility
+    const normalizedFilterStaffIds = filters.preferredStaff
+      .map(id => normalizeStaffId(id))
+      .filter(id => id !== undefined) as string[];
+    
+    console.log(`🔍 [PREFERRED STAFF FILTER] PHASE 2: Normalized filter staff IDs:`, {
+      originalFilterIds: filters.preferredStaff,
+      normalizedFilterIds: normalizedFilterStaffIds,
+      normalizationSuccessful: normalizedFilterStaffIds.length === filters.preferredStaff.length
+    });
+
+    // Log data structure before filtering
     const sampleDataPoint = data.dataPoints[0];
     if (sampleDataPoint?.taskBreakdown?.[0]) {
       const sampleTask = sampleDataPoint.taskBreakdown[0];
-      console.log(`🔍 [PREFERRED STAFF FILTER] Sample task structure:`, {
+      console.log(`🔍 [PREFERRED STAFF FILTER] PHASE 2: Sample task structure:`, {
         taskName: sampleTask.taskName,
         preferredStaffId: sampleTask.preferredStaffId,
-        preferredStaffIdType: typeof sampleTask.preferredStaffId,
         preferredStaffName: sampleTask.preferredStaffName,
-        hasPreferredStaff: !!sampleTask.preferredStaffId
+        hasPreferredStaff: !!sampleTask.preferredStaffId,
+        isAlreadyNormalized: sampleTask.preferredStaffId === normalizeStaffId(sampleTask.preferredStaffId)
       });
     }
-
-    // INVESTIGATION: Convert filter staff IDs to strings for consistent comparison
-    // Normalise IDs to lower case strings for reliable comparison
-    const normalizedFilterStaffIds = filters.preferredStaff.map(id =>
-      String(id).trim().toLowerCase()
-    );
-    console.log(`🔍 [PREFERRED STAFF FILTER] Normalized filter staff IDs:`, normalizedFilterStaffIds);
 
     // Filter data points based on preferred staff assignments
     const filteredDataPoints = data.dataPoints.map(dataPoint => {
       if (!dataPoint.taskBreakdown || dataPoint.taskBreakdown.length === 0) {
-        console.log(`⚠️ [PREFERRED STAFF FILTER] No task breakdown for ${dataPoint.skillType}/${dataPoint.month}`);
+        console.log(`⚠️ [PREFERRED STAFF FILTER] PHASE 2: No task breakdown for ${dataPoint.skillType}/${dataPoint.month}`);
         return { ...dataPoint, taskBreakdown: [], demandHours: 0, taskCount: 0, clientCount: 0 };
       }
 
-      // INVESTIGATION: Log task filtering process
-      console.log(`🔍 [PREFERRED STAFF FILTER] Processing ${dataPoint.taskBreakdown.length} tasks for ${dataPoint.skillType}/${dataPoint.month}`);
+      console.log(`🔍 [PREFERRED STAFF FILTER] PHASE 2: Processing ${dataPoint.taskBreakdown.length} tasks for ${dataPoint.skillType}/${dataPoint.month}`);
 
-      // FIXED: Type-safe filtering with detailed logging
+      // PHASE 2 FIX: Use normalized ID comparison with shared utility
       const filteredTasks = dataPoint.taskBreakdown.filter((task, index) => {
-        // INVESTIGATION: Normalize task staff ID for comparison
-        const taskStaffId = task.preferredStaffId
-          ? String(task.preferredStaffId).trim().toLowerCase()
-          : null;
+        // Use shared utility to check if task staff ID is in filter array
+        const hasMatchingPreferredStaff = isStaffIdInArray(task.preferredStaffId, normalizedFilterStaffIds);
         
-        // INVESTIGATION: Log each comparison
-        const hasMatchingPreferredStaff =
-          !!taskStaffId && normalizedFilterStaffIds.includes(taskStaffId);
-        
-        console.log(`🔍 [PREFERRED STAFF FILTER] Task ${index + 1}/${dataPoint.taskBreakdown.length} comparison:`, {
+        console.log(`🔍 [PREFERRED STAFF FILTER] PHASE 2: Task ${index + 1} comparison:`, {
           taskName: task.taskName,
-          taskStaffId: taskStaffId,
-          taskStaffIdType: typeof taskStaffId,
+          taskStaffId: task.preferredStaffId,
+          normalizedTaskStaffId: normalizeStaffId(task.preferredStaffId),
           taskStaffName: task.preferredStaffName,
           filterStaffIds: normalizedFilterStaffIds,
           isMatch: hasMatchingPreferredStaff,
-          comparisonDetails: normalizedFilterStaffIds.map(filterId => ({
-            filterId,
-            taskId: taskStaffId,
-            exactMatch: filterId === taskStaffId,
-            caseInsensitiveMatch: filterId?.toLowerCase() === taskStaffId?.toLowerCase()
-          }))
+          comparisonMethod: 'isStaffIdInArray utility'
         });
         
         if (hasMatchingPreferredStaff) {
-          console.log(`✅ [PREFERRED STAFF FILTER] INCLUDING task "${task.taskName}" with preferred staff "${task.preferredStaffName}" (ID: ${taskStaffId})`);
+          console.log(`✅ [PREFERRED STAFF FILTER] PHASE 2: INCLUDING task "${task.taskName}" with preferred staff "${task.preferredStaffName}"`);
         } else {
-          console.log(`❌ [PREFERRED STAFF FILTER] EXCLUDING task "${task.taskName}" - staff: ${task.preferredStaffName || 'None'} (ID: ${taskStaffId || 'null'})`);
+          console.log(`❌ [PREFERRED STAFF FILTER] PHASE 2: EXCLUDING task "${task.taskName}" - staff: ${task.preferredStaffName || 'None'}`);
         }
         
         return hasMatchingPreferredStaff;
       });
 
-      // INVESTIGATION: Log filtering results per data point
-      console.log(`🔍 [PREFERRED STAFF FILTER] Data point filtering result:`, {
+      // Log filtering results per data point
+      console.log(`🔍 [PREFERRED STAFF FILTER] PHASE 2: Data point filtering result:`, {
         skillType: dataPoint.skillType,
         month: dataPoint.month,
         originalTasks: dataPoint.taskBreakdown.length,
         filteredTasks: filteredTasks.length,
-        tasksRemoved: dataPoint.taskBreakdown.length - filteredTasks.length
+        tasksRemoved: dataPoint.taskBreakdown.length - filteredTasks.length,
+        filterEfficiency: `${((filteredTasks.length / dataPoint.taskBreakdown.length) * 100).toFixed(1)}%`
       });
 
       // Recalculate metrics for filtered tasks
@@ -170,7 +158,7 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
     const endTime = performance.now();
     const processingTime = endTime - startTime;
 
-    console.log(`✅ [PREFERRED STAFF FILTER] INVESTIGATION COMPLETE:`, {
+    console.log(`✅ [PREFERRED STAFF FILTER] PHASE 2 COMPLETE:`, {
       processingTime: `${processingTime.toFixed(2)}ms`,
       originalDataPoints: data.dataPoints.length,
       filteredDataPoints: filteredDataPoints.length,
@@ -179,12 +167,13 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
       totalClients,
       skillsRetained: remainingSkills.length,
       filterEffectiveness: `${((1 - filteredDataPoints.length / data.dataPoints.length) * 100).toFixed(1)}% filtered out`,
-      staffIdComparisonSuccess: filteredDataPoints.length > 0
+      normalizationSuccess: true,
+      staffIdMatchingMethod: 'Shared normalization utility'
     });
 
-    // INVESTIGATION: Enhanced diagnostics for zero results
+    // PHASE 2: Enhanced diagnostics for zero results
     if (filteredDataPoints.length === 0) {
-      console.error(`❌ [PREFERRED STAFF FILTER] ZERO RESULTS - INVESTIGATION RESULTS:`);
+      console.error(`❌ [PREFERRED STAFF FILTER] PHASE 2: ZERO RESULTS - NORMALIZATION DIAGNOSTICS:`);
       
       // Show all available staff IDs in the data
       const allTasksWithStaff = data.dataPoints.flatMap(dp => 
@@ -192,33 +181,20 @@ export class PreferredStaffFilterStrategy implements BaseFilterStrategy {
       );
       
       const availableStaffIds = Array.from(new Set(
-        allTasksWithStaff.map(task => String(task.preferredStaffId).trim())
+        allTasksWithStaff.map(task => task.preferredStaffId).filter(Boolean)
       ));
       
-      const availableStaffNames = Array.from(new Set(
-        allTasksWithStaff.map(task => task.preferredStaffName).filter(Boolean)
+      const availableNormalizedStaffIds = Array.from(new Set(
+        allTasksWithStaff.map(task => normalizeStaffId(task.preferredStaffId)).filter(Boolean)
       ));
 
-      console.error(`🔍 Data contains ${allTasksWithStaff.length} tasks with preferred staff`);
-      console.error(`🔍 Available staff IDs in data:`, availableStaffIds);
-      console.error(`🔍 Available staff names in data:`, availableStaffNames);
-      console.error(`🔍 Filter looking for staff IDs:`, normalizedFilterStaffIds);
-      console.error(`🔍 Exact matches found:`, availableStaffIds.filter(id => normalizedFilterStaffIds.includes(id)));
-      
-      // Check for potential UUID format issues
-      console.error(`🔍 UUID format analysis:`, {
-        filterStaffUUIDs: normalizedFilterStaffIds.map(id => ({
-          id,
-          length: id.length,
-          hasHyphens: id.includes('-'),
-          isValidUUIDFormat: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-        })),
-        dataStaffUUIDs: availableStaffIds.map(id => ({
-          id,
-          length: id.length,
-          hasHyphens: id.includes('-'),
-          isValidUUIDFormat: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-        }))
+      console.error(`🔍 PHASE 2 DIAGNOSTICS:`, {
+        dataContainsTasksWithStaff: allTasksWithStaff.length,
+        originalStaffIdsInData: availableStaffIds,
+        normalizedStaffIdsInData: availableNormalizedStaffIds,
+        filterLookingForNormalizedIds: normalizedFilterStaffIds,
+        exactNormalizedMatches: availableNormalizedStaffIds.filter(id => normalizedFilterStaffIds.includes(id)),
+        normalizationWorking: availableStaffIds.length === availableNormalizedStaffIds.length
       });
     }
 

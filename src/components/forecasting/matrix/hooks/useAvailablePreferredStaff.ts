@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeStaffId } from '@/utils/staffIdUtils';
 
 interface PreferredStaffMember {
   id: string;
@@ -9,15 +10,15 @@ interface PreferredStaffMember {
 }
 
 /**
- * INVESTIGATION FIX: Hook to fetch available preferred staff from recurring tasks
+ * PHASE 2 FIX: Hook to fetch available preferred staff with normalized IDs
  * 
- * Enhanced with staff ID flow tracing to ensure consistent data types
+ * Enhanced with consistent staff ID normalization to prevent filtering mismatches
  */
 export const useAvailablePreferredStaff = () => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['available-preferred-staff'],
     queryFn: async (): Promise<PreferredStaffMember[]> => {
-      console.log('🔍 [PREFERRED STAFF HOOK] INVESTIGATION: Fetching available preferred staff with ID tracing');
+      console.log('🔍 [PREFERRED STAFF HOOK] PHASE 2: Fetching with normalized staff IDs');
 
       try {
         // Query recurring tasks with their preferred staff information
@@ -44,42 +45,32 @@ export const useAvailablePreferredStaff = () => {
           return [];
         }
 
-        console.log(`🔍 [PREFERRED STAFF HOOK] INVESTIGATION: Raw task data:`, {
-          totalTasks: tasks.length,
-          sampleTask: tasks[0] ? {
-            preferred_staff_id: tasks[0].preferred_staff_id,
-            preferred_staff_id_type: typeof tasks[0].preferred_staff_id,
-            staff_data: tasks[0].staff
-          } : null
-        });
+        console.log(`🔍 [PREFERRED STAFF HOOK] PHASE 2: Processing ${tasks.length} tasks with normalization`);
 
-        // Extract unique staff members with ID normalization
+        // Extract unique staff members with normalized IDs
         const staffMap = new Map<string, PreferredStaffMember>();
         
         tasks.forEach((task, index) => {
-          console.log(`🔍 [PREFERRED STAFF HOOK] Processing task ${index + 1}:`, {
-            preferred_staff_id: task.preferred_staff_id,
-            staff_data: task.staff
-          });
-
           if (task.staff && task.preferred_staff_id) {
             const staff = Array.isArray(task.staff) ? task.staff[0] : task.staff;
             if (staff && staff.id && staff.full_name) {
-              // INVESTIGATION FIX: Normalize staff ID to string for consistency
-              const normalizedStaffId = String(staff.id).trim();
+              // PHASE 2 FIX: Use normalized staff ID
+              const normalizedStaffId = normalizeStaffId(staff.id);
               
-              console.log(`🔍 [PREFERRED STAFF HOOK] Adding staff member:`, {
-                originalId: staff.id,
-                normalizedId: normalizedStaffId,
-                name: staff.full_name,
-                role: staff.role_title
-              });
+              if (normalizedStaffId) {
+                console.log(`🔍 [PREFERRED STAFF HOOK] PHASE 2: Normalizing staff ${index + 1}:`, {
+                  originalId: staff.id,
+                  originalIdType: typeof staff.id,
+                  normalizedId: normalizedStaffId,
+                  name: staff.full_name
+                });
 
-              staffMap.set(normalizedStaffId, {
-                id: normalizedStaffId, // Use normalized ID
-                name: staff.full_name,
-                roleTitle: staff.role_title || undefined
-              });
+                staffMap.set(normalizedStaffId, {
+                  id: normalizedStaffId, // Use normalized ID consistently
+                  name: staff.full_name,
+                  roleTitle: staff.role_title || undefined
+                });
+              }
             }
           }
         });
@@ -88,13 +79,13 @@ export const useAvailablePreferredStaff = () => {
           a.name.localeCompare(b.name)
         );
 
-        console.log(`✅ [PREFERRED STAFF HOOK] INVESTIGATION COMPLETE: Found ${uniqueStaff.length} preferred staff members:`, 
+        console.log(`✅ [PREFERRED STAFF HOOK] PHASE 2 COMPLETE: Found ${uniqueStaff.length} normalized staff members:`, 
           uniqueStaff.map(s => ({
             id: s.id,
             name: s.name,
             role: s.roleTitle || 'No title',
             idLength: s.id.length,
-            idFormat: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id) ? 'UUID' : 'Other'
+            isNormalized: s.id === s.id.toLowerCase()
           })));
 
         return uniqueStaff;

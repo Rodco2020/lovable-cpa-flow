@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Download, RotateCcw, Users, AlertCircle, RefreshCw, Printer } from 'lucide-react';
 import { SkillType } from '@/types/task';
+import { normalizeStaffId } from '@/utils/staffIdUtils';
 
 interface PreferredStaffOption {
   id: string;
@@ -16,52 +17,46 @@ interface PreferredStaffOption {
 interface DemandMatrixControlsProps {
   selectedSkills: SkillType[];
   selectedClients: string[];
-  selectedPreferredStaff: string[]; // Phase 2: Add preferred staff props
+  selectedPreferredStaff: string[];
   onSkillToggle: (skill: SkillType) => void;
   onClientToggle: (clientId: string) => void;
-  onPreferredStaffToggle: (staffId: string) => void; // Phase 2: Add preferred staff handler
+  onPreferredStaffToggle: (staffId: string) => void;
   monthRange: { start: number; end: number };
   onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
   onExport: () => void;
-  onPrintExport: () => void; // Add missing onPrintExport prop
+  onPrintExport: () => void;
   onReset: () => void;
   groupingMode: 'skill' | 'client';
   availableSkills: SkillType[];
   availableClients: Array<{ id: string; name: string }>;
-  
-  // Phase 2: Add preferred staff props
   availablePreferredStaff: PreferredStaffOption[];
   preferredStaffLoading: boolean;
   preferredStaffError: string | null;
   isAllPreferredStaffSelected: boolean;
   onRetryPreferredStaff?: () => void;
-  
   className?: string;
 }
 
 export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
   selectedSkills,
   selectedClients,
-  selectedPreferredStaff, // Phase 2: Add preferred staff state
+  selectedPreferredStaff,
   onSkillToggle,
   onClientToggle,
-  onPreferredStaffToggle, // Phase 2: Add preferred staff handler
+  onPreferredStaffToggle,
   monthRange,
   onMonthRangeChange,
   onExport,
-  onPrintExport, // Add missing onPrintExport prop
+  onPrintExport,
   onReset,
   groupingMode,
   availableSkills,
   availableClients,
-  
-  // Phase 2: Destructure preferred staff props
   availablePreferredStaff,
   preferredStaffLoading,
   preferredStaffError,
   isAllPreferredStaffSelected,
   onRetryPreferredStaff,
-  
   className
 }) => {
   const monthNames = [
@@ -89,53 +84,66 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
     }
   };
 
-  // Phase 2: Add preferred staff select all handler with PHASE 1 LOGGING
+  // PHASE 2 FIX: Add preferred staff select all handler with normalized ID logging
   const handleSelectAllPreferredStaff = () => {
-    console.log(`🎛️ [MATRIX CONTROLS] PHASE 1 LOGGING: Select All Preferred Staff clicked:`, {
+    console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Select All Preferred Staff clicked:`, {
       currentSelection: selectedPreferredStaff,
-      currentSelectionTypes: selectedPreferredStaff.map(id => ({ id, type: typeof id })),
       availableStaff: availablePreferredStaff,
-      availableStaffTypes: availablePreferredStaff.map(staff => ({ id: staff.id, type: typeof staff.id, name: staff.name })),
       isAllSelected: isAllPreferredStaffSelected,
       willDeselect: isAllPreferredStaffSelected
     });
 
     if (isAllPreferredStaffSelected) {
       // Deselect all
-      console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Deselecting all ${availablePreferredStaff.length} staff members`);
+      console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Deselecting all ${availablePreferredStaff.length} staff members`);
       availablePreferredStaff.forEach(staff => {
-        console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Deselecting staff:`, { id: staff.id, type: typeof staff.id, name: staff.name });
+        console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Deselecting staff:`, { 
+          id: staff.id, 
+          name: staff.name,
+          isNormalized: staff.id === normalizeStaffId(staff.id)
+        });
         onPreferredStaffToggle(staff.id);
       });
     } else {
       // Select all
-      console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Selecting all unselected staff members`);
+      console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Selecting all unselected staff members`);
       availablePreferredStaff
         .filter(staff => {
-          const isNotSelected = !selectedPreferredStaff.includes(staff.id);
-          console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Staff ${staff.name} (${staff.id}) - currently selected: ${!isNotSelected}`);
+          // PHASE 2 FIX: Use normalized comparison for consistency
+          const normalizedStaffId = normalizeStaffId(staff.id);
+          const isNotSelected = !selectedPreferredStaff.some(selectedId => 
+            normalizeStaffId(selectedId) === normalizedStaffId
+          );
+          console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Staff ${staff.name} (${staff.id}) - currently selected: ${!isNotSelected}`);
           return isNotSelected;
         })
         .forEach(staff => {
-          console.log(`🎛️ [MATRIX CONTROLS] PHASE 1: Selecting staff:`, { id: staff.id, type: typeof staff.id, name: staff.name });
+          console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Selecting staff:`, { 
+            id: staff.id, 
+            name: staff.name,
+            isNormalized: staff.id === normalizeStaffId(staff.id)
+          });
           onPreferredStaffToggle(staff.id);
         });
     }
   };
 
-  // PHASE 1 LOGGING: Enhanced preferred staff toggle handler
+  // PHASE 2 FIX: Enhanced preferred staff toggle handler with normalization logging
   const handlePreferredStaffToggleWithLogging = (staffId: string) => {
-    const staff = availablePreferredStaff.find(s => s.id === staffId);
-    const isCurrentlySelected = selectedPreferredStaff.includes(staffId);
+    const staff = availablePreferredStaff.find(s => normalizeStaffId(s.id) === normalizeStaffId(staffId));
+    const normalizedStaffId = normalizeStaffId(staffId);
+    const isCurrentlySelected = selectedPreferredStaff.some(selectedId => 
+      normalizeStaffId(selectedId) === normalizedStaffId
+    );
     
-    console.log(`🎛️ [MATRIX CONTROLS] PHASE 1 LOGGING: Individual staff toggle:`, {
-      staffId,
-      staffIdType: typeof staffId,
+    console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Individual staff toggle:`, {
+      originalStaffId: staffId,
+      normalizedStaffId,
       staffName: staff?.name || 'Unknown',
       isCurrentlySelected,
       willBecome: isCurrentlySelected ? 'deselected' : 'selected',
       currentFullSelection: selectedPreferredStaff,
-      currentSelectionTypes: selectedPreferredStaff.map(id => ({ id, type: typeof id }))
+      normalizationApplied: staffId !== normalizedStaffId
     });
 
     onPreferredStaffToggle(staffId);
@@ -145,13 +153,21 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
     onMonthRangeChange({ start: values[0], end: values[1] });
   };
 
-  // PHASE 1 LOGGING: Log component render state
-  console.log(`🎛️ [MATRIX CONTROLS] PHASE 1 LOGGING: Component render state:`, {
+  // PHASE 2 LOGGING: Log component render state with normalization details
+  console.log(`🎛️ [MATRIX CONTROLS] PHASE 2: Component render state:`, {
     selectedPreferredStaffCount: selectedPreferredStaff.length,
     selectedPreferredStaff: selectedPreferredStaff,
-    selectedPreferredStaffTypes: selectedPreferredStaff.map(id => ({ id, type: typeof id })),
+    selectedPreferredStaffNormalized: selectedPreferredStaff.map(id => ({
+      original: id,
+      normalized: normalizeStaffId(id),
+      isAlreadyNormalized: id === normalizeStaffId(id)
+    })),
     availablePreferredStaffCount: availablePreferredStaff.length,
-    availablePreferredStaff: availablePreferredStaff.map(staff => ({ id: staff.id, type: typeof staff.id, name: staff.name })),
+    availablePreferredStaff: availablePreferredStaff.map(staff => ({ 
+      id: staff.id, 
+      name: staff.name,
+      isNormalized: staff.id === normalizeStaffId(staff.id)
+    })),
     isAllPreferredStaffSelected,
     preferredStaffLoading,
     preferredStaffError
@@ -267,7 +283,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
 
         <Separator />
 
-        {/* Phase 2: Preferred Staff Filter Section with PHASE 1 LOGGING */}
+        {/* PHASE 2: Preferred Staff Filter Section with normalized ID handling */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -332,7 +348,7 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
             </div>
           )}
 
-          {/* Preferred Staff List with PHASE 1 LOGGING */}
+          {/* PHASE 2: Preferred Staff List with normalized ID handling */}
           {!preferredStaffLoading && !preferredStaffError && (
             <div 
               className="space-y-2 max-h-32 overflow-y-auto"
@@ -344,29 +360,37 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
                   No preferred staff available. Add staff members in the Staff module.
                 </div>
               ) : (
-                availablePreferredStaff.map((staff) => (
-                  <div key={staff.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`preferred-staff-${staff.id}`}
-                      checked={selectedPreferredStaff.includes(staff.id)}
-                      onCheckedChange={() => handlePreferredStaffToggleWithLogging(staff.id)}
-                      aria-describedby={`preferred-staff-${staff.id}-name`}
-                    />
-                    <label
-                      htmlFor={`preferred-staff-${staff.id}`}
-                      id={`preferred-staff-${staff.id}-name`}
-                      className="text-sm cursor-pointer flex-1 truncate"
-                      title={staff.name}
-                    >
-                      {staff.name}
-                    </label>
-                  </div>
-                ))
+                availablePreferredStaff.map((staff) => {
+                  // PHASE 2 FIX: Use normalized comparison for checkbox state
+                  const normalizedStaffId = normalizeStaffId(staff.id);
+                  const isChecked = selectedPreferredStaff.some(selectedId => 
+                    normalizeStaffId(selectedId) === normalizedStaffId
+                  );
+                  
+                  return (
+                    <div key={staff.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`preferred-staff-${staff.id}`}
+                        checked={isChecked}
+                        onCheckedChange={() => handlePreferredStaffToggleWithLogging(staff.id)}
+                        aria-describedby={`preferred-staff-${staff.id}-name`}
+                      />
+                      <label
+                        htmlFor={`preferred-staff-${staff.id}`}
+                        id={`preferred-staff-${staff.id}-name`}
+                        className="text-sm cursor-pointer flex-1 truncate"
+                        title={staff.name}
+                      >
+                        {staff.name}
+                      </label>
+                    </div>
+                  );
+                })
               )}
             </div>
           )}
 
-          {/* Preferred Staff Selection Summary with PHASE 1 LOGGING */}
+          {/* Preferred Staff Selection Summary */}
           {!preferredStaffLoading && (
             <div className="flex flex-wrap gap-1 mt-2">
               <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
