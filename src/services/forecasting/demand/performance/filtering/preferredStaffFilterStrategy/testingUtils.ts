@@ -1,342 +1,355 @@
 
 /**
- * Comprehensive Testing Utilities for Preferred Staff Filter Strategy
+ * ENHANCED Testing utilities for Preferred Staff Filter Strategy
  * 
- * This module provides end-to-end testing capabilities to validate that the
- * preferred staff filtering system works correctly with proper field mapping.
+ * This module provides comprehensive testing and validation capabilities
+ * for debugging the preferred staff filtering issue.
  */
 
-import { DemandMatrixData, DemandFilters, ClientTaskDemand } from '@/types/demand';
-import { PreferredStaffFilterStrategy } from './preferredStaffFilterStrategy';
+import { DemandMatrixData, DemandFilters } from '@/types/demand';
+import { normalizeStaffId } from '@/utils/staffIdUtils';
 
 export interface FilterTestResult {
-  testName: string;
-  passed: boolean;
-  details: {
-    input: {
-      dataPoints: number;
-      totalTasks: number;
-      tasksWithPreferredStaff: number;
-      filterIds: string[];
-    };
-    output: {
-      dataPoints: number;
-      totalTasks: number;
-      expectedTasks: number;
-      actualTasks: number;
-    };
-    validation: {
-      fieldMappingWorking: boolean;
-      filterLogicWorking: boolean;
-      dataIntegrityMaintained: boolean;
-    };
-  };
-  errors: string[];
+  testPassed: boolean;
+  issues: string[];
   recommendations: string[];
+  detailedAnalysis: {
+    inputAnalysis: any;
+    dataAnalysis: any;
+    filteringResults: any;
+    comparisonResults: any;
+  };
 }
 
 /**
- * Run comprehensive end-to-end test of the preferred staff filtering
+ * ENHANCED: Run comprehensive filter test with detailed debugging
  */
-export async function runComprehensiveFilterTest(
-  testData: DemandMatrixData,
-  testFilters: DemandFilters
-): Promise<FilterTestResult> {
-  console.group('🧪 [FILTER TESTING] Comprehensive End-to-End Test');
+export function runComprehensiveFilterTest(
+  data: DemandMatrixData,
+  filters: DemandFilters
+): FilterTestResult {
+  console.group('🧪 [COMPREHENSIVE FILTER TEST] Starting detailed analysis');
   
-  const testName = 'Preferred Staff Filter End-to-End Test';
-  const errors: string[] = [];
+  const issues: string[] = [];
   const recommendations: string[] = [];
   
-  try {
-    // Analyze input data
-    const inputAnalysis = analyzeInputData(testData);
-    console.log('📊 Input Analysis:', inputAnalysis);
-    
-    // Execute filter strategy
-    const filterStrategy = new PreferredStaffFilterStrategy();
-    const filteredData = filterStrategy.apply(testData, testFilters);
-    
-    // Analyze output data
-    const outputAnalysis = analyzeOutputData(filteredData);
-    console.log('📈 Output Analysis:', outputAnalysis);
-    
-    // Validate field mapping
-    const fieldMappingValidation = validateFieldMapping(testData, filteredData);
-    console.log('🔍 Field Mapping Validation:', fieldMappingValidation);
-    
-    // Validate filter logic
-    const filterLogicValidation = validateFilterLogic(
-      testData, 
-      filteredData, 
-      testFilters.preferredStaff || []
-    );
-    console.log('🎯 Filter Logic Validation:', filterLogicValidation);
-    
-    // Calculate expected vs actual results
-    const expectedTasks = calculateExpectedFilteredTasks(testData, testFilters.preferredStaff || []);
-    const actualTasks = outputAnalysis.totalTasks;
-    
-    // Determine test result
-    const passed = (
-      fieldMappingValidation.working &&
-      filterLogicValidation.working &&
-      Math.abs(expectedTasks - actualTasks) <= 1 // Allow for small rounding differences
-    );
-    
-    if (!fieldMappingValidation.working) {
-      errors.push('Field mapping validation failed');
-      recommendations.push('Check that preferredStaffId field is properly mapped from database');
-    }
-    
-    if (!filterLogicValidation.working) {
-      errors.push('Filter logic validation failed');
-      recommendations.push('Verify that filter matching logic correctly identifies preferred staff');
-    }
-    
-    const testResult: FilterTestResult = {
-      testName,
-      passed,
-      details: {
-        input: {
-          dataPoints: inputAnalysis.dataPoints,
-          totalTasks: inputAnalysis.totalTasks,
-          tasksWithPreferredStaff: inputAnalysis.tasksWithPreferredStaff,
-          filterIds: testFilters.preferredStaff || []
-        },
-        output: {
-          dataPoints: outputAnalysis.dataPoints,
-          totalTasks: outputAnalysis.totalTasks,
-          expectedTasks,
-          actualTasks
-        },
-        validation: {
-          fieldMappingWorking: fieldMappingValidation.working,
-          filterLogicWorking: filterLogicValidation.working,
-          dataIntegrityMaintained: true
-        }
-      },
-      errors,
-      recommendations
-    };
-    
-    console.log(`${passed ? '✅' : '❌'} Test Result:`, testResult);
-    console.groupEnd();
-    
-    return testResult;
-    
-  } catch (error) {
-    console.error('❌ Test execution failed:', error);
-    console.groupEnd();
-    
-    return {
-      testName,
-      passed: false,
-      details: {
-        input: { dataPoints: 0, totalTasks: 0, tasksWithPreferredStaff: 0, filterIds: [] },
-        output: { dataPoints: 0, totalTasks: 0, expectedTasks: 0, actualTasks: 0 },
-        validation: { fieldMappingWorking: false, filterLogicWorking: false, dataIntegrityMaintained: false }
-      },
-      errors: [`Test execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
-      recommendations: ['Check console logs for detailed error information']
-    };
+  // STEP 1: Input Analysis
+  console.log('📋 STEP 1: Input Analysis');
+  const inputAnalysis = analyzeFilterInputs(filters);
+  logInputAnalysis(inputAnalysis);
+  
+  // STEP 2: Data Structure Analysis
+  console.log('📊 STEP 2: Data Structure Analysis');
+  const dataAnalysis = analyzeDataStructure(data);
+  logDataAnalysis(dataAnalysis);
+  
+  // STEP 3: Field Mapping Analysis
+  console.log('🔗 STEP 3: Field Mapping Analysis');
+  const fieldMappingAnalysis = analyzeFieldMapping(data);
+  logFieldMappingAnalysis(fieldMappingAnalysis);
+  
+  // STEP 4: Filter Comparison Analysis
+  console.log('⚖️ STEP 4: Filter Comparison Analysis');
+  const comparisonResults = analyzeFilterComparison(data, filters);
+  logComparisonResults(comparisonResults);
+  
+  // STEP 5: Generate Issues and Recommendations
+  if (inputAnalysis.invalidStaffIds.length > 0) {
+    issues.push(`Invalid staff IDs found: ${inputAnalysis.invalidStaffIds.join(', ')}`);
+    recommendations.push('Verify staff ID format and normalization logic');
   }
+  
+  if (dataAnalysis.tasksWithoutPreferredStaff > dataAnalysis.tasksWithPreferredStaff * 2) {
+    issues.push('Most tasks lack preferred staff assignments');
+    recommendations.push('Ensure tasks are properly assigned to preferred staff');
+  }
+  
+  if (comparisonResults.noMatches && inputAnalysis.validStaffIds.length > 0) {
+    issues.push('No matching staff IDs found despite valid input');
+    recommendations.push('Check for data type mismatches or normalization issues');
+  }
+  
+  const testPassed = issues.length === 0;
+  
+  console.log('🎯 TEST SUMMARY:', {
+    testPassed,
+    issuesFound: issues.length,
+    issues,
+    recommendations
+  });
+  
+  console.groupEnd();
+  
+  return {
+    testPassed,
+    issues,
+    recommendations,
+    detailedAnalysis: {
+      inputAnalysis,
+      dataAnalysis,
+      filteringResults: comparisonResults,
+      comparisonResults
+    }
+  };
 }
 
 /**
- * Analyze input data structure
+ * Analyze filter inputs in detail
  */
-function analyzeInputData(data: DemandMatrixData): {
-  dataPoints: number;
-  totalTasks: number;
-  tasksWithPreferredStaff: number;
-  uniquePreferredStaffIds: string[];
-} {
-  let totalTasks = 0;
-  let tasksWithPreferredStaff = 0;
-  const preferredStaffIds = new Set<string>();
+function analyzeFilterInputs(filters: DemandFilters) {
+  const preferredStaff = filters.preferredStaff || [];
+  const validStaffIds: string[] = [];
+  const invalidStaffIds: any[] = [];
   
-  data.dataPoints.forEach(dataPoint => {
-    dataPoint.taskBreakdown?.forEach(task => {
-      totalTasks++;
-      if (task.preferredStaffId) {
-        tasksWithPreferredStaff++;
-        preferredStaffIds.add(task.preferredStaffId);
-      }
+  console.log('🔍 Analyzing filter inputs:', {
+    originalArray: preferredStaff,
+    arrayLength: preferredStaff.length,
+    arrayType: Array.isArray(preferredStaff) ? 'Array' : typeof preferredStaff
+  });
+  
+  preferredStaff.forEach((staffId, index) => {
+    console.log(`📋 Analyzing staff ID ${index}:`, {
+      originalValue: staffId,
+      type: typeof staffId,
+      isNull: staffId === null,
+      isUndefined: staffId === undefined,
+      stringValue: String(staffId)
     });
+    
+    const normalized = normalizeStaffId(staffId);
+    if (normalized) {
+      validStaffIds.push(normalized);
+    } else {
+      invalidStaffIds.push(staffId);
+    }
   });
   
   return {
-    dataPoints: data.dataPoints.length,
+    originalStaffIds: preferredStaff,
+    validStaffIds,
+    invalidStaffIds,
+    normalizationSuccess: validStaffIds.length > 0
+  };
+}
+
+/**
+ * Analyze data structure for preferred staff information
+ */
+function analyzeDataStructure(data: DemandMatrixData) {
+  let totalTasks = 0;
+  let tasksWithPreferredStaff = 0;
+  let tasksWithoutPreferredStaff = 0;
+  const uniquePreferredStaffIds = new Set<string>();
+  const preferredStaffNames = new Set<string>();
+  const sampleTasks: any[] = [];
+  
+  data.dataPoints.forEach((dataPoint, dpIndex) => {
+    if (dataPoint.taskBreakdown) {
+      dataPoint.taskBreakdown.forEach((task, taskIndex) => {
+        totalTasks++;
+        
+        // Log first few tasks for detailed analysis
+        if (sampleTasks.length < 5) {
+          console.log(`📋 Sample Task ${sampleTasks.length + 1}:`, {
+            taskName: task.taskName,
+            clientName: task.clientName,
+            preferredStaffId: task.preferredStaffId,
+            preferredStaffName: task.preferredStaffName,
+            skillType: task.skillType,
+            fieldTypes: {
+              preferredStaffId: typeof task.preferredStaffId,
+              preferredStaffName: typeof task.preferredStaffName,
+              skillType: typeof task.skillType
+            }
+          });
+          
+          sampleTasks.push({
+            taskName: task.taskName,
+            preferredStaffId: task.preferredStaffId,
+            preferredStaffName: task.preferredStaffName,
+            skillType: task.skillType
+          });
+        }
+        
+        if (task.preferredStaffId) {
+          tasksWithPreferredStaff++;
+          uniquePreferredStaffIds.add(task.preferredStaffId);
+          if (task.preferredStaffName) {
+            preferredStaffNames.add(task.preferredStaffName);
+          }
+        } else {
+          tasksWithoutPreferredStaff++;
+        }
+      });
+    }
+  });
+  
+  return {
     totalTasks,
     tasksWithPreferredStaff,
-    uniquePreferredStaffIds: Array.from(preferredStaffIds)
+    tasksWithoutPreferredStaff,
+    uniquePreferredStaffIds: Array.from(uniquePreferredStaffIds),
+    preferredStaffNames: Array.from(preferredStaffNames),
+    sampleTasks
   };
 }
 
 /**
- * Analyze output data structure
+ * Analyze field mapping between database and application
  */
-function analyzeOutputData(data: DemandMatrixData): {
-  dataPoints: number;
-  totalTasks: number;
-  tasksWithPreferredStaff: number;
-} {
-  let totalTasks = 0;
-  let tasksWithPreferredStaff = 0;
-  
-  data.dataPoints.forEach(dataPoint => {
-    dataPoint.taskBreakdown?.forEach(task => {
-      totalTasks++;
-      if (task.preferredStaffId) {
-        tasksWithPreferredStaff++;
-      }
-    });
-  });
-  
-  return {
-    dataPoints: data.dataPoints.length,
-    totalTasks,
-    tasksWithPreferredStaff
-  };
-}
-
-/**
- * Validate field mapping is working correctly
- */
-function validateFieldMapping(
-  inputData: DemandMatrixData,
-  outputData: DemandMatrixData
-): { working: boolean; details: any } {
-  const inputTasks = extractAllTasks(inputData);
-  const outputTasks = extractAllTasks(outputData);
-  
-  // Check that all output tasks have consistent field mapping
+function analyzeFieldMapping(data: DemandMatrixData) {
   const fieldMappingIssues: string[] = [];
+  const sampleFieldMappings: any[] = [];
   
-  outputTasks.forEach(task => {
-    // Verify that preferredStaffId field exists and is accessible
-    if (task.hasOwnProperty('preferredStaffId')) {
-      const value = task.preferredStaffId;
-      if (value !== null && typeof value !== 'string') {
-        fieldMappingIssues.push(`Task ${task.taskName}: preferredStaffId has wrong type: ${typeof value}`);
-      }
-    } else {
-      fieldMappingIssues.push(`Task ${task.taskName}: preferredStaffId field missing`);
+  data.dataPoints.slice(0, 3).forEach((dataPoint, dpIndex) => {
+    if (dataPoint.taskBreakdown) {
+      dataPoint.taskBreakdown.slice(0, 2).forEach((task, taskIndex) => {
+        const fieldMapping = {
+          taskName: task.taskName,
+          hasPreferredStaffId: task.hasOwnProperty('preferredStaffId'),
+          preferredStaffIdValue: task.preferredStaffId,
+          preferredStaffIdType: typeof task.preferredStaffId,
+          hasPreferredStaffName: task.hasOwnProperty('preferredStaffName'),
+          preferredStaffNameValue: task.preferredStaffName,
+          skillType: task.skillType,
+          skillTypeEqualsStaffId: task.skillType === task.preferredStaffId
+        };
+        
+        console.log(`🔗 Field Mapping Analysis ${dpIndex}-${taskIndex}:`, fieldMapping);
+        sampleFieldMappings.push(fieldMapping);
+        
+        if (task.skillType === task.preferredStaffId && task.preferredStaffId) {
+          fieldMappingIssues.push(`Task "${task.taskName}" has skillType === preferredStaffId (${task.skillType})`);
+        }
+      });
     }
   });
   
   return {
-    working: fieldMappingIssues.length === 0,
-    details: {
-      inputTasks: inputTasks.length,
-      outputTasks: outputTasks.length,
-      fieldMappingIssues
-    }
+    fieldMappingIssues,
+    sampleFieldMappings
   };
 }
 
 /**
- * Validate filter logic is working correctly
+ * Analyze filter comparison logic
  */
-function validateFilterLogic(
-  inputData: DemandMatrixData,
-  outputData: DemandMatrixData,
-  filterIds: (string | number)[]
-): { working: boolean; details: any } {
-  const inputTasks = extractAllTasks(inputData);
-  const outputTasks = extractAllTasks(outputData);
+function analyzeFilterComparison(data: DemandMatrixData, filters: DemandFilters) {
+  const preferredStaff = filters.preferredStaff || [];
+  const normalizedFilterIds = preferredStaff.map(id => normalizeStaffId(id)).filter(Boolean);
   
-  // Normalize filter IDs for comparison
-  const normalizedFilterIds = filterIds
-    .map(id => String(id).trim())
-    .filter(id => id.length > 0);
-  
-  // Check that all output tasks should have been retained
-  const logicIssues: string[] = [];
-  
-  outputTasks.forEach(task => {
-    if (!task.preferredStaffId) {
-      logicIssues.push(`Task ${task.taskName}: Retained but has no preferred staff`);
-    } else if (!normalizedFilterIds.includes(task.preferredStaffId)) {
-      logicIssues.push(`Task ${task.taskName}: Retained but preferred staff ${task.preferredStaffId} not in filter`);
-    }
+  console.log('⚖️ Filter Comparison Setup:', {
+    originalFilterIds: preferredStaff,
+    normalizedFilterIds,
+    filterSetContents: normalizedFilterIds
   });
   
-  return {
-    working: logicIssues.length === 0,
-    details: {
-      inputTasks: inputTasks.length,
-      outputTasks: outputTasks.length,
-      filterIds: normalizedFilterIds,
-      logicIssues
-    }
-  };
-}
-
-/**
- * Calculate expected number of filtered tasks
- */
-function calculateExpectedFilteredTasks(
-  data: DemandMatrixData,
-  filterIds: (string | number)[]
-): number {
-  const normalizedFilterIds = filterIds
-    .map(id => String(id).trim())
-    .filter(id => id.length > 0);
-  
-  let expectedTasks = 0;
-  
-  data.dataPoints.forEach(dataPoint => {
-    dataPoint.taskBreakdown?.forEach(task => {
-      if (task.preferredStaffId && normalizedFilterIds.includes(task.preferredStaffId)) {
-        expectedTasks++;
-      }
-    });
-  });
-  
-  return expectedTasks;
-}
-
-/**
- * Extract all tasks from matrix data
- */
-function extractAllTasks(data: DemandMatrixData): ClientTaskDemand[] {
-  const tasks: ClientTaskDemand[] = [];
+  const lookupSet = new Set(normalizedFilterIds);
+  let matchingTasks = 0;
+  let nonMatchingTasks = 0;
+  const comparisonExamples: any[] = [];
   
   data.dataPoints.forEach(dataPoint => {
     if (dataPoint.taskBreakdown) {
-      tasks.push(...dataPoint.taskBreakdown);
+      dataPoint.taskBreakdown.forEach(task => {
+        if (task.preferredStaffId) {
+          const normalizedTaskStaffId = normalizeStaffId(task.preferredStaffId);
+          const isMatch = normalizedTaskStaffId ? lookupSet.has(normalizedTaskStaffId) : false;
+          
+          if (comparisonExamples.length < 10) {
+            const comparisonExample = {
+              taskName: task.taskName,
+              originalStaffId: task.preferredStaffId,
+              normalizedStaffId: normalizedTaskStaffId,
+              filterSet: Array.from(lookupSet),
+              isMatch,
+              lookupResult: normalizedTaskStaffId ? lookupSet.has(normalizedTaskStaffId) : false
+            };
+            
+            console.log(`⚖️ Comparison Example ${comparisonExamples.length + 1}:`, comparisonExample);
+            comparisonExamples.push(comparisonExample);
+          }
+          
+          if (isMatch) {
+            matchingTasks++;
+          } else {
+            nonMatchingTasks++;
+          }
+        }
+      });
     }
   });
   
-  return tasks;
+  return {
+    normalizedFilterIds,
+    lookupSet: Array.from(lookupSet),
+    matchingTasks,
+    nonMatchingTasks,
+    noMatches: matchingTasks === 0,
+    comparisonExamples
+  };
+}
+
+/**
+ * Log input analysis results
+ */
+function logInputAnalysis(analysis: any): void {
+  console.log('📋 INPUT ANALYSIS RESULTS:', {
+    originalCount: analysis.originalStaffIds.length,
+    validCount: analysis.validStaffIds.length,
+    invalidCount: analysis.invalidStaffIds.length,
+    validIds: analysis.validStaffIds,
+    invalidIds: analysis.invalidStaffIds,
+    normalizationWorking: analysis.normalizationSuccess
+  });
+}
+
+/**
+ * Log data analysis results
+ */
+function logDataAnalysis(analysis: any): void {
+  console.log('📊 DATA ANALYSIS RESULTS:', {
+    totalTasks: analysis.totalTasks,
+    tasksWithStaff: analysis.tasksWithPreferredStaff,
+    tasksWithoutStaff: analysis.tasksWithoutPreferredStaff,
+    uniqueStaffIds: analysis.uniquePreferredStaffIds.length,
+    staffIds: analysis.uniquePreferredStaffIds,
+    staffNames: analysis.preferredStaffNames,
+    coveragePercentage: ((analysis.tasksWithPreferredStaff / analysis.totalTasks) * 100).toFixed(1) + '%'
+  });
+}
+
+/**
+ * Log field mapping analysis results
+ */
+function logFieldMappingAnalysis(analysis: any): void {
+  console.log('🔗 FIELD MAPPING ANALYSIS:', {
+    issuesFound: analysis.fieldMappingIssues.length,
+    issues: analysis.fieldMappingIssues,
+    sampleMappings: analysis.sampleFieldMappings
+  });
+}
+
+/**
+ * Log comparison results
+ */
+function logComparisonResults(results: any): void {
+  console.log('⚖️ COMPARISON RESULTS:', {
+    filterIds: results.normalizedFilterIds,
+    lookupSet: results.lookupSet,
+    matchingTasks: results.matchingTasks,
+    nonMatchingTasks: results.nonMatchingTasks,
+    hasMatches: !results.noMatches,
+    examples: results.comparisonExamples
+  });
 }
 
 /**
  * Create test data for validation
  */
-export function createTestData(): {
-  testData: DemandMatrixData;
-  testFilters: DemandFilters;
-} {
-  // This would be implemented to create realistic test data
-  // For now, return empty structures
+export function createTestData(): any {
   return {
-    testData: {
-      months: [],
-      skills: [],
-      dataPoints: [],
-      totalDemand: 0,
-      totalTasks: 0,
-      totalClients: 0,
-      skillSummary: {}
-    },
-    testFilters: {
-      skills: [],
-      clients: [],
-      preferredStaff: [],
-      timeHorizon: { start: new Date(), end: new Date() }
-    }
+    message: 'Test data creation not implemented yet',
+    timestamp: new Date().toISOString()
   };
 }
