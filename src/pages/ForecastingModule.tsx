@@ -5,6 +5,7 @@ import ForecastDashboard from "@/components/forecasting/ForecastDashboard";
 import ForecastTestPage from "@/components/forecasting/ForecastTestPage";
 import ForecastSkillDebugger from "@/components/forecasting/ForecastSkillDebugger";
 import IntegrationVerificationPanel from "@/components/forecasting/matrix/IntegrationVerificationPanel";
+import { MarcianosTaskSummaryReport } from "@/components/forecasting/matrix/MarcianosTaskSummaryReport";
 
 const ForecastingModule: React.FC = () => {
   return (
@@ -17,7 +18,7 @@ const ForecastingModule: React.FC = () => {
   );
 };
 
-// Enhanced debug page with Phase 4 integration testing
+// Enhanced debug page with Phase 4 integration testing and Marciano's report
 const ForecastDebugPage: React.FC = () => {
   return (
     <div className="container py-8 max-w-7xl mx-auto">
@@ -30,6 +31,18 @@ const ForecastDebugPage: React.FC = () => {
         </div>
         
         <div className="space-y-6">
+          {/* NEW: Marciano's Task Summary Report */}
+          <section>
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Marciano's Task Summary Report</h2>
+              <p className="text-sm text-muted-foreground">
+                Comprehensive analysis of all tasks assigned to Marciano Urbaez across all clients and time periods.
+              </p>
+            </div>
+            
+            <MarcianosTaskSummaryReport />
+          </section>
+
           {/* Phase 4: Integration Testing Section */}
           <section>
             <div className="mb-4">
