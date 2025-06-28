@@ -22,6 +22,26 @@ export interface IntegrationTestResult {
 }
 
 /**
+ * Create a complete DemandFilters object with defaults
+ */
+function createCompleteFilters(overrides: Partial<DemandFilters> = {}): DemandFilters {
+  const currentDate = new Date();
+  const startDate = new Date(currentDate.getFullYear(), 0, 1); // Start of current year
+  const endDate = new Date(currentDate.getFullYear(), 11, 31); // End of current year
+  
+  return {
+    skills: [],
+    clients: [],
+    preferredStaff: [],
+    timeHorizon: {
+      start: startDate,
+      end: endDate
+    },
+    ...overrides
+  };
+}
+
+/**
  * Run comprehensive integration test for preferred staff filtering
  */
 export function runIntegrationTest(
@@ -169,7 +189,7 @@ export function runIntegrationTestSuite(
   testSuite.push(runIntegrationTest(
     'No Filters Test',
     data,
-    { preferredStaff: [] }
+    createCompleteFilters({ preferredStaff: [] })
   ));
   
   // Test 2: Single staff filter
@@ -179,7 +199,7 @@ export function runIntegrationTestSuite(
       testSuite.push(runIntegrationTest(
         'Single Staff Filter Test',
         data,
-        { preferredStaff: [firstTaskStaffId] }
+        createCompleteFilters({ preferredStaff: [firstTaskStaffId] })
       ));
     }
   }
@@ -199,7 +219,7 @@ export function runIntegrationTestSuite(
     testSuite.push(runIntegrationTest(
       'Multiple Staff Filter Test',
       data,
-      { preferredStaff: multipleStaffIds }
+      createCompleteFilters({ preferredStaff: multipleStaffIds })
     ));
   }
   
@@ -207,8 +227,94 @@ export function runIntegrationTestSuite(
   testSuite.push(runIntegrationTest(
     'Invalid Staff Filter Test',
     data,
-    { preferredStaff: ['non-existent-staff-id'] }
+    createCompleteFilters({ preferredStaff: ['non-existent-staff-id'] })
   ));
   
   return testSuite;
 }
+
+/**
+ * Integration Test Service class for external consumption
+ */
+export class IntegrationTestService {
+  /**
+   * Run comprehensive integration tests
+   */
+  static async runIntegrationTests(): Promise<{
+    totalTests: number;
+    passedTests: number;
+    failedTests: number;
+    overallResult: 'PASS' | 'FAIL';
+    totalExecutionTime: number;
+    testResults: IntegrationTestResult[];
+  }> {
+    console.log('🚀 [INTEGRATION TEST SERVICE] Starting comprehensive integration tests');
+    
+    const startTime = performance.now();
+    
+    // For now, create mock data for testing
+    // In a real implementation, this would fetch actual matrix data
+    const mockData: DemandMatrixData = {
+      months: [{ key: '2024-01', label: 'January 2024' }],
+      skills: ['Junior', 'Senior', 'CPA'],
+      dataPoints: [
+        {
+          skillType: 'Junior',
+          month: '2024-01',
+          monthLabel: 'January 2024',
+          demandHours: 40,
+          taskCount: 5,
+          clientCount: 2,
+          taskBreakdown: [
+            {
+              clientId: 'client-1',
+              clientName: 'Test Client 1',
+              recurringTaskId: 'task-1',
+              taskName: 'Test Task 1',
+              skillType: 'Junior',
+              estimatedHours: 20,
+              recurrencePattern: { type: 'monthly', interval: 1, frequency: 1 },
+              monthlyHours: 20,
+              preferredStaffId: 'staff-1',
+              preferredStaffName: 'John Doe'
+            }
+          ]
+        }
+      ],
+      totalDemand: 40,
+      totalTasks: 5,
+      totalClients: 2,
+      skillSummary: {
+        'Junior': { totalHours: 40, taskCount: 5, clientCount: 2 }
+      }
+    };
+    
+    const testResults = runIntegrationTestSuite(mockData);
+    const totalExecutionTime = performance.now() - startTime;
+    
+    const passedTests = testResults.filter(t => t.testPassed).length;
+    const failedTests = testResults.length - passedTests;
+    
+    const result = {
+      totalTests: testResults.length,
+      passedTests,
+      failedTests,
+      overallResult: failedTests === 0 ? 'PASS' as const : 'FAIL' as const,
+      totalExecutionTime,
+      testResults
+    };
+    
+    console.log('✅ [INTEGRATION TEST SERVICE] Integration tests completed:', {
+      totalTests: result.totalTests,
+      passed: result.passedTests,
+      failed: result.failedTests,
+      overallResult: result.overallResult,
+      executionTime: `${totalExecutionTime.toFixed(2)}ms`
+    });
+    
+    return result;
+  }
+}
+
+// Export the service functions for backward compatibility
+export { runIntegrationTest, runIntegrationTestSuite };
