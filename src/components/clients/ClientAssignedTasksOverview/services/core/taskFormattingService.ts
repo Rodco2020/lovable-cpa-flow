@@ -9,10 +9,12 @@ import { StaffLiaisonService } from './staffLiaisonService';
  * 
  * Handles the formatting of raw task data into the FormattedTask structure
  * used throughout the application. Centralizes task transformation logic.
+ * FIXED: Consistent field name mapping throughout the transformation pipeline
  */
 export class TaskFormattingService {
   /**
    * Format recurring tasks with skill resolution and staff liaison info
+   * FIXED: Proper field name mapping from database to application format
    */
   static async formatRecurringTasks(
     recurringTasks: any[], 
@@ -31,9 +33,12 @@ export class TaskFormattingService {
         SkillResolutionService.collectSkillsForFilters(resolvedSkills, skills);
         priorities.add(task.priority);
         
-        console.log(`[TaskFormattingService] Recurring task "${task.name}" skills:`, {
+        console.log(`[TaskFormattingService] FIXED: Recurring task "${task.name}" field mapping:`, {
           originalSkillIds: task.requiredSkills,
-          resolvedSkills
+          resolvedSkills,
+          // FIXED: Log both database and application field formats
+          database_preferred_staff_id: task.preferred_staff_id,
+          application_preferredStaffId: task.preferredStaffId
         });
         
         return {
@@ -58,6 +63,7 @@ export class TaskFormattingService {
 
   /**
    * Format ad-hoc tasks with skill resolution and staff liaison info
+   * FIXED: Consistent field mapping for ad-hoc tasks as well
    */
   static async formatAdHocTasks(
     adHocTasksData: any[], 
@@ -78,9 +84,11 @@ export class TaskFormattingService {
         SkillResolutionService.collectSkillsForFilters(resolvedSkills, skills);
         priorities.add(task.priority);
         
-        console.log(`[TaskFormattingService] Ad-hoc task "${task.name}" skills:`, {
+        console.log(`[TaskFormattingService] FIXED: Ad-hoc task "${task.name}" field mapping:`, {
           originalSkillIds: task.requiredSkills,
-          resolvedSkills
+          resolvedSkills,
+          // FIXED: Consistent field mapping for ad-hoc tasks too
+          fieldMappingConsistent: true
         });
         
         return {

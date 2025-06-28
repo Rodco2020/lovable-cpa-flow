@@ -27,7 +27,11 @@ export interface ClientTaskDemand {
   taskName: string;
   skillType: string;
   estimatedHours: number;
-  recurrencePattern: RecurrencePattern;
+  recurrencePattern: {
+    type: string;
+    interval: number;
+    frequency: number;
+  };
   monthlyHours: number;
   /** 
    * NEW: Suggested revenue for this specific task

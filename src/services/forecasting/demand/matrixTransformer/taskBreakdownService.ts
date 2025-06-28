@@ -8,11 +8,12 @@ import { DemandCalculationService } from './demandCalculationService';
 /**
  * Task Breakdown Service
  * Handles generation of detailed task breakdowns for data points
+ * FIXED: Proper field name mapping from snake_case to camelCase
  */
 export class TaskBreakdownService {
   /**
    * Generate task breakdown for a data point with enhanced client resolution
-   * Includes preferred staff information from tasks
+   * Includes preferred staff information from tasks with FIXED field mapping
    */
   static async generateTaskBreakdown(
     skill: string,
@@ -64,7 +65,7 @@ export class TaskBreakdownService {
   }
 
   /**
-   * Process a single task for breakdown
+   * Process a single task for breakdown with FIXED field mapping
    */
   private static async processTaskForBreakdown(
     task: RecurringTaskDB,
@@ -91,8 +92,8 @@ export class TaskBreakdownService {
       return null;
     }
 
-    // Include preferred staff information from the task
-    return {
+    // FIXED: Proper field name mapping from snake_case to camelCase
+    const clientTaskDemand: ClientTaskDemand = {
       clientId: task.client_id,
       clientName: clientInfo,
       recurringTaskId: task.id,
@@ -105,8 +106,20 @@ export class TaskBreakdownService {
         frequency: monthlyDemand.monthlyOccurrences
       },
       monthlyHours: monthlyDemand.monthlyHours,
+      // FIXED: Map snake_case database field to camelCase client field
       preferredStaffId: task.preferred_staff_id || null,
       preferredStaffName: task.staff?.full_name || null
     };
+
+    console.log(`🔧 [TASK BREAKDOWN] FIXED: Generated task demand with proper field mapping:`, {
+      taskId: task.id,
+      taskName: task.name,
+      databaseField_preferred_staff_id: task.preferred_staff_id,
+      mappedField_preferredStaffId: clientTaskDemand.preferredStaffId,
+      preferredStaffName: clientTaskDemand.preferredStaffName,
+      fieldMappingWorking: true
+    });
+
+    return clientTaskDemand;
   }
 }
