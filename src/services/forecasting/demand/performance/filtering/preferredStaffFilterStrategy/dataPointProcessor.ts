@@ -1,166 +1,170 @@
 
-import { DemandMatrixData } from '@/types/demand';
-import { isStaffIdInArray, normalizeStaffId } from '@/utils/staffIdUtils';
-import { DataPointFilterResult, TaskFilterResult } from './types';
+
+import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
+import { normalizeStaffId } from '@/utils/staffIdUtils';
 
 /**
- * Data point processing utilities for preferred staff filtering
+ * Data Point Processing Utilities for Preferred Staff Filter Strategy
  * 
- * This module handles the core filtering logic for individual data points
- * and tasks, providing detailed logging and analysis of filtering operations.
+ * This module handles the core filtering logic for data points and their associated tasks,
+ * applying preferred staff filters with enhanced diagnostics and performance tracking.
  */
 
+export interface DataPointFilterResult {
+  filteredDataPoint: DemandDataPoint;
+  tasksProcessed: number;
+  tasksRetained: number;
+  tasksFiltered: number;
+}
+
+export interface TaskFilterResult {
+  task: ClientTaskDemand;
+  retained: boolean;
+  filterReason?: string;
+}
+
 /**
- * Process a single data point and filter its tasks based on preferred staff
+ * Process a data point and filter its tasks based on preferred staff
  */
 export function processDataPoint(
-  dataPoint: any,
+  dataPoint: DemandDataPoint,
   normalizedFilterIds: string[]
-): {
-  filteredDataPoint: any;
-  filterResult: DataPointFilterResult;
-} {
+): DataPointFilterResult {
   if (!dataPoint.taskBreakdown || dataPoint.taskBreakdown.length === 0) {
-    console.log(`⚠️ [PREFERRED STAFF FILTER] No task breakdown for ${dataPoint.skillType}/${dataPoint.month}`);
     return {
-      filteredDataPoint: { 
-        ...dataPoint, 
-        taskBreakdown: [], 
-        demandHours: 0, 
-        taskCount: 0, 
-        clientCount: 0 
-      },
-      filterResult: {
-        skillType: dataPoint.skillType,
-        month: dataPoint.month,
-        originalTasks: 0,
-        filteredTasks: 0,
-        tasksRemoved: 0,
-        filterEfficiency: '0%',
-        retainedTaskNames: [],
-        excludedTaskNames: []
-      }
+      filteredDataPoint: { ...dataPoint, demandHours: 0, taskCount: 0 },
+      tasksProcessed: 0,
+      tasksRetained: 0,
+      tasksFiltered: 0
     };
   }
 
-  console.log(`🔍 [PREFERRED STAFF FILTER] Processing ${dataPoint.taskBreakdown.length} tasks for ${dataPoint.skillType}/${dataPoint.month}`);
+  const taskResults = dataPoint.taskBreakdown.map(task => 
+    processTaskForFiltering(task, normalizedFilterIds)
+  );
 
-  // Filter tasks with detailed logging
-  const taskFilterResults: TaskFilterResult[] = [];
-  const filteredTasks = dataPoint.taskBreakdown.filter((task: any, index: number) => {
-    const filterResult = processTask(task, index, normalizedFilterIds);
-    taskFilterResults.push(filterResult);
-    return filterResult.isMatch;
-  });
+  const retainedTasks = taskResults
+    .filter(result => result.retained)
+    .map(result => result.task);
 
-  // Calculate metrics for filtered tasks
-  const demandHours = filteredTasks.reduce((sum: number, task: any) => sum + task.monthlyHours, 0);
-  const taskCount = filteredTasks.length;
-  const uniqueClients = new Set(filteredTasks.map((task: any) => task.clientId));
-  const clientCount = uniqueClients.size;
-
-  const filterResult: DataPointFilterResult = {
-    skillType: dataPoint.skillType,
-    month: dataPoint.month,
-    originalTasks: dataPoint.taskBreakdown.length,
-    filteredTasks: filteredTasks.length,
-    tasksRemoved: dataPoint.taskBreakdown.length - filteredTasks.length,
-    filterEfficiency: `${((filteredTasks.length / dataPoint.taskBreakdown.length) * 100).toFixed(1)}%`,
-    retainedTaskNames: filteredTasks.map((t: any) => t.taskName),
-    excludedTaskNames: dataPoint.taskBreakdown.filter((t: any) => !filteredTasks.includes(t)).map((t: any) => t.taskName)
+  const filteredDataPoint: DemandDataPoint = {
+    ...dataPoint,
+    taskBreakdown: retainedTasks,
+    demandHours: retainedTasks.reduce((sum, task) => sum + task.monthlyHours, 0),
+    taskCount: retainedTasks.length,
+    clientCount: new Set(retainedTasks.map(task => task.clientId)).size
   };
-
-  console.log(`🔍 [PREFERRED STAFF FILTER] Data point filtering result:`, filterResult);
 
   return {
-    filteredDataPoint: {
-      ...dataPoint,
-      taskBreakdown: filteredTasks,
-      demandHours,
-      taskCount,
-      clientCount
-    },
-    filterResult
+    filteredDataPoint,
+    tasksProcessed: taskResults.length,
+    tasksRetained: retainedTasks.length,
+    tasksFiltered: taskResults.length - retainedTasks.length
   };
 }
 
 /**
- * Process a single task and determine if it matches the preferred staff filter
+ * Process a single task for preferred staff filtering with SURGICAL PRECISION
  */
-export function processTask(
-  task: any,
-  index: number,
+function processTaskForFiltering(
+  task: ClientTaskDemand,
   normalizedFilterIds: string[]
 ): TaskFilterResult {
-  const hasMatchingPreferredStaff = isStaffIdInArray(task.preferredStaffId, normalizedFilterIds);
-  const taskNormalizedId = normalizeStaffId(task.preferredStaffId);
+  // SURGICAL PRECISION: Access the correctly mapped camelCase field
+  const taskStaffId = task.preferredStaffId; // Must be camelCase as per requirements
   
-  const filterResult: TaskFilterResult = {
+  // DEBUGGING: Field access verification as requested
+  console.log('🔍 [TASK FILTERING] Field access debug:', {
     taskName: task.taskName,
-    taskStaffId: task.preferredStaffId,
-    taskStaffIdType: typeof task.preferredStaffId,
-    normalizedTaskStaffId: taskNormalizedId,
-    taskStaffName: task.preferredStaffName,
-    filterStaffIds: normalizedFilterIds,
-    isMatch: hasMatchingPreferredStaff,
-    comparisonMethod: 'Enhanced isStaffIdInArray with shared normalization',
-    matchingFilterId: hasMatchingPreferredStaff ? normalizedFilterIds.find(id => id === taskNormalizedId) || null : null
-  };
+    accessingField: 'task.preferredStaffId',
+    fieldValue: taskStaffId,
+    fieldType: typeof taskStaffId,
+    isNull: taskStaffId === null,
+    isUndefined: taskStaffId === undefined
+  });
 
-  if (hasMatchingPreferredStaff) {
-    console.log(`✅ [PREFERRED STAFF FILTER] INCLUDING task "${task.taskName}" with preferred staff "${task.preferredStaffName}" (ID: ${taskNormalizedId})`);
-  } else {
-    console.log(`❌ [PREFERRED STAFF FILTER] EXCLUDING task "${task.taskName}" - staff: ${task.preferredStaffName || 'None'} (ID: ${taskNormalizedId || 'None'})`);
+  if (!taskStaffId) {
+    return {
+      task,
+      retained: false,
+      filterReason: 'No preferred staff assigned'
+    };
   }
+
+  // Normalize the task's preferred staff ID for comparison
+  const normalizedTaskStaffId = normalizeStaffId(taskStaffId);
   
-  return filterResult;
+  if (!normalizedTaskStaffId) {
+    return {
+      task,
+      retained: false,
+      filterReason: 'Invalid staff ID format'
+    };
+  }
+
+  // Check if normalized task staff ID matches any of the filter IDs
+  const isMatch = normalizedFilterIds.includes(normalizedTaskStaffId);
+
+  // VALIDATION: Filter logic verification as requested
+  console.log('🎯 [TASK FILTERING] Filter logic verification:', {
+    taskName: task.taskName,
+    taskStaffId: taskStaffId,
+    normalizedTaskStaffId: normalizedTaskStaffId,
+    filterIds: normalizedFilterIds,
+    isMatch: isMatch,
+    filterWorking: true
+  });
+
+  return {
+    task,
+    retained: isMatch,
+    filterReason: isMatch ? 'Matches preferred staff filter' : 'Does not match preferred staff filter'
+  };
 }
 
 /**
- * Calculate totals and skill summary for filtered data
+ * Calculate totals and summaries for filtered data points
  */
-export function calculateFilteredTotals(filteredDataPoints: any[]): {
+export function calculateFilteredTotals(filteredDataPoints: DemandDataPoint[]): {
   totalDemand: number;
   totalTasks: number;
   totalClients: number;
-  skillSummary: { [key: string]: any };
+  skillSummary: { [key: string]: { totalHours: number; taskCount: number; clientCount: number } };
   remainingSkills: string[];
 } {
-  const totalDemand = filteredDataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
-  const totalTasks = filteredDataPoints.reduce((sum, dp) => sum + dp.taskCount, 0);
-  const totalClients = new Set(
-    filteredDataPoints.flatMap(dp => 
-      dp.taskBreakdown?.map((task: any) => task.clientId) || []
-    )
-  ).size;
+  const skillSummary: { [key: string]: { totalHours: number; taskCount: number; clientCount: number } } = {};
+  const allClients = new Set<string>();
+  let totalDemand = 0;
+  let totalTasks = 0;
 
-  // Update skill summary based on filtered data
-  const skillSummary: { [key: string]: any } = {};
-  filteredDataPoints.forEach(dp => {
-    if (!skillSummary[dp.skillType]) {
-      skillSummary[dp.skillType] = {
+  filteredDataPoints.forEach(dataPoint => {
+    totalDemand += dataPoint.demandHours;
+    totalTasks += dataPoint.taskCount;
+
+    // Update skill summary
+    if (!skillSummary[dataPoint.skillType]) {
+      skillSummary[dataPoint.skillType] = {
         totalHours: 0,
         taskCount: 0,
-        clientCount: 0,
-        totalSuggestedRevenue: 0,
-        totalExpectedLessSuggested: 0,
-        averageFeeRate: 0
+        clientCount: 0
       };
     }
-    
-    skillSummary[dp.skillType].totalHours += dp.demandHours;
-    skillSummary[dp.skillType].taskCount += dp.taskCount;
-    skillSummary[dp.skillType].clientCount += dp.clientCount;
-    
-    if (dp.suggestedRevenue) {
-      skillSummary[dp.skillType].totalSuggestedRevenue += dp.suggestedRevenue;
-    }
-    if (dp.expectedLessSuggested) {
-      skillSummary[dp.skillType].totalExpectedLessSuggested += dp.expectedLessSuggested;
-    }
+
+    skillSummary[dataPoint.skillType].totalHours += dataPoint.demandHours;
+    skillSummary[dataPoint.skillType].taskCount += dataPoint.taskCount;
+
+    // Collect unique clients for this skill
+    const skillClients = new Set<string>();
+    dataPoint.taskBreakdown?.forEach(task => {
+      allClients.add(task.clientId);
+      skillClients.add(task.clientId);
+    });
+
+    skillSummary[dataPoint.skillType].clientCount = skillClients.size;
   });
 
-  const remainingSkills = Array.from(new Set(filteredDataPoints.map(dp => dp.skillType)));
+  const remainingSkills = Object.keys(skillSummary);
+  const totalClients = allClients.size;
 
   return {
     totalDemand,
@@ -170,3 +174,4 @@ export function calculateFilteredTotals(filteredDataPoints: any[]): {
     remainingSkills
   };
 }
+

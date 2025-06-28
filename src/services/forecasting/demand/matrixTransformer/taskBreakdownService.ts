@@ -1,4 +1,5 @@
 
+
 import { ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
@@ -8,7 +9,7 @@ import { DemandCalculationService } from './demandCalculationService';
 /**
  * Task Breakdown Service
  * Handles generation of detailed task breakdowns for data points
- * FIXED: Proper field name mapping from snake_case to camelCase
+ * FIXED: Surgical precision field name mapping from snake_case to camelCase
  */
 export class TaskBreakdownService {
   /**
@@ -65,7 +66,7 @@ export class TaskBreakdownService {
   }
 
   /**
-   * Process a single task for breakdown with FIXED field mapping
+   * Process a single task for breakdown with SURGICAL PRECISION field mapping
    */
   private static async processTaskForBreakdown(
     task: RecurringTaskDB,
@@ -92,7 +93,23 @@ export class TaskBreakdownService {
       return null;
     }
 
-    // FIXED: Proper field name mapping from snake_case to camelCase
+    // SURGICAL PRECISION: Map database field (snake_case) to application field (camelCase)
+    const mappedPreferredStaffId = task.preferred_staff_id || null;
+    const mappedPreferredStaffName = task.staff?.full_name || null;
+
+    // DEBUGGING: Field mapping verification as requested
+    console.log('🔧 [TASK BREAKDOWN] Field mapping debug:', {
+      taskId: task.id,
+      taskName: task.name,
+      dbField: task.preferred_staff_id,
+      mappedField: mappedPreferredStaffId,
+      staffInfo: task.staff?.full_name,
+      mappingWorking: mappedPreferredStaffId === task.preferred_staff_id,
+      fieldExists: task.preferred_staff_id !== undefined,
+      isNull: task.preferred_staff_id === null
+    });
+
+    // FIXED: Consistent camelCase field mapping for ClientTaskDemand
     const clientTaskDemand: ClientTaskDemand = {
       clientId: task.client_id,
       clientName: clientInfo,
@@ -106,22 +123,20 @@ export class TaskBreakdownService {
         frequency: monthlyDemand.monthlyOccurrences
       },
       monthlyHours: monthlyDemand.monthlyHours,
-      // FIXED: Consistent camelCase field mapping - this is the key fix!
-      preferredStaffId: task.preferred_staff_id || null,
-      preferredStaffName: task.staff?.full_name || null
+      // SURGICAL PRECISION: Exact field mapping as requested
+      preferredStaffId: mappedPreferredStaffId,
+      preferredStaffName: mappedPreferredStaffName
     };
 
-    // FIXED: Enhanced logging to verify the transformation is working correctly
-    console.log(`🔧 [TASK BREAKDOWN] Field mapping verification:`, {
-      taskId: task.id,
-      taskName: task.name,
-      database_preferred_staff_id: task.preferred_staff_id,
-      transformed_preferredStaffId: clientTaskDemand.preferredStaffId,
-      preferredStaffName: clientTaskDemand.preferredStaffName,
-      fieldMappingCorrect: true,
-      transformationWorking: clientTaskDemand.preferredStaffId === task.preferred_staff_id
+    // VALIDATION: Final verification that the mapping worked correctly
+    console.log(`✅ [TASK BREAKDOWN] Final field validation for task "${task.name}":`, {
+      originalDbField: task.preferred_staff_id,
+      finalMappedField: clientTaskDemand.preferredStaffId,
+      mappingIntact: clientTaskDemand.preferredStaffId === task.preferred_staff_id,
+      readyForFiltering: clientTaskDemand.preferredStaffId !== undefined
     });
 
     return clientTaskDemand;
   }
 }
+

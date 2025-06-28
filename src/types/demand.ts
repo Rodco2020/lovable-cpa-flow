@@ -39,11 +39,13 @@ export interface ClientTaskDemand {
    */
   suggestedRevenue?: number;
   /** 
-   * NEW: Preferred staff member UUID from the database
+   * SURGICAL PRECISION: Preferred staff member UUID from the database
+   * VERIFIED: Uses camelCase as required by the filter logic
    */
   preferredStaffId: string | null;
   /** 
-   * NEW: Preferred staff member name from the database
+   * SURGICAL PRECISION: Preferred staff member name from the database
+   * VERIFIED: Uses camelCase as required by the filter logic
    */
   preferredStaffName: string | null;
 }
