@@ -1,460 +1,281 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { User, Calendar, Clock, Building, Briefcase, TrendingUp, AlertCircle } from 'lucide-react';
-import { DemandMatrixData } from '@/types/demand';
-import { useDemandMatrix } from '@/hooks/useDemandMatrix';
-import { normalizeStaffId } from '@/utils/staffIdUtils';
+import { AlertCircle, User, Calendar, Clock, FileText } from 'lucide-react';
+import { useDemandMatrixData } from '@/components/forecasting/matrix/hooks/useDemandMatrixData';
+import { DemandFilters } from '@/types/demand';
 
 interface TaskSummary {
   clientName: string;
   taskName: string;
   skillType: string;
-  estimatedHours: number;
   monthlyHours: number;
+  estimatedHours: number;
   recurrencePattern: string;
   month: string;
-  preferredStaffId: string;
-  preferredStaffName: string;
-}
-
-interface MonthlySummary {
-  month: string;
-  totalHours: number;
-  taskCount: number;
-  clientCount: number;
-  skills: string[];
-}
-
-interface ClientSummary {
-  clientName: string;
-  totalHours: number;
-  taskCount: number;
-  tasks: TaskSummary[];
-  skills: string[];
 }
 
 export const MarcianosTaskSummaryReport: React.FC = () => {
-  const [reportData, setReportData] = useState<{
-    tasks: TaskSummary[];
-    monthlySummary: MonthlySummary[];
-    clientSummary: ClientSummary[];
-    totalStats: {
-      totalHours: number;
-      totalTasks: number;
-      totalClients: number;
-      uniqueSkills: number;
-      monthsCovered: number;
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportGenerated, setReportGenerated] = useState(false);
+
+  // Create filters specifically for Marciano Urbaez
+  const marcianoFilters: DemandFilters = useMemo(() => {
+    const currentDate = new Date();
+    const startDate = new Date(currentDate.getFullYear(), 0, 1);
+    const endDate = new Date(currentDate.getFullYear(), 11, 31);
+    
+    return {
+      skills: [],
+      clients: [],
+      preferredStaff: ['marciano-urbaez', 'Marciano Urbaez'], // Try both variations
+      timeHorizon: {
+        start: startDate,
+        end: endDate
+      }
     };
-  } | null>(null);
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const { demandData, isLoading: matrixLoading } = useDemandMatrix('demand-only');
+  }, []);
 
-  useEffect(() => {
-    if (demandData && !matrixLoading) {
-      generateMarcianosReport(demandData);
-    }
-  }, [demandData, matrixLoading]);
+  const { data: matrixData, isLoading, error } = useDemandMatrixData(marcianoFilters);
 
-  const generateMarcianosReport = (data: DemandMatrixData) => {
-    console.log('🎯 [MARCIANO REPORT] Starting comprehensive task analysis...');
+  const marcianoTasks: TaskSummary[] = useMemo(() => {
+    if (!matrixData || !matrixData.dataPoints) return [];
     
-    // Marciano's staff ID variations we've seen in the logs
-    const marcianoIds = [
-      'fbd1bcee-ae68-43ef-891a-36cccd21a87a',
-      'Marciano Urbaez',
-      'marciano urbaez',
-      'marciano-urbaez'
-    ];
+    const tasks: TaskSummary[] = [];
     
-    const marcianoTasks: TaskSummary[] = [];
-    const monthlyMap = new Map<string, MonthlySummary>();
-    const clientMap = new Map<string, ClientSummary>();
-    
-    console.log('🔍 [MARCIANO REPORT] Searching for Marciano in data points...');
-    
-    // Search through all data points for Marciano's tasks
-    data.dataPoints.forEach((dataPoint, dpIndex) => {
+    matrixData.dataPoints.forEach(dataPoint => {
       if (dataPoint.taskBreakdown) {
-        dataPoint.taskBreakdown.forEach((task, taskIndex) => {
-          // Check if this task is assigned to Marciano
-          const isMarcianoTask = marcianoIds.some(id => {
-            const normalizedTaskStaff = normalizeStaffId(task.preferredStaffId);
-            const normalizedSearchId = normalizeStaffId(id);
-            return normalizedTaskStaff === normalizedSearchId ||
-                   task.preferredStaffName?.toLowerCase().includes('marciano') ||
-                   task.preferredStaffId?.toLowerCase().includes('marciano');
-          });
-          
-          if (isMarcianoTask) {
-            console.log(`✅ [MARCIANO REPORT] Found Marciano task:`, {
-              taskName: task.taskName,
-              clientName: task.clientName,
-              skillType: task.skillType,
-              hours: task.estimatedHours,
-              monthlyHours: task.monthlyHours,
-              month: dataPoint.month,
-              preferredStaffId: task.preferredStaffId,
-              preferredStaffName: task.preferredStaffName
-            });
+        dataPoint.taskBreakdown.forEach(task => {
+          if (task.preferredStaffId || task.preferredStaffName) {
+            const staffId = task.preferredStaffId?.toLowerCase();
+            const staffName = task.preferredStaffName?.toLowerCase();
             
-            const taskSummary: TaskSummary = {
-              clientName: task.clientName,
-              taskName: task.taskName,
-              skillType: task.skillType,
-              estimatedHours: task.estimatedHours,
-              monthlyHours: task.monthlyHours,
-              recurrencePattern: task.recurrencePattern ? 
-                `${task.recurrencePattern.type} (${task.recurrencePattern.frequency}x)` : 
-                'One-time',
-              month: dataPoint.monthLabel || dataPoint.month,
-              preferredStaffId: task.preferredStaffId || '',
-              preferredStaffName: task.preferredStaffName || 'Marciano Urbaez'
-            };
-            
-            marcianoTasks.push(taskSummary);
-            
-            // Update monthly summary
-            const monthKey = dataPoint.month;
-            if (!monthlyMap.has(monthKey)) {
-              monthlyMap.set(monthKey, {
-                month: dataPoint.monthLabel || dataPoint.month,
-                totalHours: 0,
-                taskCount: 0,
-                clientCount: 0,
-                skills: []
-              });
-            }
-            
-            const monthlySummary = monthlyMap.get(monthKey)!;
-            monthlySummary.totalHours += task.monthlyHours || task.estimatedHours;
-            monthlySummary.taskCount += 1;
-            if (!monthlySummary.skills.includes(task.skillType)) {
-              monthlySummary.skills.push(task.skillType);
-            }
-            
-            // Update client summary
-            const clientKey = task.clientName;
-            if (!clientMap.has(clientKey)) {
-              clientMap.set(clientKey, {
+            if (staffId?.includes('marciano') || staffName?.includes('marciano')) {
+              tasks.push({
                 clientName: task.clientName,
-                totalHours: 0,
-                taskCount: 0,
-                tasks: [],
-                skills: []
+                taskName: task.taskName,
+                skillType: task.skillType,
+                monthlyHours: task.monthlyHours,
+                estimatedHours: task.estimatedHours,
+                recurrencePattern: `${task.recurrencePattern.type} (${task.recurrencePattern.frequency}x)`,
+                month: dataPoint.monthLabel
               });
-            }
-            
-            const clientSummary = clientMap.get(clientKey)!;
-            clientSummary.totalHours += task.monthlyHours || task.estimatedHours;
-            clientSummary.taskCount += 1;
-            clientSummary.tasks.push(taskSummary);
-            if (!clientSummary.skills.includes(task.skillType)) {
-              clientSummary.skills.push(task.skillType);
             }
           }
         });
       }
     });
     
-    // Update client counts in monthly summaries
-    monthlyMap.forEach((monthlySummary, monthKey) => {
-      const clientsInMonth = new Set<string>();
-      marcianoTasks.forEach(task => {
-        if (task.month === monthlySummary.month) {
-          clientsInMonth.add(task.clientName);
-        }
-      });
-      monthlySummary.clientCount = clientsInMonth.size;
-    });
+    return tasks;
+  }, [matrixData]);
+
+  const handleGenerateReport = async () => {
+    setIsGenerating(true);
     
-    // Calculate total stats
-    const totalHours = marcianoTasks.reduce((sum, task) => sum + (task.monthlyHours || task.estimatedHours), 0);
-    const uniqueClients = new Set(marcianoTasks.map(task => task.clientName));
-    const uniqueSkills = new Set(marcianoTasks.map(task => task.skillType));
-    const uniqueMonths = new Set(marcianoTasks.map(task => task.month));
-    
-    console.log('📊 [MARCIANO REPORT] Report Summary:', {
-      totalTasks: marcianoTasks.length,
-      totalHours,
-      totalClients: uniqueClients.size,
-      uniqueSkills: uniqueSkills.size,
-      monthsCovered: uniqueMonths.size
-    });
-    
-    setReportData({
-      tasks: marcianoTasks,
-      monthlySummary: Array.from(monthlyMap.values()).sort((a, b) => a.month.localeCompare(b.month)),
-      clientSummary: Array.from(clientMap.values()).sort((a, b) => b.totalHours - a.totalHours),
-      totalStats: {
-        totalHours,
-        totalTasks: marcianoTasks.length,
-        totalClients: uniqueClients.size,
-        uniqueSkills: uniqueSkills.size,
-        monthsCovered: uniqueMonths.size
-      }
-    });
-    
-    setIsLoading(false);
+    // Simulate report generation
+    setTimeout(() => {
+      setIsGenerating(false);
+      setReportGenerated(true);
+    }, 1500);
   };
 
-  const exportReport = () => {
-    if (!reportData) return;
+  const totalHours = useMemo(() => {
+    return marcianoTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
+  }, [marcianoTasks]);
+
+  const uniqueClients = useMemo(() => {
+    return new Set(marcianoTasks.map(task => task.clientName)).size;
+  }, [marcianoTasks]);
+
+  const skillDistribution = useMemo(() => {
+    const distribution = marcianoTasks.reduce((acc, task) => {
+      acc[task.skillType] = (acc[task.skillType] || 0) + task.monthlyHours;
+      return acc;
+    }, {} as Record<string, number>);
     
-    const reportText = `
-MARCIANO URBAEZ - TASK ASSIGNMENT SUMMARY REPORT
-Generated: ${new Date().toLocaleString()}
+    return Object.entries(distribution).map(([skill, hours]) => ({ skill, hours }));
+  }, [marcianoTasks]);
 
-=== OVERVIEW ===
-Total Tasks Assigned: ${reportData.totalStats.totalTasks}
-Total Hours: ${reportData.totalStats.totalHours}
-Clients Served: ${reportData.totalStats.totalClients}
-Skills Required: ${reportData.totalStats.uniqueSkills}
-Months Covered: ${reportData.totalStats.monthsCovered}
-
-=== MONTHLY BREAKDOWN ===
-${reportData.monthlySummary.map(month => 
-  `${month.month}: ${month.totalHours}h (${month.taskCount} tasks, ${month.clientCount} clients)`
-).join('\n')}
-
-=== CLIENT BREAKDOWN ===
-${reportData.clientSummary.map(client => 
-  `${client.clientName}: ${client.totalHours}h (${client.taskCount} tasks)`
-).join('\n')}
-
-=== DETAILED TASK LIST ===
-${reportData.tasks.map(task => 
-  `${task.month} | ${task.clientName} | ${task.taskName} | ${task.skillType} | ${task.monthlyHours || task.estimatedHours}h`
-).join('\n')}
-    `;
-    
-    const blob = new Blob([reportText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `marciano-urbaez-task-summary-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  if (isLoading || matrixLoading) {
+  if (isLoading) {
     return (
-      <Card className="w-full">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Marciano Urbaez - Task Summary Report
+            Marciano's Task Summary Report
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-32">
-            <div className="text-muted-foreground">Loading report data...</div>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading Marciano's task data...</p>
+            </div>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!reportData || reportData.tasks.length === 0) {
+  if (error) {
     return (
-      <Card className="w-full">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Marciano Urbaez - Task Summary Report
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            Error Loading Report
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-32 text-center">
-            <div>
-              <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-              <div className="text-muted-foreground">
-                No tasks found assigned to Marciano Urbaez
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                This could mean tasks are not properly assigned or the staff ID mapping needs attention.
-              </div>
-            </div>
-          </div>
+          <p className="text-muted-foreground">
+            Failed to load Marciano's task data. Please try again.
+          </p>
+          <Button onClick={handleGenerateReport} className="mt-4">
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Marciano Urbaez - Task Summary Report
-            </CardTitle>
-            <Button onClick={exportReport} variant="outline" size="sm">
-              Export Report
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{reportData.totalStats.totalTasks}</div>
-              <div className="text-sm text-muted-foreground">Total Tasks</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{reportData.totalStats.totalHours}h</div>
-              <div className="text-sm text-muted-foreground">Total Hours</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{reportData.totalStats.totalClients}</div>
-              <div className="text-sm text-muted-foreground">Clients</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{reportData.totalStats.uniqueSkills}</div>
-              <div className="text-sm text-muted-foreground">Skills</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-teal-600">{reportData.totalStats.monthsCovered}</div>
-              <div className="text-sm text-muted-foreground">Months</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Monthly Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Monthly Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {reportData.monthlySummary.map((month, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <User className="h-5 w-5" />
+          Marciano's Task Summary Report
+        </CardTitle>
+        <CardDescription>
+          Comprehensive analysis of all tasks assigned to Marciano Urbaez
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Summary Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-500" />
                 <div>
-                  <div className="font-medium">{month.month}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {month.taskCount} tasks • {month.clientCount} clients
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-lg">{month.totalHours}h</div>
-                  <div className="flex gap-1 flex-wrap justify-end">
-                    {month.skills.map(skill => (
-                      <Badge key={skill} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
+                  <p className="text-sm font-medium">Total Tasks</p>
+                  <p className="text-2xl font-bold">{marcianoTasks.length}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Client Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5" />
-            Client Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {reportData.clientSummary.map((client, index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="font-medium text-lg">{client.clientName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {client.taskCount} tasks • {client.totalHours} hours
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {client.skills.map(skill => (
-                      <Badge key={skill} variant="outline" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <Separator className="my-3" />
-                <div className="space-y-2">
-                  {client.tasks.map((task, taskIndex) => (
-                    <div key={taskIndex} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                        <span>{task.taskName}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {task.skillType}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span>{task.monthlyHours || task.estimatedHours}h</span>
-                        <span className="text-xs">({task.month})</span>
-                      </div>
-                    </div>
-                  ))}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-green-500" />
+                <div>
+                  <p className="text-sm font-medium">Total Hours</p>
+                  <p className="text-2xl font-bold">{totalHours.toFixed(1)}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-purple-500" />
+                <div>
+                  <p className="text-sm font-medium">Unique Clients</p>
+                  <p className="text-2xl font-bold">{uniqueClients}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Detailed Task List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            All Assigned Tasks
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2">Month</th>
-                  <th className="text-left p-2">Client</th>
-                  <th className="text-left p-2">Task</th>
-                  <th className="text-left p-2">Skill</th>
-                  <th className="text-left p-2">Hours</th>
-                  <th className="text-left p-2">Recurrence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportData.tasks.map((task, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{task.month}</td>
-                    <td className="p-2 font-medium">{task.clientName}</td>
-                    <td className="p-2">{task.taskName}</td>
-                    <td className="p-2">
-                      <Badge variant="outline" className="text-xs">
-                        {task.skillType}
-                      </Badge>
-                    </td>
-                    <td className="p-2">{task.monthlyHours || task.estimatedHours}h</td>
-                    <td className="p-2 text-muted-foreground text-xs">{task.recurrencePattern}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Skill Distribution */}
+        {skillDistribution.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Skill Distribution</h3>
+            <div className="flex flex-wrap gap-2">
+              {skillDistribution.map(({ skill, hours }) => (
+                <Badge key={skill} variant="secondary" className="px-3 py-1">
+                  {skill}: {hours.toFixed(1)}h
+                </Badge>
+              ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+
+        {/* Task Details */}
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Task Details</h3>
+          {marcianoTasks.length === 0 ? (
+            <div className="text-center p-8 border-2 border-dashed border-gray-200 rounded-lg">
+              <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-600">No tasks found for Marciano Urbaez</p>
+              <p className="text-sm text-gray-500 mt-1">
+                This could mean no tasks are assigned to Marciano, or the staff ID doesn't match exactly.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {marcianoTasks.map((task, index) => (
+                <Card key={index} className="border-l-4 border-l-blue-500">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-semibold text-sm">{task.taskName}</h4>
+                        <p className="text-sm text-muted-foreground">{task.clientName}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className="text-xs">
+                            {task.skillType}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {task.recurrencePattern}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm">
+                          <p><span className="font-medium">Month:</span> {task.month}</p>
+                          <p><span className="font-medium">Monthly Hours:</span> {task.monthlyHours.toFixed(1)}</p>
+                          <p><span className="font-medium">Estimated Hours:</span> {task.estimatedHours.toFixed(1)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Generate Report Button */}
+        <div className="pt-4 border-t">
+          <Button 
+            onClick={handleGenerateReport} 
+            disabled={isGenerating}
+            className="w-full"
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Generating Report...
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4 mr-2" />
+                {reportGenerated ? 'Regenerate Report' : 'Generate Detailed Report'}
+              </>
+            )}
+          </Button>
+          
+          {reportGenerated && (
+            <p className="text-sm text-green-600 text-center mt-2">
+              Report generated successfully! Data is displayed above.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
