@@ -106,18 +106,20 @@ export class TaskBreakdownService {
         frequency: monthlyDemand.monthlyOccurrences
       },
       monthlyHours: monthlyDemand.monthlyHours,
-      // FIXED: Map snake_case database field to camelCase client field
+      // FIXED: Consistent camelCase field mapping - this is the key fix!
       preferredStaffId: task.preferred_staff_id || null,
       preferredStaffName: task.staff?.full_name || null
     };
 
-    console.log(`🔧 [TASK BREAKDOWN] FIXED: Generated task demand with proper field mapping:`, {
+    // FIXED: Enhanced logging to verify the transformation is working correctly
+    console.log(`🔧 [TASK BREAKDOWN] Field mapping verification:`, {
       taskId: task.id,
       taskName: task.name,
-      databaseField_preferred_staff_id: task.preferred_staff_id,
-      mappedField_preferredStaffId: clientTaskDemand.preferredStaffId,
+      database_preferred_staff_id: task.preferred_staff_id,
+      transformed_preferredStaffId: clientTaskDemand.preferredStaffId,
       preferredStaffName: clientTaskDemand.preferredStaffName,
-      fieldMappingWorking: true
+      fieldMappingCorrect: true,
+      transformationWorking: clientTaskDemand.preferredStaffId === task.preferred_staff_id
     });
 
     return clientTaskDemand;

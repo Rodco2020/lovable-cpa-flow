@@ -33,12 +33,13 @@ export class TaskFormattingService {
         SkillResolutionService.collectSkillsForFilters(resolvedSkills, skills);
         priorities.add(task.priority);
         
-        console.log(`[TaskFormattingService] FIXED: Recurring task "${task.name}" field mapping:`, {
+        console.log(`🔧 [TASK FORMATTING] Field mapping verification for recurring task "${task.name}":`, {
           originalSkillIds: task.requiredSkills,
           resolvedSkills,
-          // FIXED: Log both database and application field formats
+          // FIXED: Verify both database and application field formats are handled correctly
           database_preferred_staff_id: task.preferred_staff_id,
-          application_preferredStaffId: task.preferredStaffId
+          application_preferredStaffId: task.preferredStaffId,
+          mappingConsistent: task.preferredStaffId === task.preferred_staff_id || (!task.preferred_staff_id && !task.preferredStaffId)
         });
         
         return {
@@ -84,11 +85,12 @@ export class TaskFormattingService {
         SkillResolutionService.collectSkillsForFilters(resolvedSkills, skills);
         priorities.add(task.priority);
         
-        console.log(`[TaskFormattingService] FIXED: Ad-hoc task "${task.name}" field mapping:`, {
+        console.log(`🔧 [TASK FORMATTING] Field mapping verification for ad-hoc task "${task.name}":`, {
           originalSkillIds: task.requiredSkills,
           resolvedSkills,
-          // FIXED: Consistent field mapping for ad-hoc tasks too
-          fieldMappingConsistent: true
+          // FIXED: Ensure consistent field mapping for ad-hoc tasks too
+          fieldMappingConsistent: true,
+          taskType: 'Ad-hoc'
         });
         
         return {

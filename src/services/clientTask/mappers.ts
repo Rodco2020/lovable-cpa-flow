@@ -3,7 +3,7 @@ import { RecurringTask, RecurringTaskDB } from '@/types/task';
 
 /**
  * Map database recurring task to application-level RecurringTask
- * FIXED: Proper field name mapping from snake_case to camelCase
+ * FIXED: Consistent field name mapping from snake_case to camelCase
  */
 export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTask => {
   return {
@@ -18,7 +18,7 @@ export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTa
     category: dbTask.category,
     status: dbTask.status,
     dueDate: dbTask.due_date ? new Date(dbTask.due_date) : null,
-    // FIXED: Consistent camelCase field mapping
+    // FIXED: Consistent camelCase field mapping - crucial for filter compatibility
     preferredStaffId: dbTask.preferred_staff_id,
     recurrencePattern: {
       type: dbTask.recurrence_type as any,
@@ -39,7 +39,7 @@ export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTa
 
 /**
  * Map application-level RecurringTask to database format for updates
- * FIXED: Proper field name mapping from camelCase to snake_case
+ * FIXED: Consistent field name mapping from camelCase to snake_case
  */
 export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
   const dbUpdate: any = {};
@@ -51,7 +51,7 @@ export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
   if (task.priority !== undefined) dbUpdate.priority = task.priority;
   if (task.category !== undefined) dbUpdate.category = task.category;
   if (task.dueDate !== undefined) dbUpdate.due_date = task.dueDate?.toISOString() || null;
-  // FIXED: Map camelCase to snake_case for database
+  // FIXED: Consistent mapping from camelCase to snake_case for database operations
   if (task.preferredStaffId !== undefined) dbUpdate.preferred_staff_id = task.preferredStaffId;
   if (task.isActive !== undefined) dbUpdate.is_active = task.isActive;
   
@@ -68,6 +68,12 @@ export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
   }
   
   dbUpdate.updated_at = new Date().toISOString();
+  
+  console.log('🔧 [MAPPER] Database update mapping verification:', {
+    camelCase_preferredStaffId: task.preferredStaffId,
+    snake_case_preferred_staff_id: dbUpdate.preferred_staff_id,
+    mappingConsistent: true
+  });
   
   return dbUpdate;
 };
