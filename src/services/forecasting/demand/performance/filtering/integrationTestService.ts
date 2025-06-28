@@ -44,7 +44,7 @@ function createCompleteFilters(overrides: Partial<DemandFilters> = {}): DemandFi
 /**
  * Run comprehensive integration test for preferred staff filtering
  */
-export function runIntegrationTest(
+function runIntegrationTest(
   testName: string,
   data: DemandMatrixData,
   filters: DemandFilters
@@ -180,7 +180,7 @@ function performIntegrationValidation(
 /**
  * Run a battery of integration tests
  */
-export function runIntegrationTestSuite(
+function runIntegrationTestSuite(
   data: DemandMatrixData
 ): IntegrationTestResult[] {
   const testSuite: IntegrationTestResult[] = [];
