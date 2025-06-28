@@ -1,36 +1,27 @@
 
-
 import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { normalizeStaffId } from '@/utils/staffIdUtils';
+import { DataPointFilterResult, TaskFilterResult } from './types';
 
 /**
- * Data Point Processing Utilities for Preferred Staff Filter Strategy
+ * ENHANCED Data Point Processing Utilities with SURGICAL PRECISION Field Access
  * 
- * This module handles the core filtering logic for data points and their associated tasks,
- * applying preferred staff filters with enhanced diagnostics and performance tracking.
+ * This module has been enhanced to provide comprehensive debugging and validation
+ * for the preferred staff filtering process, with special focus on ensuring
+ * proper field access for the preferredStaffId field.
  */
 
-export interface DataPointFilterResult {
-  filteredDataPoint: DemandDataPoint;
-  tasksProcessed: number;
-  tasksRetained: number;
-  tasksFiltered: number;
-}
-
-export interface TaskFilterResult {
-  task: ClientTaskDemand;
-  retained: boolean;
-  filterReason?: string;
-}
-
 /**
- * Process a data point and filter its tasks based on preferred staff
+ * ENHANCED: Process a data point with comprehensive field access validation
  */
 export function processDataPoint(
   dataPoint: DemandDataPoint,
   normalizedFilterIds: string[]
 ): DataPointFilterResult {
+  console.log('🔍 [DATA POINT PROCESSOR] ENHANCED: Processing data point for skill:', dataPoint.skillType);
+
   if (!dataPoint.taskBreakdown || dataPoint.taskBreakdown.length === 0) {
+    console.log('⚠️ [DATA POINT PROCESSOR] No task breakdown available for data point');
     return {
       filteredDataPoint: { ...dataPoint, demandHours: 0, taskCount: 0 },
       tasksProcessed: 0,
@@ -39,14 +30,32 @@ export function processDataPoint(
     };
   }
 
+  // Enhanced task processing with comprehensive debugging
   const taskResults = dataPoint.taskBreakdown.map(task => 
-    processTaskForFiltering(task, normalizedFilterIds)
+    processTaskForFilteringWithEnhancedDebugging(task, normalizedFilterIds)
   );
 
+  // Extract retained tasks and log filtering results
   const retainedTasks = taskResults
     .filter(result => result.retained)
     .map(result => result.task);
 
+  const filteredTasks = taskResults
+    .filter(result => !result.retained)
+    .map(result => result.task);
+
+  // Log detailed processing results
+  console.log('📊 [DATA POINT PROCESSOR] Processing results:', {
+    skill: dataPoint.skillType,
+    totalTasksProcessed: taskResults.length,
+    tasksRetained: retainedTasks.length,
+    tasksFiltered: filteredTasks.length,
+    retainedTaskNames: retainedTasks.map(t => t.taskName),
+    filteredTaskNames: filteredTasks.map(t => t.taskName),
+    filterIds: normalizedFilterIds
+  });
+
+  // Create filtered data point
   const filteredDataPoint: DemandDataPoint = {
     ...dataPoint,
     taskBreakdown: retainedTasks,
@@ -55,71 +64,185 @@ export function processDataPoint(
     clientCount: new Set(retainedTasks.map(task => task.clientId)).size
   };
 
+  // Generate debug information
+  const debugInfo = {
+    taskFieldMappings: taskResults.map(result => ({
+      taskName: result.task.taskName,
+      hasPreferredStaff: !!result.task.preferredStaffId,
+      preferredStaffId: result.task.preferredStaffId,
+      fieldAccessWorking: result.debugInfo?.fieldAccess.fieldExists || false
+    }))
+  };
+
   return {
     filteredDataPoint,
     tasksProcessed: taskResults.length,
     tasksRetained: retainedTasks.length,
-    tasksFiltered: taskResults.length - retainedTasks.length
+    tasksFiltered: filteredTasks.length,
+    debugInfo
   };
 }
 
 /**
- * Process a single task for preferred staff filtering with SURGICAL PRECISION
+ * ENHANCED: Process task with comprehensive field access debugging
  */
-function processTaskForFiltering(
+function processTaskForFilteringWithEnhancedDebugging(
   task: ClientTaskDemand,
   normalizedFilterIds: string[]
 ): TaskFilterResult {
-  // SURGICAL PRECISION: Access the correctly mapped camelCase field
-  const taskStaffId = task.preferredStaffId; // Must be camelCase as per requirements
-  
-  // DEBUGGING: Field access verification as requested
-  console.log('🔍 [TASK FILTERING] Field access debug:', {
-    taskName: task.taskName,
-    accessingField: 'task.preferredStaffId',
-    fieldValue: taskStaffId,
-    fieldType: typeof taskStaffId,
-    isNull: taskStaffId === null,
-    isUndefined: taskStaffId === undefined
-  });
+  console.log('🔬 [TASK PROCESSOR] ENHANCED: Processing task with surgical precision:', task.taskName);
 
-  if (!taskStaffId) {
+  // STEP 1: Field Access Validation with Enhanced Debugging
+  const fieldAccessResult = validateFieldAccess(task);
+  
+  // STEP 2: Early exit if no preferred staff
+  if (!fieldAccessResult.preferredStaffId) {
     return {
       task,
       retained: false,
-      filterReason: 'No preferred staff assigned'
+      filterReason: 'No preferred staff assigned',
+      debugInfo: {
+        fieldAccess: fieldAccessResult,
+        normalization: { normalizedId: null, normalizationWorked: false },
+        matching: { filterIds: normalizedFilterIds, isMatch: false, matchFound: false }
+      }
     };
   }
 
-  // Normalize the task's preferred staff ID for comparison
-  const normalizedTaskStaffId = normalizeStaffId(taskStaffId);
+  // STEP 3: Staff ID Normalization with Validation
+  const normalizationResult = performStaffIdNormalization(fieldAccessResult.preferredStaffId);
   
-  if (!normalizedTaskStaffId) {
+  if (!normalizationResult.normalizedId) {
     return {
       task,
       retained: false,
-      filterReason: 'Invalid staff ID format'
+      filterReason: 'Invalid staff ID format',
+      debugInfo: {
+        fieldAccess: fieldAccessResult,
+        normalization: normalizationResult,
+        matching: { filterIds: normalizedFilterIds, isMatch: false, matchFound: false }
+      }
     };
   }
 
-  // Check if normalized task staff ID matches any of the filter IDs
-  const isMatch = normalizedFilterIds.includes(normalizedTaskStaffId);
+  // STEP 4: Filter Matching with Enhanced Validation
+  const matchingResult = performFilterMatching(normalizationResult.normalizedId, normalizedFilterIds);
 
-  // VALIDATION: Filter logic verification as requested
-  console.log('🎯 [TASK FILTERING] Filter logic verification:', {
-    taskName: task.taskName,
-    taskStaffId: taskStaffId,
-    normalizedTaskStaffId: normalizedTaskStaffId,
-    filterIds: normalizedFilterIds,
-    isMatch: isMatch,
-    filterWorking: true
-  });
+  // STEP 5: Generate comprehensive debug information
+  const debugInfo = {
+    fieldAccess: fieldAccessResult,
+    normalization: normalizationResult,
+    matching: matchingResult
+  };
+
+  // STEP 6: Log comprehensive filtering results
+  logTaskFilteringResults(task, debugInfo, matchingResult.isMatch);
 
   return {
     task,
-    retained: isMatch,
-    filterReason: isMatch ? 'Matches preferred staff filter' : 'Does not match preferred staff filter'
+    retained: matchingResult.isMatch,
+    filterReason: matchingResult.isMatch ? 'Matches preferred staff filter' : 'Does not match preferred staff filter',
+    debugInfo
   };
+}
+
+/**
+ * ENHANCED: Validate field access with comprehensive debugging
+ */
+function validateFieldAccess(task: ClientTaskDemand): {
+  preferredStaffId: any;
+  fieldExists: boolean;
+  fieldType: string;
+} {
+  // SURGICAL PRECISION: Access the camelCase field as required
+  const preferredStaffId = task.preferredStaffId;
+  
+  const fieldAccess = {
+    preferredStaffId,
+    fieldExists: task.hasOwnProperty('preferredStaffId'),
+    fieldType: typeof preferredStaffId
+  };
+
+  console.log('🔍 [FIELD ACCESS] Comprehensive field validation:', {
+    taskName: task.taskName,
+    fieldAccess,
+    fieldValue: preferredStaffId,
+    isNull: preferredStaffId === null,
+    isUndefined: preferredStaffId === undefined,
+    isString: typeof preferredStaffId === 'string',
+    hasValue: !!preferredStaffId,
+    surgicalPrecisionApplied: true
+  });
+
+  return fieldAccess;
+}
+
+/**
+ * ENHANCED: Perform staff ID normalization with validation
+ */
+function performStaffIdNormalization(staffId: any): {
+  normalizedId: string | null;
+  normalizationWorked: boolean;
+} {
+  const normalizedId = normalizeStaffId(staffId);
+  const normalizationWorked = !!normalizedId;
+
+  console.log('🔄 [NORMALIZATION] Staff ID normalization:', {
+    originalId: staffId,
+    normalizedId,
+    normalizationWorked,
+    inputType: typeof staffId,
+    outputType: typeof normalizedId
+  });
+
+  return { normalizedId, normalizationWorked };
+}
+
+/**
+ * ENHANCED: Perform filter matching with comprehensive validation
+ */
+function performFilterMatching(normalizedStaffId: string, filterIds: string[]): {
+  filterIds: string[];
+  isMatch: boolean;
+  matchFound: boolean;
+} {
+  const isMatch = filterIds.includes(normalizedStaffId);
+  
+  console.log('🎯 [MATCHING] Filter matching validation:', {
+    staffId: normalizedStaffId,
+    filterIds,
+    isMatch,
+    matchFound: isMatch,
+    filterCount: filterIds.length
+  });
+
+  return {
+    filterIds,
+    isMatch,
+    matchFound: isMatch
+  };
+}
+
+/**
+ * ENHANCED: Log comprehensive task filtering results
+ */
+function logTaskFilteringResults(
+  task: ClientTaskDemand,
+  debugInfo: any,
+  retained: boolean
+): void {
+  const logLevel = retained ? 'log' : 'warn';
+  const symbol = retained ? '✅' : '❌';
+  
+  console[logLevel](`${symbol} [TASK FILTERING] ${retained ? 'RETAINED' : 'FILTERED'}:`, {
+    taskName: task.taskName,
+    clientName: task.clientName,
+    retained,
+    fieldAccess: debugInfo.fieldAccess,
+    normalization: debugInfo.normalization,
+    matching: debugInfo.matching,
+    surgicalPrecisionComplete: true
+  });
 }
 
 /**
@@ -166,6 +289,14 @@ export function calculateFilteredTotals(filteredDataPoints: DemandDataPoint[]): 
   const remainingSkills = Object.keys(skillSummary);
   const totalClients = allClients.size;
 
+  console.log('📊 [TOTALS CALCULATION] Final filtered totals:', {
+    totalDemand,
+    totalTasks,
+    totalClients,
+    remainingSkills: remainingSkills.length,
+    skillSummary
+  });
+
   return {
     totalDemand,
     totalTasks,
@@ -174,4 +305,3 @@ export function calculateFilteredTotals(filteredDataPoints: DemandDataPoint[]): 
     remainingSkills
   };
 }
-

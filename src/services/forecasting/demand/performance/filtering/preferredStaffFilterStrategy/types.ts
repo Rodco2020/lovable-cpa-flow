@@ -1,84 +1,86 @@
 
-import { DemandMatrixData, DemandFilters } from '@/types/demand';
-
 /**
- * Type definitions for the Preferred Staff Filter Strategy
+ * Type definitions for Preferred Staff Filter Strategy
  * 
- * This module defines all interfaces and types used throughout the preferred staff
- * filtering system to ensure type safety and consistency.
+ * This module contains all type definitions used by the preferred staff filtering system,
+ * providing clear interfaces for data analysis, diagnostics, and performance metrics.
  */
 
 export interface StaffFilterAnalysis {
-  hasValidFilters: boolean;
-  validFilterCount: number;
-  potentialMatches: number;
-  normalizationSuccessRate: number;
-  expectedFilteringSuccess: boolean;
+  totalTasks: number;
+  tasksWithPreferredStaff: number;
+  tasksWithoutPreferredStaff: number;
+  uniquePreferredStaffIds: string[];
+  preferredStaffNames: string[];
+  filterCoverage: number; // Percentage of tasks that have preferred staff
+  tasksByStaff: Map<string, number>;
 }
 
 export interface StaffFilterDiagnostics {
-  inputValidation: {
-    filterStaffIds: (string | number | null | undefined)[];
-    filterStaffIdTypes: Array<{ id: any; type: string }>;
-    normalizedFilterIds: string[];
-    normalizationWorking: boolean;
+  filterInputs: {
+    originalStaffIds: (string | number)[];
+    normalizedStaffIds: string[];
+    validationSuccess: boolean;
+    invalidIds: (string | number)[];
   };
-  dataAnalysis: {
-    dataContainsTasksWithStaff: number;
-    originalStaffIdsInData: string[];
-    normalizedStaffIdsInData: string[];
-    exactNormalizedMatches: string[];
-    potentialMatches: boolean;
-  };
-  processingResults: {
-    dataPointsProcessed: number;
-    dataPointsWithTasks: number;
+  dataAnalysis: StaffFilterAnalysis;
+  filterResults: {
+    originalDataPoints: number;
+    filteredDataPoints: number;
     totalTasksProcessed: number;
-    tasksWithPreferredStaffProcessed: number;
+    tasksRetained: number;
+    tasksFiltered: number;
+    filterEfficiency: number; // Percentage of tasks retained
   };
-  troubleshooting: {
-    filterArrayEmpty: boolean;
-    dataArrayEmpty: boolean;
-    noMatches: boolean;
-    normalizationIssue: boolean;
-  };
+  potentialIssues: string[];
+  recommendations: string[];
 }
 
 export interface FilteringPerformanceMetrics {
   processingTime: number;
-  originalDataPoints: number;
-  filteredDataPoints: number;
-  totalDemand: number;
-  totalTasks: number;
-  totalClients: number;
-  filterEffectiveness: string;
-  normalizationSuccess: boolean;
-  qualityMetrics: {
-    normalizationSuccessRate: string;
-    dataRetentionRate: string;
-    taskRetentionRate: string;
-  };
+  dataPointsProcessed: number;
+  tasksProcessed: number;
+  filterHitRate: number;
+  memoryUsage?: number;
+  cacheHits?: number;
+  originalDataSize: number;
+  filteredDataSize: number;
+  compressionRatio: number;
 }
 
 export interface DataPointFilterResult {
-  skillType: string;
-  month: string;
-  originalTasks: number;
-  filteredTasks: number;
-  tasksRemoved: number;
-  filterEfficiency: string;
-  retainedTaskNames: string[];
-  excludedTaskNames: string[];
+  filteredDataPoint: import('@/types/demand').DemandDataPoint;
+  tasksProcessed: number;
+  tasksRetained: number;
+  tasksFiltered: number;
+  debugInfo?: {
+    taskFieldMappings?: Array<{
+      taskName: string;
+      hasPreferredStaff: boolean;
+      preferredStaffId: string | null;
+      fieldAccessWorking: boolean;
+    }>;
+  };
 }
 
 export interface TaskFilterResult {
-  taskName: string;
-  taskStaffId: string | number | null | undefined;
-  taskStaffIdType: string;
-  normalizedTaskStaffId: string | undefined;
-  taskStaffName?: string;
-  filterStaffIds: string[];
-  isMatch: boolean;
-  comparisonMethod: string;
-  matchingFilterId: string | null;
+  task: import('@/types/demand').ClientTaskDemand;
+  retained: boolean;
+  filterReason?: string;
+  debugInfo?: {
+    fieldAccess: {
+      preferredStaffId: any;
+      fieldExists: boolean;
+      fieldType: string;
+    };
+    normalization: {
+      normalizedId: string | null;
+      normalizationWorked: boolean;
+    };
+    matching: {
+      filterIds: string[];
+      isMatch: boolean;
+      matchFound: boolean;
+    };
+  };
 }

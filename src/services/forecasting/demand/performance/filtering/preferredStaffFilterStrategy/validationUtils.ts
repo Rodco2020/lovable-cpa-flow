@@ -1,112 +1,150 @@
 
-import { DemandMatrixData, DemandFilters } from '@/types/demand';
-import { normalizeStaffId, findStaffIdMatches } from '@/utils/staffIdUtils';
+/**
+ * Validation utilities for Preferred Staff Filter Strategy
+ * 
+ * This module handles input validation, normalization, and data analysis
+ * for the preferred staff filtering system.
+ */
+
+import { DemandFilters, DemandMatrixData } from '@/types/demand';
+import { normalizeStaffId } from '@/utils/staffIdUtils';
 import { StaffFilterAnalysis } from './types';
 
-/**
- * Validation utilities for preferred staff filtering
- * 
- * This module handles validation of filter inputs and data analysis
- * to ensure robust filtering operations with comprehensive error checking.
- */
-
-/**
- * Validate preferred staff filters and normalize them
- */
-export function validateAndNormalizeFilters(
-  preferredStaff: (string | number | null | undefined)[]
-): {
+export interface FilterValidationResult {
   normalizedFilterIds: string[];
   isValid: boolean;
-  validationLog: Array<{
-    originalId: any;
-    originalType: string;
-    normalizedId: string | undefined;
-    normalizationSuccess: boolean;
-  }>;
-} {
-  const validationLog: Array<{
-    originalId: any;
-    originalType: string;
-    normalizedId: string | undefined;
-    normalizationSuccess: boolean;
-  }> = [];
+  invalidIds: (string | number)[];
+  validationErrors: string[];
+}
 
-  const normalizedFilterIds = preferredStaff
-    .map(id => {
-      const normalized = normalizeStaffId(id);
-      const logEntry = {
-        originalId: id,
-        originalType: typeof id,
-        normalizedId: normalized,
-        normalizationSuccess: !!normalized
-      };
-      validationLog.push(logEntry);
-      
-      console.log(`🔧 [PREFERRED STAFF FILTER] Normalizing filter ID:`, logEntry);
-      return normalized;
-    })
-    .filter(id => id !== undefined) as string[];
+/**
+ * Validate and normalize preferred staff filter IDs
+ */
+export function validateAndNormalizeFilters(
+  preferredStaffIds: (string | number)[]
+): FilterValidationResult {
+  console.log('🔍 [VALIDATION] Starting filter validation:', {
+    inputIds: preferredStaffIds,
+    inputLength: preferredStaffIds?.length || 0,
+    inputType: typeof preferredStaffIds
+  });
+
+  if (!Array.isArray(preferredStaffIds)) {
+    console.error('❌ [VALIDATION] Preferred staff IDs is not an array:', preferredStaffIds);
+    return {
+      normalizedFilterIds: [],
+      isValid: false,
+      invalidIds: [],
+      validationErrors: ['Input is not an array']
+    };
+  }
+
+  const normalizedFilterIds: string[] = [];
+  const invalidIds: (string | number)[] = [];
+  const validationErrors: string[] = [];
+
+  for (const id of preferredStaffIds) {
+    if (id === null || id === undefined) {
+      invalidIds.push(id);
+      validationErrors.push(`Null/undefined ID: ${id}`);
+      continue;
+    }
+
+    const normalizedId = normalizeStaffId(id);
+    
+    if (normalizedId) {
+      normalizedFilterIds.push(normalizedId);
+      console.log(`✅ [VALIDATION] Normalized ${id} -> ${normalizedId}`);
+    } else {
+      invalidIds.push(id);
+      validationErrors.push(`Failed to normalize ID: ${id}`);
+      console.warn(`⚠️ [VALIDATION] Failed to normalize ID: ${id}`);
+    }
+  }
 
   const isValid = normalizedFilterIds.length > 0;
 
-  console.log(`🔍 [PREFERRED STAFF FILTER] Filter validation:`, {
-    originalFilterIds: preferredStaff,
-    normalizedFilterIds,
-    normalizationSuccessRate: `${((normalizedFilterIds.length / preferredStaff.length) * 100).toFixed(1)}%`,
-    filterValidationPassed: isValid
+  console.log('📊 [VALIDATION] Validation complete:', {
+    originalCount: preferredStaffIds.length,
+    normalizedCount: normalizedFilterIds.length,
+    invalidCount: invalidIds.length,
+    isValid,
+    normalizedIds: normalizedFilterIds
   });
 
   return {
     normalizedFilterIds,
     isValid,
-    validationLog
+    invalidIds,
+    validationErrors
   };
 }
 
 /**
- * Analyze filter data for optimization and diagnostics
+ * Analyze filter data to understand coverage and distribution
  */
 export function analyzeFilterData(
   data: DemandMatrixData,
   normalizedFilterIds: string[]
 ): StaffFilterAnalysis {
-  const allTasksWithStaff = data.dataPoints.flatMap(dp => 
-    dp.taskBreakdown?.filter(task => task.preferredStaffId) || []
-  );
+  const tasksByStaff = new Map<string, number>();
+  const uniquePreferredStaffIds = new Set<string>();
+  const preferredStaffNames = new Set<string>();
   
-  const availableStaffIds = Array.from(new Set(
-    allTasksWithStaff.map(task => task.preferredStaffId).filter(Boolean)
-  ));
-  
-  const availableNormalizedStaffIds = Array.from(new Set(
-    allTasksWithStaff.map(task => normalizeStaffId(task.preferredStaffId)).filter(Boolean)
-  ));
+  let totalTasks = 0;
+  let tasksWithPreferredStaff = 0;
 
-  const matches = findStaffIdMatches(normalizedFilterIds, availableNormalizedStaffIds);
-
-  console.log(`🔍 [PREFERRED STAFF FILTER] Pre-filter data analysis:`, {
-    totalDataPoints: data.dataPoints.length,
-    totalTasks: data.dataPoints.reduce((sum, dp) => sum + (dp.taskBreakdown?.length || 0), 0),
-    tasksWithPreferredStaff: allTasksWithStaff.length,
-    availableStaffIds,
-    availableNormalizedStaffIds,
-    potentialMatches: matches.matches,
-    expectedFilteringSuccess: matches.totalMatches > 0
+  // Analyze all tasks in all data points
+  data.dataPoints.forEach(dataPoint => {
+    if (dataPoint.taskBreakdown) {
+      dataPoint.taskBreakdown.forEach(task => {
+        totalTasks++;
+        
+        if (task.preferredStaffId) {
+          tasksWithPreferredStaff++;
+          uniquePreferredStaffIds.add(task.preferredStaffId);
+          
+          if (task.preferredStaffName) {
+            preferredStaffNames.add(task.preferredStaffName);
+          }
+          
+          const count = tasksByStaff.get(task.preferredStaffId) || 0;
+          tasksByStaff.set(task.preferredStaffId, count + 1);
+        }
+      });
+    }
   });
 
-  return {
-    hasValidFilters: normalizedFilterIds.length > 0,
-    validFilterCount: normalizedFilterIds.length,
-    potentialMatches: matches.totalMatches,
-    normalizationSuccessRate: (normalizedFilterIds.length / normalizedFilterIds.length) * 100,
-    expectedFilteringSuccess: matches.totalMatches > 0
+  const filterCoverage = totalTasks > 0 ? (tasksWithPreferredStaff / totalTasks) * 100 : 0;
+
+  const analysis: StaffFilterAnalysis = {
+    totalTasks,
+    tasksWithPreferredStaff,
+    tasksWithoutPreferredStaff: totalTasks - tasksWithPreferredStaff,
+    uniquePreferredStaffIds: Array.from(uniquePreferredStaffIds),
+    preferredStaffNames: Array.from(preferredStaffNames),
+    filterCoverage,
+    tasksByStaff
   };
+
+  console.log('📈 [ANALYSIS] Filter data analysis:', analysis);
+  
+  return analysis;
 }
 
 /**
- * Early validation check to prevent unnecessary processing
+ * Determine if filtering should proceed based on filters
  */
 export function shouldProceedWithFiltering(filters: DemandFilters): boolean {
-  return Array.isArray(filters.preferredStaff) && filters.preferredStaff.length > 0;
+  const hasPreferredStaffFilter = filters.preferredStaff && 
+    Array.isArray(filters.preferredStaff) && 
+    filters.preferredStaff.length > 0;
+  
+  console.log('🤔 [VALIDATION] Should proceed with filtering?', {
+    hasPreferredStaffFilter,
+    filterLength: filters.preferredStaff?.length || 0,
+    filterIds: filters.preferredStaff
+  });
+  
+  return hasPreferredStaffFilter;
 }
