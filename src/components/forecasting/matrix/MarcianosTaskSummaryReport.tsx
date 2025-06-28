@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, User, Calendar, Clock, FileText } from 'lucide-react';
 import { useDemandMatrixData } from '@/components/forecasting/matrix/hooks/useDemandMatrixData';
+import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { DemandFilters } from '@/types/demand';
 
 interface TaskSummary {
@@ -21,7 +22,10 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
 
-  // Create filters specifically for Marciano Urbaez
+  // Use the hook with the correct parameter (grouping mode)
+  const { demandData, isLoading, error } = useDemandMatrixData('skill');
+
+  // Create filters specifically for Marciano Urbaez and apply them to the data
   const marcianoFilters: DemandFilters = useMemo(() => {
     const currentDate = new Date();
     const startDate = new Date(currentDate.getFullYear(), 0, 1);
@@ -30,7 +34,7 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
     return {
       skills: [],
       clients: [],
-      preferredStaff: ['marciano-urbaez', 'Marciano Urbaez'], // Try both variations
+      preferredStaff: ['marciano-urbaez', 'Marciano Urbaez', 'marciano', 'Marciano'], // Try multiple variations
       timeHorizon: {
         start: startDate,
         end: endDate
@@ -38,21 +42,32 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
     };
   }, []);
 
-  const { data: matrixData, isLoading, error } = useDemandMatrixData(marcianoFilters);
+  // Filter the demand data for Marciano's tasks
+  const filteredMatrixData = useMemo(() => {
+    if (!demandData) return null;
+    
+    return DemandPerformanceOptimizer.optimizeFiltering(demandData, marcianoFilters);
+  }, [demandData, marcianoFilters]);
 
   const marcianoTasks: TaskSummary[] = useMemo(() => {
-    if (!matrixData || !matrixData.dataPoints) return [];
+    if (!filteredMatrixData || !filteredMatrixData.dataPoints) return [];
     
     const tasks: TaskSummary[] = [];
     
-    matrixData.dataPoints.forEach(dataPoint => {
+    filteredMatrixData.dataPoints.forEach(dataPoint => {
       if (dataPoint.taskBreakdown) {
         dataPoint.taskBreakdown.forEach(task => {
           if (task.preferredStaffId || task.preferredStaffName) {
             const staffId = task.preferredStaffId?.toLowerCase();
             const staffName = task.preferredStaffName?.toLowerCase();
             
-            if (staffId?.includes('marciano') || staffName?.includes('marciano')) {
+            // Check if this task is assigned to Marciano (various name/id formats)
+            const isMarcianoTask = staffId?.includes('marciano') || 
+                                   staffName?.includes('marciano') ||
+                                   staffId?.includes('urbaez') ||
+                                   staffName?.includes('urbaez');
+            
+            if (isMarcianoTask) {
               tasks.push({
                 clientName: task.clientName,
                 taskName: task.taskName,
@@ -69,7 +84,7 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
     });
     
     return tasks;
-  }, [matrixData]);
+  }, [filteredMatrixData]);
 
   const handleGenerateReport = async () => {
     setIsGenerating(true);
@@ -130,7 +145,7 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Failed to load Marciano's task data. Please try again.
+            Failed to load Marciano's task data: {error}
           </p>
           <Button onClick={handleGenerateReport} className="mt-4">
             Retry
