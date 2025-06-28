@@ -35,7 +35,6 @@ export {
 
 export {
   processDataPoint,
-  processTask,
   calculateFilteredTotals
 } from './dataPointProcessor';
 
