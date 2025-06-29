@@ -5,7 +5,7 @@ import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { DataValidator } from '../dataValidator';
 import { SkillMappingService } from './skillMappingService';
-import { DataPointGenerationService } from './dataPointGenerationService';
+import { ConditionalAggregationService } from './conditionalAggregationService';
 import { PeriodProcessingService } from './periodProcessingService';
 import { CalculationUtils } from './calculationUtils';
 import { ClientResolutionService } from '../clientResolutionService';
@@ -15,22 +15,30 @@ import { MatrixDataEnricher } from './matrixDataEnricher';
 import { RevenueEnhancedDataPointContext } from './types';
 
 /**
- * Core matrix transformation orchestrator
- * Refactored to use focused services for revenue calculations and data enrichment
+ * Core matrix transformation orchestrator - UPDATED FOR CONDITIONAL AGGREGATION
+ * Now supports both skill-based and staff-based aggregation strategies
  */
 export class MatrixTransformerCore {
   /**
-   * Transform forecast data to matrix format with enhanced revenue calculations
+   * Transform forecast data to matrix format with conditional aggregation strategy
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
-    tasks: RecurringTaskDB[]
+    tasks: RecurringTaskDB[],
+    activeFilters?: {
+      hasStaffFilter: boolean;
+      hasSkillFilter: boolean;
+      preferredStaffIds?: string[];
+      skillTypes?: string[];
+    }
   ): Promise<DemandMatrixData> {
     const startTime = performance.now();
     
-    debugLog('Starting enhanced matrix transformation with revenue calculations', { 
+    debugLog('Starting matrix transformation with conditional aggregation', { 
       periodsCount: forecastData.length, 
-      tasksCount: tasks.length 
+      tasksCount: tasks.length,
+      hasStaffFilter: activeFilters?.hasStaffFilter || false,
+      hasSkillFilter: activeFilters?.hasSkillFilter || false
     });
 
     try {
@@ -45,7 +53,7 @@ export class MatrixTransformerCore {
         tasks = [];
       }
 
-      // Initialize client resolution cache early and ensure it's populated
+      // Initialize client resolution cache early
       await ClientResolutionService.initializeClientCache();
       const cacheStats = ClientResolutionService.getCacheStats();
       console.log('📊 [MATRIX TRANSFORM] Client cache initialized:', cacheStats);
@@ -53,17 +61,12 @@ export class MatrixTransformerCore {
       // Enhanced validation and cleaning with skill resolution
       const { validTasks, invalidTasks, resolvedTasks } = await DataValidator.validateRecurringTasks(tasks);
 
-      // Log resolution results
       if (resolvedTasks.length > 0) {
         console.log(`✅ [MATRIX TRANSFORM] Resolved skills for ${resolvedTasks.length} tasks`);
-        debugLog('Skill resolution results', { resolvedTasks });
       }
 
       if (invalidTasks.length > 0) {
         console.warn(`⚠️ [MATRIX TRANSFORM] Excluded ${invalidTasks.length} invalid tasks from matrix generation`);
-        invalidTasks.slice(0, 3).forEach(({ task, errors }) => {
-          console.warn(`Task ${task.id}:`, errors.slice(0, 2));
-        });
       }
 
       // Generate months from forecast data
@@ -75,7 +78,7 @@ export class MatrixTransformerCore {
         validTasks
       );
 
-      // Enhanced data point generation context with revenue calculation support
+      // Enhanced data point generation context with conditional aggregation
       const revenueContext: RevenueEnhancedDataPointContext = {
         forecastData,
         tasks: validTasks,
@@ -98,17 +101,26 @@ export class MatrixTransformerCore {
         }
       };
 
-      // Generate data points with enhanced skill matching and revenue calculations
-      const dataPoints = await DataPointGenerationService.generateDataPointsWithSkillMapping(revenueContext);
+      // Use conditional aggregation service to generate data points
+      const dataPoints = await ConditionalAggregationService.generateDataPointsWithConditionalAggregation(
+        revenueContext,
+        activeFilters
+      );
       
-      // Calculate totals and summaries using the enhanced data points
+      // Calculate totals and summaries using the generated data points
       const totals = CalculationUtils.calculateTotals(dataPoints);
+      
+      // For staff-based aggregation, we need to extract unique skills from data points
+      const actualSkills = activeFilters?.hasStaffFilter 
+        ? this.extractSkillsFromStaffDataPoints(dataPoints)
+        : skills;
+      
       const skillSummary = CalculationUtils.generateSkillSummary(dataPoints);
 
       // Calculate client totals
       const clientTotals = ClientTotalsCalculator.calculateClientTotals(dataPoints);
 
-      // Use extracted revenue calculator for all revenue-related calculations
+      // Calculate revenue information
       const revenueResults = await MatrixRevenueCalculator.calculateMatrixRevenue(dataPoints, months);
 
       // Enhance skill summary with revenue information
@@ -120,7 +132,7 @@ export class MatrixTransformerCore {
 
       const baseMatrixData: DemandMatrixData = {
         months,
-        skills,
+        skills: actualSkills,
         dataPoints,
         totalDemand: totals.totalDemand,
         totalTasks: totals.totalTasks,
@@ -131,7 +143,9 @@ export class MatrixTransformerCore {
         clientHourlyRates: revenueResults.clientHourlyRates,
         clientSuggestedRevenue: revenueResults.clientSuggestedRevenue,
         clientExpectedLessSuggested: revenueResults.clientExpectedLessSuggested,
-        revenueTotals: revenueResults.revenueTotals
+        revenueTotals: revenueResults.revenueTotals,
+        // Add metadata about aggregation strategy
+        aggregationStrategy: activeFilters?.hasStaffFilter ? 'staff-based' : 'skill-based'
       };
 
       const endTime = performance.now();
@@ -142,15 +156,16 @@ export class MatrixTransformerCore {
         processingTime,
         validTasks: validTasks.length,
         invalidTasks: invalidTasks.length,
-        resolvedTasks: resolvedTasks.length
+        resolvedTasks: resolvedTasks.length,
+        aggregationStrategy: baseMatrixData.aggregationStrategy
       });
 
-      // Generate processing summary and check performance
+      // Generate processing summary
       const successMessage = MatrixDataEnricher.generateProcessingSummary(enrichedMatrixData, processingTime);
       console.log(successMessage);
-      debugLog(successMessage);
-
-      MatrixDataEnricher.checkPerformanceWarnings(processingTime);
+      
+      // Log aggregation strategy used
+      console.log(`🎯 [MATRIX TRANSFORM] Used ${baseMatrixData.aggregationStrategy} aggregation strategy`);
 
       return enrichedMatrixData;
 
@@ -175,8 +190,31 @@ export class MatrixTransformerCore {
           totalSuggestedRevenue: 0,
           totalExpectedRevenue: 0,
           totalExpectedLessSuggested: 0
-        }
+        },
+        aggregationStrategy: 'skill-based'
       };
     }
+  }
+  
+  /**
+   * Extract unique skills from staff-based data points
+   */
+  private static extractSkillsFromStaffDataPoints(dataPoints: any[]): string[] {
+    const skillSet = new Set<string>();
+    
+    dataPoints.forEach(dp => {
+      if (dp.isStaffSpecific && dp.actualStaffName) {
+        // For staff-specific data points, use the staff-skill combination as the "skill"
+        skillSet.add(dp.skillType); // This will be "Staff Name (Skill)"
+      } else if (dp.isUnassigned && dp.underlyingSkillType) {
+        // For unassigned data points, use the unassigned-skill combination
+        skillSet.add(dp.skillType); // This will be "Unassigned (Skill)"
+      } else {
+        // Fallback to regular skill type
+        skillSet.add(dp.skillType);
+      }
+    });
+    
+    return Array.from(skillSet).sort();
   }
 }

@@ -1,118 +1,97 @@
 
-import { useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { DemandMatrixData } from '@/types/demand';
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
-import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
-import { useToast } from '@/components/ui/use-toast';
-import { useDemandMatrixState } from '../DemandMatrixStateProvider';
+import { ConditionalAggregationService } from '@/services/forecasting/demand/matrixTransformer/conditionalAggregationService';
+
+interface UseDemandMatrixDataResult {
+  demandData: DemandMatrixData | null;
+  isLoading: boolean;
+  error: string | null;
+  loadDemandData: (activeFilters?: any) => Promise<void>;
+  handleRetryWithBackoff: () => Promise<void>;
+}
 
 /**
- * Hook for managing demand matrix data loading and caching
+ * Hook for managing demand matrix data with conditional aggregation support
  * 
- * Handles all data fetching, validation, performance optimization,
- * and retry logic with exponential backoff.
+ * UPDATED: Now supports conditional aggregation based on active filters
  */
-export const useDemandMatrixData = (groupingMode: 'skill' | 'client') => {
-  const { toast } = useToast();
-  const {
-    demandData,
-    isLoading,
-    error,
-    retryCount,
-    customDateRange,
-    setDemandData,
-    setIsLoading,
-    setError,
-    setValidationIssues,
-    setRetryCount,
-  } = useDemandMatrixState();
+export const useDemandMatrixData = (
+  groupingMode: 'skill' | 'client',
+  activeFilters?: {
+    preferredStaff?: (string | number | null | undefined)[];
+    skills?: string[];
+    clients?: string[];
+  }
+): UseDemandMatrixDataResult => {
+  const [demandData, setDemandData] = useState<DemandMatrixData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Load demand matrix data with performance optimization
-  const loadDemandData = async () => {
-    const startTime = performance.now();
+  // Determine if staff-based aggregation should be used
+  const shouldUseStaffAggregation = useMemo(() => {
+    return activeFilters?.preferredStaff ? 
+      ConditionalAggregationService.shouldUseStaffBasedAggregation(activeFilters.preferredStaff) : 
+      false;
+  }, [activeFilters?.preferredStaff]);
+
+  const loadDemandData = useCallback(async (filters?: any) => {
+    console.log(`🔄 [DEMAND DATA] Loading matrix with aggregation strategy detection...`);
+    console.log(`🎯 [DEMAND DATA] Active filters:`, {
+      preferredStaff: filters?.preferredStaff || activeFilters?.preferredStaff,
+      skills: filters?.skills || activeFilters?.skills,
+      clients: filters?.clients || activeFilters?.clients,
+      shouldUseStaffAggregation
+    });
+    
     setIsLoading(true);
     setError(null);
-    setValidationIssues([]);
 
     try {
-      console.log(`Loading demand data (attempt ${retryCount + 1})`);
+      const startDate = new Date();
       
-      const { matrixData: newDemandData } = await DemandMatrixService.generateDemandMatrix('demand-only');
+      // Use the active filters to determine aggregation strategy
+      const filtersToUse = filters || activeFilters;
       
-      // Validate the data
-      const issues = DemandMatrixService.validateDemandMatrixData(newDemandData);
-      if (issues.length > 0) {
-        setValidationIssues(issues);
-        console.warn('Demand matrix validation issues:', issues);
-        
-        toast({
-          title: "Data quality issues detected",
-          description: `${issues.length} validation issues found. Functionality may be limited.`,
-          variant: "destructive"
-        });
-      } else {
-        const loadTime = performance.now() - startTime;
-        console.log(`Demand matrix loaded successfully in ${loadTime.toFixed(2)}ms`);
-        
-        toast({
-          title: "Demand matrix loaded",
-          description: `${newDemandData.months.length} months × ${newDemandData.skills.length} ${groupingMode}s loaded`,
-        });
-      }
+      const result = await DemandMatrixService.generateDemandMatrix(
+        'demand-only',
+        startDate,
+        filtersToUse
+      );
 
-      // Apply performance optimization
-      const optimizedData = DemandPerformanceOptimizer.optimizeFiltering(newDemandData, {
-        skills: [],
-        clients: [],
-        preferredStaff: [], // Phase 3: Add preferredStaff field
-        timeHorizon: customDateRange ? {
-          start: customDateRange.start,
-          end: customDateRange.end
-        } : {
-          start: new Date(),
-          end: new Date()
-        }
+      console.log(`✅ [DEMAND DATA] Matrix loaded with ${result.matrixData.aggregationStrategy} aggregation:`, {
+        dataPoints: result.matrixData.dataPoints.length,
+        skills: result.matrixData.skills.length,
+        totalDemand: result.matrixData.totalDemand,
+        aggregationStrategy: result.matrixData.aggregationStrategy
       });
 
-      setDemandData(optimizedData);
-      setRetryCount(0); // Reset retry count on success
-      
+      setDemandData(result.matrixData);
+      setRetryCount(0);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load demand matrix data';
+      console.error('❌ [DEMAND DATA] Error loading matrix data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load demand data';
       setError(errorMessage);
-      console.error('Error loading demand matrix data:', err);
-      
-      setRetryCount(retryCount + 1);
-      
-      toast({
-        title: "Error loading demand matrix",
-        description: errorMessage,
-        variant: "destructive"
-      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeFilters, shouldUseStaffAggregation]);
 
-  // Enhanced retry with exponential backoff
-  const handleRetryWithBackoff = async () => {
-    const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+  const handleRetryWithBackoff = useCallback(async () => {
+    const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+    console.log(`🔄 [DEMAND DATA] Retrying after ${backoffDelay}ms (attempt ${retryCount + 1})`);
     
-    if (retryCount > 0) {
-      toast({
-        title: "Retrying...",
-        description: `Waiting ${backoffDelay / 1000}s before retry attempt ${retryCount + 1}`,
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, backoffDelay));
-    }
-    
+    await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    setRetryCount(prev => prev + 1);
     await loadDemandData();
-  };
+  }, [loadDemandData, retryCount]);
 
-  // Load data on mount
+  // Load data on mount and when aggregation strategy changes
   useEffect(() => {
     loadDemandData();
-  }, []);
+  }, [loadDemandData]);
 
   return {
     demandData,

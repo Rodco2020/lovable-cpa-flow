@@ -1,208 +1,134 @@
 
-import { addMonths, startOfMonth, endOfMonth } from 'date-fns';
-import { debugLog } from '../logger';
-import { DemandMatrixData, DemandMatrixMode, DemandFilters } from '@/types/demand';
-import { ForecastGenerator, DataFetcher, MatrixTransformer } from '../demand';
-import { revenueValidationService } from '../validation/RevenueValidationService';
-import { errorHandlingService } from '../validation/ErrorHandlingService';
+import { DemandMatrixData, DemandMatrixMode } from '@/types/demand';
+import { MatrixTransformerCore } from './matrixTransformer/matrixTransformerCore';
+import { ForecastDataService } from './forecastDataService';
+import { ConditionalAggregationService } from './matrixTransformer/conditionalAggregationService';
 import { DemandMatrixCacheService } from './demandMatrixCacheService';
-import { DemandMatrixValidationService } from './demandMatrixValidationService';
+import { debugLog } from '../logger';
 
 /**
- * Demand Matrix Orchestrator
- * Coordinates the entire demand matrix generation process
+ * Demand Matrix Orchestrator - UPDATED FOR CONDITIONAL AGGREGATION
+ * Coordinates the demand matrix generation process with support for conditional aggregation strategies
  */
 export class DemandMatrixOrchestrator {
   /**
-   * Generate demand matrix forecast with comprehensive error handling
+   * Generate demand matrix with conditional aggregation based on active filters
    */
   static async generateDemandMatrix(
     mode: DemandMatrixMode = 'demand-only',
-    startDate: Date = new Date()
+    startDate: Date = new Date(),
+    activeFilters?: {
+      preferredStaff?: (string | number | null | undefined)[];
+      skills?: string[];
+      clients?: string[];
+    }
   ): Promise<{ matrixData: DemandMatrixData }> {
-    const context = {
-      operation: 'generateDemandMatrix',
-      component: 'DemandMatrixOrchestrator',
-      timestamp: new Date()
-    };
-
-    debugLog('Generating demand matrix with enhanced validation', { mode, startDate });
+    debugLog('Starting demand matrix generation with conditional aggregation', { 
+      mode, 
+      startDate: startDate.toISOString(),
+      hasActiveFilters: !!activeFilters,
+      preferredStaffCount: activeFilters?.preferredStaff?.length || 0,
+      skillsCount: activeFilters?.skills?.length || 0,
+      clientsCount: activeFilters?.clients?.length || 0
+    });
 
     try {
-      // Check cache first
-      const cacheKey = DemandMatrixCacheService.getDemandMatrixCacheKey(mode, startDate);
-      const cached = DemandMatrixCacheService.getCachedData(cacheKey);
+      // Determine if we should use staff-based aggregation
+      const shouldUseStaffAggregation = activeFilters?.preferredStaff ? 
+        ConditionalAggregationService.shouldUseStaffBasedAggregation(activeFilters.preferredStaff) : 
+        false;
+
+      console.log(`🎯 [MATRIX ORCHESTRATOR] Aggregation strategy decision:`, {
+        shouldUseStaffAggregation,
+        hasPreferredStaffFilter: !!activeFilters?.preferredStaff?.length,
+        hasSkillsFilter: !!activeFilters?.skills?.length,
+        hasClientsFilter: !!activeFilters?.clients?.length
+      });
+
+      // Check cache first (with strategy-aware cache key)
+      const cacheKey = this.getCacheKeyWithStrategy(mode, startDate, shouldUseStaffAggregation);
+      const cachedData = DemandMatrixCacheService.getCachedMatrix(cacheKey);
       
-      if (cached) {
-        debugLog('Found cached demand matrix data, validating...');
-        
-        if (DemandMatrixValidationService.validateCachedData(cached)) {
-          debugLog('Using cached demand matrix data');
-          return { matrixData: cached };
-        } else {
-          console.warn('Cached data failed validation, regenerating...');
-          DemandMatrixCacheService.clearCache();
-        }
+      if (cachedData) {
+        console.log(`✅ [CACHE HIT] Using cached matrix data with ${cachedData.aggregationStrategy} strategy`);
+        return { matrixData: cachedData };
       }
 
-      // Generate fresh data
-      const matrixData = await this.generateFreshMatrixData(mode, startDate, context);
-
-      // Cache the result if validation passes
-      if (DemandMatrixValidationService.shouldCacheData(matrixData)) {
-        DemandMatrixCacheService.setCachedData(cacheKey, matrixData);
+      // Load forecast data and tasks
+      const { forecastData, tasks } = await ForecastDataService.loadForecastData(startDate);
+      
+      if (!forecastData || !tasks) {
+        throw new Error('Failed to load forecast data or tasks');
       }
 
-      debugLog(`Generated demand matrix with ${matrixData.dataPoints.length} data points and ${matrixData.months.length} months`);
-      
+      console.log(`📊 [MATRIX ORCHESTRATOR] Loaded data: ${forecastData.length} periods, ${tasks.length} tasks`);
+
+      // Create filter context for matrix transformer
+      const filterContext = {
+        hasStaffFilter: shouldUseStaffAggregation,
+        hasSkillFilter: !!activeFilters?.skills?.length,
+        preferredStaffIds: activeFilters?.preferredStaff?.map(id => String(id)).filter(Boolean) || [],
+        skillTypes: activeFilters?.skills || []
+      };
+
+      // Transform to matrix data using conditional aggregation
+      const matrixData = await MatrixTransformerCore.transformToMatrixData(
+        forecastData,
+        tasks,
+        filterContext
+      );
+
+      // Cache the result with strategy information
+      DemandMatrixCacheService.setCachedMatrix(cacheKey, matrixData);
+
+      console.log(`✅ [MATRIX ORCHESTRATOR] Generated matrix with ${matrixData.aggregationStrategy} strategy:`, {
+        dataPoints: matrixData.dataPoints.length,
+        skills: matrixData.skills.length,
+        totalDemand: matrixData.totalDemand,
+        totalTasks: matrixData.totalTasks
+      });
+
       return { matrixData };
 
     } catch (error) {
-      console.error('Error generating demand matrix:', error);
+      console.error('❌ [MATRIX ORCHESTRATOR] Error generating demand matrix:', error);
       
-      const recovery = errorHandlingService.handleError(
-        error as Error,
-        context,
-        true // Attempt recovery
-      );
-      
-      if (recovery.success && recovery.fallbackValue) {
-        console.warn('Using recovery data for demand matrix');
-        return { matrixData: recovery.fallbackValue };
-      }
-      
-      throw new Error(`Demand matrix generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Return minimal fallback matrix
+      const fallbackMatrix: DemandMatrixData = {
+        months: [],
+        skills: [],
+        dataPoints: [],
+        totalDemand: 0,
+        totalTasks: 0,
+        totalClients: 0,
+        skillSummary: {},
+        clientTotals: new Map(),
+        clientRevenue: new Map(),
+        clientHourlyRates: new Map(),
+        clientSuggestedRevenue: new Map(),
+        clientExpectedLessSuggested: new Map(),
+        revenueTotals: {
+          totalSuggestedRevenue: 0,
+          totalExpectedRevenue: 0,
+          totalExpectedLessSuggested: 0
+        },
+        aggregationStrategy: 'skill-based'
+      };
+
+      return { matrixData: fallbackMatrix };
     }
   }
 
   /**
-   * Generate fresh matrix data without cache
+   * Generate cache key that includes aggregation strategy
    */
-  private static async generateFreshMatrixData(
-    mode: DemandMatrixMode,
-    startDate: Date,
-    context: any
-  ): Promise<DemandMatrixData> {
-    // Generate exactly 12-month forecast range
-    const monthStart = startOfMonth(startDate);
-    const endDate = addMonths(monthStart, 11);
-    const monthEnd = endOfMonth(endDate);
-    
-    // Create demand forecast parameters
-    const parameters = {
-      timeHorizon: 'year' as const,
-      dateRange: {
-        startDate: monthStart,
-        endDate: monthEnd
-      },
-      includeSkills: 'all' as const,
-      includeClients: 'all' as const,
-      granularity: 'monthly' as const
-    };
-
-    debugLog('Date range for 12-month matrix', { 
-      startDate: monthStart.toISOString(), 
-      endDate: monthEnd.toISOString(),
-      monthsDifference: (monthEnd.getFullYear() - monthStart.getFullYear()) * 12 + (monthEnd.getMonth() - monthStart.getMonth()) + 1
-    });
-
-    // Generate forecast data with error handling
-    let forecastData;
-    try {
-      forecastData = await ForecastGenerator.generateDemandForecast(parameters);
-    } catch (error) {
-      const recovery = errorHandlingService.handleError(
-        error as Error,
-        { ...context, operation: 'generateDemandForecast' }
-      );
-      
-      if (!recovery.success) {
-        throw new Error(`Forecast generation failed: ${recovery.message}`);
-      }
-      
-      forecastData = recovery.fallbackValue || [];
-    }
-    
-    // Fetch tasks for matrix transformation with error handling
-    const filters: DemandFilters = {
-      skills: [],
-      clients: [],
-      preferredStaff: [], // Phase 3: Add preferredStaff field
-      timeHorizon: {
-        start: parameters.dateRange.startDate,
-        end: parameters.dateRange.endDate
-      }
-    };
-    
-    let tasks;
-    try {
-      tasks = await DataFetcher.fetchClientAssignedTasks(filters);
-    } catch (error) {
-      const recovery = errorHandlingService.handleError(
-        error as Error,
-        { ...context, operation: 'fetchClientAssignedTasks' }
-      );
-      
-      if (!recovery.success) {
-        console.warn('Tasks fetch failed, continuing with empty array:', recovery.message);
-      }
-      
-      tasks = recovery.fallbackValue || [];
-    }
-    
-    // Transform to matrix format with error handling
-    let matrixData;
-    try {
-      matrixData = await MatrixTransformer.transformToMatrixData(forecastData, tasks);
-    } catch (error) {
-      const recovery = errorHandlingService.handleError(
-        error as Error,
-        { ...context, operation: 'transformToMatrixData' }
-      );
-      
-      if (!recovery.success) {
-        throw new Error(`Matrix transformation failed: ${recovery.message}`);
-      }
-      
-      matrixData = recovery.fallbackValue;
-    }
-    
-    // Enhanced validation with revenue-specific rules
-    const validationIssues = DemandMatrixValidationService.validateDemandMatrixData(matrixData);
-    const revenueValidation = revenueValidationService.validateRevenueData(matrixData, {
-      strictMode: false,
-      allowFallbackRates: true
-    });
-
-    // Log validation results
-    if (validationIssues.length > 0) {
-      console.warn('Standard validation issues:', validationIssues);
-    }
-    
-    if (!revenueValidation.isValid) {
-      console.warn('Revenue validation issues:', revenueValidation);
-      
-      // Handle critical errors
-      if (revenueValidation.errors.length > 0) {
-        const criticalErrors = revenueValidation.errors.filter(error => 
-          error.includes('negative revenue') || 
-          error.includes('calculation failed') ||
-          error.includes('critical')
-        );
-        
-        if (criticalErrors.length > 0) {
-          throw new Error(`Critical revenue validation errors: ${criticalErrors.join(', ')}`);
-        }
-      }
-    }
-
-    debugLog('Revenue validation summary', {
-      isValid: revenueValidation.isValid,
-      errors: revenueValidation.errors.length,
-      warnings: revenueValidation.warnings.length,
-      missingSkillRates: revenueValidation.missingSkillRates.length
-    });
-
-    return matrixData;
+  private static getCacheKeyWithStrategy(
+    mode: DemandMatrixMode, 
+    startDate: Date, 
+    useStaffAggregation: boolean
+  ): string {
+    const baseKey = DemandMatrixCacheService.getDemandMatrixCacheKey(mode, startDate);
+    const strategy = useStaffAggregation ? 'staff' : 'skill';
+    return `${baseKey}_${strategy}`;
   }
 }
