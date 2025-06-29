@@ -94,38 +94,39 @@ export class DemandDataService {
       
       // Fetch related tasks for matrix generation
       const tasks = await DataFetcher.fetchClientAssignedTasks({
-        skills: parameters.includeSkills === 'all' ? [] : parameters.includeSkills,
-        clients: parameters.includeClients === 'all' ? [] : parameters.includeClients,
+        skills: Array.isArray(parameters.skills) ? parameters.skills : [],
+        clients: Array.isArray(parameters.clients) ? parameters.clients : [],
         preferredStaff: [], // Phase 3: Add preferredStaff field
         timeHorizon: {
-          start: parameters.dateRange.startDate,
-          end: parameters.dateRange.endDate
+          start: parameters.dateRange.start,
+          end: parameters.dateRange.end
         }
       });
       
       // Transform to matrix
       const demandMatrix = await this.transformToMatrixData(forecastData, tasks);
       
-      // Calculate summary
-      const summary = {
-        totalDemand: demandMatrix.totalDemand,
-        totalTasks: demandMatrix.totalTasks,
-        totalClients: demandMatrix.totalClients,
-        averageMonthlyDemand: demandMatrix.months.length > 0 
-          ? demandMatrix.totalDemand / demandMatrix.months.length 
-          : 0
-      };
-
       return {
-        parameters,
-        data: forecastData,
-        demandMatrix,
-        summary,
-        generatedAt: new Date()
+        matrixData: demandMatrix,
+        success: true
       };
     } catch (error) {
       console.error('Error generating demand forecast with matrix:', error);
-      throw error;
+      return {
+        matrixData: {
+          months: [],
+          skills: [],
+          dataPoints: [],
+          totalDemand: 0,
+          totalTasks: 0,
+          totalClients: 0,
+          skillSummary: {},
+          clientTotals: new Map(),
+          aggregationStrategy: 'skill-based'
+        },
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Unknown error']
+      };
     }
   }
 }

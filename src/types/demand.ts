@@ -1,10 +1,11 @@
 
+
 export type DemandMatrixMode = 'demand-only' | 'demand-capacity' | 'gap-analysis';
 
 export interface MonthInfo {
   key: string;
   label: string;
-  index: number;
+  index?: number; // Make optional to support existing code
   startDate?: Date;
   endDate?: Date;
 }
@@ -111,12 +112,12 @@ export interface DemandDataPoint {
 }
 
 export interface DemandForecastParameters {
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date;
+  endDate?: Date;
   skills?: string[];
   clients?: string[];
   preferredStaff?: string[];
-  dateRange?: {
+  dateRange: {
     start: Date;
     end: Date;
   };

@@ -20,16 +20,16 @@ export class ForecastGenerator {
   ): Promise<ForecastData[]> {
     debugLog('FIXED: Generating demand forecast', { parameters });
 
-    const { dateRange, includeSkills, includeClients } = parameters;
+    const { dateRange, skills, clients } = parameters;
     
     // Create filters from parameters
     const filters: DemandFilters = {
-      skills: includeSkills === 'all' ? [] : includeSkills,
-      clients: includeClients === 'all' ? [] : includeClients,
+      skills: Array.isArray(skills) ? skills : [],
+      clients: Array.isArray(clients) ? clients : [],
       preferredStaff: [],
       timeHorizon: {
-        start: dateRange.startDate,
-        end: dateRange.endDate
+        start: dateRange.start,
+        end: dateRange.end
       }
     };
 
@@ -37,12 +37,12 @@ export class ForecastGenerator {
     const tasks = await DataFetcher.fetchClientAssignedTasks(filters);
 
     // CRITICAL FIX: Generate proper monthly periods ensuring 12 months minimum
-    let months = PeriodGenerator.generateMonthlyPeriods(dateRange.startDate, dateRange.endDate);
+    let months = PeriodGenerator.generateMonthlyPeriods(dateRange.start, dateRange.end);
     
     // Ensure we have at least 12 months for proper matrix display
     if (months.length < 12) {
       console.warn(`⚠️ [FORECAST GENERATOR] Only ${months.length} months generated, extending to 12`);
-      months = this.ensureTwelveMonthPeriods(dateRange.startDate);
+      months = this.ensureTwelveMonthPeriods(dateRange.start);
     }
 
     console.log(`📅 [FORECAST GENERATOR] FIXED: Processing ${months.length} months for forecast`);

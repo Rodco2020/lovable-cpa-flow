@@ -55,6 +55,7 @@ export const useDemandMatrixData = (
       // Use the active filters to determine aggregation strategy
       const filtersToUse = filters || activeFilters;
       
+      // FIXED: Use correct number of arguments for generateDemandMatrix
       const result = await DemandMatrixService.generateDemandMatrix(
         'demand-only',
         startDate,
