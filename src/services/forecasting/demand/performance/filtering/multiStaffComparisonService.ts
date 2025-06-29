@@ -1,174 +1,94 @@
+import { DemandMatrixData } from '@/types/demand';
 
-import { DemandMatrixData, DemandFilters } from '@/types/demand';
-import { FilterComparisonService, FilterComparisonResult } from './filterComparisonService';
-
-export interface MultiStaffComparisonResult {
-  testName: string;
-  testSubject: string;
-  staffComparisons: Array<{
-    staffName: string;
-    staffUuid: string;
-    result: FilterComparisonResult;
-  }>;
-  aggregatedMetrics: {
-    totalPreferredStaffTasks: number;
-    totalPreferredStaffHours: number;
-    totalSkillTasks: number;
-    totalSkillHours: number;
-    averageCommonTasks: number;
-    staffWithMostTasks: string;
-    staffWithLeastTasks: string;
-  };
-  executionTime: number;
+export interface StaffDistributionAnalysis {
+  totalDataPoints: number;
+  dataPointsWithTasks: number;
+  staffTaskCounts: Map<string, number>;
+  staffHourTotals: Map<string, number>;
+  staffSkillTypes: Map<string, Set<string>>;
+  averageTasksPerStaff: number;
+  averageHoursPerStaff: number;
+  staffCoveragePercentage: number;
 }
 
 /**
- * Service for comparing multiple staff members against skill filters
+ * Multi-Staff Comparison Service
+ * 
+ * Analyzes demand matrix data to provide insights into staff distribution,
+ * workload allocation, and skill coverage across different staff members.
  */
 export class MultiStaffComparisonService {
-  
   /**
-   * Compare multiple staff members against a target skill
+   * Analyze staff distribution in the demand matrix data
    */
-  static async compareMultipleStaff(
-    demandData: DemandMatrixData,
-    staffNames: string[] = ['Marciano Urbaez', 'Maria Vargas', 'Luis Rodriguez'],
-    targetSkill: string = 'Senior'
-  ): Promise<MultiStaffComparisonResult> {
-    console.log(`🔍 [MULTI-STAFF COMPARISON] Starting comparison for ${staffNames.length} staff members vs ${targetSkill} skill`);
+  static analyzeStaffDistribution(data: DemandMatrixData): StaffDistributionAnalysis {
+    const staffTaskCounts = new Map<string, number>();
+    const staffHourTotals = new Map<string, number>();
+    const staffSkillTypes = new Map<string, Set<string>>();
     
-    const startTime = performance.now();
-    const staffComparisons: MultiStaffComparisonResult['staffComparisons'] = [];
-
-    // Run comparison for each staff member
-    for (const staffName of staffNames) {
-      try {
-        console.log(`🎯 [MULTI-STAFF COMPARISON] Processing ${staffName}...`);
-        
-        const result = await FilterComparisonService.compareFilterResults(
-          demandData,
-          staffName,
-          targetSkill
-        );
-        
-        // Extract UUID from the result
-        const staffUuid = result.filters.preferredStaff.preferredStaff[0] || 'unknown';
-        
-        staffComparisons.push({
-          staffName,
-          staffUuid,
-          result
-        });
-        
-        console.log(`✅ [MULTI-STAFF COMPARISON] Completed ${staffName}:`, {
-          preferredStaffTasks: result.results.preferredStaffFilter.taskCount,
-          skillTasks: result.results.skillFilter.taskCount,
-          commonTasks: result.comparison.commonTasks
-        });
-        
-      } catch (error) {
-        console.error(`❌ [MULTI-STAFF COMPARISON] Failed for ${staffName}:`, error);
-        
-        // Create a placeholder result for failed comparisons
-        staffComparisons.push({
-          staffName,
-          staffUuid: 'error',
-          result: {
-            testName: `Failed Comparison`,
-            testSubject: `${staffName} vs ${targetSkill} Skill`,
-            filters: {
-              preferredStaff: { skills: [], clients: [], preferredStaff: [], timeHorizon: { start: new Date(), end: new Date() } },
-              skill: { skills: [], clients: [], preferredStaff: [], timeHorizon: { start: new Date(), end: new Date() } }
-            },
-            results: {
-              preferredStaffFilter: { dataPoints: 0, totalHours: 0, taskCount: 0, matchedTasks: [] },
-              skillFilter: { dataPoints: 0, totalHours: 0, taskCount: 0, matchedTasks: [] }
-            },
-            comparison: {
-              commonTasks: 0,
-              uniqueToPreferredStaff: 0,
-              uniqueToSkill: 0,
-              totalDifference: 0,
-              hoursDifference: 0,
-              analysisNotes: [`Error: ${error instanceof Error ? error.message : 'Unknown error'}`]
-            },
-            executionTime: 0
+    // Analyze each data point
+    data.dataPoints.forEach(dataPoint => {
+      if (dataPoint.taskBreakdown) {
+        dataPoint.taskBreakdown.forEach(task => {
+          if (task.preferredStaffId) {
+            // Ensure preferredStaffId is converted to string
+            const staffId = String(task.preferredStaffId);
+            
+            // Count tasks per staff member
+            staffTaskCounts.set(staffId, (staffTaskCounts.get(staffId) || 0) + 1);
+            
+            // Sum hours per staff member
+            staffHourTotals.set(staffId, (staffHourTotals.get(staffId) || 0) + task.monthlyHours);
+            
+            // Track skill types per staff member
+            if (!staffSkillTypes.has(staffId)) {
+              staffSkillTypes.set(staffId, new Set());
+            }
+            staffSkillTypes.get(staffId)!.add(task.skillType);
           }
         });
       }
-    }
-
-    // Calculate aggregated metrics
-    const aggregatedMetrics = this.calculateAggregatedMetrics(staffComparisons);
-    
-    const executionTime = performance.now() - startTime;
-
-    const result: MultiStaffComparisonResult = {
-      testName: `Multi-Staff Filter Comparison`,
-      testSubject: `${staffNames.join(', ')} vs ${targetSkill} Skill`,
-      staffComparisons,
-      aggregatedMetrics,
-      executionTime
-    };
-
-    console.log(`✅ [MULTI-STAFF COMPARISON] Multi-staff comparison complete:`, {
-      staffCount: staffComparisons.length,
-      totalExecutionTime: `${executionTime.toFixed(2)}ms`,
-      aggregatedMetrics
     });
 
-    return result;
+    // Calculate averages and coverage
+    const totalDataPoints = data.dataPoints.length;
+    const dataPointsWithTasks = data.dataPoints.filter(dp => dp.taskBreakdown && dp.taskBreakdown.length > 0).length;
+    const totalStaff = staffTaskCounts.size;
+    
+    let totalTasks = 0;
+    let totalHours = 0;
+    
+    staffTaskCounts.forEach(count => totalTasks += count);
+    staffHourTotals.forEach(hours => totalHours += hours);
+    
+    const averageTasksPerStaff = totalStaff > 0 ? totalTasks / totalStaff : 0;
+    const averageHoursPerStaff = totalStaff > 0 ? totalHours / totalStaff : 0;
+    const staffCoveragePercentage = totalDataPoints > 0 ? (dataPointsWithTasks / totalDataPoints) * 100 : 0;
+
+    return {
+      totalDataPoints,
+      dataPointsWithTasks,
+      staffTaskCounts,
+      staffHourTotals,
+      staffSkillTypes,
+      averageTasksPerStaff,
+      averageHoursPerStaff,
+      staffCoveragePercentage
+    };
   }
 
   /**
-   * Calculate aggregated metrics across all staff comparisons
+   * Generate a summary of the staff distribution analysis
    */
-  private static calculateAggregatedMetrics(
-    staffComparisons: MultiStaffComparisonResult['staffComparisons']
-  ): MultiStaffComparisonResult['aggregatedMetrics'] {
-    
-    const validComparisons = staffComparisons.filter(sc => sc.staffUuid !== 'error');
-    
-    if (validComparisons.length === 0) {
-      return {
-        totalPreferredStaffTasks: 0,
-        totalPreferredStaffHours: 0,
-        totalSkillTasks: 0,
-        totalSkillHours: 0,
-        averageCommonTasks: 0,
-        staffWithMostTasks: 'None',
-        staffWithLeastTasks: 'None'
-      };
-    }
-
-    const totalPreferredStaffTasks = validComparisons.reduce((sum, sc) => 
-      sum + sc.result.results.preferredStaffFilter.taskCount, 0);
-    
-    const totalPreferredStaffHours = validComparisons.reduce((sum, sc) => 
-      sum + sc.result.results.preferredStaffFilter.totalHours, 0);
-    
-    // Skill filter results should be the same across all comparisons (same skill filter)
-    const totalSkillTasks = validComparisons[0]?.result.results.skillFilter.taskCount || 0;
-    const totalSkillHours = validComparisons[0]?.result.results.skillFilter.totalHours || 0;
-    
-    const averageCommonTasks = validComparisons.reduce((sum, sc) => 
-      sum + sc.result.comparison.commonTasks, 0) / validComparisons.length;
-
-    // Find staff with most and least tasks
-    const sortedByTasks = validComparisons.sort((a, b) => 
-      b.result.results.preferredStaffFilter.taskCount - a.result.results.preferredStaffFilter.taskCount);
-    
-    const staffWithMostTasks = sortedByTasks[0]?.staffName || 'None';
-    const staffWithLeastTasks = sortedByTasks[sortedByTasks.length - 1]?.staffName || 'None';
-
-    return {
-      totalPreferredStaffTasks,
-      totalPreferredStaffHours,
-      totalSkillTasks,
-      totalSkillHours,
-      averageCommonTasks: Math.round(averageCommonTasks * 100) / 100,
-      staffWithMostTasks,
-      staffWithLeastTasks
-    };
+  static generateAnalysisSummary(analysis: StaffDistributionAnalysis): string {
+    return `
+      Staff Distribution Analysis Summary:
+      - Total Data Points: ${analysis.totalDataPoints}
+      - Data Points with Tasks: ${analysis.dataPointsWithTasks}
+      - Total Staff Members: ${analysis.staffTaskCounts.size}
+      - Average Tasks per Staff: ${analysis.averageTasksPerStaff.toFixed(2)}
+      - Average Hours per Staff: ${analysis.averageHoursPerStaff.toFixed(2)}
+      - Staff Coverage Percentage: ${analysis.staffCoveragePercentage.toFixed(2)}%
+    `;
   }
 }

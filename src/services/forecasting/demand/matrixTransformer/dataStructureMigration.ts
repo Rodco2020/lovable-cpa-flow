@@ -205,6 +205,7 @@ export class DataStructureMigrationService {
         month: dp.month,
         monthLabel: dp.monthLabel,
         demandHours: dp.demandHours,
+        totalHours: dp.totalHours || dp.demandHours, // Ensure totalHours is included
         taskCount: dp.taskCount,
         clientCount: dp.clientCount,
         taskBreakdown: dp.taskBreakdown
@@ -213,12 +214,20 @@ export class DataStructureMigrationService {
       totalTasks: enhancedData.totalTasks,
       totalClients: enhancedData.totalClients,
       skillSummary: Object.fromEntries(
-        Object.entries(enhancedData.skillSummary).map(([key, value]) => [
+        Object.entries(enhancedData.skillSummary).map(([key, value]: [string, any]) => [
           key,
           {
-            totalHours: value.totalHours,
-            taskCount: value.taskCount,
-            clientCount: value.clientCount
+            demandHours: value.demandHours || value.totalHours || 0,
+            totalHours: value.totalHours || value.demandHours || 0,
+            taskCount: value.taskCount || 0,
+            clientCount: value.clientCount || 0,
+            revenue: value.revenue,
+            hourlyRate: value.hourlyRate,
+            suggestedRevenue: value.suggestedRevenue,
+            expectedLessSuggested: value.expectedLessSuggested,
+            totalSuggestedRevenue: value.totalSuggestedRevenue,
+            totalExpectedLessSuggested: value.totalExpectedLessSuggested,
+            averageFeeRate: value.averageFeeRate
           }
         ])
       ),

@@ -1,4 +1,3 @@
-
 import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
@@ -186,6 +185,7 @@ export class StaffBasedAggregationService {
         month: 'short' 
       }),
       demandHours: totalDemand,
+      totalHours: totalDemand, // Add required property
       taskCount: taskBreakdown.length,
       clientCount: clientsSet.size,
       taskBreakdown: taskBreakdown,
@@ -314,6 +314,7 @@ export class StaffBasedAggregationService {
         month: 'short' 
       }),
       demandHours: totalDemand,
+      totalHours: totalDemand, // Add required property
       taskCount: taskBreakdown.length,
       clientCount: clientsSet.size,
       taskBreakdown: taskBreakdown,

@@ -49,7 +49,7 @@ export class SkillSummaryUtils {
     for (const [skill, data] of Object.entries(legacySummary)) {
       normalized[skill] = this.createSkillSummaryItem({
         totalHours: data.totalHours,
-        demandHours: data.demandHours || data.totalHours, // FIXED: Ensure demandHours is set
+        demandHours: data.demandHours || data.totalHours,
         taskCount: data.taskCount,
         clientCount: data.clientCount,
         revenue: data.revenue,

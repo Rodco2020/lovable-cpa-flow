@@ -1,5 +1,4 @@
 
-
 export type DemandMatrixMode = 'demand-only' | 'demand-capacity' | 'gap-analysis';
 
 export interface MonthInfo {
@@ -12,14 +11,13 @@ export interface MonthInfo {
 
 export interface SkillSummaryItem {
   demandHours: number;
+  totalHours: number;
   taskCount: number;
+  clientCount: number;
   revenue?: number;
   hourlyRate?: number;
   suggestedRevenue?: number;
   expectedLessSuggested?: number;
-  // Additional properties needed by the code
-  totalHours: number;
-  clientCount: number;
   totalSuggestedRevenue?: number;
   totalExpectedLessSuggested?: number;
   averageFeeRate?: number;
@@ -59,6 +57,7 @@ export interface ClientRevenueData {
   clientId: string;
   clientName: string;
   expectedMonthlyRevenue: number;
+  totalHours: number; // Add missing property
 }
 
 export interface DemandFilters {
@@ -99,6 +98,7 @@ export interface DemandDataPoint {
   month: string;
   monthLabel: string;
   demandHours: number;
+  totalHours: number; // Add missing property
   taskCount: number;
   clientCount: number;
   taskBreakdown: ClientTaskDemand[];
