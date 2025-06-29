@@ -56,7 +56,7 @@ export class DataPointFactoryService {
       demandHours: 0,
       taskCount: 0,
       clientCount: 0,
-      taskBreakdown,
+      taskBreakdown: [],
       // Include fallback revenue properties
       suggestedRevenue: 0,
       expectedLessSuggested: 0

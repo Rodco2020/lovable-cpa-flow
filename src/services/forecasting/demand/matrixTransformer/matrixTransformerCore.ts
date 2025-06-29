@@ -1,4 +1,3 @@
-
 import { debugLog } from '../../logger';
 import { DemandMatrixData } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
@@ -104,7 +103,12 @@ export class MatrixTransformerCore {
       // Use conditional aggregation service to generate data points
       const dataPoints = await ConditionalAggregationService.generateDataPointsWithConditionalAggregation(
         revenueContext,
-        activeFilters
+        {
+          hasStaffFilter: activeFilters?.hasStaffFilter || false,
+          hasSkillFilter: activeFilters?.hasSkillFilter || false,
+          preferredStaffIds: activeFilters?.preferredStaffIds || [],
+          skillTypes: activeFilters?.skillTypes || []
+        }
       );
       
       // Calculate totals and summaries using the generated data points
@@ -156,8 +160,7 @@ export class MatrixTransformerCore {
         processingTime,
         validTasks: validTasks.length,
         invalidTasks: invalidTasks.length,
-        resolvedTasks: resolvedTasks.length,
-        aggregationStrategy: baseMatrixData.aggregationStrategy
+        resolvedTasks: resolvedTasks.length
       });
 
       // Generate processing summary

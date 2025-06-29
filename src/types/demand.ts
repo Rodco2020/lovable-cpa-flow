@@ -5,6 +5,8 @@ export interface MonthInfo {
   key: string;
   label: string;
   index: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export interface SkillSummaryItem {
@@ -14,7 +16,7 @@ export interface SkillSummaryItem {
   hourlyRate?: number;
   suggestedRevenue?: number;
   expectedLessSuggested?: number;
-  // NEW: Additional properties needed by the code
+  // Additional properties needed by the code
   totalHours: number;
   clientCount: number;
   totalSuggestedRevenue?: number;
@@ -53,7 +55,6 @@ export interface RecurrenceCalculation {
 export interface ClientRevenueData {
   expectedRevenue: number;
   suggestedRevenue: number;
-  // NEW: Additional properties needed by the code
   clientId: string;
   clientName: string;
   expectedMonthlyRevenue: number;
@@ -67,6 +68,7 @@ export interface DemandFilters {
     start: Date;
     end: Date;
   };
+  includeInactive?: boolean;
 }
 
 export interface DemandMatrixData {
@@ -88,7 +90,6 @@ export interface DemandMatrixData {
     totalExpectedLessSuggested: number;
   };
   aggregationStrategy?: 'skill-based' | 'staff-based';
-  // NEW: Additional properties needed by some code
   skillFeeRates?: Map<string, number>;
 }
 
@@ -105,23 +106,41 @@ export interface DemandDataPoint {
   actualStaffId?: string;
   actualStaffName?: string;
   underlyingSkillType?: string;
-  // NEW: Revenue-related properties needed by the code
   suggestedRevenue?: number;
   expectedLessSuggested?: number;
 }
 
-// NEW: Add missing type export
 export interface DemandForecastParameters {
   startDate: Date;
   endDate: Date;
   skills?: string[];
   clients?: string[];
   preferredStaff?: string[];
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
+  includeSkills?: boolean;
+  includeClients?: boolean;
 }
 
-// NEW: Add missing type for matrix revenue comparison
+export interface DemandForecastResult {
+  matrixData: DemandMatrixData;
+  success: boolean;
+  errors?: string[];
+}
+
 export interface MatrixRevenueComparison {
   expectedRevenue: number;
   suggestedRevenue: number;
   difference: number;
+}
+
+// Legacy support types
+export interface LegacyDemandMatrixData extends DemandMatrixData {
+  // Legacy properties for backward compatibility
+}
+
+export function hasRevenueData(data: DemandMatrixData): boolean {
+  return !!(data.revenueTotals && data.revenueTotals.totalSuggestedRevenue > 0);
 }
