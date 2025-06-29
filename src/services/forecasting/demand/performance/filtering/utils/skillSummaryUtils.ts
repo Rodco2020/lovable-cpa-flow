@@ -36,7 +36,7 @@ export class SkillSummaryUtils {
       averageFeeRate: 0
     };
 
-    return summaries.reduce((acc, current) => {
+    return summaries.reduce((acc: SkillSummaryItem, current: Partial<SkillSummaryItem>) => {
       // Ensure we return a complete SkillSummaryItem
       const result: SkillSummaryItem = {
         totalHours: acc.totalHours + (current.totalHours || 0),
