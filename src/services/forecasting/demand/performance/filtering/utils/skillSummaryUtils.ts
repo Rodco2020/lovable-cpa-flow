@@ -36,8 +36,9 @@ export class SkillSummaryUtils {
       averageFeeRate: 0
     };
 
-    return summaries.reduce((acc: SkillSummaryItem, current: Partial<SkillSummaryItem>): SkillSummaryItem => {
-      return {
+    return summaries.reduce((acc, current) => {
+      // Ensure we return a complete SkillSummaryItem
+      const result: SkillSummaryItem = {
         totalHours: acc.totalHours + (current.totalHours || 0),
         demandHours: acc.demandHours + (current.demandHours || 0),
         taskCount: acc.taskCount + (current.taskCount || 0),
@@ -50,6 +51,7 @@ export class SkillSummaryUtils {
         totalExpectedLessSuggested: (acc.totalExpectedLessSuggested || 0) + (current.totalExpectedLessSuggested || 0),
         averageFeeRate: acc.averageFeeRate || current.averageFeeRate || 0
       };
+      return result;
     }, initialValue);
   }
   
