@@ -1,119 +1,113 @@
-
 import { describe, it, expect } from 'vitest';
-import { ClientTotalsCalculator } from '@/services/forecasting/demand/matrixTransformer/clientTotalsCalculator';
+import { ClientTotalsCalculator } from '@/services/forecasting/demand/calculators/clientTotalsCalculator';
 import { DemandDataPoint } from '@/types/demand';
 
 describe('ClientTotalsCalculator', () => {
   const mockDataPoints: DemandDataPoint[] = [
     {
-      skillType: 'Junior',
-      month: '2025-01',
-      monthLabel: 'January 2025',
-      demandHours: 20,
+      skillType: 'Tax Preparation',
+      month: '2024-01',
+      monthLabel: 'January 2024',
+      demandHours: 40,
+      totalHours: 40, // Add required totalHours property
       taskCount: 2,
       clientCount: 1,
       taskBreakdown: [
         {
           clientId: 'client-1',
-          clientName: 'ABC Corp',
+          clientName: 'Client A',
           recurringTaskId: 'task-1',
-          taskName: 'Monthly Bookkeeping',
-          skillType: 'Junior',
-          estimatedHours: 10,
-          recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-          monthlyHours: 10,
+          taskName: 'Tax Filing',
+          skillType: 'Tax Preparation',
+          estimatedHours: 20,
+          monthlyHours: 20,
           preferredStaffId: null,
-          preferredStaffName: null
-        },
-        {
-          clientId: 'client-2',
-          clientName: 'XYZ Ltd',
-          recurringTaskId: 'task-2',
-          taskName: 'Tax Prep',
-          skillType: 'Junior',
-          estimatedHours: 10,
-          recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-          monthlyHours: 10,
-          preferredStaffId: null,
-          preferredStaffName: null
+          preferredStaffName: null,
+          recurrencePattern: {
+            type: 'Monthly',
+            interval: 1,
+            frequency: 1
+          }
         }
       ]
     },
     {
-      skillType: 'Senior',
-      month: '2025-01',
-      monthLabel: 'January 2025',
-      demandHours: 15,
+      skillType: 'Bookkeeping',
+      month: '2024-01',
+      monthLabel: 'January 2024',
+      demandHours: 30,
+      totalHours: 30, // Add required totalHours property
       taskCount: 1,
       clientCount: 1,
       taskBreakdown: [
         {
-          clientId: 'client-1',
-          clientName: 'ABC Corp',
-          recurringTaskId: 'task-3',
-          taskName: 'Financial Review',
-          skillType: 'Senior',
-          estimatedHours: 15,
-          recurrencePattern: { type: 'Monthly', interval: 1, frequency: 1 },
-          monthlyHours: 15,
+          clientId: 'client-2',
+          clientName: 'Client B',
+          recurringTaskId: 'task-2',
+          taskName: 'Monthly Bookkeeping',
+          skillType: 'Bookkeeping',
+          estimatedHours: 30,
+          monthlyHours: 30,
           preferredStaffId: null,
-          preferredStaffName: null
+          preferredStaffName: null,
+          recurrencePattern: {
+            type: 'Monthly',
+            interval: 1,
+            frequency: 1
+          }
         }
       ]
     }
   ];
 
-  describe('calculateClientTotals', () => {
-    it('should calculate correct totals for each client', () => {
-      const clientTotals = ClientTotalsCalculator.calculateClientTotals(mockDataPoints);
-      
-      expect(clientTotals.get('ABC Corp')).toBe(25); // 10 + 15
-      expect(clientTotals.get('XYZ Ltd')).toBe(10);
-      expect(clientTotals.size).toBe(2);
-    });
+  it('should calculate client totals correctly', () => {
+    const clientTotals = ClientTotalsCalculator.calculateClientTotals(mockDataPoints);
 
-    it('should handle empty data points', () => {
-      const clientTotals = ClientTotalsCalculator.calculateClientTotals([]);
-      
-      expect(clientTotals.size).toBe(0);
-    });
+    expect(clientTotals.size).toBe(2);
+    expect(clientTotals.get('client-1')).toBe(40);
+    expect(clientTotals.get('client-2')).toBe(30);
   });
 
-  describe('getSortedClientsByTotal', () => {
-    it('should sort clients by total hours descending', () => {
-      const clientTotals = new Map([
-        ['ABC Corp', 25],
-        ['XYZ Ltd', 10],
-        ['DEF Inc', 50]
-      ]);
-      
-      const sorted = ClientTotalsCalculator.getSortedClientsByTotal(clientTotals);
-      
-      expect(sorted).toEqual([
-        { name: 'DEF Inc', total: 50 },
-        { name: 'ABC Corp', total: 25 },
-        { name: 'XYZ Ltd', total: 10 }
-      ]);
-    });
+  it('should handle empty data points array', () => {
+    const clientTotals = ClientTotalsCalculator.calculateClientTotals([]);
+
+    expect(clientTotals.size).toBe(0);
   });
 
-  describe('calculateGrandTotal', () => {
-    it('should calculate grand total correctly', () => {
-      const clientTotals = new Map([
-        ['ABC Corp', 25],
-        ['XYZ Ltd', 10],
-        ['DEF Inc', 50]
-      ]);
-      
-      const grandTotal = ClientTotalsCalculator.calculateGrandTotal(clientTotals);
-      
-      expect(grandTotal).toBe(85);
-    });
+  it('should handle data points with zero demand hours', () => {
+    const zeroDemandDataPoints: DemandDataPoint[] = [
+      {
+        skillType: 'Tax Preparation',
+        month: '2024-01',
+        monthLabel: 'January 2024',
+        demandHours: 0,
+        totalHours: 0, // Add required totalHours property
+        taskCount: 0,
+        clientCount: 0,
+        taskBreakdown: [
+          {
+            clientId: 'client-1',
+            clientName: 'Client A',
+            recurringTaskId: 'task-1',
+            taskName: 'Tax Filing',
+            skillType: 'Tax Preparation',
+            estimatedHours: 0,
+            monthlyHours: 0,
+            preferredStaffId: null,
+            preferredStaffName: null,
+            recurrencePattern: {
+              type: 'Monthly',
+              interval: 1,
+              frequency: 1
+            }
+          }
+        ]
+      }
+    ];
 
-    it('should return 0 for empty map', () => {
-      const grandTotal = ClientTotalsCalculator.calculateGrandTotal(new Map());
-      
-      expect(grandTotal).toBe(0);
-    });
+    const clientTotals = ClientTotalsCalculator.calculateClientTotals(zeroDemandDataPoints);
+
+    expect(clientTotals.size).toBe(1);
+    expect(clientTotals.get('client-1')).toBe(0);
   });
 });

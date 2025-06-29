@@ -1,4 +1,3 @@
-
 import { DemandMatrixData, SkillSummaryItem, DemandDataPoint } from '@/types/demand';
 
 export const createMockSkillSummaryItem = (overrides: Partial<SkillSummaryItem> = {}): SkillSummaryItem => ({
@@ -15,6 +14,17 @@ export const createMockSkillSummaryItem = (overrides: Partial<SkillSummaryItem> 
   averageFeeRate: 75,
   ...overrides
 });
+
+export const createMockSkillSummary = (overrides: Partial<SkillSummaryItem> = {}): SkillSummaryItem => {
+  return {
+    totalHours: 100,
+    demandHours: 80, // Add required demandHours property
+    taskCount: 5,
+    clientCount: 2,
+    // Remove skillType as it doesn't exist in SkillSummaryItem type
+    ...overrides
+  };
+};
 
 export const createMockDemandDataPoint = (overrides: Partial<DemandDataPoint> = {}): DemandDataPoint => ({
   skillType: 'Tax Preparation',

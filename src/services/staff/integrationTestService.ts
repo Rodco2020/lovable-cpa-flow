@@ -1,4 +1,3 @@
-
 import { UuidResolutionService } from './uuidResolutionService';
 import { StaffFilterValidationService } from './staffFilterValidationService';
 import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
@@ -180,6 +179,7 @@ export class StaffFilteringIntegrationTestService {
             month: '2024-01',
             monthLabel: 'January 2024',
             demandHours: 40,
+            totalHours: 40, // Add required totalHours property
             taskCount: 2,
             clientCount: 1,
             taskBreakdown: [
@@ -202,8 +202,15 @@ export class StaffFilteringIntegrationTestService {
         totalTasks: 2,
         totalClients: 1,
         skillSummary: {
-          'Junior': { totalHours: 40, taskCount: 2, clientCount: 1 }
-        }
+          'Junior': { 
+            totalHours: 40, 
+            demandHours: 40, // Add required demandHours property
+            taskCount: 2, 
+            clientCount: 1 
+          }
+        },
+        clientTotals: new Map([['client-1', 40]]), // Add required clientTotals property
+        aggregationStrategy: 'skill-based' // Add required aggregationStrategy property
       };
 
       // Test filtering with the staff UUID
