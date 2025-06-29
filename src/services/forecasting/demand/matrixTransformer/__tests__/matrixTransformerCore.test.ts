@@ -17,11 +17,10 @@ describe('MatrixTransformerCore', () => {
   const mockForecastData: ForecastData[] = [
     {
       period: '2024-01',
-      // Remove totalDemand as it doesn't exist in ForecastData type
-      skillBreakdown: [
-        { skill: 'Tax Preparation', hours: 60 },
-        { skill: 'Bookkeeping', hours: 40 }
-      ]
+      demand: {
+        'Tax Preparation': 60,
+        'Bookkeeping': 40
+      }
     }
   ];
 

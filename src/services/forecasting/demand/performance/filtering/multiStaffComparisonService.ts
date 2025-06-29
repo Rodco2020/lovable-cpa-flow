@@ -12,10 +12,29 @@ export interface StaffDistributionAnalysis {
   staffCoveragePercentage: number;
 }
 
+export interface StaffComparisonData {
+  staffId: string;
+  staffName: string;
+  taskCount: number;
+  totalHours: number;
+  skillTypes: string[];
+  utilizationRate: number;
+}
+
 export interface MultiStaffComparisonResult {
   analysis: StaffDistributionAnalysis;
   summary: string;
   recommendations: string[];
+  aggregatedMetrics: {
+    totalStaff: number;
+    totalTasks: number;
+    totalHours: number;
+    averageTasksPerStaff: number;
+    averageHoursPerStaff: number;
+  };
+  staffComparisons: StaffComparisonData[];
+  testSubject: string;
+  executionTime: number;
 }
 
 /**
@@ -88,14 +107,53 @@ export class MultiStaffComparisonService {
    * Compare multiple staff members and provide detailed analysis
    */
   static compareMultipleStaff(data: DemandMatrixData): MultiStaffComparisonResult {
+    const startTime = performance.now();
     const analysis = this.analyzeStaffDistribution(data);
     const summary = this.generateAnalysisSummary(analysis);
     const recommendations = this.generateRecommendations(analysis);
+    
+    // Create staff comparison data
+    const staffComparisons: StaffComparisonData[] = [];
+    analysis.staffTaskCounts.forEach((taskCount, staffId) => {
+      const totalHours = analysis.staffHourTotals.get(staffId) || 0;
+      const skillTypes = Array.from(analysis.staffSkillTypes.get(staffId) || []);
+      
+      staffComparisons.push({
+        staffId,
+        staffName: `Staff ${staffId}`, // This would normally come from a staff lookup
+        taskCount,
+        totalHours,
+        skillTypes,
+        utilizationRate: totalHours > 0 ? (totalHours / (40 * 4)) * 100 : 0 // Assuming 40 hours/week, 4 weeks
+      });
+    });
+
+    // Calculate aggregated metrics
+    const totalStaff = analysis.staffTaskCounts.size;
+    let totalTasks = 0;
+    let totalHours = 0;
+    
+    analysis.staffTaskCounts.forEach(count => totalTasks += count);
+    analysis.staffHourTotals.forEach(hours => totalHours += hours);
+
+    const aggregatedMetrics = {
+      totalStaff,
+      totalTasks,
+      totalHours,
+      averageTasksPerStaff: analysis.averageTasksPerStaff,
+      averageHoursPerStaff: analysis.averageHoursPerStaff
+    };
+
+    const executionTime = performance.now() - startTime;
 
     return {
       analysis,
       summary,
-      recommendations
+      recommendations,
+      aggregatedMetrics,
+      staffComparisons,
+      testSubject: 'Multi-Staff Comparison Analysis',
+      executionTime
     };
   }
 

@@ -1,41 +1,45 @@
 
 /**
- * Forecasting Demand Calculators Module
+ * Demand Calculators Module
  * 
- * This module provides comprehensive revenue calculation services for the
- * Demand Forecast Matrix, supporting both "Total Suggested Revenue" and
- * "Expected Less Suggested" column calculations.
- * 
- * Key Components:
- * - SuggestedRevenueCalculator: Core calculation engine for skill-based revenue
- * - RevenueComparisonService: Bulk processing and comparison service
- * - Performance optimization and caching mechanisms
- * - Comprehensive error handling and fallback logic
+ * Central export point for all demand calculation services
  */
 
-// Core calculator exports
-export {
-  SuggestedRevenueCalculator,
-  suggestedRevenueCalculator,
-  SuggestedRevenueCalculatorError,
-  type SuggestedRevenueCalculation
-} from './SuggestedRevenueCalculator';
+// Main calculator services
+export { ClientTotalsCalculator } from './clientTotalsCalculator';
+export { RevenueComparisonService } from './RevenueComparisonService';
 
-// Comparison service exports
-export {
-  RevenueComparisonService,
-  revenueComparisonService,
-  RevenueComparisonServiceError,
-  type SkillDemandData,
-  type RevenueComparisonResult,
-  type BulkRevenueCalculationOptions
+// Types
+export type { 
+  RevenueDifferenceResult,
 } from './RevenueComparisonService';
 
-// Re-export ClientRevenueData from demand types for convenience
-export type { ClientRevenueData } from '@/types/demand';
+// Additional types that might be needed
+export interface SkillDemandData {
+  skillType: string;
+  demandHours: number;
+  taskCount: number;
+  clientCount: number;
+}
 
-// Re-export utility types from skills service for convenience
-export type {
-  SkillFeeRate,
-  SkillFeeRateMap
-} from '@/services/skills/feeRateService';
+export interface RevenueComparisonResult {
+  totalExpectedRevenue: number;
+  totalSuggestedRevenue: number;
+  totalDifference: number;
+  percentageDifference: number;
+}
+
+export interface BulkRevenueCalculationOptions {
+  includeInactive?: boolean;
+  skillFilter?: string[];
+  clientFilter?: string[];
+  monthRange?: { start: string; end: string };
+}
+
+// Service error class for consistency
+export class RevenueComparisonServiceError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'RevenueComparisonServiceError';
+  }
+}
