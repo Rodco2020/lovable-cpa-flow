@@ -1,3 +1,4 @@
+
 import { SkillSummaryItem } from '@/types/demand';
 
 /**
@@ -35,19 +36,34 @@ export class SkillSummaryUtils {
       averageFeeRate: 0
     };
 
-    return summaries.reduce((acc: SkillSummaryItem, current: Partial<SkillSummaryItem>): SkillSummaryItem => {
+    return summaries.reduce((acc, current) => {
+      // Convert the partial to a complete item by providing defaults
+      const completeItem: SkillSummaryItem = {
+        totalHours: current.totalHours || 0,
+        demandHours: current.demandHours || 0,
+        taskCount: current.taskCount || 0,
+        clientCount: current.clientCount || 0,
+        revenue: current.revenue || 0,
+        hourlyRate: current.hourlyRate || 0,
+        suggestedRevenue: current.suggestedRevenue || 0,
+        expectedLessSuggested: current.expectedLessSuggested || 0,
+        totalSuggestedRevenue: current.totalSuggestedRevenue || 0,
+        totalExpectedLessSuggested: current.totalExpectedLessSuggested || 0,
+        averageFeeRate: current.averageFeeRate || 0
+      };
+
       return {
-        totalHours: acc.totalHours + (current.totalHours || 0),
-        demandHours: acc.demandHours + (current.demandHours || 0),
-        taskCount: acc.taskCount + (current.taskCount || 0),
-        clientCount: acc.clientCount + (current.clientCount || 0),
-        revenue: (acc.revenue || 0) + (current.revenue || 0),
-        hourlyRate: acc.hourlyRate || current.hourlyRate || 0,
-        suggestedRevenue: (acc.suggestedRevenue || 0) + (current.suggestedRevenue || 0),
-        expectedLessSuggested: (acc.expectedLessSuggested || 0) + (current.expectedLessSuggested || 0),
-        totalSuggestedRevenue: (acc.totalSuggestedRevenue || 0) + (current.totalSuggestedRevenue || 0),
-        totalExpectedLessSuggested: (acc.totalExpectedLessSuggested || 0) + (current.totalExpectedLessSuggested || 0),
-        averageFeeRate: acc.averageFeeRate || current.averageFeeRate || 0
+        totalHours: acc.totalHours + completeItem.totalHours,
+        demandHours: acc.demandHours + completeItem.demandHours,
+        taskCount: acc.taskCount + completeItem.taskCount,
+        clientCount: acc.clientCount + completeItem.clientCount,
+        revenue: acc.revenue + completeItem.revenue,
+        hourlyRate: acc.hourlyRate || completeItem.hourlyRate,
+        suggestedRevenue: acc.suggestedRevenue + completeItem.suggestedRevenue,
+        expectedLessSuggested: acc.expectedLessSuggested + completeItem.expectedLessSuggested,
+        totalSuggestedRevenue: acc.totalSuggestedRevenue + completeItem.totalSuggestedRevenue,
+        totalExpectedLessSuggested: acc.totalExpectedLessSuggested + completeItem.totalExpectedLessSuggested,
+        averageFeeRate: acc.averageFeeRate || completeItem.averageFeeRate
       };
     }, initialValue);
   }
