@@ -58,7 +58,6 @@ export const useDemandMatrixData = (
       // FIXED: Use correct number of arguments for generateDemandMatrix
       const result = await DemandMatrixService.generateDemandMatrix(
         'demand-only',
-        startDate,
         filtersToUse
       );
 

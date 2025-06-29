@@ -49,6 +49,7 @@ export class SkillSummaryUtils {
     for (const [skill, data] of Object.entries(legacySummary)) {
       normalized[skill] = this.createSkillSummaryItem({
         totalHours: data.totalHours,
+        demandHours: data.demandHours || data.totalHours, // FIXED: Ensure demandHours is set
         taskCount: data.taskCount,
         clientCount: data.clientCount,
         revenue: data.revenue,
@@ -62,5 +63,29 @@ export class SkillSummaryUtils {
     }
 
     return normalized;
+  }
+
+  /**
+   * Create a skill summary item from legacy data with proper demandHours mapping
+   */
+  static createFromLegacyData(legacyData: {
+    totalHours: number;
+    taskCount: number;
+    clientCount: number;
+    [key: string]: any;
+  }): SkillSummaryItem {
+    return this.createSkillSummaryItem({
+      demandHours: legacyData.totalHours, // Map totalHours to demandHours
+      totalHours: legacyData.totalHours,
+      taskCount: legacyData.taskCount,
+      clientCount: legacyData.clientCount,
+      revenue: legacyData.revenue,
+      hourlyRate: legacyData.hourlyRate,
+      suggestedRevenue: legacyData.suggestedRevenue,
+      expectedLessSuggested: legacyData.expectedLessSuggested,
+      totalSuggestedRevenue: legacyData.totalSuggestedRevenue,
+      totalExpectedLessSuggested: legacyData.totalExpectedLessSuggested,
+      averageFeeRate: legacyData.averageFeeRate
+    });
   }
 }
