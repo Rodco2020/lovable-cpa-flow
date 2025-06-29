@@ -27,7 +27,8 @@ vi.mock('@/services/forecasting/demandMatrixService', () => ({
         totalDemand: 0,
         totalTasks: 0,
         totalClients: 0,
-        skillSummary: {}
+        skillSummary: {},
+        clientTotals: new Map()
       }
     })),
     validateDemandMatrixData: vi.fn(() => []),
@@ -96,7 +97,8 @@ describe('ExtendedMatrixService', () => {
         totalDemand: 0,
         totalTasks: 0,
         totalClients: 0,
-        skillSummary: {}
+        skillSummary: {},
+        clientTotals: new Map()
       };
 
       ExtendedMatrixService.validateMatrixData(mockDemandMatrixData, 'demand');

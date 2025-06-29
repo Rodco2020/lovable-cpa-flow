@@ -21,19 +21,7 @@ export class SkillSummaryUtils {
       };
     }
     
-    return summaries.reduce((merged, current) => ({
-      totalHours: (merged.totalHours || 0) + (current.totalHours || 0),
-      demandHours: (merged.demandHours || 0) + (current.demandHours || 0),
-      taskCount: (merged.taskCount || 0) + (current.taskCount || 0),
-      clientCount: (merged.clientCount || 0) + (current.clientCount || 0),
-      revenue: (merged.revenue || 0) + (current.revenue || 0),
-      hourlyRate: merged.hourlyRate || current.hourlyRate || 0,
-      suggestedRevenue: (merged.suggestedRevenue || 0) + (current.suggestedRevenue || 0),
-      expectedLessSuggested: (merged.expectedLessSuggested || 0) + (current.expectedLessSuggested || 0),
-      totalSuggestedRevenue: (merged.totalSuggestedRevenue || 0) + (current.totalSuggestedRevenue || 0),
-      totalExpectedLessSuggested: (merged.totalExpectedLessSuggested || 0) + (current.totalExpectedLessSuggested || 0),
-      averageFeeRate: merged.averageFeeRate || current.averageFeeRate || 0
-    }), {
+    const merged: SkillSummaryItem = {
       totalHours: 0,
       demandHours: 0,
       taskCount: 0,
@@ -45,7 +33,21 @@ export class SkillSummaryUtils {
       totalSuggestedRevenue: 0,
       totalExpectedLessSuggested: 0,
       averageFeeRate: 0
-    });
+    };
+
+    return summaries.reduce((acc, current) => ({
+      totalHours: (acc.totalHours || 0) + (current.totalHours || 0),
+      demandHours: (acc.demandHours || 0) + (current.demandHours || 0),
+      taskCount: (acc.taskCount || 0) + (current.taskCount || 0),
+      clientCount: (acc.clientCount || 0) + (current.clientCount || 0),
+      revenue: (acc.revenue || 0) + (current.revenue || 0),
+      hourlyRate: acc.hourlyRate || current.hourlyRate || 0,
+      suggestedRevenue: (acc.suggestedRevenue || 0) + (current.suggestedRevenue || 0),
+      expectedLessSuggested: (acc.expectedLessSuggested || 0) + (current.expectedLessSuggested || 0),
+      totalSuggestedRevenue: (acc.totalSuggestedRevenue || 0) + (current.totalSuggestedRevenue || 0),
+      totalExpectedLessSuggested: (acc.totalExpectedLessSuggested || 0) + (current.totalExpectedLessSuggested || 0),
+      averageFeeRate: acc.averageFeeRate || current.averageFeeRate || 0
+    }), merged);
   }
   
   /**

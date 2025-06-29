@@ -42,12 +42,14 @@ const mockDemandData: DemandMatrixData = {
 describe('useDemandMatrixFiltering', () => {
   it('should filter data correctly', () => {
     const { result } = renderHook(() => 
-      useDemandMatrixFiltering(
-        mockDemandData,
-        ['Tax Preparation'],
-        [],
-        []
-      )
+      useDemandMatrixFiltering({
+        demandData: mockDemandData,
+        selectedSkills: ['Tax Preparation'],
+        selectedClients: [],
+        selectedPreferredStaff: [],
+        monthRange: { start: 0, end: 1 },
+        groupingMode: 'skill'
+      })
     );
 
     expect(result.current.getFilteredData).toBeDefined();
@@ -56,12 +58,14 @@ describe('useDemandMatrixFiltering', () => {
 
   it('should handle empty data', () => {
     const { result } = renderHook(() => 
-      useDemandMatrixFiltering(
-        null,
-        [],
-        [],
-        []
-      )
+      useDemandMatrixFiltering({
+        demandData: null,
+        selectedSkills: [],
+        selectedClients: [],
+        selectedPreferredStaff: [],
+        monthRange: { start: 0, end: 1 },
+        groupingMode: 'skill'
+      })
     );
 
     expect(result.current.getFilteredData()).toBeNull();
