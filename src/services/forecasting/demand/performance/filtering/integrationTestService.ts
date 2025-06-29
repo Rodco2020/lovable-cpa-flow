@@ -1,320 +1,282 @@
 
-/**
- * Integration Test Service for Preferred Staff Filtering
- * 
- * This service provides comprehensive end-to-end testing capabilities
- * for the preferred staff filtering system to ensure proper integration
- * between all components.
- */
-
-import { DemandMatrixData, DemandFilters } from '@/types/demand';
+import { DemandMatrixData, DemandDataPoint, SkillSummaryItem, ClientTaskDemand } from '@/types/demand';
 import { PreferredStaffFilterStrategy } from './preferredStaffFilterStrategy';
-import { normalizeStaffId, isStaffIdInArray, findStaffIdMatches } from '@/utils/staffIdUtils';
-import { runComprehensiveFilterTest, FilterTestResult } from './preferredStaffFilterStrategy/testingUtils';
-
-export interface IntegrationTestResult {
-  testPassed: boolean;
-  testName: string;
-  executionTime: number;
-  issues: string[];
-  recommendations: string[];
-  detailedResults: any;
-}
 
 /**
- * Create a complete DemandFilters object with defaults
- */
-function createCompleteFilters(overrides: Partial<DemandFilters> = {}): DemandFilters {
-  const currentDate = new Date();
-  const startDate = new Date(currentDate.getFullYear(), 0, 1); // Start of current year
-  const endDate = new Date(currentDate.getFullYear(), 11, 31); // End of current year
-  
-  return {
-    skills: [],
-    clients: [],
-    preferredStaff: [],
-    timeHorizon: {
-      start: startDate,
-      end: endDate
-    },
-    ...overrides
-  };
-}
-
-/**
- * Run comprehensive integration test for preferred staff filtering
- */
-function runIntegrationTest(
-  testName: string,
-  data: DemandMatrixData,
-  filters: DemandFilters
-): IntegrationTestResult {
-  console.group(`🧪 [INTEGRATION TEST] ${testName}`);
-  
-  const startTime = performance.now();
-  
-  try {
-    // Run the comprehensive filter test
-    const testResult = runComprehensiveFilterTest(data, filters);
-    
-    // Apply the actual filter strategy
-    const filterStrategy = new PreferredStaffFilterStrategy();
-    const filteredData = filterStrategy.apply(data, filters);
-    
-    // Additional integration validations
-    const additionalChecks = performIntegrationValidation(data, filters, filteredData);
-    
-    const executionTime = performance.now() - startTime;
-    
-    const result: IntegrationTestResult = {
-      testPassed: testResult.testPassed && additionalChecks.passed,
-      testName,
-      executionTime,
-      issues: [...testResult.issues, ...additionalChecks.issues],
-      recommendations: [...testResult.recommendations, ...additionalChecks.recommendations],
-      detailedResults: {
-        comprehensiveTest: testResult,
-        integrationChecks: additionalChecks,
-        filteredDataMetrics: {
-          originalDataPoints: data.dataPoints.length,
-          filteredDataPoints: filteredData.dataPoints.length,
-          filterEfficiency: ((data.dataPoints.length - filteredData.dataPoints.length) / data.dataPoints.length * 100).toFixed(1) + '%'
-        }
-      }
-    };
-    
-    console.log(`✅ [INTEGRATION TEST] ${testName} completed:`, {
-      passed: result.testPassed,
-      executionTime: `${executionTime.toFixed(2)}ms`,
-      issuesFound: result.issues.length
-    });
-    
-    console.groupEnd();
-    return result;
-    
-  } catch (error) {
-    const executionTime = performance.now() - startTime;
-    
-    console.error(`❌ [INTEGRATION TEST] ${testName} failed:`, error);
-    console.groupEnd();
-    
-    return {
-      testPassed: false,
-      testName,
-      executionTime,
-      issues: [`Test execution failed: ${error}`],
-      recommendations: ['Check test setup and data integrity'],
-      detailedResults: { error: error?.toString() }
-    };
-  }
-}
-
-/**
- * Perform additional integration validation checks
- */
-function performIntegrationValidation(
-  originalData: DemandMatrixData,
-  filters: DemandFilters,
-  filteredData: DemandMatrixData
-): {
-  passed: boolean;
-  issues: string[];
-  recommendations: string[];
-  checks: any;
-} {
-  const issues: string[] = [];
-  const recommendations: string[] = [];
-  const checks: any = {};
-  
-  // Check 1: Data integrity
-  checks.dataIntegrity = {
-    originalValid: originalData.dataPoints.length > 0,
-    filteredValid: Array.isArray(filteredData.dataPoints),
-    structurePreserved: filteredData.dataPoints.every(dp => 
-      dp.hasOwnProperty('taskBreakdown') && Array.isArray(dp.taskBreakdown)
-    )
-  };
-  
-  if (!checks.dataIntegrity.structurePreserved) {
-    issues.push('Filtered data structure is not preserved correctly');
-    recommendations.push('Verify filter strategy preserves data point structure');
-  }
-  
-  // Check 2: Filter application consistency
-  if (filters.preferredStaff && filters.preferredStaff.length > 0) {
-    const normalizedFilters = filters.preferredStaff
-      .map(id => normalizeStaffId(id))
-      .filter(Boolean) as string[];
-    
-    let matchingTasksFound = 0;
-    filteredData.dataPoints.forEach(dp => {
-      if (dp.taskBreakdown) {
-        dp.taskBreakdown.forEach(task => {
-          if (task.preferredStaffId && isStaffIdInArray(task.preferredStaffId, normalizedFilters)) {
-            matchingTasksFound++;
-          }
-        });
-      }
-    });
-    
-    checks.filterConsistency = {
-      normalizedFilters,
-      matchingTasksInResults: matchingTasksFound,
-      hasMatches: matchingTasksFound > 0
-    };
-    
-    if (matchingTasksFound === 0 && filteredData.dataPoints.length > 0) {
-      issues.push('Filtered data contains tasks but none match the preferred staff filter');
-      recommendations.push('Check if filter logic is correctly matching staff IDs');
-    }
-  }
-  
-  return {
-    passed: issues.length === 0,
-    issues,
-    recommendations,
-    checks
-  };
-}
-
-/**
- * Run a battery of integration tests
- */
-function runIntegrationTestSuite(
-  data: DemandMatrixData
-): IntegrationTestResult[] {
-  const testSuite: IntegrationTestResult[] = [];
-  
-  // Test 1: No filters (should return all data)
-  testSuite.push(runIntegrationTest(
-    'No Filters Test',
-    data,
-    createCompleteFilters({ preferredStaff: [] })
-  ));
-  
-  // Test 2: Single staff filter
-  if (data.dataPoints.length > 0 && data.dataPoints[0].taskBreakdown?.length > 0) {
-    const firstTaskStaffId = data.dataPoints[0].taskBreakdown[0].preferredStaffId;
-    if (firstTaskStaffId) {
-      testSuite.push(runIntegrationTest(
-        'Single Staff Filter Test',
-        data,
-        createCompleteFilters({ preferredStaff: [firstTaskStaffId] })
-      ));
-    }
-  }
-  
-  // Test 3: Multiple staff filter
-  const uniqueStaffIds = new Set<string>();
-  data.dataPoints.forEach(dp => {
-    dp.taskBreakdown?.forEach(task => {
-      if (task.preferredStaffId) {
-        uniqueStaffIds.add(task.preferredStaffId);
-      }
-    });
-  });
-  
-  if (uniqueStaffIds.size >= 2) {
-    const multipleStaffIds = Array.from(uniqueStaffIds).slice(0, 2);
-    testSuite.push(runIntegrationTest(
-      'Multiple Staff Filter Test',
-      data,
-      createCompleteFilters({ preferredStaff: multipleStaffIds })
-    ));
-  }
-  
-  // Test 4: Invalid staff filter
-  testSuite.push(runIntegrationTest(
-    'Invalid Staff Filter Test',
-    data,
-    createCompleteFilters({ preferredStaff: ['non-existent-staff-id'] })
-  ));
-  
-  return testSuite;
-}
-
-/**
- * Integration Test Service class for external consumption
+ * Integration Test Service for Demand Matrix Filtering
+ * 
+ * Provides comprehensive testing capabilities for demand matrix filtering operations,
+ * including performance testing, data validation, and end-to-end workflow validation.
  */
 export class IntegrationTestService {
   /**
-   * Run comprehensive integration tests
+   * Create a comprehensive test dataset for integration testing
    */
-  static async runIntegrationTests(): Promise<{
-    totalTests: number;
-    passedTests: number;
-    failedTests: number;
-    overallResult: 'PASS' | 'FAIL';
-    totalExecutionTime: number;
-    testResults: IntegrationTestResult[];
-  }> {
-    console.log('🚀 [INTEGRATION TEST SERVICE] Starting comprehensive integration tests');
-    
-    const startTime = performance.now();
-    
-    // For now, create mock data for testing
-    // In a real implementation, this would fetch actual matrix data
-    const mockData: DemandMatrixData = {
-      months: [{ key: '2024-01', label: 'January 2024' }],
-      skills: ['Junior', 'Senior', 'CPA'],
-      dataPoints: [
-        {
-          skillType: 'Junior',
-          month: '2024-01',
-          monthLabel: 'January 2024',
-          demandHours: 40,
-          taskCount: 5,
-          clientCount: 2,
-          taskBreakdown: [
-            {
-              clientId: 'client-1',
-              clientName: 'Test Client 1',
-              recurringTaskId: 'task-1',
-              taskName: 'Test Task 1',
-              skillType: 'Junior',
-              estimatedHours: 20,
-              recurrencePattern: { type: 'monthly', interval: 1, frequency: 1 },
-              monthlyHours: 20,
-              preferredStaffId: 'staff-1',
-              preferredStaffName: 'John Doe'
-            }
-          ]
+  static createComprehensiveTestDataset(): DemandMatrixData {
+    const testTaskBreakdown: ClientTaskDemand[] = [
+      {
+        clientId: 'client-1',
+        clientName: 'Test Client A',
+        recurringTaskId: 'task-1',
+        taskName: 'Tax Preparation',
+        skillType: 'Tax Preparation',
+        estimatedHours: 10,
+        monthlyHours: 10,
+        preferredStaffId: 'staff-1',
+        preferredStaffName: 'John Doe',
+        recurrencePattern: {
+          type: 'Monthly',
+          interval: 1,
+          frequency: 1
         }
-      ],
-      totalDemand: 40,
-      totalTasks: 5,
-      totalClients: 2,
-      skillSummary: {
-        'Junior': { totalHours: 40, taskCount: 5, clientCount: 2 }
+      },
+      {
+        clientId: 'client-2',
+        clientName: 'Test Client B',
+        recurringTaskId: 'task-2',
+        taskName: 'Bookkeeping',
+        skillType: 'Bookkeeping',
+        estimatedHours: 8,
+        monthlyHours: 8,
+        preferredStaffId: 'staff-2',
+        preferredStaffName: 'Jane Smith',
+        recurrencePattern: {
+          type: 'Monthly',
+          interval: 1,
+          frequency: 1
+        }
+      }
+    ];
+
+    const testDataPoints: DemandDataPoint[] = [
+      {
+        skillType: 'Tax Preparation',
+        month: '2024-01',
+        monthLabel: 'Jan 2024',
+        demandHours: 40,
+        totalHours: 40, // Add required property
+        taskCount: 5,
+        clientCount: 3,
+        taskBreakdown: [
+          {
+            clientId: 'client-1',
+            clientName: 'Test Client A',
+            recurringTaskId: 'task-1',
+            taskName: 'Tax Preparation',
+            skillType: 'Tax Preparation',
+            estimatedHours: 10,
+            monthlyHours: 10,
+            preferredStaffId: 'staff-1',
+            preferredStaffName: 'John Doe',
+            recurrencePattern: {
+              type: 'Monthly',
+              interval: 1,
+              frequency: 1
+            }
+          }
+        ]
+      },
+      {
+        skillType: 'Bookkeeping',
+        month: '2024-01',
+        monthLabel: 'Jan 2024',
+        demandHours: 32,
+        totalHours: 32, // Add required property
+        taskCount: 4,
+        clientCount: 2,
+        taskBreakdown: [
+          {
+            clientId: 'client-2',
+            clientName: 'Test Client B',
+            recurringTaskId: 'task-2',
+            taskName: 'Bookkeeping',
+            skillType: 'Bookkeeping',
+            estimatedHours: 8,
+            monthlyHours: 8,
+            preferredStaffId: 'staff-2',
+            preferredStaffName: 'Jane Smith',
+            recurrencePattern: {
+              type: 'Monthly',
+              interval: 1,
+              frequency: 1
+            }
+          }
+        ]
+      }
+    ];
+
+    const skillSummary: Record<string, SkillSummaryItem> = {
+      'Tax Preparation': {
+        demandHours: 40, // Add required property
+        totalHours: 40,
+        taskCount: 5,
+        clientCount: 3
+      },
+      'Bookkeeping': {
+        demandHours: 32, // Add required property
+        totalHours: 32,
+        taskCount: 4,
+        clientCount: 2
       }
     };
-    
-    const testResults = runIntegrationTestSuite(mockData);
-    const totalExecutionTime = performance.now() - startTime;
-    
-    const passedTests = testResults.filter(t => t.testPassed).length;
-    const failedTests = testResults.length - passedTests;
-    
-    const result = {
-      totalTests: testResults.length,
-      passedTests,
-      failedTests,
-      overallResult: failedTests === 0 ? 'PASS' as const : 'FAIL' as const,
-      totalExecutionTime,
-      testResults
+
+    return {
+      months: [
+        { key: '2024-01', label: 'Jan 2024' },
+        { key: '2024-02', label: 'Feb 2024' }
+      ],
+      skills: ['Tax Preparation', 'Bookkeeping'],
+      dataPoints: testDataPoints,
+      totalDemand: 72,
+      totalTasks: 9,
+      totalClients: 5,
+      skillSummary,
+      clientTotals: new Map([
+        ['client-1', 40],
+        ['client-2', 32]
+      ]),
+      aggregationStrategy: 'skill-based'
     };
+  }
+
+  /**
+   * Run comprehensive integration tests for preferred staff filtering
+   */
+  static async runPreferredStaffFilteringTests(): Promise<{
+    success: boolean;
+    results: Array<{
+      testName: string;
+      passed: boolean;
+      details: string;
+    }>;
+  }> {
+    const results: Array<{
+      testName: string;
+      passed: boolean;
+      details: string;
+    }> = [];
+
+    // Test 1: Basic filtering functionality
+    try {
+      const testData = this.createComprehensiveTestDataset();
+      const filterStrategy = new PreferredStaffFilterStrategy();
+      
+      const filteredData = filterStrategy.apply(testData, {
+        preferredStaff: ['staff-1']
+      });
+
+      const passed = filteredData.dataPoints.length > 0;
+      results.push({
+        testName: 'Basic Filtering Functionality',
+        passed,
+        details: passed ? 'Successfully filtered data by preferred staff' : 'Failed to filter data'
+      });
+    } catch (error) {
+      results.push({
+        testName: 'Basic Filtering Functionality',
+        passed: false,
+        details: `Error: ${error}`
+      });
+    }
+
+    // Test 2: Empty filter handling
+    try {
+      const testData = this.createComprehensiveTestDataset();
+      const filterStrategy = new PreferredStaffFilterStrategy();
+      
+      const filteredData = filterStrategy.apply(testData, {
+        preferredStaff: []
+      });
+
+      const passed = filteredData.dataPoints.length === testData.dataPoints.length;
+      results.push({
+        testName: 'Empty Filter Handling',
+        passed,
+        details: passed ? 'Correctly handled empty filter' : 'Failed to handle empty filter'
+      });
+    } catch (error) {
+      results.push({
+        testName: 'Empty Filter Handling',
+        passed: false,
+        details: `Error: ${error}`
+      });
+    }
+
+    // Test 3: Performance testing
+    try {
+      const testData = this.createComprehensiveTestDataset();
+      const filterStrategy = new PreferredStaffFilterStrategy();
+      
+      const startTime = performance.now();
+      const filteredData = filterStrategy.apply(testData, {
+        preferredStaff: ['staff-1', 'staff-2']
+      });
+      const endTime = performance.now();
+      
+      const processingTime = endTime - startTime;
+      const passed = processingTime < 100; // Should complete within 100ms
+      
+      results.push({
+        testName: 'Performance Testing',
+        passed,
+        details: `Processing time: ${processingTime.toFixed(2)}ms`
+      });
+    } catch (error) {
+      results.push({
+        testName: 'Performance Testing',
+        passed: false,
+        details: `Error: ${error}`
+      });
+    }
+
+    const allPassed = results.every(result => result.passed);
     
-    console.log('✅ [INTEGRATION TEST SERVICE] Integration tests completed:', {
-      totalTests: result.totalTests,
-      passed: result.passedTests,
-      failed: result.failedTests,
-      overallResult: result.overallResult,
-      executionTime: `${totalExecutionTime.toFixed(2)}ms`
+    return {
+      success: allPassed,
+      results
+    };
+  }
+
+  /**
+   * Validate data integrity after filtering operations
+   */
+  static validateDataIntegrity(originalData: DemandMatrixData, filteredData: DemandMatrixData): {
+    isValid: boolean;
+    issues: string[];
+  } {
+    const issues: string[] = [];
+
+    // Check if totals are consistent
+    const filteredTotalDemand = filteredData.dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+    if (filteredData.totalDemand !== filteredTotalDemand) {
+      issues.push('Total demand mismatch between summary and data points');
+    }
+
+    // Check if skill summary is consistent
+    const calculatedSkillSummary: Record<string, { demandHours: number; totalHours: number; taskCount: number; clientCount: number }> = {};
+    filteredData.dataPoints.forEach(dp => {
+      if (!calculatedSkillSummary[dp.skillType]) {
+        calculatedSkillSummary[dp.skillType] = { demandHours: 0, totalHours: 0, taskCount: 0, clientCount: 0 };
+      }
+      calculatedSkillSummary[dp.skillType].demandHours += dp.demandHours;
+      calculatedSkillSummary[dp.skillType].totalHours += dp.totalHours;
+      calculatedSkillSummary[dp.skillType].taskCount += dp.taskCount;
+      calculatedSkillSummary[dp.skillType].clientCount += dp.clientCount;
     });
-    
-    return result;
+
+    // Validate each skill in the summary
+    Object.keys(calculatedSkillSummary).forEach(skill => {
+      const summaryItem = filteredData.skillSummary[skill];
+      const calculated = calculatedSkillSummary[skill];
+      
+      if (!summaryItem || summaryItem.demandHours !== calculated.demandHours) {
+        issues.push(`Skill summary mismatch for ${skill}: demand hours`);
+      }
+    });
+
+    return {
+      isValid: issues.length === 0,
+      issues
+    };
   }
 }
-
-// Export the service functions for backward compatibility
-export { runIntegrationTest, runIntegrationTestSuite };

@@ -1,3 +1,4 @@
+
 import { DemandMatrixData } from '@/types/demand';
 
 export interface StaffDistributionAnalysis {
@@ -9,6 +10,12 @@ export interface StaffDistributionAnalysis {
   averageTasksPerStaff: number;
   averageHoursPerStaff: number;
   staffCoveragePercentage: number;
+}
+
+export interface MultiStaffComparisonResult {
+  analysis: StaffDistributionAnalysis;
+  summary: string;
+  recommendations: string[];
 }
 
 /**
@@ -78,6 +85,21 @@ export class MultiStaffComparisonService {
   }
 
   /**
+   * Compare multiple staff members and provide detailed analysis
+   */
+  static compareMultipleStaff(data: DemandMatrixData): MultiStaffComparisonResult {
+    const analysis = this.analyzeStaffDistribution(data);
+    const summary = this.generateAnalysisSummary(analysis);
+    const recommendations = this.generateRecommendations(analysis);
+
+    return {
+      analysis,
+      summary,
+      recommendations
+    };
+  }
+
+  /**
    * Generate a summary of the staff distribution analysis
    */
   static generateAnalysisSummary(analysis: StaffDistributionAnalysis): string {
@@ -90,5 +112,26 @@ export class MultiStaffComparisonService {
       - Average Hours per Staff: ${analysis.averageHoursPerStaff.toFixed(2)}
       - Staff Coverage Percentage: ${analysis.staffCoveragePercentage.toFixed(2)}%
     `;
+  }
+
+  /**
+   * Generate recommendations based on the analysis
+   */
+  static generateRecommendations(analysis: StaffDistributionAnalysis): string[] {
+    const recommendations: string[] = [];
+
+    if (analysis.staffCoveragePercentage < 50) {
+      recommendations.push('Consider assigning preferred staff to more tasks to improve coverage');
+    }
+
+    if (analysis.averageTasksPerStaff < 2) {
+      recommendations.push('Task distribution appears light - consider consolidating or redistributing tasks');
+    }
+
+    if (analysis.staffTaskCounts.size < 3) {
+      recommendations.push('Consider involving more staff members to improve workload distribution');
+    }
+
+    return recommendations;
   }
 }

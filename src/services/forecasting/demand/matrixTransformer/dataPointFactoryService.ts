@@ -33,6 +33,7 @@ export class DataPointFactoryService {
       month: month.key,
       monthLabel: month.label,
       demandHours: demandCalculation.totalDemand,
+      totalHours: demandCalculation.totalDemand, // Add required totalHours property
       taskCount: demandCalculation.totalTasks,
       clientCount: demandCalculation.totalClients,
       taskBreakdown,
@@ -54,6 +55,7 @@ export class DataPointFactoryService {
       month: month.key,
       monthLabel: month.label,
       demandHours: 0,
+      totalHours: 0, // Add required totalHours property
       taskCount: 0,
       clientCount: 0,
       taskBreakdown: [],

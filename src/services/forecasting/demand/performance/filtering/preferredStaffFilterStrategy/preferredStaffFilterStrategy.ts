@@ -1,23 +1,20 @@
 
-import { DemandMatrixData, DemandFilters, DemandDataPoint } from '@/types/demand';
-import { FilterStrategy } from '../types';
+import { DemandMatrixData, DemandFilters } from '@/types/demand';
+import { AbstractFilterStrategy } from '../baseFilterStrategy';
+import { normalizeStaffId } from '@/utils/staffIdUtils';
+import { SkillSummaryUtils } from '../../utils/skillSummaryUtils';
 import { StaffFilterAnalysis, StaffFilterDiagnostics, FilteringPerformanceMetrics } from './types';
-import { normalizeStaffId, isStaffIdInArray } from '@/utils/staffIdUtils';
-import { SkillSummaryUtils } from '@/services/forecasting/demand/utils/skillSummaryUtils';
 
 /**
- * Preferred Staff Filter Strategy
+ * Preferred Staff Filter Strategy - Core Implementation
  * 
- * Filters demand matrix data to show only tasks assigned to specific preferred staff members.
- * This strategy enables focused analysis of workload distribution among selected staff.
+ * This is the main implementation of the preferred staff filtering strategy.
+ * It handles filtering demand matrix data by selected staff members while
+ * maintaining data integrity and providing comprehensive diagnostics.
  */
-export class PreferredStaffFilterStrategy implements FilterStrategy {
-  getName(): string {
-    return 'PreferredStaffFilter';
-  }
-
-  getPriority(): number {
-    return 4; // High priority - staff-based filtering is specific
+export class PreferredStaffFilterStrategy extends AbstractFilterStrategy {
+  constructor() {
+    super('preferred-staff-filter', 2); // Medium priority
   }
 
   shouldApply(filters: DemandFilters): boolean {
@@ -26,116 +23,158 @@ export class PreferredStaffFilterStrategy implements FilterStrategy {
 
   apply(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
     if (!this.shouldApply(filters)) {
-      console.log('🔄 [PREFERRED STAFF FILTER] No staff filter provided, returning original data');
       return data;
     }
 
-    const startTime = performance.now();
-    console.log('🎯 [PREFERRED STAFF FILTER] Applying staff-based filtering...', {
-      staffFilter: filters.preferredStaff,
-      originalDataPoints: data.dataPoints.length
-    });
+    console.log(`🎯 [STAFF FILTER] Applying preferred staff filter with ${filters.preferredStaff!.length} selected staff`);
 
+    const startTime = performance.now();
+    
     // Normalize staff IDs for consistent comparison
     const normalizedStaffIds = filters.preferredStaff!
       .map(id => normalizeStaffId(id))
-      .filter(id => id !== undefined) as string[];
+      .filter(id => id !== null) as string[];
 
-    console.log('📋 [PREFERRED STAFF FILTER] Normalized staff IDs:', normalizedStaffIds);
+    if (normalizedStaffIds.length === 0) {
+      console.warn('⚠️ [STAFF FILTER] No valid staff IDs after normalization');
+      return this.createEmptyResult(data);
+    }
 
-    // Filter data points
-    const filteredDataPoints = data.dataPoints
-      .map(dataPoint => this.filterDataPoint(dataPoint, normalizedStaffIds))
-      .filter(dataPoint => dataPoint.taskBreakdown && dataPoint.taskBreakdown.length > 0);
+    const staffIdSet = new Set(normalizedStaffIds);
+    
+    // Filter data points by staff assignment
+    const filteredDataPoints = data.dataPoints.map(dataPoint => {
+      const filteredTasks = dataPoint.taskBreakdown.filter(task => {
+        if (!task.preferredStaffId) return false;
+        
+        const normalizedTaskStaffId = normalizeStaffId(task.preferredStaffId);
+        return normalizedTaskStaffId && staffIdSet.has(normalizedTaskStaffId);
+      });
 
-    // Recalculate totals
-    const totalDemand = filteredDataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
-    const totalTasks = filteredDataPoints.reduce((sum, dp) => sum + dp.taskCount, 0);
-    const totalClients = new Set(
-      filteredDataPoints.flatMap(dp => 
-        dp.taskBreakdown?.map(task => task.clientId) || []
-      )
-    ).size;
-
-    // Recalculate skill summary with proper demandHours mapping
-    const skillSummary: Record<string, any> = {};
-    filteredDataPoints.forEach(dp => {
-      if (!skillSummary[dp.skillType]) {
-        skillSummary[dp.skillType] = { totalHours: 0, taskCount: 0, clientCount: 0 };
+      if (filteredTasks.length === 0) {
+        return null; // Skip data points with no matching tasks
       }
-      skillSummary[dp.skillType].totalHours += dp.demandHours;
-      skillSummary[dp.skillType].taskCount += dp.taskCount;
-      skillSummary[dp.skillType].clientCount += dp.clientCount;
-    });
 
-    // Convert to proper SkillSummary format with demandHours
-    const properSkillSummary = Object.fromEntries(
-      Object.entries(skillSummary).map(([skill, data]: [string, any]) => [
-        skill,
-        SkillSummaryUtils.createFromLegacyData(data)
-      ])
-    );
+      // Recalculate data point metrics based on filtered tasks
+      const totalHours = filteredTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
+      const clientSet = new Set(filteredTasks.map(task => task.clientId));
 
+      return {
+        ...dataPoint,
+        demandHours: totalHours,
+        totalHours: totalHours,
+        taskCount: filteredTasks.length,
+        clientCount: clientSet.size,
+        taskBreakdown: filteredTasks
+      };
+    }).filter(dataPoint => dataPoint !== null);
+
+    const result = this.recalculateTotals(data, filteredDataPoints);
+    
     const endTime = performance.now();
     const processingTime = endTime - startTime;
 
-    console.log('✅ [PREFERRED STAFF FILTER] Filtering completed:', {
-      originalDataPoints: data.dataPoints.length,
-      filteredDataPoints: filteredDataPoints.length,
-      totalDemand,
-      totalTasks,
-      totalClients,
-      processingTime: `${processingTime.toFixed(2)}ms`
-    });
+    console.log(`✅ [STAFF FILTER] Filtered from ${data.dataPoints.length} to ${result.dataPoints.length} data points in ${processingTime.toFixed(2)}ms`);
 
+    return result;
+  }
+
+  /**
+   * Generate comprehensive diagnostics for the filtering operation
+   */
+  generateDiagnostics(
+    originalData: DemandMatrixData,
+    filteredData: DemandMatrixData,
+    filters: DemandFilters,
+    performanceMetrics: FilteringPerformanceMetrics
+  ): StaffFilterDiagnostics {
+    const analysis = this.analyzeStaffDistribution(originalData);
+    
     return {
-      ...data,
-      dataPoints: filteredDataPoints,
-      totalDemand,
-      totalTasks,
-      totalClients,
-      skillSummary: properSkillSummary
+      filterInputs: {
+        originalStaffIds: filters.preferredStaff || [],
+        normalizedStaffIds: (filters.preferredStaff || [])
+          .map(id => normalizeStaffId(id))
+          .filter(id => id !== null) as string[],
+        validationSuccess: true,
+        invalidIds: []
+      },
+      dataAnalysis: analysis,
+      filterResults: {
+        originalDataPoints: originalData.dataPoints.length,
+        filteredDataPoints: filteredData.dataPoints.length,
+        totalTasksProcessed: originalData.totalTasks,
+        tasksRetained: filteredData.totalTasks,
+        tasksFiltered: originalData.totalTasks - filteredData.totalTasks,
+        filterEfficiency: filteredData.totalTasks > 0 ? (filteredData.totalTasks / originalData.totalTasks) * 100 : 0
+      },
+      potentialIssues: [],
+      recommendations: []
     };
   }
 
-  private filterDataPoint(dataPoint: DemandDataPoint, staffIds: string[]): DemandDataPoint {
-    if (!dataPoint.taskBreakdown) {
-      return { ...dataPoint, taskBreakdown: [] };
-    }
+  /**
+   * Analyze staff distribution in the data
+   */
+  private analyzeStaffDistribution(data: DemandMatrixData): StaffFilterAnalysis {
+    let totalTasks = 0;
+    let tasksWithPreferredStaff = 0;
+    const staffIds = new Set<string>();
+    const staffNames = new Set<string>();
+    const tasksByStaff = new Map<string, number>();
 
-    const filteredTasks = dataPoint.taskBreakdown.filter(task => {
-      const taskStaffId = normalizeStaffId(task.preferredStaffId);
-      return taskStaffId && isStaffIdInArray(taskStaffId, staffIds);
+    data.dataPoints.forEach(dataPoint => {
+      dataPoint.taskBreakdown.forEach(task => {
+        totalTasks++;
+        
+        if (task.preferredStaffId) {
+          tasksWithPreferredStaff++;
+          
+          const normalizedId = normalizeStaffId(task.preferredStaffId);
+          if (normalizedId) {
+            staffIds.add(normalizedId);
+            tasksByStaff.set(normalizedId, (tasksByStaff.get(normalizedId) || 0) + 1);
+          }
+          
+          if (task.preferredStaffName) {
+            staffNames.add(task.preferredStaffName);
+          }
+        }
+      });
     });
 
-    // Recalculate data point metrics
-    const demandHours = filteredTasks.reduce((sum, task) => sum + task.monthlyHours, 0);
-    const taskCount = filteredTasks.length;
-    const clientCount = new Set(filteredTasks.map(task => task.clientId)).size;
-
     return {
-      ...dataPoint,
-      taskBreakdown: filteredTasks,
-      demandHours,
-      taskCount,
-      clientCount
+      totalTasks,
+      tasksWithPreferredStaff,
+      tasksWithoutPreferredStaff: totalTasks - tasksWithPreferredStaff,
+      uniquePreferredStaffIds: Array.from(staffIds),
+      preferredStaffNames: Array.from(staffNames),
+      filterCoverage: totalTasks > 0 ? (tasksWithPreferredStaff / totalTasks) * 100 : 0,
+      tasksByStaff
     };
   }
 
-  // Additional utility methods for diagnostics and analysis
-  analyzeStaffFilter(data: DemandMatrixData, filters: DemandFilters): StaffFilterAnalysis {
-    const allTasks = data.dataPoints.flatMap(dp => dp.taskBreakdown || []);
-    const tasksWithPreferredStaff = allTasks.filter(task => task.preferredStaffId);
-    const uniqueStaffIds = [...new Set(tasksWithPreferredStaff.map(task => task.preferredStaffId))].filter(Boolean);
-
+  /**
+   * Create an empty result when no data matches the filter
+   */
+  private createEmptyResult(originalData: DemandMatrixData): DemandMatrixData {
     return {
-      totalTasks: allTasks.length,
-      tasksWithPreferredStaff: tasksWithPreferredStaff.length,
-      tasksWithoutPreferredStaff: allTasks.length - tasksWithPreferredStaff.length,
-      uniquePreferredStaffIds: uniqueStaffIds as string[],
-      preferredStaffNames: tasksWithPreferredStaff.map(task => task.preferredStaffName).filter(Boolean) as string[],
-      filterCoverage: allTasks.length > 0 ? (tasksWithPreferredStaff.length / allTasks.length) * 100 : 0,
-      tasksByStaff: new Map()
+      ...originalData,
+      dataPoints: [],
+      totalDemand: 0,
+      totalTasks: 0,
+      totalClients: 0,
+      skillSummary: {},
+      clientTotals: new Map(),
+      clientRevenue: new Map(),
+      clientHourlyRates: new Map(),
+      clientSuggestedRevenue: new Map(),
+      clientExpectedLessSuggested: new Map(),
+      revenueTotals: {
+        totalSuggestedRevenue: 0,
+        totalExpectedRevenue: 0,
+        totalExpectedLessSuggested: 0
+      }
     };
   }
 }
