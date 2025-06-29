@@ -8,6 +8,7 @@ import { MarcianosTaskSummaryReport } from "@/components/forecasting/matrix/Marc
 import { MarcianosTaskComparisonReport } from "@/components/forecasting/matrix/MarcianosTaskComparisonReport";
 import { MultiStaffComparisonReport } from "@/components/forecasting/matrix/MultiStaffComparisonReport";
 import { DemandMatrixStateProvider } from "@/components/forecasting/matrix/DemandMatrixStateProvider";
+import { EnhancedMarcianosComparisonReport } from "@/components/forecasting/matrix/EnhancedMarcianosComparisonReport";
 
 const ForecastingModule: React.FC = () => {
   return (
@@ -20,21 +21,34 @@ const ForecastingModule: React.FC = () => {
   );
 };
 
-// Enhanced debug page with multi-staff comparison testing - wrapped with DemandMatrixStateProvider
+// Enhanced debug page with enhanced cross-comparison debugging
 const ForecastDebugPage: React.FC = () => {
   return (
     <DemandMatrixStateProvider>
       <div className="container py-8 max-w-7xl mx-auto">
         <div className="space-y-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Forecast Debugging Tools</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Enhanced Forecast Debugging Tools</h1>
             <p className="text-muted-foreground">
-              Enhanced debugging tools with UUID resolution, comprehensive staff filtering tests, and multi-staff filter comparison analysis.
+              Enhanced debugging with cross-filter comparison, detailed console logging, and comprehensive analysis of SKILL vs STAFF ID filtering behavior.
             </p>
           </div>
           
           <div className="space-y-6">
-            {/* NEW: Multi-Staff Filter Comparison Report */}
+            {/* NEW: Enhanced Marciano's Cross-Comparison Report */}
+            <section>
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold">Enhanced Cross-Comparison Analysis</h2>
+                <p className="text-sm text-muted-foreground">
+                  Comprehensive debugging report with detailed cross-analysis between SKILL and STAFF ID filtering. 
+                  Includes enhanced console logging to understand filtering behavior at the data point level.
+                </p>
+              </div>
+              
+              <EnhancedMarcianosComparisonReport />
+            </section>
+
+            {/* Multi-Staff Filter Comparison Report */}
             <section>
               <div className="mb-4">
                 <h2 className="text-xl font-semibold">Multi-Staff Filter Comparison Analysis</h2>
