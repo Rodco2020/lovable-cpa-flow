@@ -1,12 +1,14 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, User, Calendar, Clock, FileText } from 'lucide-react';
+import { AlertCircle, User, Calendar, Clock, FileText, RefreshCw } from 'lucide-react';
 import { useDemandMatrixData } from '@/components/forecasting/matrix/hooks/useDemandMatrixData';
 import { DemandPerformanceOptimizer } from '@/services/forecasting/demand/performanceOptimizer';
 import { DemandFilters } from '@/types/demand';
+import { UuidResolutionService } from '@/services/staff/uuidResolutionService';
+import { StaffFilterValidationService } from '@/services/staff/staffFilterValidationService';
 
 interface TaskSummary {
   clientName: string;
@@ -21,11 +23,47 @@ interface TaskSummary {
 export const MarcianosTaskSummaryReport: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [marcianoUuid, setMarcianoUuid] = useState<string | null>(null);
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
 
   // Use the hook with the correct parameter (grouping mode)
   const { demandData, isLoading, error } = useDemandMatrixData('skill');
 
-  // Create filters specifically for Marciano Urbaez and apply them to the data
+  // Resolve Marciano's UUID on component mount
+  useEffect(() => {
+    const resolveMarciano = async () => {
+      console.log('🔍 [MARCIANO REPORT] Resolving Marciano Urbaez UUID...');
+      
+      try {
+        // Try different name variations
+        const nameVariations = [
+          'Marciano Urbaez',
+          'Marciano',
+          'Urbaez',
+          'marciano urbaez',
+          'marciano-urbaez'
+        ];
+
+        const resolvedUuids = await UuidResolutionService.resolveStaffNamesToUuids(nameVariations);
+        
+        if (resolvedUuids.length > 0) {
+          setMarcianoUuid(resolvedUuids[0]);
+          setResolutionError(null);
+          console.log('✅ [MARCIANO REPORT] Successfully resolved Marciano UUID:', resolvedUuids[0]);
+        } else {
+          setResolutionError('Could not find Marciano Urbaez in the staff database');
+          console.warn('⚠️ [MARCIANO REPORT] Could not resolve Marciano UUID');
+        }
+      } catch (error) {
+        console.error('❌ [MARCIANO REPORT] Error resolving Marciano UUID:', error);
+        setResolutionError(`Error resolving staff: ${error}`);
+      }
+    };
+
+    resolveMarciano();
+  }, []);
+
+  // Create filters with resolved UUID
   const marcianoFilters: DemandFilters = useMemo(() => {
     const currentDate = new Date();
     const startDate = new Date(currentDate.getFullYear(), 0, 1);
@@ -34,60 +72,69 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
     return {
       skills: [],
       clients: [],
-      preferredStaff: ['marciano-urbaez', 'Marciano Urbaez', 'marciano', 'Marciano'], // Try multiple variations
+      preferredStaff: marcianoUuid ? [marcianoUuid] : [], // Use resolved UUID instead of names
       timeHorizon: {
         start: startDate,
         end: endDate
       }
     };
-  }, []);
+  }, [marcianoUuid]);
 
   // Filter the demand data for Marciano's tasks
   const filteredMatrixData = useMemo(() => {
-    if (!demandData) return null;
+    if (!demandData || !marcianoUuid) return null;
     
+    console.log('🔍 [MARCIANO REPORT] Filtering data with UUID:', marcianoUuid);
     return DemandPerformanceOptimizer.optimizeFiltering(demandData, marcianoFilters);
-  }, [demandData, marcianoFilters]);
+  }, [demandData, marcianoFilters, marcianoUuid]);
 
   const marcianoTasks: TaskSummary[] = useMemo(() => {
-    if (!filteredMatrixData || !filteredMatrixData.dataPoints) return [];
+    if (!filteredMatrixData || !filteredMatrixData.dataPoints || !marcianoUuid) return [];
     
+    console.log('🔍 [MARCIANO REPORT] Processing filtered data for tasks...');
     const tasks: TaskSummary[] = [];
     
     filteredMatrixData.dataPoints.forEach(dataPoint => {
       if (dataPoint.taskBreakdown) {
         dataPoint.taskBreakdown.forEach(task => {
-          if (task.preferredStaffId || task.preferredStaffName) {
-            const staffId = task.preferredStaffId?.toLowerCase();
-            const staffName = task.preferredStaffName?.toLowerCase();
+          // Now we're using UUID matching which should be more reliable
+          if (task.preferredStaffId === marcianoUuid) {
+            tasks.push({
+              clientName: task.clientName,
+              taskName: task.taskName,
+              skillType: task.skillType,
+              monthlyHours: task.monthlyHours,
+              estimatedHours: task.estimatedHours,
+              recurrencePattern: `${task.recurrencePattern.type} (${task.recurrencePattern.frequency}x)`,
+              month: dataPoint.monthLabel
+            });
             
-            // Check if this task is assigned to Marciano (various name/id formats)
-            const isMarcianoTask = staffId?.includes('marciano') || 
-                                   staffName?.includes('marciano') ||
-                                   staffId?.includes('urbaez') ||
-                                   staffName?.includes('urbaez');
-            
-            if (isMarcianoTask) {
-              tasks.push({
-                clientName: task.clientName,
-                taskName: task.taskName,
-                skillType: task.skillType,
-                monthlyHours: task.monthlyHours,
-                estimatedHours: task.estimatedHours,
-                recurrencePattern: `${task.recurrencePattern.type} (${task.recurrencePattern.frequency}x)`,
-                month: dataPoint.monthLabel
-              });
-            }
+            console.log('✅ [MARCIANO REPORT] Found matching task:', {
+              taskName: task.taskName,
+              client: task.clientName,
+              staffId: task.preferredStaffId
+            });
           }
         });
       }
     });
     
+    console.log('✅ [MARCIANO REPORT] Task processing complete:', {
+      totalTasks: tasks.length,
+      totalHours: tasks.reduce((sum, task) => sum + task.monthlyHours, 0)
+    });
+    
     return tasks;
-  }, [filteredMatrixData]);
+  }, [filteredMatrixData, marcianoUuid]);
 
   const handleGenerateReport = async () => {
     setIsGenerating(true);
+    
+    // Validate our filtering approach
+    if (marcianoUuid) {
+      const validation = await StaffFilterValidationService.validateAndResolveStaffFilters([marcianoUuid]);
+      console.log('🔍 [MARCIANO REPORT] Filter validation result:', validation);
+    }
     
     // Simulate report generation
     setTimeout(() => {
@@ -134,7 +181,7 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error || resolutionError) {
     return (
       <Card>
         <CardHeader>
@@ -145,7 +192,7 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Failed to load Marciano's task data: {error}
+            {resolutionError || `Failed to load Marciano's task data: ${error}`}
           </p>
           <Button onClick={handleGenerateReport} className="mt-4">
             Retry
@@ -161,9 +208,19 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />
           Marciano's Task Summary Report
+          {marcianoUuid && (
+            <Badge variant="secondary" className="ml-2 text-xs">
+              UUID: {marcianoUuid.substring(0, 8)}...
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>
           Comprehensive analysis of all tasks assigned to Marciano Urbaez
+          {marcianoUuid && (
+            <div className="text-xs text-green-600 mt-1">
+              ✅ Staff UUID resolved successfully
+            </div>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -228,7 +285,10 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
               <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-600">No tasks found for Marciano Urbaez</p>
               <p className="text-sm text-gray-500 mt-1">
-                This could mean no tasks are assigned to Marciano, or the staff ID doesn't match exactly.
+                {marcianoUuid 
+                  ? "Tasks may not be assigned to Marciano, or the data may be filtered out."
+                  : "Could not resolve Marciano's staff UUID."
+                }
               </p>
             </div>
           ) : (
@@ -278,7 +338,7 @@ export const MarcianosTaskSummaryReport: React.FC = () => {
               </>
             ) : (
               <>
-                <FileText className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2" />
                 {reportGenerated ? 'Regenerate Report' : 'Generate Detailed Report'}
               </>
             )}

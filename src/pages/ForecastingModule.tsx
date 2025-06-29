@@ -1,10 +1,9 @@
-
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ForecastDashboard from "@/components/forecasting/ForecastDashboard";
 import ForecastTestPage from "@/components/forecasting/ForecastTestPage";
 import ForecastSkillDebugger from "@/components/forecasting/ForecastSkillDebugger";
-import IntegrationVerificationPanel from "@/components/forecasting/matrix/IntegrationVerificationPanel";
+import { EnhancedIntegrationVerificationPanel } from "@/components/forecasting/matrix/EnhancedIntegrationVerificationPanel";
 import { MarcianosTaskSummaryReport } from "@/components/forecasting/matrix/MarcianosTaskSummaryReport";
 
 const ForecastingModule: React.FC = () => {
@@ -18,7 +17,7 @@ const ForecastingModule: React.FC = () => {
   );
 };
 
-// Enhanced debug page with Phase 4 integration testing and Marciano's report
+// Enhanced debug page with the new integration testing and UUID resolution
 const ForecastDebugPage: React.FC = () => {
   return (
     <div className="container py-8 max-w-7xl mx-auto">
@@ -26,34 +25,33 @@ const ForecastDebugPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Forecast Debugging Tools</h1>
           <p className="text-muted-foreground">
-            Use these tools to investigate capacity, skill mapping, and integration issues.
+            Enhanced debugging tools with UUID resolution and comprehensive staff filtering tests.
           </p>
         </div>
         
         <div className="space-y-6">
-          {/* NEW: Marciano's Task Summary Report */}
+          {/* NEW: Enhanced Integration Verification Panel */}
           <section>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold">Marciano's Task Summary Report</h2>
+              <h2 className="text-xl font-semibold">Enhanced Integration Verification</h2>
               <p className="text-sm text-muted-foreground">
-                Comprehensive analysis of all tasks assigned to Marciano Urbaez across all clients and time periods.
+                Comprehensive testing of the staff filtering system with UUID resolution, validation, and end-to-end verification.
+              </p>
+            </div>
+            
+            <EnhancedIntegrationVerificationPanel />
+          </section>
+
+          {/* Enhanced Marciano's Task Summary Report */}
+          <section>
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Marciano's Task Summary Report (Enhanced)</h2>
+              <p className="text-sm text-muted-foreground">
+                Updated report using proper UUID resolution instead of hardcoded names. Now correctly identifies and filters Marciano's tasks.
               </p>
             </div>
             
             <MarcianosTaskSummaryReport />
-          </section>
-
-          {/* Phase 4: Integration Testing Section */}
-          <section>
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold">Phase 4: Integration Testing</h2>
-              <p className="text-sm text-muted-foreground">
-                Verify that the matrix visualization correctly displays the updated calculations
-                and ensure system-wide consistency between calculation engines and UI components.
-              </p>
-            </div>
-            
-            <IntegrationVerificationPanel recurringTasks={[]} staffOptions={[]} />
           </section>
 
           {/* Existing Skill Mapping Analysis */}
