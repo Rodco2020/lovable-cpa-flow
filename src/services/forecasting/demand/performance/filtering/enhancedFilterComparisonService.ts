@@ -43,6 +43,97 @@ export interface EnhancedFilterComparisonResult {
 export class EnhancedFilterComparisonService {
   
   /**
+   * Validate staff filter data integrity
+   */
+  static validateStaffFilterData(
+    demandData: DemandMatrixData,
+    targetStaffUuid: string,
+    targetStaffName: string
+  ): {
+    isValid: boolean;
+    issues: string[];
+    taskAnalysis: {
+      totalTasks: number;
+      tasksWithPreferredStaff: number;
+      tasksAssignedToTarget: number;
+      skillDistribution: Record<string, number>;
+    };
+  } {
+    console.log(`🔍 [STAFF FILTER VALIDATION] Validating data for ${targetStaffName} (${targetStaffUuid})`);
+    
+    const issues: string[] = [];
+    let totalTasks = 0;
+    let tasksWithPreferredStaff = 0;
+    let tasksAssignedToTarget = 0;
+    const skillDistribution: Record<string, number> = {};
+
+    demandData.dataPoints.forEach(dataPoint => {
+      if (dataPoint.taskBreakdown) {
+        dataPoint.taskBreakdown.forEach(task => {
+          totalTasks++;
+          
+          // Count skill distribution
+          if (task.skillType) {
+            skillDistribution[task.skillType] = (skillDistribution[task.skillType] || 0) + 1;
+          }
+          
+          // Check staff assignments
+          if (task.preferredStaffId) {
+            tasksWithPreferredStaff++;
+            
+            if (task.preferredStaffId === targetStaffUuid) {
+              tasksAssignedToTarget++;
+              
+              console.log(`✅ [VALIDATION] Found task assigned to ${targetStaffName}:`, {
+                taskName: task.taskName,
+                clientName: task.clientName,
+                skillType: task.skillType,
+                preferredStaffId: task.preferredStaffId,
+                month: dataPoint.monthLabel
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // Validation checks
+    if (totalTasks === 0) {
+      issues.push('No tasks found in demand data');
+    }
+
+    if (tasksWithPreferredStaff === 0) {
+      issues.push('No tasks have preferred staff assignments');
+    }
+
+    if (tasksAssignedToTarget === 0) {
+      issues.push(`No tasks are assigned to ${targetStaffName} (${targetStaffUuid})`);
+    }
+
+    const isValid = issues.length === 0;
+
+    console.log(`📊 [STAFF FILTER VALIDATION] Summary:`, {
+      isValid,
+      issues,
+      totalTasks,
+      tasksWithPreferredStaff,
+      tasksAssignedToTarget,
+      skillDistribution
+    });
+
+    return {
+      isValid,
+      issues,
+      taskAnalysis: {
+        totalTasks,
+        tasksWithPreferredStaff,
+        tasksAssignedToTarget,
+        skillDistribution
+      }
+    };
+  }
+  
+  /**
    * Compare preferred staff filter vs skill filter with enhanced debugging
    */
   static async compareFiltersWithEnhancedDebugging(
@@ -64,6 +155,12 @@ export class EnhancedFilterComparisonService {
     
     const staffUuid = staffUuids[0];
     console.log(`✅ [ENHANCED FILTER COMPARISON] Resolved ${targetStaffName}: ${staffUuid}`);
+
+    // Validate staff filter data
+    const validation = this.validateStaffFilterData(demandData, staffUuid, targetStaffName);
+    if (!validation.isValid) {
+      console.warn(`⚠️ [ENHANCED FILTER COMPARISON] Data validation issues:`, validation.issues);
+    }
 
     // Create filter configurations
     const preferredStaffFilter: DemandFilters = {

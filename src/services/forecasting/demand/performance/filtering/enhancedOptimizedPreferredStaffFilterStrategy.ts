@@ -77,19 +77,35 @@ export class EnhancedOptimizedPreferredStaffFilterStrategy extends OptimizedPref
 
       if (task.preferredStaffId) {
         const normalizedStaffId = normalizeStaffId(task.preferredStaffId);
-        const isMatch = normalizedStaffId && lookupSet.has(normalizedStaffId);
+        const hasMatch = normalizedStaffId && lookupSet.has(normalizedStaffId);
+        
+        // ADD THE EXACT DEBUGGING YOU REQUESTED
+        console.log('🔍 EXACT FILTER COMPARISON:', {
+          marcianoUUID: '654242eb-7298-4218-9c3f-a9b9152f712d',
+          filterLookupSet: Array.from(lookupSet),
+          taskPreferredStaffId: task.preferredStaffId,
+          taskSkillType: task.skillType,
+          normalizedStaffId: normalizedStaffId,
+          
+          // The critical checks:
+          matchingByUUID: lookupSet.has(normalizedStaffId || ''),
+          matchingBySkill: lookupSet.has(task.skillType?.toLowerCase() || ''),
+          
+          // What's actually being returned
+          finalMatch: hasMatch
+        });
         
         console.log(`🔍 [ENHANCED STAFF FILTER - DEBUG] Staff ID comparison with cross-analysis:`, {
           originalStaffId: task.preferredStaffId,
           normalizedStaffId: normalizedStaffId,
-          isInLookupSet: isMatch,
+          isInLookupSet: hasMatch,
           lookupSetContains: Array.from(lookupSet),
-          comparisonResult: isMatch ? 'MATCH FOUND' : 'NO MATCH',
+          comparisonResult: hasMatch ? 'MATCH FOUND' : 'NO MATCH',
           taskSkillType: task.skillType,
-          crossComparisonNote: `This ${task.skillType} task ${isMatch ? 'WOULD' : 'WOULD NOT'} be included in staff filter`
+          crossComparisonNote: `This ${task.skillType} task ${hasMatch ? 'WOULD' : 'WOULD NOT'} be included in staff filter`
         });
 
-        if (isMatch) {
+        if (hasMatch) {
           console.log(`✅ [ENHANCED STAFF FILTER - DEBUG] MATCH FOUND! Task will be included:`, {
             taskName: task.taskName,
             clientName: task.clientName,
