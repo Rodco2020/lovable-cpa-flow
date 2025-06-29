@@ -21,21 +21,8 @@ export class SkillSummaryUtils {
       };
     }
     
-    return summaries.reduce((acc, current) => {
-      return {
-        totalHours: (acc.totalHours || 0) + (current.totalHours || 0),
-        demandHours: (acc.demandHours || 0) + (current.demandHours || 0),
-        taskCount: (acc.taskCount || 0) + (current.taskCount || 0),
-        clientCount: (acc.clientCount || 0) + (current.clientCount || 0),
-        revenue: (acc.revenue || 0) + (current.revenue || 0),
-        hourlyRate: acc.hourlyRate || current.hourlyRate || 0,
-        suggestedRevenue: (acc.suggestedRevenue || 0) + (current.suggestedRevenue || 0),
-        expectedLessSuggested: (acc.expectedLessSuggested || 0) + (current.expectedLessSuggested || 0),
-        totalSuggestedRevenue: (acc.totalSuggestedRevenue || 0) + (current.totalSuggestedRevenue || 0),
-        totalExpectedLessSuggested: (acc.totalExpectedLessSuggested || 0) + (current.totalExpectedLessSuggested || 0),
-        averageFeeRate: acc.averageFeeRate || current.averageFeeRate || 0
-      };
-    }, {
+    // Initialize with a complete SkillSummaryItem
+    const initialValue: SkillSummaryItem = {
       totalHours: 0,
       demandHours: 0,
       taskCount: 0,
@@ -47,7 +34,23 @@ export class SkillSummaryUtils {
       totalSuggestedRevenue: 0,
       totalExpectedLessSuggested: 0,
       averageFeeRate: 0
-    } as SkillSummaryItem);
+    };
+
+    return summaries.reduce((acc: SkillSummaryItem, current: Partial<SkillSummaryItem>): SkillSummaryItem => {
+      return {
+        totalHours: acc.totalHours + (current.totalHours || 0),
+        demandHours: acc.demandHours + (current.demandHours || 0),
+        taskCount: acc.taskCount + (current.taskCount || 0),
+        clientCount: acc.clientCount + (current.clientCount || 0),
+        revenue: (acc.revenue || 0) + (current.revenue || 0),
+        hourlyRate: acc.hourlyRate || current.hourlyRate || 0,
+        suggestedRevenue: (acc.suggestedRevenue || 0) + (current.suggestedRevenue || 0),
+        expectedLessSuggested: (acc.expectedLessSuggested || 0) + (current.expectedLessSuggested || 0),
+        totalSuggestedRevenue: (acc.totalSuggestedRevenue || 0) + (current.totalSuggestedRevenue || 0),
+        totalExpectedLessSuggested: (acc.totalExpectedLessSuggested || 0) + (current.totalExpectedLessSuggested || 0),
+        averageFeeRate: acc.averageFeeRate || current.averageFeeRate || 0
+      };
+    }, initialValue);
   }
   
   /**
