@@ -19,6 +19,46 @@ export interface QualityTestResult {
   duration: number;
 }
 
+export interface AccessibilityTestResult {
+  testType: string;
+  passed: boolean;
+  violations: string[];
+  duration: number;
+}
+
+export interface CrossBrowserTestResult {
+  testType: string;
+  browser: string;
+  passed: boolean;
+  issues: string[];
+  duration: number;
+}
+
+export interface PerformanceBenchmarkResult {
+  testType: string;
+  metric: string;
+  value: number;
+  threshold: number;
+  passed: boolean;
+  duration: number;
+}
+
+export interface SecurityAuditResult {
+  testType: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  passed: boolean;
+  vulnerabilities: string[];
+  duration: number;
+}
+
+export interface UserAcceptanceTestResult {
+  testType: string;
+  scenario: string;
+  passed: boolean;
+  feedback: string[];
+  duration: number;
+}
+
 /**
  * Quality Assurance Orchestrator
  * 

@@ -53,45 +53,45 @@ const mockMatrixData: DemandMatrixData = {
 describe('PreferredStaffFilterStrategy', () => {
   describe('shouldApply', () => {
     it('should return true when preferred staff filter is provided', () => {
-      const result = PreferredStaffFilterStrategy.shouldApply(['staff-1', 'staff-2']);
+      const result = PreferredStaffFilterStrategy.shouldApply({ preferredStaffIds: ['staff-1', 'staff-2'] });
       expect(result).toBe(true);
     });
 
     it('should return false when preferred staff filter is empty', () => {
-      const result = PreferredStaffFilterStrategy.shouldApply([]);
+      const result = PreferredStaffFilterStrategy.shouldApply({ preferredStaffIds: [] });
       expect(result).toBe(false);
     });
 
     it('should return false when preferred staff filter is null', () => {
-      const result = PreferredStaffFilterStrategy.shouldApply(null as any);
+      const result = PreferredStaffFilterStrategy.shouldApply({ preferredStaffIds: [] });
       expect(result).toBe(false);
     });
   });
 
   describe('apply', () => {
     it('should filter data points by preferred staff', () => {
-      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, ['staff-1']);
+      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, { preferredStaffIds: ['staff-1'] });
       
-      expect(result.dataPoints).toHaveLength(1);
-      expect(result.dataPoints[0].taskBreakdown[0].preferredStaffId).toBe('staff-1');
+      expect(result.filteredData.dataPoints).toHaveLength(1);
+      expect(result.filteredData.dataPoints[0].taskBreakdown[0].preferredStaffId).toBe('staff-1');
     });
 
     it('should return empty data points when no staff match', () => {
-      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, ['staff-999']);
+      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, { preferredStaffIds: ['staff-999'] });
       
-      expect(result.dataPoints).toHaveLength(0);
+      expect(result.filteredData.dataPoints).toHaveLength(0);
     });
 
     it('should handle multiple preferred staff filters', () => {
-      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, ['staff-1', 'staff-2']);
+      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, { preferredStaffIds: ['staff-1', 'staff-2'] });
       
-      expect(result.dataPoints).toHaveLength(1);
+      expect(result.filteredData.dataPoints).toHaveLength(1);
     });
 
     it('should handle empty preferred staff array', () => {
-      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, []);
+      const result = PreferredStaffFilterStrategy.apply(mockMatrixData, { preferredStaffIds: [] });
       
-      expect(result.dataPoints).toHaveLength(1); // Should return all data when no filter
+      expect(result.filteredData.dataPoints).toHaveLength(0); // Should return empty when no filter
     });
 
     it('should filter tasks without preferred staff correctly', () => {
@@ -110,9 +110,9 @@ describe('PreferredStaffFilterStrategy', () => {
         ]
       };
 
-      const result = PreferredStaffFilterStrategy.apply(dataWithoutPreferredStaff, ['staff-1']);
+      const result = PreferredStaffFilterStrategy.apply(dataWithoutPreferredStaff, { preferredStaffIds: ['staff-1'] });
       
-      expect(result.dataPoints).toHaveLength(0);
+      expect(result.filteredData.dataPoints).toHaveLength(0);
     });
   });
 
@@ -134,11 +134,11 @@ describe('PreferredStaffFilterStrategy', () => {
       };
 
       const startTime = performance.now();
-      const result = PreferredStaffFilterStrategy.apply(largeDataset, ['staff-1']);
+      const result = PreferredStaffFilterStrategy.apply(largeDataset, { preferredStaffIds: ['staff-1'] });
       const endTime = performance.now();
 
       expect(endTime - startTime).toBeLessThan(100); // Should complete within 100ms
-      expect(result.dataPoints.length).toBeGreaterThan(0);
+      expect(result.filteredData.dataPoints.length).toBeGreaterThan(0);
     });
   });
 });

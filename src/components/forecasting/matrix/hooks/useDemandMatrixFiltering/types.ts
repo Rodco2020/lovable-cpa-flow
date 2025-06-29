@@ -17,3 +17,23 @@ export interface FilteredDataResult {
 export interface UseDemandMatrixFilteringResult {
   getFilteredData: () => DemandMatrixData | null;
 }
+
+export interface DiagnosticsData {
+  filteringSteps: string[];
+  performanceMetrics: {
+    startTime: number;
+    endTime: number;
+    duration: number;
+  };
+  dataStats: {
+    originalDataPoints: number;
+    filteredDataPoints: number;
+    filterEfficiency: number;
+  };
+}
+
+export interface FallbackDataset {
+  isEmpty: boolean;
+  reason: string;
+  fallbackData: DemandMatrixData | null;
+}

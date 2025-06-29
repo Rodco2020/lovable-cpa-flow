@@ -55,8 +55,15 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
     groupingMode
   });
 
-  // Data filtering logic
-  const { getFilteredData } = useDemandMatrixFiltering(demandData, demandMatrixControls, groupingMode);
+  // Data filtering logic - fix the signature to match the hook expectation
+  const { getFilteredData } = useDemandMatrixFiltering({
+    demandData,
+    selectedSkills: demandMatrixControls.selectedSkills,
+    selectedClients: demandMatrixControls.selectedClients,
+    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
+    monthRange: demandMatrixControls.monthRange,
+    groupingMode
+  });
 
   // Event handlers
   const {
