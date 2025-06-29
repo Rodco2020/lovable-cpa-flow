@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ForecastDashboard from "@/components/forecasting/ForecastDashboard";
@@ -5,6 +6,7 @@ import ForecastTestPage from "@/components/forecasting/ForecastTestPage";
 import ForecastSkillDebugger from "@/components/forecasting/ForecastSkillDebugger";
 import { EnhancedIntegrationVerificationPanel } from "@/components/forecasting/matrix/EnhancedIntegrationVerificationPanel";
 import { MarcianosTaskSummaryReport } from "@/components/forecasting/matrix/MarcianosTaskSummaryReport";
+import { MarcianosTaskComparisonReport } from "@/components/forecasting/matrix/MarcianosTaskComparisonReport";
 
 const ForecastingModule: React.FC = () => {
   return (
@@ -17,7 +19,7 @@ const ForecastingModule: React.FC = () => {
   );
 };
 
-// Enhanced debug page with the new integration testing and UUID resolution
+// Enhanced debug page with the new integration testing and filter comparison
 const ForecastDebugPage: React.FC = () => {
   return (
     <div className="container py-8 max-w-7xl mx-auto">
@@ -25,12 +27,24 @@ const ForecastDebugPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Forecast Debugging Tools</h1>
           <p className="text-muted-foreground">
-            Enhanced debugging tools with UUID resolution and comprehensive staff filtering tests.
+            Enhanced debugging tools with UUID resolution, comprehensive staff filtering tests, and filter comparison analysis.
           </p>
         </div>
         
         <div className="space-y-6">
-          {/* NEW: Enhanced Integration Verification Panel */}
+          {/* NEW: Marciano's Filter Comparison Report */}
+          <section>
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Marciano's Filter Comparison Analysis</h2>
+              <p className="text-sm text-muted-foreground">
+                Direct comparison between preferred staff filter and Senior skill filter for Marciano Urbaez to identify filtering discrepancies.
+              </p>
+            </div>
+            
+            <MarcianosTaskComparisonReport />
+          </section>
+
+          {/* Enhanced Integration Verification Panel */}
           <section>
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Enhanced Integration Verification</h2>
