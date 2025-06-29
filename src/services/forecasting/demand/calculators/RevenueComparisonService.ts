@@ -115,7 +115,7 @@ export class RevenueComparisonService {
       // Calculate total suggested revenue
       const totalSuggestedRevenue = suggestedRevenueCalculator.getTotalSuggestedRevenue(skillBreakdown);
 
-      // Calculate total expected revenue
+      // Calculate total expected revenue - use expectedMonthlyRevenue property
       const totalExpectedRevenue = clientRevenueData.reduce(
         (sum, client) => sum + client.expectedMonthlyRevenue,
         0

@@ -47,7 +47,7 @@ export class DemandMatrixOrchestrator {
 
       // Check cache first (with strategy-aware cache key)
       const cacheKey = this.getCacheKeyWithStrategy(mode, startDate, shouldUseStaffAggregation);
-      const cachedData = DemandMatrixCacheService.getCachedMatrix(cacheKey);
+      const cachedData = DemandMatrixCacheService.getCachedData(cacheKey);
       
       if (cachedData) {
         console.log(`✅ [CACHE HIT] Using cached matrix data with ${cachedData.aggregationStrategy} strategy`);
@@ -79,7 +79,7 @@ export class DemandMatrixOrchestrator {
       );
 
       // Cache the result with strategy information
-      DemandMatrixCacheService.setCachedMatrix(cacheKey, matrixData);
+      DemandMatrixCacheService.setCachedData(cacheKey, matrixData);
 
       console.log(`✅ [MATRIX ORCHESTRATOR] Generated matrix with ${matrixData.aggregationStrategy} strategy:`, {
         dataPoints: matrixData.dataPoints.length,

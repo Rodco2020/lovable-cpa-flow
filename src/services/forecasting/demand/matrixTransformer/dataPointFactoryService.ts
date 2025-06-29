@@ -36,8 +36,9 @@ export class DataPointFactoryService {
       taskCount: demandCalculation.totalTasks,
       clientCount: demandCalculation.totalClients,
       taskBreakdown,
-      suggestedRevenue,
-      expectedLessSuggested
+      // Include revenue properties (optional)
+      ...(suggestedRevenue !== undefined && { suggestedRevenue }),
+      ...(expectedLessSuggested !== undefined && { expectedLessSuggested })
     };
   }
 
@@ -55,7 +56,8 @@ export class DataPointFactoryService {
       demandHours: 0,
       taskCount: 0,
       clientCount: 0,
-      taskBreakdown: [],
+      taskBreakdown,
+      // Include fallback revenue properties
       suggestedRevenue: 0,
       expectedLessSuggested: 0
     };

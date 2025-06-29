@@ -1,3 +1,4 @@
+
 export type DemandMatrixMode = 'demand-only' | 'demand-capacity' | 'gap-analysis';
 
 export interface MonthInfo {
@@ -13,6 +14,12 @@ export interface SkillSummaryItem {
   hourlyRate?: number;
   suggestedRevenue?: number;
   expectedLessSuggested?: number;
+  // NEW: Additional properties needed by the code
+  totalHours: number;
+  clientCount: number;
+  totalSuggestedRevenue?: number;
+  totalExpectedLessSuggested?: number;
+  averageFeeRate?: number;
 }
 
 export interface SkillSummary {
@@ -46,6 +53,10 @@ export interface RecurrenceCalculation {
 export interface ClientRevenueData {
   expectedRevenue: number;
   suggestedRevenue: number;
+  // NEW: Additional properties needed by the code
+  clientId: string;
+  clientName: string;
+  expectedMonthlyRevenue: number;
 }
 
 export interface DemandFilters {
@@ -77,6 +88,8 @@ export interface DemandMatrixData {
     totalExpectedLessSuggested: number;
   };
   aggregationStrategy?: 'skill-based' | 'staff-based';
+  // NEW: Additional properties needed by some code
+  skillFeeRates?: Map<string, number>;
 }
 
 export interface DemandDataPoint {
@@ -92,4 +105,23 @@ export interface DemandDataPoint {
   actualStaffId?: string;
   actualStaffName?: string;
   underlyingSkillType?: string;
+  // NEW: Revenue-related properties needed by the code
+  suggestedRevenue?: number;
+  expectedLessSuggested?: number;
+}
+
+// NEW: Add missing type export
+export interface DemandForecastParameters {
+  startDate: Date;
+  endDate: Date;
+  skills?: string[];
+  clients?: string[];
+  preferredStaff?: string[];
+}
+
+// NEW: Add missing type for matrix revenue comparison
+export interface MatrixRevenueComparison {
+  expectedRevenue: number;
+  suggestedRevenue: number;
+  difference: number;
 }
