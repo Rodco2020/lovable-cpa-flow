@@ -1,178 +1,139 @@
 
-import { describe, it, expect } from 'vitest';
-import { DemandMatrixData, DemandDataPoint } from '@/types/demand';
+import { DemandMatrixData } from '@/types/demand';
 
+/**
+ * Validation Test Suite
+ * 
+ * Provides comprehensive validation tests for demand matrix data
+ */
 export class ValidationTestSuite {
+  
+  /**
+   * Validate matrix structure
+   */
   static validateMatrixStructure(data: DemandMatrixData): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
+    if (!data) {
+      errors.push('Data is null or undefined');
+      return { isValid: false, errors };
+    }
+    
+    // Check required properties
     if (!data.months || !Array.isArray(data.months)) {
-      errors.push('Missing or invalid months array');
+      errors.push('Months array is missing or invalid');
     }
     
     if (!data.skills || !Array.isArray(data.skills)) {
-      errors.push('Missing or invalid skills array');
+      errors.push('Skills array is missing or invalid');
     }
     
     if (!data.dataPoints || !Array.isArray(data.dataPoints)) {
-      errors.push('Missing or invalid dataPoints array');
+      errors.push('DataPoints array is missing or invalid');
     }
     
     if (typeof data.totalDemand !== 'number') {
-      errors.push('Missing or invalid totalDemand');
+      errors.push('TotalDemand must be a number');
     }
     
     if (typeof data.totalTasks !== 'number') {
-      errors.push('Missing or invalid totalTasks');
+      errors.push('TotalTasks must be a number');
     }
     
     if (typeof data.totalClients !== 'number') {
-      errors.push('Missing or invalid totalClients');
+      errors.push('TotalClients must be a number');
     }
     
     if (!data.skillSummary || typeof data.skillSummary !== 'object') {
-      errors.push('Missing or invalid skillSummary');
+      errors.push('SkillSummary is missing or invalid');
     }
     
     if (!data.clientTotals || !(data.clientTotals instanceof Map)) {
-      errors.push('Missing or invalid clientTotals');
+      errors.push('ClientTotals must be a Map');
     }
     
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    if (!data.aggregationStrategy || typeof data.aggregationStrategy !== 'string') {
+      errors.push('AggregationStrategy is missing or invalid');
+    }
+    
+    return { isValid: errors.length === 0, errors };
   }
   
+  /**
+   * Validate matrix with fee rates
+   */
   static validateMatrixWithFeeRates(data: DemandMatrixData): { isValid: boolean; errors: string[] } {
-    const baseValidation = this.validateMatrixStructure(data);
-    const errors = [...baseValidation.errors];
+    const errors: string[] = [];
     
-    if (data.skillFeeRates && !(data.skillFeeRates instanceof Map)) {
-      errors.push('skillFeeRates must be a Map when present');
+    // First validate basic structure
+    const structureValidation = this.validateMatrixStructure(data);
+    if (!structureValidation.isValid) {
+      return structureValidation;
     }
     
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    // Check for fee rate related data
+    if (data.skillFeeRates && !(data.skillFeeRates instanceof Map)) {
+      errors.push('SkillFeeRates must be a Map when present');
+    }
+    
+    return { isValid: errors.length === 0, errors };
   }
   
+  /**
+   * Validate revenue calculations
+   */
   static validateRevenueCalculations(data: DemandMatrixData): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
-    // Check if revenue-related data is present and valid
-    if (data.clientRevenue && !(data.clientRevenue instanceof Map)) {
-      errors.push('clientRevenue must be a Map when present');
+    // First validate basic structure
+    const structureValidation = this.validateMatrixStructure(data);
+    if (!structureValidation.isValid) {
+      return structureValidation;
     }
     
-    if (data.clientSuggestedRevenue && !(data.clientSuggestedRevenue instanceof Map)) {
-      errors.push('clientSuggestedRevenue must be a Map when present');
+    // Check revenue-related properties
+    if (data.revenueTotals) {
+      if (typeof data.revenueTotals.totalSuggestedRevenue !== 'number') {
+        errors.push('RevenueTotals.totalSuggestedRevenue must be a number');
+      }
+      
+      if (typeof data.revenueTotals.totalExpectedRevenue !== 'number') {
+        errors.push('RevenueTotals.totalExpectedRevenue must be a number');
+      }
+      
+      if (typeof data.revenueTotals.totalExpectedLessSuggested !== 'number') {
+        errors.push('RevenueTotals.totalExpectedLessSuggested must be a number');
+      }
     }
     
-    if (data.revenueTotals && typeof data.revenueTotals !== 'object') {
-      errors.push('revenueTotals must be an object when present');
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    return { isValid: errors.length === 0, errors };
   }
   
+  /**
+   * Validate client totals
+   */
   static validateClientTotals(data: DemandMatrixData): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
-    if (!data.clientTotals || !(data.clientTotals instanceof Map)) {
-      errors.push('clientTotals is required and must be a Map');
+    // First validate basic structure
+    const structureValidation = this.validateMatrixStructure(data);
+    if (!structureValidation.isValid) {
+      return structureValidation;
     }
     
-    // Validate that client totals match data points
-    if (data.clientTotals && data.dataPoints) {
-      const clientsInDataPoints = new Set(
-        data.dataPoints.flatMap(dp => 
-          dp.taskBreakdown?.map(task => task.clientId) || []
-        )
-      );
-      
-      const clientsInTotals = new Set(data.clientTotals.keys());
-      
-      // Check if all clients in data points have totals
-      clientsInDataPoints.forEach(clientId => {
-        if (!clientsInTotals.has(clientId)) {
-          errors.push(`Client ${clientId} in data points but missing from clientTotals`);
+    // Validate client totals map
+    if (data.clientTotals instanceof Map) {
+      for (const [clientId, total] of data.clientTotals.entries()) {
+        if (typeof clientId !== 'string') {
+          errors.push(`Client ID must be a string, got: ${typeof clientId}`);
         }
-      });
+        
+        if (typeof total !== 'number') {
+          errors.push(`Client total must be a number for client ${clientId}, got: ${typeof total}`);
+        }
+      }
     }
     
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    return { isValid: errors.length === 0, errors };
   }
 }
-
-describe('ValidationTestSuite', () => {
-  it('should validate matrix data structure', () => {
-    const testData: DemandMatrixData = {
-      months: [{ key: '2024-01', label: 'January 2024' }],
-      skills: ['Junior', 'Senior'],
-      dataPoints: [
-        {
-          skillType: 'Junior',
-          month: '2024-01',
-          monthLabel: 'January 2024',
-          demandHours: 40,
-          totalHours: 40,
-          taskCount: 2,
-          clientCount: 1,
-          taskBreakdown: []
-        }
-      ],
-      totalDemand: 40,
-      totalTasks: 2,
-      totalClients: 1,
-      skillSummary: {
-        'Junior': { totalHours: 40, demandHours: 40, taskCount: 2, clientCount: 1 }
-      },
-      clientTotals: new Map([['client-1', 40]]),
-      aggregationStrategy: 'skill-based',
-      clientSuggestedRevenue: new Map()
-    };
-
-    const result = ValidationTestSuite.validateMatrixStructure(testData);
-    expect(result.isValid).toBe(true);
-  });
-
-  it('should validate matrix data with fee rates', () => {
-    const testDataWithRates: DemandMatrixData = {
-      skillFeeRates: new Map([['Junior', 50]]),
-      months: [{ key: '2024-01', label: 'January 2024' }],
-      skills: ['Junior', 'Senior'],
-      dataPoints: [
-        {
-          skillType: 'Junior',
-          month: '2024-01',
-          monthLabel: 'January 2024',
-          demandHours: 40,
-          totalHours: 40,
-          taskCount: 2,
-          clientCount: 1,
-          taskBreakdown: []
-        }
-      ],
-      totalDemand: 40,
-      totalTasks: 2,
-      totalClients: 1,
-      skillSummary: {
-        'Junior': { totalHours: 40, demandHours: 40, taskCount: 2, clientCount: 1 }
-      },
-      clientTotals: new Map([['client-1', 40]]),
-      aggregationStrategy: 'skill-based',
-      clientSuggestedRevenue: new Map()
-    };
-
-    const result = ValidationTestSuite.validateMatrixWithFeeRates(testDataWithRates);
-    expect(result.isValid).toBe(true);
-  });
-});

@@ -23,6 +23,23 @@ export interface PreferredStaffFilterResult {
 export class PreferredStaffFilterStrategy {
   
   /**
+   * Check if this filter strategy should be applied
+   */
+  static shouldApply(options: PreferredStaffFilterOptions): boolean {
+    return options.preferredStaffIds.length > 0;
+  }
+  
+  /**
+   * Apply preferred staff filtering to demand matrix data
+   */
+  static apply(
+    data: DemandMatrixData,
+    options: PreferredStaffFilterOptions
+  ): PreferredStaffFilterResult {
+    return this.applyFilter(data, options);
+  }
+  
+  /**
    * Apply preferred staff filtering to demand matrix data
    */
   static applyFilter(

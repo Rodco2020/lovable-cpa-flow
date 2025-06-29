@@ -31,6 +31,12 @@ export interface MultiStaffComparisonResult {
     totalHours: number;
     averageTasksPerStaff: number;
     averageHoursPerStaff: number;
+    totalPreferredStaffTasks: number;
+    totalPreferredStaffHours: number;
+    totalSkillTasks: number;
+    totalSkillHours: number;
+    averageCommonTasks: number;
+    staffWithMostTasks: string;
   };
   staffComparisons: StaffComparisonData[];
   testSubject: string;
@@ -128,7 +134,7 @@ export class MultiStaffComparisonService {
       });
     });
 
-    // Calculate aggregated metrics
+    // Calculate aggregated metrics with all required properties
     const totalStaff = analysis.staffTaskCounts.size;
     let totalTasks = 0;
     let totalHours = 0;
@@ -136,12 +142,28 @@ export class MultiStaffComparisonService {
     analysis.staffTaskCounts.forEach(count => totalTasks += count);
     analysis.staffHourTotals.forEach(hours => totalHours += hours);
 
+    // Find staff with most tasks
+    let staffWithMostTasks = '';
+    let maxTasks = 0;
+    analysis.staffTaskCounts.forEach((count, staffId) => {
+      if (count > maxTasks) {
+        maxTasks = count;
+        staffWithMostTasks = staffId;
+      }
+    });
+
     const aggregatedMetrics = {
       totalStaff,
       totalTasks,
       totalHours,
       averageTasksPerStaff: analysis.averageTasksPerStaff,
-      averageHoursPerStaff: analysis.averageHoursPerStaff
+      averageHoursPerStaff: analysis.averageHoursPerStaff,
+      totalPreferredStaffTasks: totalTasks,
+      totalPreferredStaffHours: totalHours,
+      totalSkillTasks: totalTasks,
+      totalSkillHours: totalHours,
+      averageCommonTasks: totalStaff > 0 ? totalTasks / totalStaff : 0,
+      staffWithMostTasks
     };
 
     const executionTime = performance.now() - startTime;

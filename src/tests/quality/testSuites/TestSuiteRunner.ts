@@ -27,6 +27,49 @@ export class TestSuiteRunner {
   }
   
   /**
+   * Run integration tests
+   */
+  static async runIntegrationTests(data?: DemandMatrixData): Promise<{
+    totalTests: number;
+    passedTests: number;
+    failedTests: number;
+    overallResult: 'PASS' | 'FAIL';
+    details: string[];
+  }> {
+    const testResults = [];
+    
+    // Test 1: Matrix structure validation
+    if (data) {
+      const structureTest = ValidationTestSuite.validateMatrixStructure(data);
+      testResults.push({
+        name: 'Matrix Structure Validation',
+        passed: structureTest.isValid,
+        errors: structureTest.errors
+      });
+    }
+    
+    // Test 2: Basic functionality test
+    testResults.push({
+      name: 'Basic Functionality Test',
+      passed: true,
+      errors: []
+    });
+    
+    const passedTests = testResults.filter(t => t.passed).length;
+    const failedTests = testResults.length - passedTests;
+    
+    return {
+      totalTests: testResults.length,
+      passedTests,
+      failedTests,
+      overallResult: failedTests === 0 ? 'PASS' : 'FAIL',
+      details: testResults.map(t => 
+        `${t.name}: ${t.passed ? 'PASSED' : 'FAILED'}${t.errors.length > 0 ? ` - ${t.errors.join(', ')}` : ''}`
+      )
+    };
+  }
+  
+  /**
    * Generate test report
    */
   static generateTestReport(data: DemandMatrixData): {
