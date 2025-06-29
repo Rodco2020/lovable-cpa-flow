@@ -35,7 +35,7 @@ export class EnhancedOptimizedPreferredStaffFilterStrategy extends OptimizedPref
     }
 
     // Get or create optimized staff lookup set
-    const lookupSet = this.getStaffLookupSet(filters.preferredStaff);
+    const lookupSet = this.getEnhancedStaffLookupSet(filters.preferredStaff);
     
     console.log(`🎯 [ENHANCED STAFF FILTER - DEBUG] Filter criteria with cross-comparison:`, {
       originalPreferredStaff: filters.preferredStaff,
@@ -152,9 +152,9 @@ export class EnhancedOptimizedPreferredStaffFilterStrategy extends OptimizedPref
   }
 
   /**
-   * Get staff lookup set with enhanced debugging
+   * Get enhanced staff lookup set with enhanced debugging (renamed to avoid conflict)
    */
-  private getStaffLookupSet(preferredStaff: (string | number | null | undefined)[]): Set<string> {
+  private getEnhancedStaffLookupSet(preferredStaff: (string | number | null | undefined)[]): Set<string> {
     const cacheKey = JSON.stringify(preferredStaff.sort());
     
     console.log(`🏗️ [ENHANCED STAFF FILTER - DEBUG] Creating enhanced lookup set:`, {
