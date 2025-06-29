@@ -7,6 +7,7 @@ import ForecastSkillDebugger from "@/components/forecasting/ForecastSkillDebugge
 import { EnhancedIntegrationVerificationPanel } from "@/components/forecasting/matrix/EnhancedIntegrationVerificationPanel";
 import { MarcianosTaskSummaryReport } from "@/components/forecasting/matrix/MarcianosTaskSummaryReport";
 import { MarcianosTaskComparisonReport } from "@/components/forecasting/matrix/MarcianosTaskComparisonReport";
+import { MultiStaffComparisonReport } from "@/components/forecasting/matrix/MultiStaffComparisonReport";
 
 const ForecastingModule: React.FC = () => {
   return (
@@ -19,7 +20,7 @@ const ForecastingModule: React.FC = () => {
   );
 };
 
-// Enhanced debug page with the new integration testing and filter comparison
+// Enhanced debug page with multi-staff comparison testing
 const ForecastDebugPage: React.FC = () => {
   return (
     <div className="container py-8 max-w-7xl mx-auto">
@@ -27,17 +28,29 @@ const ForecastDebugPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Forecast Debugging Tools</h1>
           <p className="text-muted-foreground">
-            Enhanced debugging tools with UUID resolution, comprehensive staff filtering tests, and filter comparison analysis.
+            Enhanced debugging tools with UUID resolution, comprehensive staff filtering tests, and multi-staff filter comparison analysis.
           </p>
         </div>
         
         <div className="space-y-6">
-          {/* NEW: Marciano's Filter Comparison Report */}
+          {/* NEW: Multi-Staff Filter Comparison Report */}
           <section>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold">Marciano's Filter Comparison Analysis</h2>
+              <h2 className="text-xl font-semibold">Multi-Staff Filter Comparison Analysis</h2>
               <p className="text-sm text-muted-foreground">
-                Direct comparison between preferred staff filter and Senior skill filter for Marciano Urbaez to identify filtering discrepancies.
+                Comprehensive comparison between preferred staff filters and Senior skill filter for Marciano Urbaez, Maria Vargas, and Luis Rodriguez.
+              </p>
+            </div>
+            
+            <MultiStaffComparisonReport />
+          </section>
+
+          {/* Marciano's Individual Filter Comparison Report */}
+          <section>
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Marciano's Individual Filter Comparison</h2>
+              <p className="text-sm text-muted-foreground">
+                Detailed comparison between preferred staff filter and Senior skill filter for Marciano Urbaez specifically.
               </p>
             </div>
             
