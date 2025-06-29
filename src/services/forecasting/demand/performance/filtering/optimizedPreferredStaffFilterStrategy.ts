@@ -29,37 +29,114 @@ export class OptimizedPreferredStaffFilterStrategy extends PerformanceOptimizedF
   }
 
   /**
-   * Optimized data point filtering with pre-computed lookup sets
+   * Optimized data point filtering with pre-computed lookup sets and COMPREHENSIVE DEBUGGING
    */
   protected shouldIncludeDataPoint(dataPoint: any, filters: DemandFilters): boolean {
+    console.log(`🔍 [OPTIMIZED STAFF FILTER - DEBUG] Processing dataPoint:`, {
+      skillType: dataPoint.skillType,
+      month: dataPoint.month,
+      monthLabel: dataPoint.monthLabel,
+      demandHours: dataPoint.demandHours,
+      taskCount: dataPoint.taskCount,
+      hasTaskBreakdown: !!dataPoint.taskBreakdown,
+      taskBreakdownLength: dataPoint.taskBreakdown?.length || 0
+    });
+
     if (!dataPoint.taskBreakdown || dataPoint.taskBreakdown.length === 0) {
+      console.log(`❌ [OPTIMIZED STAFF FILTER - DEBUG] No task breakdown found, excluding dataPoint`);
       return false;
     }
 
     // Get or create optimized staff lookup set
     const lookupSet = this.getStaffLookupSet(filters.preferredStaff);
     
-    // Use optimized filtering with early exit
-    return dataPoint.taskBreakdown.some((task: any) => {
-      const normalizedStaffId = normalizeStaffId(task.preferredStaffId);
-      return normalizedStaffId && lookupSet.has(normalizedStaffId);
+    console.log(`🎯 [OPTIMIZED STAFF FILTER - DEBUG] Filter criteria:`, {
+      originalPreferredStaff: filters.preferredStaff,
+      normalizedLookupSet: Array.from(lookupSet),
+      lookupSetSize: lookupSet.size
     });
+
+    // Process each task in the breakdown with detailed logging
+    let foundMatch = false;
+    for (let i = 0; i < dataPoint.taskBreakdown.length; i++) {
+      const task = dataPoint.taskBreakdown[i];
+      
+      console.log(`📋 [OPTIMIZED STAFF FILTER - DEBUG] Processing task ${i + 1}/${dataPoint.taskBreakdown.length}:`, {
+        taskName: task.taskName,
+        clientName: task.clientName,
+        skillType: task.skillType,
+        preferredStaffId: task.preferredStaffId,
+        preferredStaffName: task.preferredStaffName,
+        hasPreferredStaffId: !!task.preferredStaffId,
+        hasPreferredStaffName: !!task.preferredStaffName
+      });
+
+      if (task.preferredStaffId) {
+        const normalizedStaffId = normalizeStaffId(task.preferredStaffId);
+        const isMatch = normalizedStaffId && lookupSet.has(normalizedStaffId);
+        
+        console.log(`🔍 [OPTIMIZED STAFF FILTER - DEBUG] Staff ID comparison:`, {
+          originalStaffId: task.preferredStaffId,
+          normalizedStaffId: normalizedStaffId,
+          isInLookupSet: isMatch,
+          lookupSetContains: Array.from(lookupSet),
+          comparisonResult: isMatch ? 'MATCH FOUND' : 'NO MATCH'
+        });
+
+        if (isMatch) {
+          console.log(`✅ [OPTIMIZED STAFF FILTER - DEBUG] MATCH FOUND! Task will be included:`, {
+            taskName: task.taskName,
+            clientName: task.clientName,
+            matchedStaffId: normalizedStaffId,
+            originalStaffId: task.preferredStaffId
+          });
+          foundMatch = true;
+          break; // Early exit on first match
+        }
+      } else {
+        console.log(`⚠️ [OPTIMIZED STAFF FILTER - DEBUG] Task has no preferredStaffId, skipping`);
+      }
+    }
+
+    const finalResult = foundMatch;
+    console.log(`🏁 [OPTIMIZED STAFF FILTER - DEBUG] Final decision for dataPoint:`, {
+      skillType: dataPoint.skillType,
+      month: dataPoint.monthLabel,
+      taskCount: dataPoint.taskBreakdown.length,
+      foundMatch: foundMatch,
+      willIncludeDataPoint: finalResult ? 'YES' : 'NO'
+    });
+
+    return finalResult;
   }
 
   /**
-   * Get or create optimized staff lookup set with caching
+   * Get or create optimized staff lookup set with caching and enhanced logging
    */
   private getStaffLookupSet(preferredStaff: (string | number | null | undefined)[]): Set<string> {
     const cacheKey = JSON.stringify(preferredStaff.sort());
     
+    console.log(`🏗️ [OPTIMIZED STAFF FILTER - DEBUG] Creating lookup set:`, {
+      originalPreferredStaff: preferredStaff,
+      cacheKey: cacheKey.substring(0, 100) + '...' // Truncate for readability
+    });
+    
     if (OptimizedPreferredStaffFilterStrategy.staffIdLookupCache.has(cacheKey)) {
-      return OptimizedPreferredStaffFilterStrategy.staffIdLookupCache.get(cacheKey)!;
+      const cachedSet = OptimizedPreferredStaffFilterStrategy.staffIdLookupCache.get(cacheKey)!;
+      console.log(`🎯 [OPTIMIZED STAFF FILTER - DEBUG] Using cached lookup set:`, Array.from(cachedSet));
+      return cachedSet;
     }
 
     // Create optimized lookup set
     const lookupSet = new Set<string>();
-    preferredStaff.forEach(id => {
+    preferredStaff.forEach((id, index) => {
       const normalized = normalizeStaffId(id);
+      console.log(`🔄 [OPTIMIZED STAFF FILTER - DEBUG] Normalizing staff ID ${index + 1}:`, {
+        originalId: id,
+        normalizedId: normalized,
+        willAdd: !!normalized
+      });
+      
       if (normalized) {
         lookupSet.add(normalized);
       }
@@ -68,7 +145,11 @@ export class OptimizedPreferredStaffFilterStrategy extends PerformanceOptimizedF
     // Cache the result
     OptimizedPreferredStaffFilterStrategy.staffIdLookupCache.set(cacheKey, lookupSet);
     
-    console.log(`🚀 [OPTIMIZED STAFF FILTER] Created lookup set with ${lookupSet.size} staff IDs`);
+    console.log(`🚀 [OPTIMIZED STAFF FILTER - DEBUG] Created and cached lookup set:`, {
+      originalCount: preferredStaff.length,
+      normalizedCount: lookupSet.size,
+      finalLookupSet: Array.from(lookupSet)
+    });
     
     return lookupSet;
   }
