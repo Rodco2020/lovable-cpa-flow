@@ -1,6 +1,6 @@
-
 import { supabase } from '@/lib/supabase';
 import { DemandMatrixData } from '@/types/demand';
+import { ClientResolutionService } from './clientResolutionService';
 
 export interface DemandForecastResult {
   matrixData: DemandMatrixData;
@@ -24,7 +24,7 @@ export interface TimeHorizon {
 /**
  * Demand Data Service
  * 
- * Handles data fetching and processing for demand forecasting
+ * Handles data fetching and processing for demand forecasting with client name resolution
  */
 export class DemandDataService {
   
@@ -36,6 +36,8 @@ export class DemandDataService {
     filters: DemandForecastFilters
   ): Promise<DemandForecastResult> {
     try {
+      console.log('🔍 [DEMAND DATA SERVICE] Generating demand forecast with client resolution...');
+      
       // Fetch recurring tasks
       const { data: recurringTasks, error } = await supabase
         .from('recurring_tasks')
@@ -46,8 +48,8 @@ export class DemandDataService {
         throw new Error(`Failed to fetch recurring tasks: ${error.message}`);
       }
 
-      // Process data into matrix format
-      const matrixData = this.processTasksIntoMatrix(recurringTasks || [], timeHorizon);
+      // Process data into matrix format with client resolution
+      const matrixData = await this.processTasksIntoMatrix(recurringTasks || [], timeHorizon);
       
       // Calculate summary
       const summary = {
@@ -55,6 +57,13 @@ export class DemandDataService {
         totalHours: matrixData.totalDemand,
         totalClients: matrixData.totalClients
       };
+
+      console.log('✅ [DEMAND DATA SERVICE] Demand forecast generated with client resolution:', {
+        matrixDataPoints: matrixData.dataPoints.length,
+        summaryTotalTasks: summary.totalTasks,
+        summaryTotalHours: summary.totalHours,
+        summaryTotalClients: summary.totalClients
+      });
 
       return {
         matrixData,
@@ -67,17 +76,27 @@ export class DemandDataService {
   }
   
   /**
-   * Process recurring tasks into matrix data structure
+   * Process recurring tasks into matrix data structure with client name resolution
    */
-  private static processTasksIntoMatrix(tasks: any[], timeHorizon: TimeHorizon): DemandMatrixData {
+  private static async processTasksIntoMatrix(tasks: any[], timeHorizon: TimeHorizon): Promise<DemandMatrixData> {
+    console.log('🔍 [DEMAND DATA SERVICE] Processing tasks into matrix with client resolution...');
+    
     // Generate months within the time horizon
     const months = this.generateMonthsInRange(timeHorizon.start, timeHorizon.end);
     
     // Extract unique skills
     const skills = [...new Set(tasks.flatMap(task => task.required_skills || []))];
     
-    // Generate data points
-    const dataPoints = this.generateDataPoints(tasks, months, skills);
+    // Extract unique client IDs for batch resolution
+    const allClientIds = [...new Set(tasks.map(task => task.client_id).filter(Boolean))];
+    console.log('🔍 [DEMAND DATA SERVICE] Resolving client IDs:', allClientIds);
+    
+    // Batch resolve client IDs to client names
+    const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
+    console.log('✅ [DEMAND DATA SERVICE] Client resolution complete:', Array.from(clientResolutionMap.entries()));
+    
+    // Generate data points with resolved client names
+    const dataPoints = this.generateDataPoints(tasks, months, skills, clientResolutionMap);
     
     // Calculate totals
     const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
@@ -96,11 +115,18 @@ export class DemandDataService {
       };
     });
     
-    // Generate client totals
+    // Generate client totals using resolved names
     const clientTotals = new Map<string, number>();
     tasks.forEach(task => {
-      const currentTotal = clientTotals.get(task.client_id) || 0;
-      clientTotals.set(task.client_id, currentTotal + (task.estimated_hours || 0));
+      const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+      const currentTotal = clientTotals.get(resolvedClientName) || 0;
+      clientTotals.set(resolvedClientName, currentTotal + (task.estimated_hours || 0));
+    });
+
+    console.log('✅ [DEMAND DATA SERVICE] Matrix processing complete with client resolution:', {
+      totalDataPoints: dataPoints.length,
+      resolvedClients: clientResolutionMap.size,
+      clientTotalsEntries: clientTotals.size
     });
 
     return {
@@ -136,9 +162,14 @@ export class DemandDataService {
   }
   
   /**
-   * Generate data points for the matrix
+   * Generate data points for the matrix with resolved client names
    */
-  private static generateDataPoints(tasks: any[], months: any[], skills: string[]) {
+  private static generateDataPoints(
+    tasks: any[], 
+    months: any[], 
+    skills: string[], 
+    clientResolutionMap: Map<string, string>
+  ) {
     const dataPoints = [];
     
     for (const month of months) {
@@ -150,17 +181,15 @@ export class DemandDataService {
         if (skillTasks.length > 0) {
           const totalHours = skillTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
           
-          dataPoints.push({
-            skillType: skill,
-            month: month.key,
-            monthLabel: month.label,
-            demandHours: totalHours,
-            totalHours: totalHours,
-            taskCount: skillTasks.length,
-            clientCount: new Set(skillTasks.map(task => task.client_id)).size,
-            taskBreakdown: skillTasks.map(task => ({
+          // Create task breakdown with resolved client names
+          const taskBreakdown = skillTasks.map(task => {
+            const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+            
+            console.log(`🔍 [DEMAND DATA SERVICE] Task breakdown: ${task.client_id} -> ${resolvedClientName}`);
+            
+            return {
               clientId: task.client_id,
-              clientName: `Client ${task.client_id}`,
+              clientName: resolvedClientName, // Use resolved client name
               recurringTaskId: task.id,
               taskName: task.name,
               skillType: skill,
@@ -173,7 +202,18 @@ export class DemandDataService {
               monthlyHours: task.estimated_hours || 0,
               preferredStaffId: task.preferred_staff_id,
               preferredStaffName: task.preferred_staff_name
-            }))
+            };
+          });
+          
+          dataPoints.push({
+            skillType: skill,
+            month: month.key,
+            monthLabel: month.label,
+            demandHours: totalHours,
+            totalHours: totalHours,
+            taskCount: skillTasks.length,
+            clientCount: new Set(skillTasks.map(task => task.client_id)).size,
+            taskBreakdown
           });
         }
       }

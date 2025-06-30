@@ -1,8 +1,8 @@
-
 import { DemandMatrixData } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { SkillResolutionService } from '../skillResolutionService';
+import { ClientResolutionService } from '../clientResolutionService';
 
 export interface SkillHours {
   skillType: string;
@@ -19,12 +19,12 @@ export interface FilterContext {
 /**
  * Matrix Transformer Core
  * 
- * Core transformation utilities for matrix data with skill name resolution
+ * Core transformation utilities for matrix data with skill name resolution and client name resolution
  */
 export class MatrixTransformerCore {
   
   /**
-   * Transform forecast data to matrix format with resolved skill names
+   * Transform forecast data to matrix format with resolved skill names and client names
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
@@ -55,6 +55,8 @@ export class MatrixTransformerCore {
       };
     }
 
+    console.log('🔍 [MATRIX TRANSFORMER CORE] Starting transformation with client resolution...');
+
     // Extract months from forecast data
     const months = forecastData.map(fd => ({
       key: fd.period,
@@ -72,7 +74,15 @@ export class MatrixTransformerCore {
     const resolvedSkills = await this.resolveSkillReferences(allSkillRefs);
     const skills = Array.from(new Set(resolvedSkills));
 
-    // Generate basic data points with resolved skill names
+    // Extract unique client IDs for batch resolution
+    const allClientIds = [...new Set(tasks.map(task => task.client_id).filter(Boolean))];
+    console.log('🔍 [MATRIX TRANSFORMER CORE] Resolving client IDs:', allClientIds);
+    
+    // Batch resolve client IDs to client names
+    const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
+    console.log('✅ [MATRIX TRANSFORMER CORE] Client resolution complete:', Array.from(clientResolutionMap.entries()));
+
+    // Generate basic data points with resolved skill names and client names
     const dataPoints = [];
     for (const month of months) {
       for (let i = 0; i < allSkillRefs.length; i++) {
@@ -86,17 +96,15 @@ export class MatrixTransformerCore {
         if (skillTasks.length > 0) {
           const totalHours = skillTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
           
-          dataPoints.push({
-            skillType: resolvedSkill, // Use resolved skill name
-            month: month.key,
-            monthLabel: month.label,
-            demandHours: totalHours,
-            totalHours: totalHours,
-            taskCount: skillTasks.length,
-            clientCount: new Set(skillTasks.map(task => task.client_id)).size,
-            taskBreakdown: skillTasks.map(task => ({
+          // Create task breakdown with resolved client names
+          const taskBreakdown = skillTasks.map(task => {
+            const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+            
+            console.log(`🔍 [MATRIX TRANSFORMER CORE] Task breakdown: ${task.client_id} -> ${resolvedClientName}`);
+            
+            return {
               clientId: task.client_id,
-              clientName: `Client ${task.client_id}`,
+              clientName: resolvedClientName, // Use resolved client name
               recurringTaskId: task.id,
               taskName: task.name,
               skillType: resolvedSkill, // Use resolved skill name
@@ -109,7 +117,18 @@ export class MatrixTransformerCore {
               monthlyHours: task.estimated_hours || 0,
               preferredStaffId: task.preferred_staff_id,
               preferredStaffName: task.preferred_staff_id ? `Staff ${task.preferred_staff_id}` : undefined
-            }))
+            };
+          });
+          
+          dataPoints.push({
+            skillType: resolvedSkill, // Use resolved skill name
+            month: month.key,
+            monthLabel: month.label,
+            demandHours: totalHours,
+            totalHours: totalHours,
+            taskCount: skillTasks.length,
+            clientCount: new Set(skillTasks.map(task => task.client_id)).size,
+            taskBreakdown
           });
         }
       }
@@ -135,11 +154,25 @@ export class MatrixTransformerCore {
       };
     });
 
-    // Generate client totals
+    // Generate client totals using resolved names
     const clientTotals = new Map<string, number>();
-    tasks.forEach(task => {
-      const currentTotal = clientTotals.get(task.client_id) || 0;
-      clientTotals.set(task.client_id, currentTotal + (task.estimated_hours || 0));
+    const clientRevenue = new Map<string, number>();
+    
+    for (const task of tasks) {
+      const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+      const currentTotal = clientTotals.get(resolvedClientName) || 0;
+      clientTotals.set(resolvedClientName, currentTotal + (task.estimated_hours || 0));
+      
+      // Initialize revenue data if not present
+      if (!clientRevenue.has(resolvedClientName)) {
+        clientRevenue.set(resolvedClientName, 0);
+      }
+    }
+
+    console.log('✅ [MATRIX TRANSFORMER CORE] Transformation complete with client resolution:', {
+      totalDataPoints: dataPoints.length,
+      resolvedClients: clientResolutionMap.size,
+      clientTotalsEntries: clientTotals.size
     });
 
     return {
@@ -151,7 +184,7 @@ export class MatrixTransformerCore {
       totalClients: uniqueClients.size,
       skillSummary,
       clientTotals,
-      clientRevenue: new Map(),
+      clientRevenue,
       clientHourlyRates: new Map(),
       clientSuggestedRevenue: new Map(),
       clientExpectedLessSuggested: new Map(),
