@@ -2,6 +2,7 @@
 import { DemandMatrixData } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
+import { SkillResolutionService } from '../skillResolutionService';
 
 export interface SkillHours {
   skillType: string;
@@ -18,12 +19,12 @@ export interface FilterContext {
 /**
  * Matrix Transformer Core
  * 
- * Core transformation utilities for matrix data
+ * Core transformation utilities for matrix data with skill name resolution
  */
 export class MatrixTransformerCore {
   
   /**
-   * Transform forecast data to matrix format
+   * Transform forecast data to matrix format with resolved skill names
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
@@ -60,26 +61,33 @@ export class MatrixTransformerCore {
       label: fd.period
     }));
 
-    // Extract skills from forecast data and tasks
+    // Extract and resolve skills to display names
     const skillsFromForecast = forecastData.flatMap(fd => 
       fd.demand?.map(d => d.skill) || []
     );
     const skillsFromTasks = tasks.flatMap(task => task.required_skills || []);
-    const skills = [...new Set([...skillsFromForecast, ...skillsFromTasks])];
+    const allSkillRefs = [...new Set([...skillsFromForecast, ...skillsFromTasks])];
+    
+    // Resolve skill UUIDs to display names
+    const resolvedSkills = await this.resolveSkillReferences(allSkillRefs);
+    const skills = Array.from(new Set(resolvedSkills));
 
-    // Generate basic data points
+    // Generate basic data points with resolved skill names
     const dataPoints = [];
     for (const month of months) {
-      for (const skill of skills) {
+      for (let i = 0; i < allSkillRefs.length; i++) {
+        const skillRef = allSkillRefs[i];
+        const resolvedSkill = resolvedSkills[i];
+        
         const skillTasks = tasks.filter(task => 
-          task.required_skills && task.required_skills.includes(skill)
+          task.required_skills && task.required_skills.includes(skillRef)
         );
         
         if (skillTasks.length > 0) {
           const totalHours = skillTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
           
           dataPoints.push({
-            skillType: skill,
+            skillType: resolvedSkill, // Use resolved skill name
             month: month.key,
             monthLabel: month.label,
             demandHours: totalHours,
@@ -91,7 +99,7 @@ export class MatrixTransformerCore {
               clientName: `Client ${task.client_id}`,
               recurringTaskId: task.id,
               taskName: task.name,
-              skillType: skill,
+              skillType: resolvedSkill, // Use resolved skill name
               estimatedHours: task.estimated_hours || 0,
               recurrencePattern: {
                 type: task.recurrence_type || 'monthly',
@@ -112,7 +120,7 @@ export class MatrixTransformerCore {
     const totalTasks = dataPoints.reduce((sum, dp) => sum + dp.taskCount, 0);
     const uniqueClients = new Set(tasks.map(task => task.client_id));
 
-    // Generate skill summary
+    // Generate skill summary with resolved names
     const skillSummary: Record<string, any> = {};
     skills.forEach(skill => {
       const skillDataPoints = dataPoints.filter(dp => dp.skillType === skill);
@@ -154,6 +162,50 @@ export class MatrixTransformerCore {
       },
       aggregationStrategy: filterContext?.hasStaffFilter ? 'staff-based' : 'skill-based'
     };
+  }
+
+  /**
+   * Resolve skill references (UUIDs or names) to display names
+   */
+  private static async resolveSkillReferences(skillRefs: string[]): Promise<string[]> {
+    try {
+      console.log('🔍 [MATRIX TRANSFORMER] Resolving skill references:', skillRefs);
+      
+      const resolvedSkills = await Promise.all(
+        skillRefs.map(async (skillRef) => {
+          if (this.isUUID(skillRef)) {
+            // It's a UUID - resolve to display name
+            const displayNames = await SkillResolutionService.getSkillNames([skillRef]);
+            const resolvedName = displayNames[0] || skillRef;
+            console.log(`🔍 [MATRIX TRANSFORMER] UUID ${skillRef} -> ${resolvedName}`);
+            return resolvedName;
+          } else {
+            // It's already a display name
+            console.log(`🔍 [MATRIX TRANSFORMER] Display name preserved: ${skillRef}`);
+            return skillRef;
+          }
+        })
+      );
+
+      console.log('✅ [MATRIX TRANSFORMER] Skill resolution complete:', {
+        originalRefs: skillRefs,
+        resolvedSkills: resolvedSkills
+      });
+
+      return resolvedSkills;
+    } catch (error) {
+      console.error('❌ [MATRIX TRANSFORMER] Error resolving skill references:', error);
+      // Fallback to original references
+      return skillRefs;
+    }
+  }
+
+  /**
+   * Check if a string is a UUID
+   */
+  private static isUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
   }
   
   /**
