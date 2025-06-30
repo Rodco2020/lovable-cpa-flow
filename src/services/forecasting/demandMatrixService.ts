@@ -14,13 +14,17 @@ import { DemandMatrixValidationService } from './demand/demandMatrixValidationSe
  */
 export class DemandMatrixService {
   /**
-   * Generate demand matrix forecast
+   * Generate demand matrix forecast with optional filters
    */
   static async generateDemandMatrix(
     mode: DemandMatrixMode = 'demand-only',
-    startDate: Date = new Date()
+    activeFilters?: {
+      preferredStaff?: (string | number | null | undefined)[];
+      skills?: string[];
+      clients?: string[];
+    }
   ): Promise<{ matrixData: DemandMatrixData }> {
-    return DemandMatrixOrchestrator.generateDemandMatrix(mode, startDate);
+    return DemandMatrixOrchestrator.generateDemandMatrix(mode, activeFilters);
   }
 
   /**
