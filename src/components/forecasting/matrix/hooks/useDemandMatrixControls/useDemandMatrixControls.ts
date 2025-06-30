@@ -73,13 +73,8 @@ export const useDemandMatrixControls = ({
     availablePreferredStaff
   );
 
-  // Create state handlers
-  const stateHandlers = createStateHandlers(
-    setState,
-    availableSkills,
-    availableClients,
-    availablePreferredStaff
-  );
+  // Create state handlers - Fixed: Only pass setState parameter
+  const stateHandlers = createStateHandlers(setState);
 
   // Use export functionality hook
   const { handleExport } = useMatrixExport({
