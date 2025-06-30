@@ -10,7 +10,7 @@ import {
   getDataPointForSkill
 } from './utils/gridDataUtils';
 import { getClientValues } from './utils/gridCalculationUtils';
-import { getRowLabel, calculateGridTemplateRows, logMatrixRendering } from './utils/gridLayoutUtils';
+import { getRowLabelSync, calculateGridTemplateRows, logMatrixRendering } from './utils/gridLayoutUtils';
 import { useDemandMatrixGrid } from './hooks/useDemandMatrixGrid';
 
 interface DemandMatrixGridProps {
@@ -75,8 +75,8 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
           <React.Fragment key={skillOrClient}>
             {/* Row label */}
             <div className="p-3 bg-slate-100 border font-medium text-sm flex items-center sticky left-0 z-10">
-              <div className="truncate" title={getRowLabel(skillOrClient)}>
-                {getRowLabel(skillOrClient)}
+              <div className="truncate" title={getRowLabelSync(skillOrClient)}>
+                {getRowLabelSync(skillOrClient)}
               </div>
             </div>
 
