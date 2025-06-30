@@ -36,10 +36,10 @@ export class ExtendedMatrixService {
           matrixType: 'capacity'
         };
       } else {
-        // Use new demand matrix service
+        // Use new demand matrix service - pass undefined for filters since we don't have any in this context
         const { matrixData: demandMatrixData } = await DemandMatrixService.generateDemandMatrix(
           'demand-only',
-          startDate
+          undefined // No active filters for this unified matrix generation
         );
         
         return {

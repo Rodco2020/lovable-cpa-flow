@@ -1,4 +1,3 @@
-
 import { MatrixData, ForecastType, MatrixErrorContext, MonthInfo, MatrixDataPoint } from './types';
 import { MATRIX_CONSTANTS } from './constants';
 import { MatrixValidator } from './MatrixValidator';
@@ -79,9 +78,10 @@ export class MatrixServiceCore {
     
     try {
       // UNIFIED: Use DemandMatrixService for demand data (same as Demand Forecast Matrix)
+      // Pass undefined for filters since we don't have any active filters in this context
       const { matrixData: demandMatrix } = await DemandMatrixService.generateDemandMatrix(
         'demand-only',
-        startDate
+        undefined // No active filters for this unified matrix generation
       );
       
       // Generate capacity forecast using existing skill-aware service
