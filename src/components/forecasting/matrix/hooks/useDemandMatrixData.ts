@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DemandMatrixData } from '@/types/demand';
 import { DemandMatrixService } from '@/services/forecasting/demandMatrixService';
 import { ConditionalAggregationService } from '@/services/forecasting/demand/matrixTransformer/conditionalAggregationService';
@@ -12,9 +12,25 @@ interface UseDemandMatrixDataResult {
   handleRetryWithBackoff: () => Promise<void>;
 }
 
+// Circuit breaker for cache invalidation
+let lastCacheInvalidation = 0;
+const CACHE_INVALIDATION_COOLDOWN = 1000; // 1 second
+
+function safeInvalidateCache() {
+  const now = Date.now();
+  if (now - lastCacheInvalidation < CACHE_INVALIDATION_COOLDOWN) {
+    console.log('⚡ [CIRCUIT BREAKER] Cache invalidation blocked - too frequent');
+    return false;
+  }
+  lastCacheInvalidation = now;
+  console.log('🚨 [CIRCUIT BREAKER] Cache invalidation allowed');
+  DemandMatrixService.forceInvalidateStaffAggregationCache();
+  return true;
+}
+
 /**
- * Hook for managing demand matrix data with conditional aggregation support
- * ENHANCED: Force cache clearing for staff aggregation with comprehensive verification logging
+ * Hook for managing demand matrix data with stabilized dependencies and circuit breaker
+ * FIXED: Eliminates infinite re-render loop through dependency stabilization
  */
 export const useDemandMatrixData = (
   groupingMode: 'skill' | 'client',
@@ -29,28 +45,61 @@ export const useDemandMatrixData = (
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Determine if staff-based aggregation should be used
+  // Track previous aggregation strategy to avoid unnecessary cache clears
+  const prevAggregationStrategy = useRef<boolean>();
+
+  // STABILIZED: Memoize activeFilters to prevent object recreation on every render
+  const stableActiveFilters = useMemo(() => {
+    if (!activeFilters) return undefined;
+    
+    return {
+      preferredStaff: activeFilters.preferredStaff,
+      skills: activeFilters.skills,  
+      clients: activeFilters.clients
+    };
+  }, [
+    JSON.stringify(activeFilters?.preferredStaff || []),
+    JSON.stringify(activeFilters?.skills || []),
+    JSON.stringify(activeFilters?.clients || [])
+  ]);
+
+  // STABILIZED: Determine if staff-based aggregation should be used with stable dependency
   const shouldUseStaffAggregation = useMemo(() => {
-    const result = activeFilters?.preferredStaff ? 
-      ConditionalAggregationService.shouldUseStaffBasedAggregation(activeFilters.preferredStaff) : 
+    const result = stableActiveFilters?.preferredStaff ? 
+      ConditionalAggregationService.shouldUseStaffBasedAggregation(stableActiveFilters.preferredStaff) : 
       false;
     
-    console.log(`🎯 [DEMAND DATA HOOK] Staff aggregation decision:`, {
-      activeFilters,
-      preferredStaffFilter: activeFilters?.preferredStaff,
+    console.log(`🎯 [STABLE HOOK] Staff aggregation decision:`, {
+      stableActiveFilters,
+      preferredStaffFilter: stableActiveFilters?.preferredStaff,
       shouldUseStaffAggregation: result,
-      hookContext: 'useDemandMatrixData'
+      hookContext: 'useDemandMatrixData-STABILIZED'
     });
     
     return result;
-  }, [activeFilters?.preferredStaff]);
+  }, [stableActiveFilters?.preferredStaff]);
 
+  // CIRCUIT BREAKER: Only invalidate cache when aggregation strategy actually changes
+  useEffect(() => {
+    if (prevAggregationStrategy.current !== shouldUseStaffAggregation) {
+      console.log(`🔄 [AGGREGATION CHANGE] Strategy changed from ${prevAggregationStrategy.current} to ${shouldUseStaffAggregation}`);
+      
+      if (shouldUseStaffAggregation) {
+        const invalidated = safeInvalidateCache();
+        console.log(`🚨 [AGGREGATION CHANGE] Cache invalidation ${invalidated ? 'executed' : 'blocked'}`);
+      }
+      
+      prevAggregationStrategy.current = shouldUseStaffAggregation;
+    }
+  }, [shouldUseStaffAggregation]);
+
+  // STABILIZED: loadDemandData with stable dependencies using useCallback
   const loadDemandData = useCallback(async (filters?: any) => {
-    console.log(`🔄 [DEMAND DATA HOOK] ========= LOADING MATRIX DATA =========`);
-    console.log(`🔄 [DEMAND DATA HOOK] Request details:`, {
+    console.log(`🔄 [STABLE HOOK] ========= LOADING MATRIX DATA =========`);
+    console.log(`🔄 [STABLE HOOK] Request details:`, {
       groupingMode,
       filtersProvided: !!filters,
-      activeFiltersFromHook: activeFilters,
+      stableActiveFilters,
       passedFilters: filters,
       shouldUseStaffAggregation
     });
@@ -61,10 +110,10 @@ export const useDemandMatrixData = (
     try {
       const startDate = new Date();
       
-      // Use the active filters to determine aggregation strategy
-      const filtersToUse = filters || activeFilters;
+      // Use the stable filters to determine aggregation strategy
+      const filtersToUse = filters || stableActiveFilters;
       
-      console.log(`📋 [DEMAND DATA HOOK] Final filters to use:`, {
+      console.log(`📋 [STABLE HOOK] Final filters to use:`, {
         filtersToUse,
         preferredStaff: filtersToUse?.preferredStaff,
         skills: filtersToUse?.skills,
@@ -72,25 +121,15 @@ export const useDemandMatrixData = (
         aggregationStrategy: shouldUseStaffAggregation ? 'STAFF-BASED' : 'SKILL-BASED'
       });
 
-      // CRITICAL: Pre-clear cache if using staff aggregation
-      if (shouldUseStaffAggregation) {
-        console.log(`🚨 [DEMAND DATA HOOK] STAFF AGGREGATION MODE - Force clearing cache before request`);
-        DemandMatrixService.forceInvalidateStaffAggregationCache();
-        
-        // Show cache state for debugging
-        const cacheStats = DemandMatrixService.getCacheStats();
-        console.log(`📊 [DEMAND DATA HOOK] Cache state after pre-clearing:`, cacheStats);
-      }
-
       // Call the matrix service with proper parameters
-      console.log(`🚀 [DEMAND DATA HOOK] Calling DemandMatrixService.generateDemandMatrix...`);
+      console.log(`🚀 [STABLE HOOK] Calling DemandMatrixService.generateDemandMatrix...`);
       const result = await DemandMatrixService.generateDemandMatrix(
         'demand-only',
         filtersToUse
       );
 
-      console.log(`✅ [DEMAND DATA HOOK] ========= MATRIX DATA LOADED =========`);
-      console.log(`✅ [DEMAND DATA HOOK] Result summary:`, {
+      console.log(`✅ [STABLE HOOK] ========= MATRIX DATA LOADED =========`);
+      console.log(`✅ [STABLE HOOK] Result summary:`, {
         aggregationStrategy: result.matrixData.aggregationStrategy,
         dataPoints: result.matrixData.dataPoints.length,
         skills: result.matrixData.skills.length,
@@ -107,74 +146,58 @@ export const useDemandMatrixData = (
         }))
       });
 
-      // CRITICAL VALIDATION: Ensure we got the expected aggregation strategy
+      // VALIDATION: Ensure we got the expected aggregation strategy
       if (shouldUseStaffAggregation && result.matrixData.aggregationStrategy !== 'staff-based') {
-        console.error(`🚨 [DEMAND DATA HOOK] CRITICAL ERROR: Expected staff-based aggregation but got ${result.matrixData.aggregationStrategy}`);
-        console.error(`🚨 [DEMAND DATA HOOK] This indicates the cache clearing did not work properly!`);
+        console.error(`🚨 [STABLE HOOK] CRITICAL ERROR: Expected staff-based aggregation but got ${result.matrixData.aggregationStrategy}`);
         
-        // Force clear cache again and retry once
-        console.log(`🔄 [DEMAND DATA HOOK] Attempting cache clear and retry...`);
-        DemandMatrixService.clearCache();
-        DemandMatrixService.forceInvalidateStaffAggregationCache();
+        // One retry attempt with circuit breaker protection
+        console.log(`🔄 [STABLE HOOK] Attempting controlled cache clear and retry...`);
+        const retryInvalidated = safeInvalidateCache();
         
-        // One retry attempt
-        const retryResult = await DemandMatrixService.generateDemandMatrix('demand-only', filtersToUse);
-        
-        if (retryResult.matrixData.aggregationStrategy !== 'staff-based') {
-          throw new Error(`Failed to get staff-based aggregation after cache clearing. Got: ${retryResult.matrixData.aggregationStrategy}`);
+        if (retryInvalidated) {
+          const retryResult = await DemandMatrixService.generateDemandMatrix('demand-only', filtersToUse);
+          
+          if (retryResult.matrixData.aggregationStrategy !== 'staff-based') {
+            throw new Error(`Failed to get staff-based aggregation after controlled cache clearing. Got: ${retryResult.matrixData.aggregationStrategy}`);
+          }
+          
+          console.log(`✅ [STABLE HOOK] Retry successful, now using staff-based aggregation`);
+          setDemandData(retryResult.matrixData);
+        } else {
+          console.warn(`⚠️ [STABLE HOOK] Retry blocked by circuit breaker, using available data`);
+          setDemandData(result.matrixData);
         }
-        
-        console.log(`✅ [DEMAND DATA HOOK] Retry successful, now using staff-based aggregation`);
-        setDemandData(retryResult.matrixData);
       } else {
-        // CRITICAL: Log the exact data structure being set
-        console.log(`📊 [DEMAND DATA HOOK] Setting demandData state with:`, {
-          dataPointsCount: result.matrixData.dataPoints.length,
-          aggregationStrategy: result.matrixData.aggregationStrategy,
-          validationPassed: shouldUseStaffAggregation ? result.matrixData.aggregationStrategy === 'staff-based' : true,
-          allDataPoints: result.matrixData.dataPoints.map((dp, index) => ({
-            index,
-            skillType: dp.skillType,
-            month: dp.month,
-            demandHours: dp.demandHours,
-            taskCount: dp.taskCount,
-            isStaffSpecific: dp.isStaffSpecific,
-            actualStaffName: dp.actualStaffName,
-            underlyingSkillType: dp.underlyingSkillType
-          }))
-        });
-
+        console.log(`📊 [STABLE HOOK] Setting demandData state with validated aggregation strategy`);
         setDemandData(result.matrixData);
       }
       
       setRetryCount(0);
     } catch (err) {
-      console.error('❌ [DEMAND DATA HOOK] Error loading matrix data:', err);
+      console.error('❌ [STABLE HOOK] Error loading matrix data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load demand data';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilters, shouldUseStaffAggregation, groupingMode]);
+  }, [
+    groupingMode,
+    JSON.stringify(stableActiveFilters), // Stable serialization
+    shouldUseStaffAggregation
+  ]);
 
   const handleRetryWithBackoff = useCallback(async () => {
     const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-    console.log(`🔄 [DEMAND DATA HOOK] Retrying after ${backoffDelay}ms (attempt ${retryCount + 1})`);
-    
-    // Clear cache before retry
-    if (shouldUseStaffAggregation) {
-      console.log(`🚨 [DEMAND DATA HOOK] Clearing cache before retry attempt`);
-      DemandMatrixService.clearCache();
-    }
+    console.log(`🔄 [STABLE HOOK] Retrying after ${backoffDelay}ms (attempt ${retryCount + 1})`);
     
     await new Promise(resolve => setTimeout(resolve, backoffDelay));
     setRetryCount(prev => prev + 1);
     await loadDemandData();
-  }, [loadDemandData, retryCount, shouldUseStaffAggregation]);
+  }, [loadDemandData, retryCount]);
 
-  // Load data on mount and when aggregation strategy changes
+  // STABILIZED: Load data on mount and when stable dependencies change
   useEffect(() => {
-    console.log(`🔄 [DEMAND DATA HOOK] useEffect triggered - loading data`);
+    console.log(`🔄 [STABLE HOOK] useEffect triggered - loading data with stable dependencies`);
     loadDemandData();
   }, [loadDemandData]);
 

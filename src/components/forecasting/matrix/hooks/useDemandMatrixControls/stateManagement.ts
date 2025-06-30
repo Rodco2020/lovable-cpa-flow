@@ -2,130 +2,75 @@
 import { useCallback } from 'react';
 import { SkillType } from '@/types/task';
 import { DemandMatrixControlsState } from './types';
-import { normalizeStaffId, isStaffIdInArray, compareStaffIds } from '@/utils/staffIdUtils';
 
-export interface StateHandlers {
-  handleSkillToggle: (skill: SkillType) => void;
-  handleClientToggle: (clientId: string) => void;
-  handleMonthRangeChange: (monthRange: { start: number; end: number }) => void;
-  handlePreferredStaffToggle: (staffId: string) => void;
-  handleReset: () => void;
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(func: T, delay: number): T {
+  let timeoutId: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  }) as T;
 }
 
+/**
+ * State management utilities for demand matrix controls with debounced updates
+ * ENHANCED: Added debouncing to prevent rapid state changes that trigger infinite loops
+ */
 export const createStateHandlers = (
-  setState: React.Dispatch<React.SetStateAction<DemandMatrixControlsState>>,
-  availableSkills: SkillType[],
-  availableClients: Array<{ id: string; name: string }>,
-  availablePreferredStaff: Array<{ id: string; name: string; roleTitle?: string }>
-): StateHandlers => {
+  setState: React.Dispatch<React.SetStateAction<DemandMatrixControlsState>>
+) => {
+  // DEBOUNCED: Staff selection with 200ms delay to prevent rapid toggles
+  const debouncedStaffToggle = useCallback(
+    debounce((staffId: string) => {
+      console.log(`🎯 [DEBOUNCED CONTROLS] Staff toggle for: ${staffId}`);
+      setState(prev => {
+        const newSelection = prev.selectedPreferredStaff.includes(staffId)
+          ? prev.selectedPreferredStaff.filter(id => id !== staffId)
+          : [...prev.selectedPreferredStaff, staffId];
+        
+        console.log(`🎯 [DEBOUNCED CONTROLS] Staff selection updated:`, {
+          previousSelection: prev.selectedPreferredStaff,
+          newSelection,
+          toggledStaff: staffId
+        });
+        
+        return {
+          ...prev,
+          selectedPreferredStaff: newSelection
+        };
+      });
+    }, 200),
+    [setState]
+  );
+
   const handleSkillToggle = useCallback((skill: SkillType) => {
-    setState(prev => {
-      const newSelectedSkills = prev.selectedSkills.includes(skill)
+    console.log(`🔧 [CONTROLS] Skill toggle:`, skill);
+    setState(prev => ({
+      ...prev,
+      selectedSkills: prev.selectedSkills.includes(skill)
         ? prev.selectedSkills.filter(s => s !== skill)
-        : [...prev.selectedSkills, skill];
-      
-      return {
-        ...prev,
-        selectedSkills: newSelectedSkills
-      };
-    });
+        : [...prev.selectedSkills, skill]
+    }));
   }, [setState]);
 
   const handleClientToggle = useCallback((clientId: string) => {
-    setState(prev => {
-      const newSelectedClients = prev.selectedClients.includes(clientId)
-        ? prev.selectedClients.filter(c => c !== clientId)
-        : [...prev.selectedClients, clientId];
-
-      return {
-        ...prev,
-        selectedClients: newSelectedClients
-      };
-    });
+    console.log(`🔧 [CONTROLS] Client toggle:`, clientId);
+    setState(prev => ({
+      ...prev,
+      selectedClients: prev.selectedClients.includes(clientId)
+        ? prev.selectedClients.filter(id => id !== clientId)
+        : [...prev.selectedClients, clientId]
+    }));
   }, [setState]);
 
+  // DEBOUNCED: Preferred staff toggle handler
   const handlePreferredStaffToggle = useCallback((staffId: string) => {
-    // Normalize the incoming staff ID
-    const normalizedStaffId = normalizeStaffId(staffId);
-    
-    if (!normalizedStaffId) {
-      console.warn(`🔧 [MATRIX CONTROLS] PHASE 3: Invalid staff ID provided:`, staffId);
-      return;
-    }
-
-    // PHASE 3 VALIDATION: Verify staff ID exists in available staff
-    const staffExists = availablePreferredStaff.some(staff => 
-      compareStaffIds(staff.id, normalizedStaffId)
-    );
-
-    if (!staffExists) {
-      console.warn(`🔧 [MATRIX CONTROLS] PHASE 3: Staff ID not found in available staff:`, {
-        providedId: staffId,
-        normalizedId: normalizedStaffId,
-        availableStaffIds: availablePreferredStaff.map(s => s.id)
-      });
-    }
-
-    setState(prev => {
-      const wasSelected = isStaffIdInArray(normalizedStaffId, prev.selectedPreferredStaff);
-      const newSelectedPreferredStaff = wasSelected
-        ? prev.selectedPreferredStaff.filter(id => {
-            const normalizedExistingId = normalizeStaffId(id);
-            return !compareStaffIds(normalizedExistingId, normalizedStaffId);
-          })
-        : [...prev.selectedPreferredStaff, normalizedStaffId];
-
-      const staffName = availablePreferredStaff.find(s => 
-        compareStaffIds(s.id, normalizedStaffId)
-      )?.name || 'Unknown';
-
-      // PHASE 3 LOGGING: Comprehensive toggle logging with enhanced validation
-      console.log(`🔧 [MATRIX CONTROLS HOOK] PHASE 3: Enhanced preferred staff toggle:`, {
-        originalStaffId: staffId,
-        normalizedStaffId,
-        staffName,
-        staffExists,
-        action: wasSelected ? 'removed' : 'added',
-        previousSelection: prev.selectedPreferredStaff,
-        newSelection: newSelectedPreferredStaff,
-        newCount: newSelectedPreferredStaff.length,
-        totalAvailable: availablePreferredStaff.length,
-        willShowAllData: newSelectedPreferredStaff.length === 0,
-        toggleTime: new Date().toISOString(),
-        normalizationApplied: staffId !== normalizedStaffId,
-        validationResults: {
-          idNormalizationSuccess: !!normalizedStaffId,
-          staffExistsInAvailable: staffExists,
-          selectionStateValid: newSelectedPreferredStaff.every(id => normalizeStaffId(id)),
-          allSelectedIdsNormalized: newSelectedPreferredStaff.every(id => id === normalizeStaffId(id))
-        }
-      });
-
-      // PHASE 3 TEST: Verify selection integrity
-      const selectionIntegrityCheck = {
-        allIdsNormalized: newSelectedPreferredStaff.every(id => id === normalizeStaffId(id)),
-        noDuplicates: new Set(newSelectedPreferredStaff).size === newSelectedPreferredStaff.length,
-        allIdsValid: newSelectedPreferredStaff.every(id => normalizeStaffId(id))
-      };
-
-      if (!selectionIntegrityCheck.allIdsNormalized || 
-          !selectionIntegrityCheck.noDuplicates || 
-          !selectionIntegrityCheck.allIdsValid) {
-        console.error(`❌ [MATRIX CONTROLS] PHASE 3: Selection integrity check failed:`, {
-          selectionIntegrityCheck,
-          newSelection: newSelectedPreferredStaff,
-          problematicIds: newSelectedPreferredStaff.filter(id => !normalizeStaffId(id))
-        });
-      }
-
-      return {
-        ...prev,
-        selectedPreferredStaff: newSelectedPreferredStaff
-      };
-    });
-  }, [setState, availablePreferredStaff]);
+    console.log(`🎯 [CONTROLS] Debounced preferred staff toggle initiated for: ${staffId}`);
+    debouncedStaffToggle(staffId);
+  }, [debouncedStaffToggle]);
 
   const handleMonthRangeChange = useCallback((monthRange: { start: number; end: number }) => {
+    console.log(`📅 [CONTROLS] Month range change:`, monthRange);
     setState(prev => ({
       ...prev,
       monthRange
@@ -133,32 +78,54 @@ export const createStateHandlers = (
   }, [setState]);
 
   const handleReset = useCallback(() => {
-    const resetState = {
-      selectedSkills: availableSkills,
-      selectedClients: availableClients.map(client => client.id),
-      monthRange: { start: 0, end: 11 },
-      selectedPreferredStaff: [] // Reset to empty = show all data
-    };
+    console.log(`🔄 [CONTROLS] Resetting all filters`);
+    setState(prev => ({
+      ...prev,
+      selectedSkills: [],
+      selectedClients: [],
+      selectedPreferredStaff: [],
+      monthRange: { start: 0, end: 11 }
+    }));
+  }, [setState]);
 
-    console.log(`🔄 [MATRIX CONTROLS HOOK] PHASE 3: Enhanced reset operation:`, {
-      resetState,
-      resetTime: new Date().toISOString(),
-      validationResults: {
-        skillsResetValid: resetState.selectedSkills.length === availableSkills.length,
-        clientsResetValid: resetState.selectedClients.length === availableClients.length,
-        preferredStaffResetValid: resetState.selectedPreferredStaff.length === 0,
-        monthRangeResetValid: resetState.monthRange.start === 0 && resetState.monthRange.end === 11
-      }
+  const handleToggleAllSkills = useCallback((allSkills: SkillType[]) => {
+    setState(prev => ({
+      ...prev,
+      selectedSkills: prev.selectedSkills.length === allSkills.length ? [] : [...allSkills]
+    }));
+  }, [setState]);
+
+  const handleToggleAllClients = useCallback((allClients: Array<{ id: string; name: string }>) => {
+    setState(prev => ({
+      ...prev,
+      selectedClients: prev.selectedClients.length === allClients.length 
+        ? [] 
+        : allClients.map(c => c.id)
+    }));
+  }, [setState]);
+
+  const handleToggleAllPreferredStaff = useCallback((allStaff: Array<{ id: string; name: string }>) => {
+    console.log(`🎯 [CONTROLS] Toggle all preferred staff:`, { 
+      currentCount: allStaff.length,
+      action: 'toggle_all'
     });
-
-    setState(resetState);
-  }, [setState, availableSkills, availableClients]);
+    
+    setState(prev => ({
+      ...prev,
+      selectedPreferredStaff: prev.selectedPreferredStaff.length === allStaff.length 
+        ? [] 
+        : allStaff.map(s => s.id)
+    }));
+  }, [setState]);
 
   return {
     handleSkillToggle,
     handleClientToggle,
+    handlePreferredStaffToggle, // This now uses debouncing
     handleMonthRangeChange,
-    handlePreferredStaffToggle,
-    handleReset
+    handleReset,
+    handleToggleAllSkills,
+    handleToggleAllClients,
+    handleToggleAllPreferredStaff
   };
 };

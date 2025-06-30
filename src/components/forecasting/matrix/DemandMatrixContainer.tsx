@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useDemandMatrixControls } from './hooks/useDemandMatrixControls';
 import { useDemandMatrixRealtime } from '@/hooks/useDemandMatrixRealtime';
 import { useDemandMatrixState } from './DemandMatrixStateProvider';
@@ -16,10 +16,9 @@ interface DemandMatrixContainerProps {
 
 /**
  * Container component that handles all business logic and data operations
- * for the Demand Matrix. This component orchestrates data fetching, state management,
- * and business logic while delegating UI rendering to the presentation component.
+ * for the Demand Matrix with stabilized filters to prevent infinite re-renders.
  * 
- * ENHANCED: Comprehensive verification logging for staff aggregation
+ * FIXED: Eliminates infinite loop through stable filter memoization
  */
 export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
   className,
@@ -47,8 +46,8 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
     groupingMode
   });
 
-  console.log(`🔍 [VERIFICATION - MATRIX CONTAINER] ========= CONTAINER RENDER =========`);
-  console.log(`🔍 [VERIFICATION - MATRIX CONTAINER] Controls state:`, {
+  console.log(`🔍 [STABLE CONTAINER] ========= CONTAINER RENDER =========`);
+  console.log(`🔍 [STABLE CONTAINER] Controls state:`, {
     selectedSkills: demandMatrixControls.selectedSkills,
     selectedClients: demandMatrixControls.selectedClients,
     selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
@@ -56,14 +55,18 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
     groupingMode
   });
 
-  // Prepare active filters for data loading
-  const activeFilters = {
+  // STABILIZED: Memoize activeFilters to prevent object recreation on every render
+  const activeFilters = useMemo(() => ({
     preferredStaff: demandMatrixControls.selectedPreferredStaff,
     skills: demandMatrixControls.selectedSkills,
     clients: demandMatrixControls.selectedClients
-  };
+  }), [
+    JSON.stringify(demandMatrixControls.selectedPreferredStaff),
+    JSON.stringify(demandMatrixControls.selectedSkills),
+    JSON.stringify(demandMatrixControls.selectedClients)
+  ]);
 
-  console.log(`🎯 [VERIFICATION - MATRIX CONTAINER] Active filters prepared:`, {
+  console.log(`🎯 [STABLE CONTAINER] Stable active filters prepared:`, {
     activeFilters,
     hasPreferredStaffFilter: !!(activeFilters.preferredStaff && activeFilters.preferredStaff.length > 0),
     preferredStaffCount: activeFilters.preferredStaff?.length || 0,
@@ -71,7 +74,7 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
     clientsCount: activeFilters.clients?.length || 0
   });
 
-  // Data loading and management - pass active filters
+  // Data loading and management - pass stable active filters
   const { demandData, isLoading, error, loadDemandData, handleRetryWithBackoff } = useDemandMatrixData(
     groupingMode, 
     activeFilters
@@ -80,8 +83,8 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
   // Log whenever demandData changes
   useEffect(() => {
     if (demandData) {
-      console.log(`📊 [VERIFICATION - MATRIX CONTAINER] ========= DEMAND DATA RECEIVED =========`);
-      console.log(`📊 [VERIFICATION - MATRIX CONTAINER] Data summary:`, {
+      console.log(`📊 [STABLE CONTAINER] ========= DEMAND DATA RECEIVED =========`);
+      console.log(`📊 [STABLE CONTAINER] Data summary:`, {
         aggregationStrategy: demandData.aggregationStrategy,
         dataPoints: demandData.dataPoints.length,
         skills: demandData.skills.length,
@@ -90,31 +93,13 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
         totalTasks: demandData.totalTasks
       });
       
-      console.log(`📋 [VERIFICATION - MATRIX CONTAINER] All data points:`, 
-        demandData.dataPoints.map((dp, index) => ({
-          index,
-          skillType: dp.skillType,
-          month: dp.month,
-          monthLabel: dp.monthLabel,
-          demandHours: dp.demandHours,
-          taskCount: dp.taskCount,
-          isStaffSpecific: dp.isStaffSpecific,
-          actualStaffName: dp.actualStaffName,
-          underlyingSkillType: dp.underlyingSkillType,
-          taskBreakdownCount: dp.taskBreakdown?.length || 0
-        }))
-      );
+      // Special focus on staff-specific data if present
+      const staffSpecificDataPoints = demandData.dataPoints.filter(dp => dp.isStaffSpecific);
       
-      // Special focus on Marciano's data if present
-      const marcianoDataPoints = demandData.dataPoints.filter(dp => 
-        dp.actualStaffName?.toLowerCase().includes('marciano') ||
-        dp.skillType?.toLowerCase().includes('marciano')
-      );
-      
-      if (marcianoDataPoints.length > 0) {
-        console.log(`👨‍💼 [VERIFICATION - MATRIX CONTAINER] MARCIANO'S DATA POINTS FOUND:`, {
-          count: marcianoDataPoints.length,
-          dataPoints: marcianoDataPoints.map(dp => ({
+      if (staffSpecificDataPoints.length > 0) {
+        console.log(`👨‍💼 [STABLE CONTAINER] STAFF-SPECIFIC DATA POINTS FOUND:`, {
+          count: staffSpecificDataPoints.length,
+          dataPoints: staffSpecificDataPoints.map(dp => ({
             skillType: dp.skillType,
             demandHours: dp.demandHours,
             taskCount: dp.taskCount,
@@ -127,13 +112,11 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
             }))
           }))
         });
-      } else {
-        console.log(`❌ [VERIFICATION - MATRIX CONTAINER] NO MARCIANO DATA POINTS FOUND`);
       }
     }
   }, [demandData]);
 
-  // Data filtering logic
+  // Data filtering logic with stable filters
   const { getFilteredData } = useDemandMatrixFiltering({
     demandData,
     selectedSkills: demandMatrixControls.selectedSkills,
@@ -172,8 +155,8 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
   // Log filtered data
   useEffect(() => {
     if (filteredData) {
-      console.log(`🔍 [VERIFICATION - MATRIX CONTAINER] ========= FILTERED DATA =========`);
-      console.log(`🔍 [VERIFICATION - MATRIX CONTAINER] Filtered data summary:`, {
+      console.log(`🔍 [STABLE CONTAINER] ========= FILTERED DATA =========`);
+      console.log(`🔍 [STABLE CONTAINER] Filtered data summary:`, {
         originalDataPoints: demandData?.dataPoints.length || 0,
         filteredDataPoints: filteredData.dataPoints.length,
         filterEfficiency: demandData ? `${((filteredData.dataPoints.length / demandData.dataPoints.length) * 100).toFixed(1)}%` : 'N/A',
@@ -200,7 +183,7 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
     error,
     validationIssues,
     isControlsExpanded,
-    retryCount: 0, // This could be extracted to state if needed
+    retryCount: 0,
     drillDownData,
     selectedDrillDown,
     showExportDialog,
