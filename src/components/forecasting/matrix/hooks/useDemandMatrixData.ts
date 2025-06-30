@@ -14,8 +14,7 @@ interface UseDemandMatrixDataResult {
 
 /**
  * Hook for managing demand matrix data with conditional aggregation support
- * 
- * UPDATED: Now supports conditional aggregation based on active filters
+ * ENHANCED: Comprehensive verification logging for staff aggregation
  */
 export const useDemandMatrixData = (
   groupingMode: 'skill' | 'client',
@@ -32,17 +31,27 @@ export const useDemandMatrixData = (
 
   // Determine if staff-based aggregation should be used
   const shouldUseStaffAggregation = useMemo(() => {
-    return activeFilters?.preferredStaff ? 
+    const result = activeFilters?.preferredStaff ? 
       ConditionalAggregationService.shouldUseStaffBasedAggregation(activeFilters.preferredStaff) : 
       false;
+    
+    console.log(`🎯 [VERIFICATION - DEMAND DATA HOOK] Staff aggregation decision:`, {
+      activeFilters,
+      preferredStaffFilter: activeFilters?.preferredStaff,
+      shouldUseStaffAggregation: result,
+      hookContext: 'useDemandMatrixData'
+    });
+    
+    return result;
   }, [activeFilters?.preferredStaff]);
 
   const loadDemandData = useCallback(async (filters?: any) => {
-    console.log(`🔄 [DEMAND DATA] Loading matrix with aggregation strategy detection...`);
-    console.log(`🎯 [DEMAND DATA] Active filters:`, {
-      preferredStaff: filters?.preferredStaff || activeFilters?.preferredStaff,
-      skills: filters?.skills || activeFilters?.skills,
-      clients: filters?.clients || activeFilters?.clients,
+    console.log(`🔄 [VERIFICATION - DEMAND DATA HOOK] ========= LOADING MATRIX DATA =========`);
+    console.log(`🔄 [VERIFICATION - DEMAND DATA HOOK] Request details:`, {
+      groupingMode,
+      filtersProvided: !!filters,
+      activeFiltersFromHook: activeFilters,
+      passedFilters: filters,
       shouldUseStaffAggregation
     });
     
@@ -55,33 +64,68 @@ export const useDemandMatrixData = (
       // Use the active filters to determine aggregation strategy
       const filtersToUse = filters || activeFilters;
       
-      // FIXED: Use correct number of arguments for generateDemandMatrix
+      console.log(`📋 [VERIFICATION - DEMAND DATA HOOK] Final filters to use:`, {
+        filtersToUse,
+        preferredStaff: filtersToUse?.preferredStaff,
+        skills: filtersToUse?.skills,
+        clients: filtersToUse?.clients,
+        aggregationStrategy: shouldUseStaffAggregation ? 'STAFF-BASED' : 'SKILL-BASED'
+      });
+
+      // Call the matrix service with proper parameters
+      console.log(`🚀 [VERIFICATION - DEMAND DATA HOOK] Calling DemandMatrixService.generateDemandMatrix...`);
       const result = await DemandMatrixService.generateDemandMatrix(
         'demand-only',
         filtersToUse
       );
 
-      console.log(`✅ [DEMAND DATA] Matrix loaded with ${result.matrixData.aggregationStrategy} aggregation:`, {
+      console.log(`✅ [VERIFICATION - DEMAND DATA HOOK] ========= MATRIX DATA LOADED =========`);
+      console.log(`✅ [VERIFICATION - DEMAND DATA HOOK] Result summary:`, {
+        aggregationStrategy: result.matrixData.aggregationStrategy,
         dataPoints: result.matrixData.dataPoints.length,
         skills: result.matrixData.skills.length,
         totalDemand: result.matrixData.totalDemand,
-        aggregationStrategy: result.matrixData.aggregationStrategy
+        totalTasks: result.matrixData.totalTasks,
+        skillTypes: result.matrixData.skills,
+        sampleDataPoints: result.matrixData.dataPoints.slice(0, 3).map(dp => ({
+          skillType: dp.skillType,
+          demandHours: dp.demandHours,
+          taskCount: dp.taskCount,
+          isStaffSpecific: dp.isStaffSpecific,
+          actualStaffName: dp.actualStaffName,
+          underlyingSkillType: dp.underlyingSkillType
+        }))
+      });
+
+      // CRITICAL: Log the exact data structure being set
+      console.log(`📊 [VERIFICATION - DEMAND DATA HOOK] Setting demandData state with:`, {
+        dataPointsCount: result.matrixData.dataPoints.length,
+        allDataPoints: result.matrixData.dataPoints.map((dp, index) => ({
+          index,
+          skillType: dp.skillType,
+          month: dp.month,
+          demandHours: dp.demandHours,
+          taskCount: dp.taskCount,
+          isStaffSpecific: dp.isStaffSpecific,
+          actualStaffName: dp.actualStaffName,
+          underlyingSkillType: dp.underlyingSkillType
+        }))
       });
 
       setDemandData(result.matrixData);
       setRetryCount(0);
     } catch (err) {
-      console.error('❌ [DEMAND DATA] Error loading matrix data:', err);
+      console.error('❌ [VERIFICATION - DEMAND DATA HOOK] Error loading matrix data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load demand data';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilters, shouldUseStaffAggregation]);
+  }, [activeFilters, shouldUseStaffAggregation, groupingMode]);
 
   const handleRetryWithBackoff = useCallback(async () => {
     const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-    console.log(`🔄 [DEMAND DATA] Retrying after ${backoffDelay}ms (attempt ${retryCount + 1})`);
+    console.log(`🔄 [VERIFICATION - DEMAND DATA HOOK] Retrying after ${backoffDelay}ms (attempt ${retryCount + 1})`);
     
     await new Promise(resolve => setTimeout(resolve, backoffDelay));
     setRetryCount(prev => prev + 1);
@@ -90,6 +134,7 @@ export const useDemandMatrixData = (
 
   // Load data on mount and when aggregation strategy changes
   useEffect(() => {
+    console.log(`🔄 [VERIFICATION - DEMAND DATA HOOK] useEffect triggered - loading data`);
     loadDemandData();
   }, [loadDemandData]);
 
