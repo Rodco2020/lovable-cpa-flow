@@ -13,10 +13,7 @@ interface UseMatrixFilteringProps {
 }
 
 /**
- * FIXED: Hook for managing matrix filtering logic
- * 
- * Now properly extracts skills and clients from resolved matrix data
- * and handles the transformation between UUIDs and display names.
+ * FIXED: Hook for managing matrix filtering logic with proper data extraction
  */
 export const useMatrixFiltering = ({
   demandData,
@@ -26,8 +23,7 @@ export const useMatrixFiltering = ({
   monthRange,
   groupingMode
 }: UseMatrixFilteringProps) => {
-  // PHASE 1: Fixed Available Skills Extraction
-  // Extract skills from the resolved matrix data (these are already display names)
+  // FIXED: Extract available skills from resolved matrix data
   const availableSkills = useMemo(() => {
     if (!demandData) {
       console.log('🔍 [MATRIX FILTERING] No demand data available for skills extraction');
@@ -42,6 +38,23 @@ export const useMatrixFiltering = ({
     // Use the skills array from matrix data (these are already resolved display names)
     const extractedSkills = demandData.skills || [];
     
+    // Also extract from data points as fallback
+    if (extractedSkills.length === 0) {
+      const skillsFromDataPoints = new Set<string>();
+      demandData.dataPoints.forEach(point => {
+        if (point.skillType) {
+          skillsFromDataPoints.add(point.skillType);
+        }
+      });
+      const fallbackSkills = Array.from(skillsFromDataPoints).sort();
+      
+      console.log('🔍 [MATRIX FILTERING] Using fallback skills extraction:', {
+        fallbackSkills
+      });
+      
+      return fallbackSkills;
+    }
+    
     console.log('✅ [MATRIX FILTERING] Available skills extracted:', {
       count: extractedSkills.length,
       skills: extractedSkills
@@ -50,8 +63,7 @@ export const useMatrixFiltering = ({
     return extractedSkills;
   }, [demandData?.skills, demandData?.dataPoints]);
 
-  // PHASE 2: Fixed Available Clients Extraction  
-  // Extract clients from task breakdowns (these are already resolved names)
+  // FIXED: Extract available clients from task breakdowns with proper validation
   const availableClients = useMemo(() => {
     if (!demandData) {
       console.log('🔍 [MATRIX FILTERING] No demand data available for clients extraction');
@@ -61,35 +73,36 @@ export const useMatrixFiltering = ({
     console.log('🔍 [MATRIX FILTERING] Extracting available clients from resolved matrix data...');
     
     // Extract unique clients from all task breakdowns
-    const clientsSet = new Set<{ id: string; name: string }>();
+    const clientsMap = new Map<string, { id: string; name: string }>();
     
     demandData.dataPoints.forEach(point => {
       point.taskBreakdown?.forEach(task => {
         if (task.clientName && task.clientId) {
-          // Filter out fallback UUID patterns - we want proper resolved names
-          const isResolvedName = !task.clientName.includes('...') && !task.clientName.startsWith('Client ');
+          // Only accept clients with meaningful names (not UUID fallbacks)
+          const isValidClientName = (name: string): boolean => {
+            // Skip obvious UUID patterns
+            if (name.includes('-') && name.length > 30) return false;
+            // Skip fallback patterns
+            if (name.includes('...') || name.startsWith('Client ')) return false;
+            // Accept names that look like real business names
+            return name.length > 3;
+          };
           
-          if (isResolvedName || task.clientName.length > 20) {
-            // Accept if it's a resolved name OR if it's longer than typical UUID fallback
-            const clientKey = `${task.clientId}-${task.clientName}`;
+          if (isValidClientName(task.clientName)) {
+            clientsMap.set(task.clientId, {
+              id: task.clientId,
+              name: task.clientName
+            });
             
-            // Use a composite key to avoid duplicates while preserving both id and name
-            if (![...clientsSet].some(c => c.id === task.clientId)) {
-              clientsSet.add({
-                id: task.clientId,
-                name: task.clientName
-              });
-              
-              console.log(`✅ [MATRIX FILTERING] Added resolved client: ${task.clientName} (${task.clientId})`);
-            }
+            console.log(`✅ [MATRIX FILTERING] Added resolved client: ${task.clientName} (${task.clientId})`);
           } else {
-            console.log(`⚠️ [MATRIX FILTERING] Skipped fallback client name: ${task.clientName}`);
+            console.log(`⚠️ [MATRIX FILTERING] Skipped invalid client name: ${task.clientName}`);
           }
         }
       });
     });
     
-    const extractedClients = Array.from(clientsSet).sort((a, b) => a.name.localeCompare(b.name));
+    const extractedClients = Array.from(clientsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     
     console.log('✅ [MATRIX FILTERING] Available clients extracted:', {
       count: extractedClients.length,
@@ -99,30 +112,34 @@ export const useMatrixFiltering = ({
     return extractedClients;
   }, [demandData?.dataPoints]);
 
-  // PHASE 3: Enhanced Preferred Staff Extraction (for future use)
+  // FIXED: Extract preferred staff from task breakdowns
   const availablePreferredStaff = useMemo(() => {
     if (!demandData) {
+      console.log('🔍 [MATRIX FILTERING] No demand data available for staff extraction');
       return [];
     }
 
-    const staffSet = new Set<{ id: string; name: string }>();
+    const staffMap = new Map<string, { id: string; name: string }>();
     
     demandData.dataPoints.forEach(point => {
       point.taskBreakdown?.forEach(task => {
         if (task.preferredStaffId && task.preferredStaffName) {
-          const staffKey = `${task.preferredStaffId}-${task.preferredStaffName}`;
-          
-          if (![...staffSet].some(s => s.id === task.preferredStaffId)) {
-            staffSet.add({
-              id: task.preferredStaffId,
-              name: task.preferredStaffName
-            });
-          }
+          staffMap.set(task.preferredStaffId, {
+            id: task.preferredStaffId,
+            name: task.preferredStaffName
+          });
         }
       });
     });
 
-    return Array.from(staffSet).sort((a, b) => a.name.localeCompare(b.name));
+    const extractedStaff = Array.from(staffMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log('✅ [MATRIX FILTERING] Available preferred staff extracted:', {
+      count: extractedStaff.length,
+      staff: extractedStaff.slice(0, 5).map(s => s.name)
+    });
+
+    return extractedStaff;
   }, [demandData?.dataPoints]);
 
   // Calculate selection state flags for proper filtering logic
@@ -138,14 +155,14 @@ export const useMatrixFiltering = ({
     return availablePreferredStaff.length > 0 && selectedPreferredStaff.length === availablePreferredStaff.length;
   }, [availablePreferredStaff.length, selectedPreferredStaff.length]);
 
-  // PHASE 4: Enhanced validation and logging
+  // Enhanced validation and logging
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
     
     if (!demandData) {
       errors.push('No demand data available');
     } else {
-      if (!demandData.skills || demandData.skills.length === 0) {
+      if (availableSkills.length === 0) {
         errors.push('No skills found in demand data');
       }
       
@@ -155,7 +172,7 @@ export const useMatrixFiltering = ({
     }
     
     return errors;
-  }, [demandData]);
+  }, [demandData, availableSkills.length]);
 
   // Log filtering state for debugging
   console.log('🎛️ [MATRIX FILTERING] Current filtering state:', {
