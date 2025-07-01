@@ -4,6 +4,7 @@ import { RecurringTaskDB } from '@/types/task';
 import { SkillResolutionService } from '../skillResolutionService';
 import { ClientResolutionService } from '../clientResolutionService';
 import { UuidResolutionService } from '@/services/staff/uuidResolutionService';
+import { MonthlyDemandCalculationService } from './monthlyDemandCalculationService';
 
 export interface SkillHours {
   skillType: string;
@@ -18,21 +19,22 @@ export interface FilterContext {
 }
 
 /**
- * Matrix Transformer Core
+ * Matrix Transformer Core - FIXED
  * 
- * Core transformation utilities for matrix data with skill name resolution, client name resolution, and staff name resolution
+ * Fixed transformation utilities that ensure tasks only appear in their correct months
+ * based on recurrence patterns instead of appearing in every month.
  */
 export class MatrixTransformerCore {
   
   /**
-   * Transform forecast data to matrix format with resolved skill names, client names, and staff names
+   * FIXED: Transform forecast data to matrix format with proper monthly demand calculation
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
     tasks: RecurringTaskDB[],
     filterContext?: FilterContext
   ): Promise<DemandMatrixData> {
-    // Basic implementation - can be enhanced later
+    // Basic validation
     if (!forecastData || !tasks) {
       return {
         months: [],
@@ -56,7 +58,7 @@ export class MatrixTransformerCore {
       };
     }
 
-    console.log('🔍 [MATRIX TRANSFORMER CORE] Starting transformation with client and staff resolution...');
+    console.log('🔍 [MATRIX TRANSFORMER CORE] FIXED: Starting transformation with monthly demand calculation...');
 
     // Extract months from forecast data
     const months = forecastData.map(fd => ({
@@ -75,19 +77,11 @@ export class MatrixTransformerCore {
     const resolvedSkills = await this.resolveSkillReferences(allSkillRefs);
     const skills = Array.from(new Set(resolvedSkills));
 
-    // Extract unique client IDs for batch resolution
+    // Batch resolve client and staff information
     const allClientIds = [...new Set(tasks.map(task => task.client_id).filter(Boolean))];
-    console.log('🔍 [MATRIX TRANSFORMER CORE] Resolving client IDs:', allClientIds);
-    
-    // Batch resolve client IDs to client names
     const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
-    console.log('✅ [MATRIX TRANSFORMER CORE] Client resolution complete:', Array.from(clientResolutionMap.entries()));
-
-    // ENHANCED: Extract unique staff IDs for batch resolution
-    const allStaffIds = [...new Set(tasks.map(task => task.preferred_staff_id).filter(Boolean))];
-    console.log('🔍 [MATRIX TRANSFORMER CORE] Resolving staff IDs:', allStaffIds);
     
-    // ENHANCED: Batch resolve staff UUIDs to staff names
+    const allStaffIds = [...new Set(tasks.map(task => task.preferred_staff_id).filter(Boolean))];
     const staffResolutionMap = new Map<string, string>();
     if (allStaffIds.length > 0) {
       try {
@@ -96,85 +90,103 @@ export class MatrixTransformerCore {
           const staff = allStaff.find(s => s.id === staffId);
           if (staff) {
             staffResolutionMap.set(staffId, staff.full_name);
-            console.log(`✅ [MATRIX TRANSFORMER CORE] Staff resolution: ${staffId} -> ${staff.full_name}`);
           } else {
-            console.warn(`⚠️ [MATRIX TRANSFORMER CORE] Staff not found for ID: ${staffId}`);
             staffResolutionMap.set(staffId, `Staff ${staffId.substring(0, 8)}...`);
           }
         });
       } catch (error) {
         console.error('❌ [MATRIX TRANSFORMER CORE] Error resolving staff names:', error);
-        // Fallback to truncated UUIDs
         allStaffIds.forEach(staffId => {
           staffResolutionMap.set(staffId, `Staff ${staffId.substring(0, 8)}...`);
         });
       }
     }
-    console.log('✅ [MATRIX TRANSFORMER CORE] Staff resolution complete:', Array.from(staffResolutionMap.entries()));
 
-    // Generate basic data points with resolved skill names, client names, and staff names
+    // FIXED: Generate data points with proper monthly demand calculation
     const dataPoints = [];
+    
+    // Create skill-to-UUID mapping for filtering
+    const skillMapping = new Map<string, string>();
+    for (let i = 0; i < allSkillRefs.length; i++) {
+      skillMapping.set(allSkillRefs[i], resolvedSkills[i]);
+    }
+
     for (const month of months) {
-      for (let i = 0; i < allSkillRefs.length; i++) {
-        const skillRef = allSkillRefs[i];
-        const resolvedSkill = resolvedSkills[i];
-        
-        const skillTasks = tasks.filter(task => 
-          task.required_skills && task.required_skills.includes(skillRef)
-        );
-        
+      for (const skill of skills) {
+        // Find tasks that require this skill and are due in this month
+        const skillTasks = tasks.filter(task => {
+          // Check if task requires this skill
+          const taskSkills = Array.isArray(task.required_skills) ? task.required_skills : [];
+          const hasSkill = taskSkills.some(taskSkill => {
+            const mappedSkill = skillMapping.get(taskSkill);
+            return mappedSkill === skill || taskSkill === skill;
+          });
+          
+          if (!hasSkill) return false;
+          
+          // FIXED: Check if task is due in this specific month
+          return MonthlyDemandCalculationService.shouldTaskAppearInMonth(task, month.key);
+        });
+
         if (skillTasks.length > 0) {
-          const totalHours = skillTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
-          
-          // Create task breakdown with resolved client names and staff names
-          const taskBreakdown = skillTasks.map(task => {
-            const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+          // Calculate total demand for this skill in this month
+          let totalDemand = 0;
+          const taskBreakdown = [];
+
+          for (const task of skillTasks) {
+            // FIXED: Calculate actual monthly demand for this specific month
+            const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
             
-            // ENHANCED: Resolve staff names using the staff resolution map
-            const resolvedStaffName = task.preferred_staff_id 
-              ? staffResolutionMap.get(task.preferred_staff_id) || `Staff ${task.preferred_staff_id.substring(0, 8)}...`
-              : undefined;
-            
-            console.log(`🔍 [MATRIX TRANSFORMER CORE] Task breakdown enhanced: ${task.client_id} -> ${resolvedClientName}, Staff: ${task.preferred_staff_id} -> ${resolvedStaffName}`);
-            
-            return {
-              clientId: task.client_id,
-              clientName: resolvedClientName, // Use resolved client name
-              recurringTaskId: task.id,
-              taskName: task.name,
-              skillType: resolvedSkill, // Use resolved skill name
-              estimatedHours: task.estimated_hours || 0,
-              recurrencePattern: {
-                type: task.recurrence_type || 'monthly',
-                interval: task.recurrence_interval || 1,
-                frequency: 1
-              },
-              monthlyHours: task.estimated_hours || 0,
-              preferredStaffId: task.preferred_staff_id,
-              preferredStaffName: resolvedStaffName // ENHANCED: Use resolved staff name instead of fallback
-            };
-          });
-          
-          dataPoints.push({
-            skillType: resolvedSkill, // Use resolved skill name
-            month: month.key,
-            monthLabel: month.label,
-            demandHours: totalHours,
-            totalHours: totalHours,
-            taskCount: skillTasks.length,
-            clientCount: new Set(skillTasks.map(task => task.client_id)).size,
-            taskBreakdown
-          });
+            if (monthlyDemand.monthlyHours > 0) {
+              totalDemand += monthlyDemand.monthlyHours;
+              
+              const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+              const resolvedStaffName = task.preferred_staff_id 
+                ? staffResolutionMap.get(task.preferred_staff_id) || `Staff ${task.preferred_staff_id.substring(0, 8)}...`
+                : undefined;
+              
+              taskBreakdown.push({
+                clientId: task.client_id,
+                clientName: resolvedClientName,
+                recurringTaskId: task.id,
+                taskName: task.name,
+                skillType: skill,
+                estimatedHours: task.estimated_hours,
+                recurrencePattern: {
+                  type: task.recurrence_type || 'monthly',
+                  interval: task.recurrence_interval || 1,
+                  frequency: monthlyDemand.monthlyOccurrences
+                },
+                monthlyHours: monthlyDemand.monthlyHours, // FIXED: Use calculated monthly hours
+                preferredStaffId: task.preferred_staff_id,
+                preferredStaffName: resolvedStaffName
+              });
+            }
+          }
+
+          // Only create data point if there's actual demand
+          if (totalDemand > 0) {
+            dataPoints.push({
+              skillType: skill,
+              month: month.key,
+              monthLabel: month.label,
+              demandHours: totalDemand,
+              totalHours: totalDemand,
+              taskCount: taskBreakdown.length,
+              clientCount: new Set(taskBreakdown.map(tb => tb.clientId)).size,
+              taskBreakdown
+            });
+          }
         }
       }
     }
 
-    // Calculate totals
+    // Calculate totals and summaries
     const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
     const totalTasks = dataPoints.reduce((sum, dp) => sum + dp.taskCount, 0);
     const uniqueClients = new Set(tasks.map(task => task.client_id));
 
-    // Generate skill summary with resolved names
+    // Generate skill summary
     const skillSummary: Record<string, any> = {};
     skills.forEach(skill => {
       const skillDataPoints = dataPoints.filter(dp => dp.skillType === skill);
@@ -195,20 +207,28 @@ export class MatrixTransformerCore {
     
     for (const task of tasks) {
       const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
-      const currentTotal = clientTotals.get(resolvedClientName) || 0;
-      clientTotals.set(resolvedClientName, currentTotal + (task.estimated_hours || 0));
       
-      // Initialize revenue data if not present
+      // FIXED: Calculate total hours across all months where task appears
+      let totalTaskHours = 0;
+      for (const month of months) {
+        const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
+        totalTaskHours += monthlyDemand.monthlyHours;
+      }
+      
+      const currentTotal = clientTotals.get(resolvedClientName) || 0;
+      clientTotals.set(resolvedClientName, currentTotal + totalTaskHours);
+      
       if (!clientRevenue.has(resolvedClientName)) {
         clientRevenue.set(resolvedClientName, 0);
       }
     }
 
-    console.log('✅ [MATRIX TRANSFORMER CORE] Transformation complete with client and staff resolution:', {
+    console.log('✅ [MATRIX TRANSFORMER CORE] FIXED: Transformation complete with proper monthly demand calculation:', {
       totalDataPoints: dataPoints.length,
       resolvedClients: clientResolutionMap.size,
       resolvedStaff: staffResolutionMap.size,
-      clientTotalsEntries: clientTotals.size
+      clientTotalsEntries: clientTotals.size,
+      averageDataPointsPerMonth: (dataPoints.length / months.length).toFixed(2)
     });
 
     return {
@@ -233,9 +253,6 @@ export class MatrixTransformerCore {
     };
   }
 
-  /**
-   * Resolve skill references (UUIDs or names) to display names
-   */
   private static async resolveSkillReferences(skillRefs: string[]): Promise<string[]> {
     try {
       console.log('🔍 [MATRIX TRANSFORMER] Resolving skill references:', skillRefs);

@@ -3,16 +3,16 @@ import { DemandDataPoint, ClientTaskDemand } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { ClientResolutionService } from '../clientResolutionService';
-import { RecurrenceCalculator } from '../recurrenceCalculator';
+import { MonthlyDemandCalculationService } from './monthlyDemandCalculationService';
 import { debugLog } from '../../logger';
 
 /**
- * Demand Calculation Service
- * Handles all demand calculations for the matrix transformer
+ * Demand Calculation Service - FIXED
+ * Handles all demand calculations with proper monthly demand calculation
  */
 export class DemandCalculationService {
   /**
-   * Calculate demand for a specific skill and period
+   * FIXED: Calculate demand for a specific skill and period using proper monthly calculation
    */
   static calculateDemandForSkillPeriod(
     skill: string,
@@ -28,19 +28,25 @@ export class DemandCalculationService {
     let totalTasks = 0;
     const clientsSet = new Set<string>();
 
-    debugLog(`Calculating demand for skill: ${skill}, period: ${forecastPeriod.period}`);
+    debugLog(`FIXED: Calculating demand for skill: ${skill}, period: ${forecastPeriod.period}`);
 
-    // Filter tasks by skill using the skill mapping
+    // Filter tasks by skill and check if they're due in this month
     const skillTasks = tasks.filter(task => {
       const taskSkills = Array.isArray(task.required_skills) ? task.required_skills : [];
-      return taskSkills.some(taskSkill => {
+      const hasSkill = taskSkills.some(taskSkill => {
         const mappedSkill = skillMapping.get(taskSkill);
         return mappedSkill === skill || taskSkill === skill;
       });
+      
+      if (!hasSkill) return false;
+      
+      // FIXED: Check if task is due in this specific month
+      return MonthlyDemandCalculationService.shouldTaskAppearInMonth(task, forecastPeriod.period);
     });
 
     for (const task of skillTasks) {
-      const monthlyDemand = this.calculateMonthlyDemandForTask(task, forecastPeriod);
+      // FIXED: Use proper monthly demand calculation
+      const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, forecastPeriod.period);
       
       if (monthlyDemand.monthlyHours > 0) {
         totalDemand += monthlyDemand.monthlyHours;
@@ -48,6 +54,13 @@ export class DemandCalculationService {
         clientsSet.add(task.client_id);
       }
     }
+
+    debugLog(`FIXED: Calculated demand for skill ${skill} in period ${forecastPeriod.period}:`, {
+      totalDemand,
+      totalTasks,
+      totalClients: clientsSet.size,
+      tasksIncluded: skillTasks.length
+    });
 
     return {
       totalDemand,
@@ -57,7 +70,7 @@ export class DemandCalculationService {
   }
 
   /**
-   * Generate task breakdown with client resolution
+   * FIXED: Generate task breakdown with proper monthly demand calculation
    */
   static async generateTaskBreakdownForSkillPeriod(
     skill: string,
@@ -68,13 +81,18 @@ export class DemandCalculationService {
     const taskBreakdown: ClientTaskDemand[] = [];
 
     try {
-      // Filter tasks by skill using the skill mapping
+      // Filter tasks by skill and check if they're due in this month
       const skillTasks = tasks.filter(task => {
         const taskSkills = Array.isArray(task.required_skills) ? task.required_skills : [];
-        return taskSkills.some(taskSkill => {
+        const hasSkill = taskSkills.some(taskSkill => {
           const mappedSkill = skillMapping.get(taskSkill);
           return mappedSkill === skill || taskSkill === skill;
         });
+        
+        if (!hasSkill) return false;
+        
+        // FIXED: Check if task is due in this specific month
+        return MonthlyDemandCalculationService.shouldTaskAppearInMonth(task, forecastPeriod.period);
       });
 
       // Collect unique client IDs for batch resolution
@@ -89,9 +107,10 @@ export class DemandCalculationService {
             continue;
           }
 
-          // Calculate monthly demand for this task
-          const monthlyDemand = this.calculateMonthlyDemandForTask(task, forecastPeriod);
+          // FIXED: Calculate proper monthly demand for this task in this specific month
+          const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, forecastPeriod.period);
 
+          // Only include if there's actual demand in this month
           if (monthlyDemand.monthlyHours > 0) {
             const taskDemand: ClientTaskDemand = {
               clientId: task.client_id,
@@ -105,18 +124,22 @@ export class DemandCalculationService {
                 interval: task.recurrence_interval || 1,
                 frequency: monthlyDemand.monthlyOccurrences
               },
-              monthlyHours: monthlyDemand.monthlyHours,
+              monthlyHours: monthlyDemand.monthlyHours, // FIXED: Use calculated monthly hours
               preferredStaffId: task.preferred_staff_id || null,
-              preferredStaffName: null // Will be resolved separately if needed
+              preferredStaffName: null
             };
 
             taskBreakdown.push(taskDemand);
           }
         } catch (taskError) {
           console.warn(`Error processing task ${task.id}:`, taskError);
-          // Continue with other tasks
         }
       }
+
+      debugLog(`FIXED: Generated task breakdown for skill ${skill} in period ${forecastPeriod.period}:`, {
+        totalTasks: taskBreakdown.length,
+        totalHours: taskBreakdown.reduce((sum, task) => sum + task.monthlyHours, 0)
+      });
 
       return taskBreakdown;
 
@@ -127,43 +150,29 @@ export class DemandCalculationService {
   }
 
   /**
-   * Calculate monthly demand for a single task using proper recurrence calculation
-   * 
-   * This method now uses the RecurrenceCalculator to properly handle different
-   * recurrence patterns, intervals, and specific date ranges instead of using
-   * static approximations.
+   * FIXED: Calculate monthly demand for a single task using the new service
    */
   static calculateMonthlyDemandForTask(
     task: RecurringTaskDB,
     forecastPeriod: ForecastData
   ): { monthlyOccurrences: number; monthlyHours: number } {
     try {
-      // Parse the forecast period to get start and end dates
-      const periodDate = new Date(forecastPeriod.period + '-01');
-      const startDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-      const endDate = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0);
+      // FIXED: Use the new monthly demand calculation service
+      const result = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, forecastPeriod.period);
 
-      // Use RecurrenceCalculator for accurate monthly demand calculation
-      const result = RecurrenceCalculator.calculateMonthlyDemand(task, startDate, endDate);
-
-      debugLog(`Calculated monthly demand for task ${task.id} in period ${forecastPeriod.period}:`, {
+      debugLog(`FIXED: Calculated monthly demand for task ${task.id} in period ${forecastPeriod.period}:`, {
         recurrenceType: task.recurrence_type,
         interval: task.recurrence_interval,
         estimatedHours: task.estimated_hours,
         monthlyOccurrences: result.monthlyOccurrences,
         monthlyHours: result.monthlyHours,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
+        wasIncluded: result.monthlyHours > 0 ? 'YES' : 'NO'
       });
 
-      return {
-        monthlyOccurrences: result.monthlyOccurrences,
-        monthlyHours: result.monthlyHours
-      };
+      return result;
 
     } catch (error) {
       console.error(`Error calculating monthly demand for task ${task.id}:`, error);
-      // Return zero demand for failed calculations
       return {
         monthlyOccurrences: 0,
         monthlyHours: 0
