@@ -1,8 +1,8 @@
 
 /**
- * Grid Data Utilities for Demand Matrix
+ * FIXED: Grid Data Utilities for Demand Matrix
  * 
- * Handles data aggregation and retrieval logic for the demand matrix grid with client resolution
+ * Enhanced to properly handle resolved client names and provide better debugging
  */
 
 import { DemandMatrixData } from '@/types/demand';
@@ -15,7 +15,8 @@ export interface AggregatedCellData {
 }
 
 /**
- * Get aggregated data for a client across all skills in a specific month
+ * FIXED: Get aggregated data for a client across all skills in a specific month
+ * Now properly handles resolved client names from the matrix data
  */
 export const getAggregatedDataForClient = (
   clientName: string, 
@@ -90,7 +91,8 @@ export const getDataPointForSkill = (
 };
 
 /**
- * Extract unique client names from task breakdowns (now uses resolved names)
+ * FIXED: Extract unique client names from task breakdowns (now uses resolved names)
+ * Enhanced with better filtering for resolved vs fallback names
  */
 export const getUniqueClientsFromData = (filteredData: DemandMatrixData): string[] => {
   const clientNames = new Set<string>();
@@ -101,11 +103,33 @@ export const getUniqueClientsFromData = (filteredData: DemandMatrixData): string
   filteredData.dataPoints.forEach(point => {
     point.taskBreakdown?.forEach(task => {
       if (task.clientName && task.clientName.trim() !== '') {
-        // Filter out fallback UUID patterns - we want proper resolved names
-        const isResolvedName = !task.clientName.includes('...') && !task.clientName.startsWith('Client ');
+        // Enhanced filtering logic for resolved names
+        const isValidResolvedName = (name: string): boolean => {
+          // Skip obvious fallback patterns
+          if (name.includes('...') || name.startsWith('Client ')) {
+            return false;
+          }
+          
+          // Accept names that look like real business names
+          if (name.length > 20) {
+            return true; // Longer names are likely real business names
+          }
+          
+          // Accept names with multiple words (likely business names)
+          if (name.includes(' ') && name.length > 10) {
+            return true;
+          }
+          
+          // Accept names with common business suffixes
+          const businessSuffixes = ['LLC', 'Inc', 'Corp', 'Ltd', 'Company', 'Co'];
+          if (businessSuffixes.some(suffix => name.includes(suffix))) {
+            return true;
+          }
+          
+          return false;
+        };
         
-        if (isResolvedName || task.clientName.length > 20) {
-          // Accept if it's a resolved name OR if it's longer than typical UUID fallback
+        if (isValidResolvedName(task.clientName)) {
           clientNames.add(task.clientName);
           console.log(`✅ [GRID DATA UTILS] Added resolved client: ${task.clientName}`);
         } else {

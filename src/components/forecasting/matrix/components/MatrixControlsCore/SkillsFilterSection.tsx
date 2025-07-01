@@ -17,8 +17,8 @@ interface SkillsFilterSectionProps {
 }
 
 /**
- * Skills Filter Section Component
- * Handles skill selection and filtering with dynamic integration
+ * FIXED: Skills Filter Section Component
+ * Enhanced to handle resolved skill names and provide better user feedback
  */
 export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
   selectedSkills,
@@ -41,6 +41,10 @@ export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
       });
     }
   };
+
+  // Enhanced validation for empty states
+  const hasValidSkills = availableSkills && availableSkills.length > 0;
+  const allSkillsSelected = hasValidSkills && selectedSkills.length === availableSkills.length;
 
   return (
     <div className="space-y-3">
@@ -68,9 +72,9 @@ export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
             size="sm" 
             onClick={handleSelectAllSkills}
             className="text-xs h-auto p-1"
-            disabled={skillsLoading || availableSkills.length === 0}
+            disabled={skillsLoading || !hasValidSkills}
           >
-            {selectedSkills.length === availableSkills.length ? (
+            {allSkillsSelected ? (
               <>
                 <EyeOff className="h-3 w-3 mr-1" />
                 Hide All
@@ -108,9 +112,9 @@ export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
       {/* Skills List */}
       {!skillsLoading && !skillsError && (
         <div className="space-y-2 max-h-32 overflow-y-auto">
-          {availableSkills.length === 0 ? (
+          {!hasValidSkills ? (
             <div className="text-xs text-muted-foreground italic">
-              No skills available. Add skills in the Skills module.
+              No skills available. Skills will appear here when demand data is loaded.
             </div>
           ) : (
             availableSkills.map((skill) => (
@@ -123,6 +127,7 @@ export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
                 <Label
                   htmlFor={`skill-${skill}`}
                   className="text-xs flex-1 cursor-pointer"
+                  title={skill} // Add tooltip for long skill names
                 >
                   {skill}
                 </Label>
@@ -132,14 +137,19 @@ export const SkillsFilterSection: React.FC<SkillsFilterSectionProps> = ({
         </div>
       )}
       
-      {/* Selected skills summary */}
+      {/* Enhanced Selected skills summary */}
       <div className="flex flex-wrap gap-1">
         <Badge variant="outline" className="text-xs">
           {selectedSkills.length} of {availableSkills.length} selected
         </Badge>
-        {availableSkills.length > 0 && (
+        {hasValidSkills && (
           <Badge variant="secondary" className="text-xs">
-            From Database
+            Resolved Names
+          </Badge>
+        )}
+        {!hasValidSkills && !skillsLoading && (
+          <Badge variant="destructive" className="text-xs">
+            No Data
           </Badge>
         )}
       </div>
