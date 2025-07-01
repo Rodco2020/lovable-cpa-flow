@@ -150,7 +150,8 @@ describe('FilteringUtils', () => {
       clientFilter: 'all',
       skillFilter: 'all',
       priorityFilter: 'all',
-      statusFilter: 'all'
+      statusFilter: 'all',
+      preferredStaffFilter: 'all' // NEW: Add missing property
     };
 
     it('should apply all filters and return correct results', () => {

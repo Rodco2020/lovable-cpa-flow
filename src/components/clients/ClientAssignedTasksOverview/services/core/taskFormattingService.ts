@@ -72,8 +72,8 @@ export class TaskFormattingService {
       // Resolve required skills
       const resolvedSkills = await SkillResolutionService.resolveSkillIds(task.required_skills);
 
-      // Resolve staff liaison
-      const staffLiaisonInfo = await StaffLiaisonService.resolveStaffLiaison(client.staff_liaison_id);
+      // Resolve staff liaison - fix property name
+      const staffLiaisonInfo = await StaffLiaisonService.resolveStaffLiaison(client.staffLiaisonId);
 
       // NEW: Resolve preferred staff member
       const preferredStaffInfo = this.resolvePreferredStaff(task.preferred_staff_id, staffOptions);

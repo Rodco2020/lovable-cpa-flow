@@ -21,4 +21,29 @@ export class StaffLiaisonService {
       staffLiaisonName: client.staffLiaisonName || undefined
     };
   }
+
+  /**
+   * Resolve staff liaison information by ID
+   * @param staffLiaisonId Staff liaison ID from client
+   * @returns Promise resolving to staff liaison info or null
+   */
+  static async resolveStaffLiaison(staffLiaisonId?: string | null): Promise<{ id: string; name: string } | null> {
+    if (!staffLiaisonId) {
+      return null;
+    }
+
+    // For now, return a placeholder implementation
+    // In a full implementation, this would fetch staff details from the database
+    try {
+      // TODO: Implement actual staff lookup when staff liaison data is available
+      console.log(`[StaffLiaisonService] Resolving staff liaison: ${staffLiaisonId}`);
+      return {
+        id: staffLiaisonId,
+        name: `Staff ${staffLiaisonId.slice(0, 8)}`
+      };
+    } catch (error) {
+      console.error('[StaffLiaisonService] Error resolving staff liaison:', error);
+      return null;
+    }
+  }
 }

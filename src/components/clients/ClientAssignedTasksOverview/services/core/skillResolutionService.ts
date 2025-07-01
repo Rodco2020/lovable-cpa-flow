@@ -13,7 +13,7 @@ export class SkillResolutionService {
    * @param skillIds Array of skill UUIDs to resolve
    * @returns Promise resolving to array of skill names
    */
-  static async resolveTaskSkills(skillIds: string[]): Promise<string[]> {
+  static async resolveSkillIds(skillIds: string[]): Promise<string[]> {
     if (!skillIds || skillIds.length === 0) {
       return [];
     }
@@ -28,6 +28,13 @@ export class SkillResolutionService {
       // Fallback to showing placeholder names
       return skillIds.map(id => `Skill ${id.slice(0, 8)}`);
     }
+  }
+
+  /**
+   * Legacy method name for backward compatibility
+   */
+  static async resolveTaskSkills(skillIds: string[]): Promise<string[]> {
+    return this.resolveSkillIds(skillIds);
   }
 
   /**

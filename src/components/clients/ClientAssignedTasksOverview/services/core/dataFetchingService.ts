@@ -28,13 +28,20 @@ export class DataFetchingService {
   /**
    * Fetch recurring tasks for a specific client
    */
-  static async fetchClientRecurringTasks(clientId: string) {
+  static async fetchRecurringTasksForClient(clientId: string) {
     try {
       return await getClientRecurringTasks(clientId);
     } catch (error) {
       console.error(`Error fetching recurring tasks for client ${clientId}:`, error);
       throw new Error(`Failed to fetch recurring tasks for client ${clientId}`);
     }
+  }
+
+  /**
+   * Legacy method name for backward compatibility
+   */
+  static async fetchClientRecurringTasks(clientId: string) {
+    return this.fetchRecurringTasksForClient(clientId);
   }
 
   /**
