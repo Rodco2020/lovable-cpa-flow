@@ -17,6 +17,7 @@ import { StaffLiaisonService } from './staffLiaisonService';
  * - Field mapping and validation
  * - Skill resolution
  * - Staff liaison resolution
+ * - Preferred staff resolution
  * - Error handling and fallbacks
  */
 export class TaskFormattingService {
@@ -33,7 +34,7 @@ export class TaskFormattingService {
       return [];
     }
 
-    console.log(`[TaskFormattingService] Formatting ${tasks.length} recurring tasks`);
+    console.log(`[TaskFormattingService] Formatting ${tasks.length} recurring tasks with ${staffOptions.length} staff options`);
 
     const formattedTasks: FormattedTask[] = [];
 
@@ -72,22 +73,20 @@ export class TaskFormattingService {
       // Resolve required skills
       const resolvedSkills = await SkillResolutionService.resolveSkillIds(task.required_skills);
 
-      // Resolve staff liaison - fix property name
+      // Resolve staff liaison
       const staffLiaisonInfo = await StaffLiaisonService.resolveStaffLiaison(client.staffLiaisonId);
 
-      // NEW: Resolve preferred staff member
+      // FIXED: Resolve preferred staff member properly
       const preferredStaffInfo = this.resolvePreferredStaff(task.preferred_staff_id, staffOptions);
 
-      // Log field mapping for debugging
-      console.log(`🔧 [TASK FORMATTING] Field mapping verification for recurring task "${task.name}":`, {
-        originalSkillIds: task.required_skills,
-        resolvedSkills,
-        database_preferred_staff_id: {
-          _type: typeof task.preferred_staff_id,
-          value: task.preferred_staff_id || 'undefined'
-        },
-        application_preferredStaffId: preferredStaffInfo?.id || 'undefined',
-        mappingConsistent: !!(task.preferred_staff_id && preferredStaffInfo?.id === task.preferred_staff_id)
+      // Enhanced logging for debugging
+      console.log(`🔧 [TASK FORMATTING] Processing task "${task.name}":`, {
+        taskId: task.id,
+        clientName: client.legalName,
+        database_preferred_staff_id: task.preferred_staff_id,
+        staffOptionsCount: staffOptions.length,
+        resolvedPreferredStaff: preferredStaffInfo,
+        staffOptionsIds: staffOptions.map(s => s.id).slice(0, 3) // First 3 for debugging
       });
 
       const formattedTask: FormattedTask = {
@@ -113,10 +112,18 @@ export class TaskFormattingService {
         isActive: task.is_active,
         staffLiaisonId: staffLiaisonInfo?.id,
         staffLiaisonName: staffLiaisonInfo?.name,
-        // NEW: Add preferred staff information
+        // FIXED: Properly assign preferred staff information
         preferredStaffId: preferredStaffInfo?.id,
         preferredStaffName: preferredStaffInfo?.name
       };
+
+      // Final validation log
+      console.log(`✅ [TASK FORMATTING] Formatted task result:`, {
+        taskName: formattedTask.taskName,
+        hasPreferredStaff: !!(formattedTask.preferredStaffId && formattedTask.preferredStaffName),
+        preferredStaffId: formattedTask.preferredStaffId,
+        preferredStaffName: formattedTask.preferredStaffName
+      });
 
       return formattedTask;
     } catch (error) {
@@ -126,27 +133,45 @@ export class TaskFormattingService {
   }
 
   /**
-   * NEW: Resolve preferred staff member information
+   * FIXED: Resolve preferred staff member information with enhanced error handling
    */
   private static resolvePreferredStaff(
     preferredStaffId: string | null | undefined,
     staffOptions: StaffOption[]
   ): { id: string; name: string } | null {
-    if (!preferredStaffId || !Array.isArray(staffOptions)) {
+    // Enhanced validation and logging
+    console.log(`🔍 [PREFERRED STAFF RESOLUTION] Input:`, {
+      preferredStaffId,
+      staffOptionsCount: staffOptions?.length || 0,
+      staffOptionsType: Array.isArray(staffOptions) ? 'array' : typeof staffOptions
+    });
+
+    if (!preferredStaffId || !Array.isArray(staffOptions) || staffOptions.length === 0) {
+      console.log(`⚠️ [PREFERRED STAFF RESOLUTION] Early return - missing data`);
       return null;
     }
 
-    const staffMember = staffOptions.find(staff => staff.id === preferredStaffId);
+    const staffMember = staffOptions.find(staff => {
+      const match = staff.id === preferredStaffId;
+      console.log(`🔍 [PREFERRED STAFF RESOLUTION] Comparing: "${staff.id}" === "${preferredStaffId}" = ${match}`);
+      return match;
+    });
     
     if (staffMember) {
-      return {
+      const result = {
         id: staffMember.id,
         name: staffMember.full_name
       };
+      console.log(`✅ [PREFERRED STAFF RESOLUTION] Match found:`, result);
+      return result;
     }
 
-    // Log when preferred staff is not found
-    console.warn(`[TaskFormattingService] Preferred staff member not found: ${preferredStaffId}`);
+    // Enhanced logging when preferred staff is not found
+    console.warn(`❌ [PREFERRED STAFF RESOLUTION] Staff member not found:`, {
+      searchingFor: preferredStaffId,
+      availableStaffIds: staffOptions.map(s => s.id),
+      availableStaffNames: staffOptions.map(s => s.full_name)
+    });
     return null;
   }
 
