@@ -58,7 +58,6 @@ export const FilterDisplaySection: React.FC<FilterDisplaySectionProps> = ({
       clients={clients}
       availableSkills={availableSkills}
       availablePriorities={availablePriorities}
-      staffOptions={staffOptions} // NEW: Pass staff options to TaskFilters
     />
   );
 };

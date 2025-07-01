@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/select';
 import { Search, Filter } from 'lucide-react';
 import { Client } from '@/types/client';
-import { StaffOption } from '@/types/staffOption';
 import { FilterState } from '../types';
 
 interface TaskFiltersProps {
@@ -21,7 +20,6 @@ interface TaskFiltersProps {
   clients: Client[];
   availableSkills: string[];
   availablePriorities: string[];
-  staffOptions: StaffOption[]; // NEW: Add staff options prop
 }
 
 export const TaskFilters: React.FC<TaskFiltersProps> = ({
@@ -30,8 +28,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   onResetFilters,
   clients,
   availableSkills,
-  availablePriorities,
-  staffOptions // NEW: Destructure staff options
+  availablePriorities
 }) => {
   // Comprehensive validation to filter out any invalid values
   const validClients = React.useMemo(() => {
@@ -65,21 +62,6 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
       priority.trim() !== ''
     );
   }, [availablePriorities]);
-
-  // NEW: Validate staff options
-  const validStaffOptions = React.useMemo(() => {
-    if (!Array.isArray(staffOptions)) return [];
-    return staffOptions.filter(staff => 
-      staff && 
-      typeof staff === 'object' && 
-      staff.id && 
-      typeof staff.id === 'string' && 
-      staff.id.trim() !== '' &&
-      staff.full_name &&
-      typeof staff.full_name === 'string' &&
-      staff.full_name.trim() !== ''
-    );
-  }, [staffOptions]);
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
@@ -158,25 +140,6 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="paused">Paused/Canceled</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* NEW: Preferred Staff Filter */}
-        <Select
-          value={filters.preferredStaffFilter}
-          onValueChange={(value) => onFilterChange('preferredStaffFilter', value)}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filter by preferred staff" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Staff</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {validStaffOptions.map((staff) => (
-              <SelectItem key={staff.id} value={staff.id}>
-                {staff.full_name}
-              </SelectItem>
-            ))}
           </SelectContent>
         </Select>
         

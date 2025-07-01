@@ -41,9 +41,9 @@ export const useTaskDataFetching = () => {
       const fetchedClients = await TaskDataService.fetchClients();
       setClients(fetchedClients);
       
-      // Fetch all tasks for all clients (now passing staff options)
+      // Fetch all tasks for all clients
       const { formattedTasks: allTasks } = 
-        await TaskDataService.fetchAllClientTasks(fetchedClients, staffOptions);
+        await TaskDataService.fetchAllClientTasks(fetchedClients);
       
       // Sort tasks by due date
       const sortedTasks = TaskDataUtils.sortTasksByDueDate(allTasks);
