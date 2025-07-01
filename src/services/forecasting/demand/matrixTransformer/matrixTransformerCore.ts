@@ -5,6 +5,7 @@ import { SkillResolutionService } from '../skillResolutionService';
 import { ClientResolutionService } from '../clientResolutionService';
 import { UuidResolutionService } from '@/services/staff/uuidResolutionService';
 import { MonthlyDemandCalculationService } from './monthlyDemandCalculationService';
+import { StaffBasedAggregationService } from '../staffBasedAggregationService';
 
 export interface SkillHours {
   skillType: string;
@@ -22,12 +23,12 @@ export interface FilterContext {
  * Matrix Transformer Core - FIXED
  * 
  * Fixed transformation utilities that ensure tasks only appear in their correct months
- * based on recurrence patterns instead of appearing in every month.
+ * and staff-based filtering shows individual staff results (not grouped by skill).
  */
 export class MatrixTransformerCore {
   
   /**
-   * FIXED: Transform forecast data to matrix format with proper monthly demand calculation
+   * FIXED: Transform forecast data to matrix format with proper staff-based aggregation
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
@@ -58,7 +59,7 @@ export class MatrixTransformerCore {
       };
     }
 
-    console.log('🔍 [MATRIX TRANSFORMER CORE] FIXED: Starting transformation with monthly demand calculation...');
+    console.log('🔍 [MATRIX TRANSFORMER CORE] FIXED: Starting transformation with staff-based aggregation fix...');
 
     // Extract months from forecast data
     const months = forecastData.map(fd => ({
@@ -66,6 +67,141 @@ export class MatrixTransformerCore {
       label: fd.period
     }));
 
+    // FIXED: Handle staff-based vs skill-based aggregation differently
+    if (filterContext?.hasStaffFilter && filterContext.preferredStaffIds?.length) {
+      console.log('👨‍💼 [MATRIX TRANSFORMER CORE] FIXED: Using staff-based aggregation for individual staff filtering');
+      return await this.transformWithStaffBasedAggregation(
+        forecastData,
+        tasks,
+        filterContext.preferredStaffIds,
+        months
+      );
+    } else {
+      console.log('🎯 [MATRIX TRANSFORMER CORE] FIXED: Using skill-based aggregation for general filtering');
+      return await this.transformWithSkillBasedAggregation(
+        forecastData,
+        tasks,
+        filterContext,
+        months
+      );
+    }
+  }
+
+  /**
+   * FIXED: Staff-based transformation using the fixed aggregation service
+   */
+  private static async transformWithStaffBasedAggregation(
+    forecastData: ForecastData[],
+    tasks: RecurringTaskDB[],
+    staffIds: string[],
+    months: { key: string; label: string }[]
+  ): Promise<DemandMatrixData> {
+    console.log('👨‍💼 [MATRIX TRANSFORMER CORE] FIXED: Executing staff-based transformation');
+
+    // FIXED: Filter tasks to only those assigned to selected staff
+    const staffTasks = StaffBasedAggregationService.filterTasksForStaff(tasks, staffIds);
+    
+    // Resolve staff member information
+    const staffMembers = await StaffBasedAggregationService.resolveStaffMembers(staffIds);
+    
+    // FIXED: Generate staff-specific data points using the fixed aggregation
+    const dataPoints = await StaffBasedAggregationService.generateStaffSpecificDataPoints(
+      forecastData,
+      staffTasks,
+      staffMembers
+    );
+
+    // Extract skills (which are actually staff names in staff-based mode)
+    const skills = [...new Set(dataPoints.map(dp => dp.skillType))];
+
+    // Calculate totals and summaries
+    const totalDemand = dataPoints.reduce((sum, dp) => sum + dp.demandHours, 0);
+    const totalTasks = dataPoints.reduce((sum, dp) => sum + dp.taskCount, 0);
+    const uniqueClients = new Set(
+      dataPoints.flatMap(dp => dp.taskBreakdown.map(tb => tb.clientId))
+    );
+
+    // Generate skill summary (staff summary in this case)
+    const skillSummary: Record<string, any> = {};
+    staffMembers.forEach(staff => {
+      const staffDataPoints = dataPoints.filter(dp => dp.actualStaffId === staff.id);
+      skillSummary[staff.name] = {
+        totalHours: staffDataPoints.reduce((sum, dp) => sum + dp.totalHours, 0),
+        demandHours: staffDataPoints.reduce((sum, dp) => sum + dp.demandHours, 0),
+        taskCount: staffDataPoints.reduce((sum, dp) => sum + dp.taskCount, 0),
+        clientCount: new Set(staffDataPoints.flatMap(dp => dp.taskBreakdown.map(tb => tb.clientId))).size,
+        totalSuggestedRevenue: 0,
+        totalExpectedLessSuggested: 0,
+        averageFeeRate: 0
+      };
+    });
+
+    // Batch resolve client information for totals
+    const allClientIds = [...new Set(staffTasks.map(task => task.client_id))];
+    const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
+    
+    // Generate client totals using resolved names
+    const clientTotals = new Map<string, number>();
+    const clientRevenue = new Map<string, number>();
+    
+    for (const task of staffTasks) {
+      const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
+      
+      // Calculate total hours across all months where task appears
+      let totalTaskHours = 0;
+      for (const month of months) {
+        const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
+        totalTaskHours += monthlyDemand.monthlyHours;
+      }
+      
+      const currentTotal = clientTotals.get(resolvedClientName) || 0;
+      clientTotals.set(resolvedClientName, currentTotal + totalTaskHours);
+      
+      if (!clientRevenue.has(resolvedClientName)) {
+        clientRevenue.set(resolvedClientName, 0);
+      }
+    }
+
+    console.log('✅ [MATRIX TRANSFORMER CORE] FIXED: Staff-based transformation complete:', {
+      totalDataPoints: dataPoints.length,
+      staffMembers: staffMembers.length,
+      uniqueClients: uniqueClients.size,
+      clientTotalsEntries: clientTotals.size,
+      staffSpecificDataPoints: dataPoints.filter(dp => dp.isStaffSpecific).length
+    });
+
+    return {
+      months,
+      skills,
+      dataPoints,
+      totalDemand,
+      totalTasks,
+      totalClients: uniqueClients.size,
+      skillSummary,
+      clientTotals,
+      clientRevenue,
+      clientHourlyRates: new Map(),
+      clientSuggestedRevenue: new Map(),
+      clientExpectedLessSuggested: new Map(),
+      revenueTotals: {
+        totalSuggestedRevenue: 0,
+        totalExpectedRevenue: 0,
+        totalExpectedLessSuggested: 0
+      },
+      aggregationStrategy: 'staff-based'
+    };
+  }
+
+  /**
+   * FIXED: Skill-based transformation (existing logic preserved)
+   */
+  private static async transformWithSkillBasedAggregation(
+    forecastData: ForecastData[],
+    tasks: RecurringTaskDB[],
+    filterContext?: FilterContext,
+    months?: { key: string; label: string }[]
+  ): Promise<DemandMatrixData> {
+    
     // Extract and resolve skills to display names
     const skillsFromForecast = forecastData.flatMap(fd => 
       fd.demand?.map(d => d.skill) || []
@@ -102,7 +238,7 @@ export class MatrixTransformerCore {
       }
     }
 
-    // FIXED: Generate data points with proper monthly demand calculation
+    // Generate data points with proper monthly demand calculation
     const dataPoints = [];
     
     // Create skill-to-UUID mapping for filtering
@@ -111,7 +247,7 @@ export class MatrixTransformerCore {
       skillMapping.set(allSkillRefs[i], resolvedSkills[i]);
     }
 
-    for (const month of months) {
+    for (const month of months!) {
       for (const skill of skills) {
         // Find tasks that require this skill and are due in this month
         const skillTasks = tasks.filter(task => {
@@ -124,7 +260,7 @@ export class MatrixTransformerCore {
           
           if (!hasSkill) return false;
           
-          // FIXED: Check if task is due in this specific month
+          // Check if task is due in this specific month
           return MonthlyDemandCalculationService.shouldTaskAppearInMonth(task, month.key);
         });
 
@@ -134,7 +270,7 @@ export class MatrixTransformerCore {
           const taskBreakdown = [];
 
           for (const task of skillTasks) {
-            // FIXED: Calculate actual monthly demand for this specific month
+            // Calculate actual monthly demand for this specific month
             const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
             
             if (monthlyDemand.monthlyHours > 0) {
@@ -157,7 +293,7 @@ export class MatrixTransformerCore {
                   interval: task.recurrence_interval || 1,
                   frequency: monthlyDemand.monthlyOccurrences
                 },
-                monthlyHours: monthlyDemand.monthlyHours, // FIXED: Use calculated monthly hours
+                monthlyHours: monthlyDemand.monthlyHours,
                 preferredStaffId: task.preferred_staff_id,
                 preferredStaffName: resolvedStaffName
               });
@@ -208,9 +344,9 @@ export class MatrixTransformerCore {
     for (const task of tasks) {
       const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
       
-      // FIXED: Calculate total hours across all months where task appears
+      // Calculate total hours across all months where task appears
       let totalTaskHours = 0;
-      for (const month of months) {
+      for (const month of months!) {
         const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
         totalTaskHours += monthlyDemand.monthlyHours;
       }
@@ -223,16 +359,16 @@ export class MatrixTransformerCore {
       }
     }
 
-    console.log('✅ [MATRIX TRANSFORMER CORE] FIXED: Transformation complete with proper monthly demand calculation:', {
+    console.log('✅ [MATRIX TRANSFORMER CORE] FIXED: Skill-based transformation complete:', {
       totalDataPoints: dataPoints.length,
       resolvedClients: clientResolutionMap.size,
       resolvedStaff: staffResolutionMap.size,
       clientTotalsEntries: clientTotals.size,
-      averageDataPointsPerMonth: (dataPoints.length / months.length).toFixed(2)
+      averageDataPointsPerMonth: (dataPoints.length / months!.length).toFixed(2)
     });
 
     return {
-      months,
+      months: months!,
       skills,
       dataPoints,
       totalDemand,
@@ -249,7 +385,7 @@ export class MatrixTransformerCore {
         totalExpectedRevenue: 0,
         totalExpectedLessSuggested: 0
       },
-      aggregationStrategy: filterContext?.hasStaffFilter ? 'staff-based' : 'skill-based'
+      aggregationStrategy: 'skill-based'
     };
   }
 
