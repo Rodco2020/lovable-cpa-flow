@@ -1,102 +1,117 @@
 
 import { Client } from '@/types/client';
 import { FormattedTask } from '../types';
+import { StaffOption } from '@/types/staffOption';
 import { DataFetchingService } from './core/dataFetchingService';
 import { TaskFormattingService } from './core/taskFormattingService';
 
 /**
- * Main Task Data Service - Refactored for better maintainability
+ * Task Data Service
  * 
- * Orchestrates data fetching and formatting operations using specialized services.
- * This service maintains the same external interface while improving internal structure.
- * 
- * Key improvements:
- * - Separated concerns into focused services
- * - Better error handling and logging
- * - Improved testability through smaller, focused modules
- * - Maintained backward compatibility
+ * High-level service that orchestrates data fetching and formatting
+ * for the Client Assigned Tasks Overview component.
  */
 export class TaskDataService {
   /**
-   * Fetch all clients from the service
+   * Fetch clients from database
    */
   static async fetchClients(): Promise<Client[]> {
-    return DataFetchingService.fetchClients();
+    try {
+      return await DataFetchingService.fetchClients();
+    } catch (error) {
+      console.error('[TaskDataService] Error fetching clients:', error);
+      throw error;
+    }
   }
 
   /**
-   * Fetch recurring tasks for a specific client
+   * Fetch and format all client tasks
    */
-  static async fetchClientRecurringTasks(clientId: string) {
-    return DataFetchingService.fetchClientRecurringTasks(clientId);
-  }
-
-  /**
-   * Fetch ad-hoc tasks for a specific client
-   */
-  static async fetchClientAdHocTasks(clientId: string) {
-    return DataFetchingService.fetchClientAdHocTasks(clientId);
-  }
-
-  /**
-   * Fetch all tasks for all clients with skill ID resolution and staff liaison information
-   * 
-   * This is the main orchestration method that coordinates all the specialized services
-   * to fetch, format, and return task data in the expected format.
-   */
-  static async fetchAllClientTasks(clients: Client[]): Promise<{
+  static async fetchAllClientTasks(
+    clients: Client[],
+    staffOptions: StaffOption[] = []
+  ): Promise<{
     formattedTasks: FormattedTask[];
-    skills: Set<string>;
-    priorities: Set<string>;
+    uniqueSkills: Set<string>;
+    uniquePriorities: Set<string>;
   }> {
-    const allFormattedTasks: FormattedTask[] = [];
-    const skills = new Set<string>();
-    const priorities = new Set<string>();
+    console.log(`[TaskDataService] Fetching tasks for ${clients.length} clients`);
     
+    const allFormattedTasks: FormattedTask[] = [];
+    const uniqueSkills = new Set<string>();
+    const uniquePriorities = new Set<string>();
+
     for (const client of clients) {
       try {
-        console.log(`[TaskDataService] Processing tasks for client: ${client.legalName}`);
+        const { formattedTasks } = await this.fetchClientTasks(client, staffOptions);
         
-        // Get recurring tasks
-        const recurringTasks = await this.fetchClientRecurringTasks(client.id);
+        allFormattedTasks.push(...formattedTasks);
         
-        // Format recurring tasks with skill resolution and staff liaison info
-        const formattedRecurringTasks = await TaskFormattingService.formatRecurringTasks(
-          recurringTasks, 
-          client, 
-          skills, 
-          priorities
-        );
+        // Collect unique skills and priorities
+        formattedTasks.forEach(task => {
+          task.requiredSkills.forEach(skill => uniqueSkills.add(skill));
+          if (task.priority) {
+            uniquePriorities.add(task.priority);
+          }
+        });
         
-        // Get ad-hoc tasks
-        const adHocTasksData = await this.fetchClientAdHocTasks(client.id);
-        
-        // Format ad-hoc tasks with skill resolution and staff liaison info
-        const formattedAdHocTasks = await TaskFormattingService.formatAdHocTasks(
-          adHocTasksData, 
-          client, 
-          skills, 
-          priorities
-        );
-        
-        // Add all tasks to the array
-        allFormattedTasks.push(...formattedRecurringTasks, ...formattedAdHocTasks);
-        
-        console.log(`[TaskDataService] Processed ${formattedRecurringTasks.length} recurring and ${formattedAdHocTasks.length} ad-hoc tasks for client ${client.legalName}`);
       } catch (error) {
-        console.error(`Error processing tasks for client ${client.legalName}:`, error);
+        console.error(`[TaskDataService] Error fetching tasks for client ${client.id}:`, error);
         // Continue with other clients even if one fails
       }
     }
-    
+
     console.log(`[TaskDataService] Total tasks processed: ${allFormattedTasks.length}`);
-    console.log(`[TaskDataService] Unique skills collected: ${Array.from(skills)}`);
-    console.log(`[TaskDataService] Unique priorities collected: ${Array.from(priorities)}`);
-    
+    console.log(`[TaskDataService] Unique skills collected: ${Array.from(uniqueSkills).join(',')}`);
+    console.log(`[TaskDataService] Unique priorities collected: ${Array.from(uniquePriorities).join(',')}`);
+
     return {
       formattedTasks: allFormattedTasks,
-      skills,
-      priorities
+      uniqueSkills,
+      uniquePriorities
     };
+  }
+
+  /**
+   * Fetch and format tasks for a specific client
+   */
+  static async fetchClientTasks(
+    client: Client,
+    staffOptions: StaffOption[] = []
+  ): Promise<{
+    formattedTasks: FormattedTask[];
+    recurringCount: number;
+    adHocCount: number;
+  }> {
+    try {
+      // Fetch recurring tasks
+      const recurringTasks = await DataFetchingService.fetchRecurringTasksForClient(client.id);
+      
+      // Format recurring tasks (now passing staff options)
+      const formattedRecurringTasks = await TaskFormattingService.formatRecurringTasks(
+        recurringTasks, 
+        [client],
+        staffOptions
+      );
+
+      // TODO: Fetch and format ad-hoc tasks when implemented
+      const formattedAdHocTasks: FormattedTask[] = [];
+
+      const allFormattedTasks = [
+        ...formattedRecurringTasks,
+        ...formattedAdHocTasks
+      ];
+
+      console.log(`[TaskDataService] Processed ${formattedRecurringTasks.length} recurring and ${formattedAdHocTasks.length} ad-hoc tasks for client ${client.legalName}`);
+
+      return {
+        formattedTasks: allFormattedTasks,
+        recurringCount: formattedRecurringTasks.length,
+        adHocCount: formattedAdHocTasks.length
+      };
+    } catch (error) {
+      console.error(`[TaskDataService] Error fetching tasks for client ${client.id}:`, error);
+      throw error;
+    }
   }
 }

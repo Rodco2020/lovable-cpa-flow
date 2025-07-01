@@ -12,7 +12,8 @@ export const useFilterState = () => {
     clientFilter: 'all',
     skillFilter: 'all',
     priorityFilter: 'all',
-    statusFilter: 'all'
+    statusFilter: 'all',
+    preferredStaffFilter: 'all' // NEW: Add preferred staff filter
   });
 
   /**
@@ -31,7 +32,8 @@ export const useFilterState = () => {
       clientFilter: 'all',
       skillFilter: 'all',
       priorityFilter: 'all',
-      statusFilter: 'all'
+      statusFilter: 'all',
+      preferredStaffFilter: 'all' // NEW: Reset preferred staff filter
     });
   };
 

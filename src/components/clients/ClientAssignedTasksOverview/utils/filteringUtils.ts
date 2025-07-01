@@ -77,6 +77,23 @@ export class FilteringUtils {
   }
 
   /**
+   * NEW: Filter tasks by preferred staff member
+   */
+  static filterByPreferredStaff(tasks: FormattedTask[], preferredStaffFilter: string): FormattedTask[] {
+    if (preferredStaffFilter === 'all') return tasks;
+    
+    return tasks.filter(task => {
+      // Handle tasks with no preferred staff (show them when filtering for unassigned)
+      if (preferredStaffFilter === 'unassigned') {
+        return !task.preferredStaffId || task.preferredStaffId === '';
+      }
+      
+      // Filter by specific staff member
+      return task.preferredStaffId === preferredStaffFilter;
+    });
+  }
+
+  /**
    * Apply all filters to a task list in sequence
    * This is the main filtering orchestrator
    */
@@ -88,6 +105,7 @@ export class FilteringUtils {
       skillFilter: string;
       priorityFilter: string;
       statusFilter: string;
+      preferredStaffFilter: string; // NEW: Add preferred staff filter
     },
     activeTab: string
   ): FormattedTask[] {
@@ -100,6 +118,7 @@ export class FilteringUtils {
     filtered = this.filterBySkill(filtered, filters.skillFilter);
     filtered = this.filterByPriority(filtered, filters.priorityFilter);
     filtered = this.filterByStatus(filtered, filters.statusFilter);
+    filtered = this.filterByPreferredStaff(filtered, filters.preferredStaffFilter); // NEW: Apply preferred staff filter
     
     return filtered;
   }

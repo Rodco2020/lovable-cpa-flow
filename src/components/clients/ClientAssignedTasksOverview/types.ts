@@ -16,6 +16,9 @@ export interface FormattedTask {
   isActive?: boolean;
   staffLiaisonId?: string;
   staffLiaisonName?: string;
+  // NEW: Add preferred staff fields
+  preferredStaffId?: string;
+  preferredStaffName?: string;
 }
 
 export interface FilterState {
@@ -24,4 +27,6 @@ export interface FilterState {
   skillFilter: string;
   priorityFilter: string;
   statusFilter: string;
+  // NEW: Add preferred staff filter
+  preferredStaffFilter: string;
 }
