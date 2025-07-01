@@ -3,6 +3,7 @@ import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { SkillResolutionService } from '../skillResolutionService';
 import { ClientResolutionService } from '../clientResolutionService';
+import { UuidResolutionService } from '@/services/staff/uuidResolutionService';
 
 export interface SkillHours {
   skillType: string;
@@ -19,12 +20,12 @@ export interface FilterContext {
 /**
  * Matrix Transformer Core
  * 
- * Core transformation utilities for matrix data with skill name resolution and client name resolution
+ * Core transformation utilities for matrix data with skill name resolution, client name resolution, and staff name resolution
  */
 export class MatrixTransformerCore {
   
   /**
-   * Transform forecast data to matrix format with resolved skill names and client names
+   * Transform forecast data to matrix format with resolved skill names, client names, and staff names
    */
   static async transformToMatrixData(
     forecastData: ForecastData[],
@@ -55,7 +56,7 @@ export class MatrixTransformerCore {
       };
     }
 
-    console.log('🔍 [MATRIX TRANSFORMER CORE] Starting transformation with client resolution...');
+    console.log('🔍 [MATRIX TRANSFORMER CORE] Starting transformation with client and staff resolution...');
 
     // Extract months from forecast data
     const months = forecastData.map(fd => ({
@@ -82,7 +83,36 @@ export class MatrixTransformerCore {
     const clientResolutionMap = await ClientResolutionService.resolveClientIds(allClientIds);
     console.log('✅ [MATRIX TRANSFORMER CORE] Client resolution complete:', Array.from(clientResolutionMap.entries()));
 
-    // Generate basic data points with resolved skill names and client names
+    // ENHANCED: Extract unique staff IDs for batch resolution
+    const allStaffIds = [...new Set(tasks.map(task => task.preferred_staff_id).filter(Boolean))];
+    console.log('🔍 [MATRIX TRANSFORMER CORE] Resolving staff IDs:', allStaffIds);
+    
+    // ENHANCED: Batch resolve staff UUIDs to staff names
+    const staffResolutionMap = new Map<string, string>();
+    if (allStaffIds.length > 0) {
+      try {
+        const allStaff = await UuidResolutionService.getAllStaff();
+        allStaffIds.forEach(staffId => {
+          const staff = allStaff.find(s => s.id === staffId);
+          if (staff) {
+            staffResolutionMap.set(staffId, staff.full_name);
+            console.log(`✅ [MATRIX TRANSFORMER CORE] Staff resolution: ${staffId} -> ${staff.full_name}`);
+          } else {
+            console.warn(`⚠️ [MATRIX TRANSFORMER CORE] Staff not found for ID: ${staffId}`);
+            staffResolutionMap.set(staffId, `Staff ${staffId.substring(0, 8)}...`);
+          }
+        });
+      } catch (error) {
+        console.error('❌ [MATRIX TRANSFORMER CORE] Error resolving staff names:', error);
+        // Fallback to truncated UUIDs
+        allStaffIds.forEach(staffId => {
+          staffResolutionMap.set(staffId, `Staff ${staffId.substring(0, 8)}...`);
+        });
+      }
+    }
+    console.log('✅ [MATRIX TRANSFORMER CORE] Staff resolution complete:', Array.from(staffResolutionMap.entries()));
+
+    // Generate basic data points with resolved skill names, client names, and staff names
     const dataPoints = [];
     for (const month of months) {
       for (let i = 0; i < allSkillRefs.length; i++) {
@@ -96,11 +126,16 @@ export class MatrixTransformerCore {
         if (skillTasks.length > 0) {
           const totalHours = skillTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
           
-          // Create task breakdown with resolved client names
+          // Create task breakdown with resolved client names and staff names
           const taskBreakdown = skillTasks.map(task => {
             const resolvedClientName = clientResolutionMap.get(task.client_id) || `Client ${task.client_id.substring(0, 8)}...`;
             
-            console.log(`🔍 [MATRIX TRANSFORMER CORE] Task breakdown: ${task.client_id} -> ${resolvedClientName}`);
+            // ENHANCED: Resolve staff names using the staff resolution map
+            const resolvedStaffName = task.preferred_staff_id 
+              ? staffResolutionMap.get(task.preferred_staff_id) || `Staff ${task.preferred_staff_id.substring(0, 8)}...`
+              : undefined;
+            
+            console.log(`🔍 [MATRIX TRANSFORMER CORE] Task breakdown enhanced: ${task.client_id} -> ${resolvedClientName}, Staff: ${task.preferred_staff_id} -> ${resolvedStaffName}`);
             
             return {
               clientId: task.client_id,
@@ -116,7 +151,7 @@ export class MatrixTransformerCore {
               },
               monthlyHours: task.estimated_hours || 0,
               preferredStaffId: task.preferred_staff_id,
-              preferredStaffName: task.preferred_staff_id ? `Staff ${task.preferred_staff_id}` : undefined
+              preferredStaffName: resolvedStaffName // ENHANCED: Use resolved staff name instead of fallback
             };
           });
           
@@ -169,9 +204,10 @@ export class MatrixTransformerCore {
       }
     }
 
-    console.log('✅ [MATRIX TRANSFORMER CORE] Transformation complete with client resolution:', {
+    console.log('✅ [MATRIX TRANSFORMER CORE] Transformation complete with client and staff resolution:', {
       totalDataPoints: dataPoints.length,
       resolvedClients: clientResolutionMap.size,
+      resolvedStaff: staffResolutionMap.size,
       clientTotalsEntries: clientTotals.size
     });
 

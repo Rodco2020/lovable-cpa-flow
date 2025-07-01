@@ -13,7 +13,7 @@ interface UseMatrixFilteringProps {
 }
 
 /**
- * FIXED: Hook for managing matrix filtering logic with proper data extraction
+ * ENHANCED: Hook for managing matrix filtering logic with proper data extraction and staff name resolution
  */
 export const useMatrixFiltering = ({
   demandData,
@@ -23,7 +23,7 @@ export const useMatrixFiltering = ({
   monthRange,
   groupingMode
 }: UseMatrixFilteringProps) => {
-  // FIXED: Extract available skills from resolved matrix data
+  // Extract available skills from resolved matrix data
   const availableSkills = useMemo(() => {
     if (!demandData) {
       console.log('🔍 [MATRIX FILTERING] No demand data available for skills extraction');
@@ -63,7 +63,7 @@ export const useMatrixFiltering = ({
     return extractedSkills;
   }, [demandData?.skills, demandData?.dataPoints]);
 
-  // FIXED: Extract available clients from task breakdowns with proper validation
+  // Extract available clients from task breakdowns with proper validation
   const availableClients = useMemo(() => {
     if (!demandData) {
       console.log('🔍 [MATRIX FILTERING] No demand data available for clients extraction');
@@ -112,22 +112,40 @@ export const useMatrixFiltering = ({
     return extractedClients;
   }, [demandData?.dataPoints]);
 
-  // FIXED: Extract preferred staff from task breakdowns
+  // ENHANCED: Extract preferred staff from task breakdowns with resolved names
   const availablePreferredStaff = useMemo(() => {
     if (!demandData) {
       console.log('🔍 [MATRIX FILTERING] No demand data available for staff extraction');
       return [];
     }
 
+    console.log('🔍 [MATRIX FILTERING] Extracting available preferred staff from resolved matrix data...');
+
     const staffMap = new Map<string, { id: string; name: string }>();
     
     demandData.dataPoints.forEach(point => {
       point.taskBreakdown?.forEach(task => {
         if (task.preferredStaffId && task.preferredStaffName) {
-          staffMap.set(task.preferredStaffId, {
-            id: task.preferredStaffId,
-            name: task.preferredStaffName
-          });
+          // ENHANCED: Enhanced validation for resolved staff names
+          const isValidStaffName = (name: string): boolean => {
+            // Skip obvious fallback patterns
+            if (name.includes('...') || name.startsWith('Staff ')) return false;
+            // Accept names that look like real person names (contains spaces, reasonable length)
+            if (name.includes(' ') && name.length > 5) return true;
+            // Accept single names if they're reasonable length
+            return name.length > 2 && name.length < 50;
+          };
+
+          if (isValidStaffName(task.preferredStaffName)) {
+            staffMap.set(task.preferredStaffId, {
+              id: task.preferredStaffId,
+              name: task.preferredStaffName
+            });
+            
+            console.log(`✅ [MATRIX FILTERING] Added resolved staff: ${task.preferredStaffName} (${task.preferredStaffId})`);
+          } else {
+            console.log(`⚠️ [MATRIX FILTERING] Skipped invalid staff name: ${task.preferredStaffName}`);
+          }
         }
       });
     });
@@ -136,7 +154,8 @@ export const useMatrixFiltering = ({
     
     console.log('✅ [MATRIX FILTERING] Available preferred staff extracted:', {
       count: extractedStaff.length,
-      staff: extractedStaff.slice(0, 5).map(s => s.name)
+      staff: extractedStaff.slice(0, 10).map(s => s.name),
+      staffDetails: extractedStaff.slice(0, 5).map(s => ({ id: s.id, name: s.name }))
     });
 
     return extractedStaff;
@@ -186,7 +205,8 @@ export const useMatrixFiltering = ({
     isAllClientsSelected,
     isAllPreferredStaffSelected,
     validationErrors,
-    groupingMode
+    groupingMode,
+    staffNamesResolved: availablePreferredStaff.length > 0 ? 'YES' : 'NO'
   });
 
   return {
