@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, UserMinus } from 'lucide-react';
 import { Client } from '@/types/client';
 import { FilterState } from '../types';
 import { getActiveStaff } from '@/services/staff/staffService';
@@ -174,6 +174,13 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Staff</SelectItem>
+            <SelectItem value="no-staff">
+              <div className="flex items-center gap-2">
+                <UserMinus className="h-4 w-4" />
+                No Staff Assigned
+              </div>
+            </SelectItem>
+            <div className="h-px bg-border my-1" />
             {staffOptions.map((staff) => (
               <SelectItem key={staff.id} value={staff.id}>
                 {staff.fullName}

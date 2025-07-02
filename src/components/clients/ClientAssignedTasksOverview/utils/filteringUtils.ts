@@ -83,6 +83,11 @@ export class FilteringUtils {
   static filterByPreferredStaff(tasks: FormattedTask[], preferredStaffFilter: string): FormattedTask[] {
     if (!preferredStaffFilter || preferredStaffFilter === 'all') return tasks;
     
+    // Handle "No Staff Assigned" filter
+    if (preferredStaffFilter === 'no-staff') {
+      return tasks.filter(task => !task.preferredStaffId);
+    }
+    
     return tasks.filter(task => {
       // Handle edge case where preferredStaffId might be null/undefined
       if (!task.preferredStaffId) return false;

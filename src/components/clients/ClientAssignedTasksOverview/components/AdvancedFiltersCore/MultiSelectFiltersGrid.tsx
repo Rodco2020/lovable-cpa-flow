@@ -48,7 +48,10 @@ export const MultiSelectFiltersGrid: React.FC<MultiSelectFiltersGridProps> = ({
     { value: 'recurring', label: 'Recurring' },
     { value: 'adhoc', label: 'Ad-hoc' }
   ];
-  const staffOptions = validStaffOptions.map(staff => ({ value: staff.id, label: staff.full_name }));
+  const staffOptions = [
+    { value: 'no-staff', label: 'No Staff Assigned' },
+    ...validStaffOptions.map(staff => ({ value: staff.id, label: staff.full_name }))
+  ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
