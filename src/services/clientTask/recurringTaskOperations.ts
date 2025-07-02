@@ -43,7 +43,7 @@ export const getClientRecurringTasks = async (clientId: string): Promise<Recurri
   try {
     const { data, error } = await supabase
       .from('recurring_tasks')
-      .select('*')
+      .select('*, preferred_staff:staff!recurring_tasks_preferred_staff_id_fkey(id, full_name)')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false });
       

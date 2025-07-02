@@ -34,8 +34,8 @@ export class TaskFormattingService {
         priorities.add(task.priority);
         
         // Extract preferred staff information
-        const preferredStaffId = task.preferred_staff_id || null;
-        const preferredStaffName = task.staff?.full_name || null;
+        const preferredStaffId = task.preferredStaffId || null;
+        const preferredStaffName = task.preferred_staff?.full_name || null;
         
         console.log(`🔧 [TASK FORMATTING] Field mapping verification for recurring task "${task.name}":`, {
           originalSkillIds: task.requiredSkills,
