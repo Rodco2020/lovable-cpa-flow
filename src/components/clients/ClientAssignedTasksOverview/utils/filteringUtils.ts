@@ -77,6 +77,14 @@ export class FilteringUtils {
   }
 
   /**
+   * Filter tasks by preferred staff
+   */
+  static filterByPreferredStaff(tasks: FormattedTask[], preferredStaffFilter: string): FormattedTask[] {
+    if (!preferredStaffFilter || preferredStaffFilter === '') return tasks;
+    return tasks.filter(task => task.preferredStaffId === preferredStaffFilter);
+  }
+
+  /**
    * Apply all filters to a task list in sequence
    * This is the main filtering orchestrator
    */
@@ -88,6 +96,7 @@ export class FilteringUtils {
       skillFilter: string;
       priorityFilter: string;
       statusFilter: string;
+      preferredStaffFilter: string;
     },
     activeTab: string
   ): FormattedTask[] {
@@ -100,6 +109,7 @@ export class FilteringUtils {
     filtered = this.filterBySkill(filtered, filters.skillFilter);
     filtered = this.filterByPriority(filtered, filters.priorityFilter);
     filtered = this.filterByStatus(filtered, filters.statusFilter);
+    filtered = this.filterByPreferredStaff(filtered, filters.preferredStaffFilter);
     
     return filtered;
   }

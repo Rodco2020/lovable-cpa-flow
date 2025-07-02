@@ -19,6 +19,7 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
     priorityFilters: [],
     statusFilters: [],
     staffLiaisonFilters: [],
+    preferredStaffFilters: [],
     dateRange: { from: undefined, to: undefined },
     preset: null
   });
@@ -83,6 +84,15 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
       console.log('After staff liaison filter:', filtered.length);
     }
 
+    // Apply preferred staff filter
+    if (advancedFilters.preferredStaffFilters.length > 0) {
+      filtered = filtered.filter(task => {
+        return task.preferredStaffId && 
+               advancedFilters.preferredStaffFilters.includes(task.preferredStaffId);
+      });
+      console.log('After preferred staff filter:', filtered.length);
+    }
+
     // Apply date range filter
     if (advancedFilters.dateRange.from || advancedFilters.dateRange.to) {
       filtered = filtered.filter(task => {
@@ -116,6 +126,7 @@ export const useAdvancedFiltering = (filteredTasks: FormattedTask[]) => {
       priorityFilters: [],
       statusFilters: [],
       staffLiaisonFilters: [],
+      preferredStaffFilters: [],
       dateRange: { from: undefined, to: undefined },
       preset: null
     });

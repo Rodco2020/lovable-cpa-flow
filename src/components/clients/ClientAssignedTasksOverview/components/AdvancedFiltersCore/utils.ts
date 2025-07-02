@@ -87,6 +87,7 @@ export class AdvancedFiltersUtils {
            filters.priorityFilters.length + 
            filters.statusFilters.length +
            filters.staffLiaisonFilters.length +
+           filters.preferredStaffFilters.length +
            (filters.dateRange.from || filters.dateRange.to ? 1 : 0);
   }
 
@@ -100,6 +101,7 @@ export class AdvancedFiltersUtils {
       priorityFilters: [],
       statusFilters: [],
       staffLiaisonFilters: [],
+      preferredStaffFilters: [],
       dateRange: { from: undefined, to: undefined },
       preset: null
     };

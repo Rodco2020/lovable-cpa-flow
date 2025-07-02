@@ -11,6 +11,7 @@ export interface AdvancedFilterState {
   priorityFilters: string[];
   statusFilters: string[];
   staffLiaisonFilters: string[];
+  preferredStaffFilters: string[];
   dateRange: {
     from: Date | undefined;
     to: Date | undefined;

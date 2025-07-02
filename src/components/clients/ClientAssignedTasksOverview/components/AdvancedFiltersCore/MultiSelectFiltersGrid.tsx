@@ -10,12 +10,13 @@ interface MultiSelectFiltersGridProps {
   priorityFilters: string[];
   statusFilters: string[];
   staffLiaisonFilters: string[];
+  preferredStaffFilters: string[];
   validSkills: string[];
   validClients: Client[];
   validPriorities: string[];
   validStaffOptions: StaffOption[];
   onUpdateFilter: (
-    filterKey: 'skillFilters' | 'clientFilters' | 'priorityFilters' | 'statusFilters' | 'staffLiaisonFilters',
+    filterKey: 'skillFilters' | 'clientFilters' | 'priorityFilters' | 'statusFilters' | 'staffLiaisonFilters' | 'preferredStaffFilters',
     value: string,
     checked: boolean
   ) => void;
@@ -31,6 +32,7 @@ export const MultiSelectFiltersGrid: React.FC<MultiSelectFiltersGridProps> = ({
   priorityFilters,
   statusFilters,
   staffLiaisonFilters,
+  preferredStaffFilters,
   validSkills,
   validClients,
   validPriorities,
@@ -49,7 +51,7 @@ export const MultiSelectFiltersGrid: React.FC<MultiSelectFiltersGridProps> = ({
   const staffOptions = validStaffOptions.map(staff => ({ value: staff.id, label: staff.full_name }));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
       {/* Skills Filter */}
       <MultiSelectFilter
         title="Skills"
@@ -99,6 +101,16 @@ export const MultiSelectFiltersGrid: React.FC<MultiSelectFiltersGridProps> = ({
         placeholder="Add staff..."
         onValueAdd={(value) => onUpdateFilter('staffLiaisonFilters', value, true)}
         onValueRemove={(value) => onUpdateFilter('staffLiaisonFilters', value, false)}
+      />
+
+      {/* Preferred Staff Filter */}
+      <MultiSelectFilter
+        title="Preferred Staff"
+        selectedValues={preferredStaffFilters}
+        availableOptions={staffOptions}
+        placeholder="Add staff..."
+        onValueAdd={(value) => onUpdateFilter('preferredStaffFilters', value, true)}
+        onValueRemove={(value) => onUpdateFilter('preferredStaffFilters', value, false)}
       />
     </div>
   );

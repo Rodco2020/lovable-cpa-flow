@@ -26,4 +26,5 @@ export interface FilterState {
   skillFilter: string;
   priorityFilter: string;
   statusFilter: string;
+  preferredStaffFilter: string;
 }

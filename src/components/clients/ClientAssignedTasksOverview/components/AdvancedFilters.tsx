@@ -50,7 +50,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   const validStaffOptions = React.useMemo(() => AdvancedFiltersUtils.validateStaffOptions(staffOptions), [staffOptions]);
 
   const updateMultiSelectFilter = (
-    filterKey: keyof Pick<AdvancedFilterState, 'skillFilters' | 'clientFilters' | 'priorityFilters' | 'statusFilters' | 'staffLiaisonFilters'>,
+    filterKey: keyof Pick<AdvancedFilterState, 'skillFilters' | 'clientFilters' | 'priorityFilters' | 'statusFilters' | 'staffLiaisonFilters' | 'preferredStaffFilters'>,
     value: string,
     checked: boolean
   ) => {
@@ -132,6 +132,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             priorityFilters={filters.priorityFilters}
             statusFilters={filters.statusFilters}
             staffLiaisonFilters={filters.staffLiaisonFilters}
+            preferredStaffFilters={filters.preferredStaffFilters}
             validSkills={validSkills}
             validClients={validClients}
             validPriorities={validPriorities}

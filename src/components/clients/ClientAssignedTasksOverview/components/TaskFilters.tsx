@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +12,8 @@ import {
 import { Search, Filter } from 'lucide-react';
 import { Client } from '@/types/client';
 import { FilterState } from '../types';
+import { getActiveStaff } from '@/services/staff/staffService';
+import { Staff } from '@/types/staff';
 
 interface TaskFiltersProps {
   filters: FilterState;
@@ -30,6 +32,20 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   availableSkills,
   availablePriorities
 }) => {
+  const [staffOptions, setStaffOptions] = useState<Staff[]>([]);
+
+  // Fetch active staff for preferred staff filter
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const activeStaff = await getActiveStaff();
+        setStaffOptions(activeStaff);
+      } catch (error) {
+        console.error('Error fetching staff options:', error);
+      }
+    };
+    fetchStaff();
+  }, []);
   // Comprehensive validation to filter out any invalid values
   const validClients = React.useMemo(() => {
     if (!Array.isArray(clients)) return [];
@@ -140,6 +156,23 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="paused">Paused/Canceled</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        <Select
+          value={filters.preferredStaffFilter}
+          onValueChange={(value) => onFilterChange('preferredStaffFilter', value)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Preferred Staff" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Staff</SelectItem>
+            {staffOptions.map((staff) => (
+              <SelectItem key={staff.id} value={staff.id}>
+                {staff.fullName}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         
