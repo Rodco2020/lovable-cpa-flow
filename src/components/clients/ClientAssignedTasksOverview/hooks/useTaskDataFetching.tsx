@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Client } from '@/types/client';
 import { StaffOption } from '@/types/staffOption';
 import { FormattedTask } from '../types';
-import { TaskDataService } from '../services/taskDataService';
+import { OptimizedTaskDataService } from '../services/optimizedTaskDataService';
 import { TaskDataUtils } from '../utils/taskDataUtils';
 import { SkillDeduplicationService } from '../services/skillDeduplicationService';
 import { getActiveStaffForDropdown } from '@/services/staff/staffDropdownService';
@@ -37,13 +37,17 @@ export const useTaskDataFetching = () => {
     setError(null);
     
     try {
-      // Fetch clients first
-      const fetchedClients = await TaskDataService.fetchClients();
-      setClients(fetchedClients);
+      console.log('[Phase 1] Starting optimized data fetch using single queries...');
       
-      // Fetch all tasks for all clients
-      const { formattedTasks: allTasks } = 
-        await TaskDataService.fetchAllClientTasks(fetchedClients);
+      // Phase 1: Use optimized service that fetches all data with 2 queries instead of 220+
+      const { 
+        formattedTasks: allTasks, 
+        skills, 
+        priorities, 
+        clients: fetchedClients 
+      } = await OptimizedTaskDataService.fetchAllClientTasks();
+      
+      setClients(fetchedClients);
       
       // Sort tasks by due date
       const sortedTasks = TaskDataUtils.sortTasksByDueDate(allTasks);
@@ -53,26 +57,25 @@ export const useTaskDataFetching = () => {
         console.warn('Some task data validation issues detected');
       }
       
-      // Generate filter options using the new deduplication service
-      console.log('Using SkillDeduplicationService for filter options');
-      const filterOptions = SkillDeduplicationService.generateFilterOptions(sortedTasks);
+      // Convert sets to arrays for state
+      const skillsArray = Array.from(skills);
+      const prioritiesArray = Array.from(priorities);
       
-      // Update state with properly deduplicated filter options
+      // Update state
       setFormattedTasks(sortedTasks);
-      setAvailableSkills(filterOptions.skills);
-      setAvailablePriorities(filterOptions.priorities);
+      setAvailableSkills(skillsArray);
+      setAvailablePriorities(prioritiesArray);
+      
+      // Log performance metrics
+      console.log(`[Phase 1] Successfully loaded ${sortedTasks.length} tasks from ${fetchedClients.length} clients`);
+      console.log(`[Phase 1] Found ${skillsArray.length} unique skills and ${prioritiesArray.length} unique priorities`);
+      console.log('[Phase 1] Performance improvement: Reduced from 220+ queries to 2 optimized queries');
       
       // Log statistics for debugging
       TaskDataUtils.logTaskStatistics(sortedTasks);
-      console.log('Filter options generated:', {
-        skillsCount: filterOptions.skills.length,
-        prioritiesCount: filterOptions.priorities.length,
-        clientsCount: filterOptions.clients.length,
-        validation: filterOptions.validation
-      });
       
     } catch (error) {
-      console.error('Error fetching clients and tasks:', error);
+      console.error('[Phase 1] Error fetching optimized data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load client tasks';
       setError(errorMessage);
       toast({
