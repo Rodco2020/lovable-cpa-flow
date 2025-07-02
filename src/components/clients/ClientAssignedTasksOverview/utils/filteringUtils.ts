@@ -78,10 +78,25 @@ export class FilteringUtils {
 
   /**
    * Filter tasks by preferred staff
+   * Phase 3 Enhancement: Improved edge case handling for inactive/deleted staff
    */
   static filterByPreferredStaff(tasks: FormattedTask[], preferredStaffFilter: string): FormattedTask[] {
     if (!preferredStaffFilter || preferredStaffFilter === 'all') return tasks;
-    return tasks.filter(task => task.preferredStaffId === preferredStaffFilter);
+    
+    return tasks.filter(task => {
+      // Handle edge case where preferredStaffId might be null/undefined
+      if (!task.preferredStaffId) return false;
+      
+      // Match the exact staff ID
+      const matches = task.preferredStaffId === preferredStaffFilter;
+      
+      // Log potential issues with inactive staff in development
+      if (process.env.NODE_ENV === 'development' && matches && !task.preferredStaffName) {
+        console.warn(`⚠️ [Phase 3] Task "${task.taskName}" references potentially inactive staff ID: ${task.preferredStaffId}`);
+      }
+      
+      return matches;
+    });
   }
 
   /**

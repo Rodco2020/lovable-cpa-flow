@@ -34,7 +34,10 @@ export const useExportFunctionality = (
     nextDueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : undefined,
     recurrencePattern: task.recurrencePattern ? 
       (typeof task.recurrencePattern === 'string' ? task.recurrencePattern : JSON.stringify(task.recurrencePattern)) 
-      : undefined
+      : undefined,
+    // Include preferred staff information in export
+    preferredStaff: task.preferredStaffName || undefined,
+    staffLiaison: task.staffLiaisonName || undefined
   }));
 
   // Get applied filters for export
@@ -62,6 +65,12 @@ export const useExportFunctionality = (
     
     if (filters.statusFilter && filters.statusFilter !== 'all') {
       appliedFilters['Status'] = filters.statusFilter;
+    }
+    
+    // Include preferred staff filter in export
+    if (filters.preferredStaffFilter && filters.preferredStaffFilter !== 'all') {
+      // Note: You may want to resolve the staff ID to name for better readability
+      appliedFilters['Preferred Staff'] = filters.preferredStaffFilter;
     }
     
     return appliedFilters;

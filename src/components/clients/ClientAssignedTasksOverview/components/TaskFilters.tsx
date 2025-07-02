@@ -35,17 +35,23 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   const [staffOptions, setStaffOptions] = useState<Staff[]>([]);
 
   // Fetch active staff for preferred staff filter
+  // Phase 3: Enhanced error handling and edge case management
   useEffect(() => {
     const fetchStaff = async () => {
       try {
         const activeStaff = await getActiveStaff();
         setStaffOptions(activeStaff);
+        
+        console.log(`✅ [Phase 3] Loaded ${activeStaff.length} active staff for preferred staff filter`);
       } catch (error) {
-        console.error('Error fetching staff options:', error);
+        console.error('⚠️ [Phase 3] Error fetching staff options:', error);
+        // Ensure we have a fallback state
+        setStaffOptions([]);
       }
     };
     fetchStaff();
   }, []);
+  
   // Comprehensive validation to filter out any invalid values
   const validClients = React.useMemo(() => {
     if (!Array.isArray(clients)) return [];
