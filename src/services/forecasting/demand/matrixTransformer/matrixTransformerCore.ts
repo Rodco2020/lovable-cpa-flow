@@ -6,6 +6,7 @@ import { ClientResolutionService } from '../clientResolutionService';
 import { UuidResolutionService } from '@/services/staff/uuidResolutionService';
 import { MonthlyDemandCalculationService } from './monthlyDemandCalculationService';
 import { StaffBasedAggregationService } from '../staffBasedAggregationService';
+import { MatrixRevenueCalculator } from './matrixRevenueCalculator';
 
 export interface SkillHours {
   skillType: string;
@@ -170,26 +171,64 @@ export class MatrixTransformerCore {
       staffSpecificDataPoints: dataPoints.filter(dp => dp.isStaffSpecific).length
     });
 
-    return {
-      months,
-      skills,
-      dataPoints,
-      totalDemand,
-      totalTasks,
-      totalClients: uniqueClients.size,
-      skillSummary,
-      clientTotals,
-      clientRevenue,
-      clientHourlyRates: new Map(),
-      clientSuggestedRevenue: new Map(),
-      clientExpectedLessSuggested: new Map(),
-      revenueTotals: {
-        totalSuggestedRevenue: 0,
-        totalExpectedRevenue: 0,
-        totalExpectedLessSuggested: 0
-      },
-      aggregationStrategy: 'staff-based'
-    };
+    // REVENUE CALCULATION INTEGRATION - Staff-based aggregation
+    try {
+      console.log('💰 [MATRIX TRANSFORMER CORE] Starting revenue calculations for staff-based aggregation...');
+      const revenueData = await MatrixRevenueCalculator.calculateMatrixRevenue(dataPoints, months);
+      
+      // Enhance skill summaries with revenue information
+      const enhancedSkillSummaries = MatrixRevenueCalculator.enhanceSkillSummaryWithRevenue(
+        skillSummary,
+        revenueData.skillFeeRates,
+        dataPoints
+      );
+      
+      console.log('✅ [MATRIX TRANSFORMER CORE] Revenue calculations completed for staff-based aggregation:', {
+        clientsWithRevenue: revenueData.clientRevenue.size,
+        totalExpectedRevenue: revenueData.revenueTotals.totalExpectedRevenue,
+        totalSuggestedRevenue: revenueData.revenueTotals.totalSuggestedRevenue
+      });
+
+      return {
+        months,
+        skills,
+        dataPoints,
+        totalDemand,
+        totalTasks,
+        totalClients: uniqueClients.size,
+        skillSummary: enhancedSkillSummaries,
+        clientTotals,
+        clientRevenue: revenueData.clientRevenue,
+        clientHourlyRates: revenueData.clientHourlyRates,
+        clientSuggestedRevenue: revenueData.clientSuggestedRevenue,
+        clientExpectedLessSuggested: revenueData.clientExpectedLessSuggested,
+        revenueTotals: revenueData.revenueTotals,
+        aggregationStrategy: 'staff-based'
+      };
+    } catch (error) {
+      console.error('❌ [MATRIX TRANSFORMER CORE] Revenue calculation failed for staff-based aggregation:', error);
+      // Return matrix with existing empty revenue maps as fallback
+      return {
+        months,
+        skills,
+        dataPoints,
+        totalDemand,
+        totalTasks,
+        totalClients: uniqueClients.size,
+        skillSummary,
+        clientTotals,
+        clientRevenue,
+        clientHourlyRates: new Map(),
+        clientSuggestedRevenue: new Map(),
+        clientExpectedLessSuggested: new Map(),
+        revenueTotals: {
+          totalSuggestedRevenue: 0,
+          totalExpectedRevenue: 0,
+          totalExpectedLessSuggested: 0
+        },
+        aggregationStrategy: 'staff-based'
+      };
+    }
   }
 
   /**
@@ -367,26 +406,64 @@ export class MatrixTransformerCore {
       averageDataPointsPerMonth: (dataPoints.length / months!.length).toFixed(2)
     });
 
-    return {
-      months: months!,
-      skills,
-      dataPoints,
-      totalDemand,
-      totalTasks,
-      totalClients: uniqueClients.size,
-      skillSummary,
-      clientTotals,
-      clientRevenue,
-      clientHourlyRates: new Map(),
-      clientSuggestedRevenue: new Map(),
-      clientExpectedLessSuggested: new Map(),
-      revenueTotals: {
-        totalSuggestedRevenue: 0,
-        totalExpectedRevenue: 0,
-        totalExpectedLessSuggested: 0
-      },
-      aggregationStrategy: 'skill-based'
-    };
+    // REVENUE CALCULATION INTEGRATION - Skill-based aggregation
+    try {
+      console.log('💰 [MATRIX TRANSFORMER CORE] Starting revenue calculations for skill-based aggregation...');
+      const revenueData = await MatrixRevenueCalculator.calculateMatrixRevenue(dataPoints, months!);
+      
+      // Enhance skill summaries with revenue information
+      const enhancedSkillSummaries = MatrixRevenueCalculator.enhanceSkillSummaryWithRevenue(
+        skillSummary,
+        revenueData.skillFeeRates,
+        dataPoints
+      );
+      
+      console.log('✅ [MATRIX TRANSFORMER CORE] Revenue calculations completed for skill-based aggregation:', {
+        clientsWithRevenue: revenueData.clientRevenue.size,
+        totalExpectedRevenue: revenueData.revenueTotals.totalExpectedRevenue,
+        totalSuggestedRevenue: revenueData.revenueTotals.totalSuggestedRevenue
+      });
+
+      return {
+        months: months!,
+        skills,
+        dataPoints,
+        totalDemand,
+        totalTasks,
+        totalClients: uniqueClients.size,
+        skillSummary: enhancedSkillSummaries,
+        clientTotals,
+        clientRevenue: revenueData.clientRevenue,
+        clientHourlyRates: revenueData.clientHourlyRates,
+        clientSuggestedRevenue: revenueData.clientSuggestedRevenue,
+        clientExpectedLessSuggested: revenueData.clientExpectedLessSuggested,
+        revenueTotals: revenueData.revenueTotals,
+        aggregationStrategy: 'skill-based'
+      };
+    } catch (error) {
+      console.error('❌ [MATRIX TRANSFORMER CORE] Revenue calculation failed for skill-based aggregation:', error);
+      // Return matrix with existing empty revenue maps as fallback
+      return {
+        months: months!,
+        skills,
+        dataPoints,
+        totalDemand,
+        totalTasks,
+        totalClients: uniqueClients.size,
+        skillSummary,
+        clientTotals,
+        clientRevenue,
+        clientHourlyRates: new Map(),
+        clientSuggestedRevenue: new Map(),
+        clientExpectedLessSuggested: new Map(),
+        revenueTotals: {
+          totalSuggestedRevenue: 0,
+          totalExpectedRevenue: 0,
+          totalExpectedLessSuggested: 0
+        },
+        aggregationStrategy: 'skill-based'
+      };
+    }
   }
 
   private static async resolveSkillReferences(skillRefs: string[]): Promise<string[]> {
