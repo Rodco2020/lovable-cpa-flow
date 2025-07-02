@@ -13,7 +13,7 @@ export const useFilterState = () => {
     skillFilter: 'all',
     priorityFilter: 'all',
     statusFilter: 'all',
-    preferredStaffFilter: ''
+    preferredStaffFilter: 'all'
   });
 
   /**
@@ -33,7 +33,7 @@ export const useFilterState = () => {
       skillFilter: 'all',
       priorityFilter: 'all',
       statusFilter: 'all',
-      preferredStaffFilter: ''
+      preferredStaffFilter: 'all'
     });
   };
 

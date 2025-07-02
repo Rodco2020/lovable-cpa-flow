@@ -167,7 +167,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
             <SelectValue placeholder="Preferred Staff" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Staff</SelectItem>
+            <SelectItem value="all">All Staff</SelectItem>
             {staffOptions.map((staff) => (
               <SelectItem key={staff.id} value={staff.id}>
                 {staff.fullName}

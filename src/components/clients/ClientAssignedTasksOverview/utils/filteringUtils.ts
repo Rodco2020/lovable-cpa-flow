@@ -80,7 +80,7 @@ export class FilteringUtils {
    * Filter tasks by preferred staff
    */
   static filterByPreferredStaff(tasks: FormattedTask[], preferredStaffFilter: string): FormattedTask[] {
-    if (!preferredStaffFilter || preferredStaffFilter === '') return tasks;
+    if (!preferredStaffFilter || preferredStaffFilter === 'all') return tasks;
     return tasks.filter(task => task.preferredStaffId === preferredStaffFilter);
   }
 
