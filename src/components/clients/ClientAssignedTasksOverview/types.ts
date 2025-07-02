@@ -16,6 +16,8 @@ export interface FormattedTask {
   isActive?: boolean;
   staffLiaisonId?: string;
   staffLiaisonName?: string;
+  preferredStaffId?: string | null;
+  preferredStaffName?: string | null;
 }
 
 export interface FilterState {

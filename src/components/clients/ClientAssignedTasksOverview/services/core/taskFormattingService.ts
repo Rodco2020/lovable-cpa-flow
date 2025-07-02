@@ -33,13 +33,20 @@ export class TaskFormattingService {
         SkillResolutionService.collectSkillsForFilters(resolvedSkills, skills);
         priorities.add(task.priority);
         
+        // Extract preferred staff information
+        const preferredStaffId = task.preferred_staff_id || null;
+        const preferredStaffName = task.staff?.full_name || null;
+        
         console.log(`🔧 [TASK FORMATTING] Field mapping verification for recurring task "${task.name}":`, {
           originalSkillIds: task.requiredSkills,
           resolvedSkills,
           // FIXED: Verify both database and application field formats are handled correctly
           database_preferred_staff_id: task.preferred_staff_id,
           application_preferredStaffId: task.preferredStaffId,
-          mappingConsistent: task.preferredStaffId === task.preferred_staff_id || (!task.preferred_staff_id && !task.preferredStaffId)
+          mappingConsistent: task.preferredStaffId === task.preferred_staff_id || (!task.preferred_staff_id && !task.preferredStaffId),
+          // NEW: Preferred staff information
+          preferredStaffId,
+          preferredStaffName
         });
         
         return {
@@ -56,7 +63,9 @@ export class TaskFormattingService {
           status: task.status,
           isActive: task.isActive,
           staffLiaisonId,
-          staffLiaisonName
+          staffLiaisonName,
+          preferredStaffId,
+          preferredStaffName
         };
       })
     );
@@ -85,12 +94,18 @@ export class TaskFormattingService {
         SkillResolutionService.collectSkillsForFilters(resolvedSkills, skills);
         priorities.add(task.priority);
         
+        // Ad-hoc tasks don't have preferred staff directly, but might inherit from recurring task
+        const preferredStaffId = null; // Ad-hoc tasks don't have preferred staff
+        const preferredStaffName = null;
+        
         console.log(`🔧 [TASK FORMATTING] Field mapping verification for ad-hoc task "${task.name}":`, {
           originalSkillIds: task.requiredSkills,
           resolvedSkills,
           // FIXED: Ensure consistent field mapping for ad-hoc tasks too
           fieldMappingConsistent: true,
-          taskType: 'Ad-hoc'
+          taskType: 'Ad-hoc',
+          preferredStaffId,
+          preferredStaffName
         });
         
         return {
@@ -105,7 +120,9 @@ export class TaskFormattingService {
           priority: task.priority,
           status: task.status,
           staffLiaisonId,
-          staffLiaisonName
+          staffLiaisonName,
+          preferredStaffId,
+          preferredStaffName
         };
       })
     );
