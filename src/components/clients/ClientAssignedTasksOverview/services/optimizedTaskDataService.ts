@@ -26,9 +26,9 @@ export class OptimizedTaskDataService {
         client:clients!inner(
           id,
           legal_name,
-          staff_liaison:staff!clients_staff_liaison_id_fkey(id, full_name)
+          staff_liaison:staff!staff_liaison_id(id, full_name)
         ),
-        preferred_staff:staff!recurring_tasks_preferred_staff_id_fkey(id, full_name),
+        preferred_staff:staff!preferred_staff_id(id, full_name),
         template:task_templates(*)
       `)
       .eq('is_active', true)
@@ -53,10 +53,10 @@ export class OptimizedTaskDataService {
         client:clients!inner(
           id,
           legal_name,
-          staff_liaison:staff!clients_staff_liaison_id_fkey(id, full_name)
+          staff_liaison:staff!staff_liaison_id(id, full_name)
         ),
         template:task_templates(*),
-        assigned_staff:staff!task_instances_assigned_staff_id_fkey(id, full_name)
+        assigned_staff:staff!assigned_staff_id(id, full_name)
       `)
       .neq('status', 'Completed')
       .order('client_id', { ascending: true });
@@ -246,7 +246,7 @@ export class OptimizedTaskDataService {
       .from('clients')
       .select(`
         *,
-        staff_liaison:staff!clients_staff_liaison_id_fkey(id, full_name)
+        staff_liaison:staff!staff_liaison_id(id, full_name)
       `)
       .order('legal_name');
 
