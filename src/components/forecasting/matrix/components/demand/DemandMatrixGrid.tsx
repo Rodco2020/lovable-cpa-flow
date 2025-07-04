@@ -16,6 +16,7 @@ import { useDemandMatrixGrid } from './hooks/useDemandMatrixGrid';
 interface DemandMatrixGridProps {
   filteredData: DemandMatrixData;
   groupingMode: 'skill' | 'client';
+  selectedClients?: string[]; // Add selectedClients prop
 }
 
 /**
@@ -40,7 +41,8 @@ interface DemandMatrixGridProps {
  */
 export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
   filteredData,
-  groupingMode
+  groupingMode,
+  selectedClients
 }) => {
   // Use custom hook for grid logic and calculations
   const {
@@ -53,7 +55,7 @@ export const DemandMatrixGrid: React.FC<DemandMatrixGridProps> = ({
     clientHourlyRates,
     clientSuggestedRevenue,
     clientExpectedLessSuggested
-  } = useDemandMatrixGrid({ filteredData, groupingMode });
+  } = useDemandMatrixGrid({ filteredData, groupingMode, selectedClients });
 
   // Log rendering information for debugging
   logMatrixRendering(groupingMode, rowItems.length, filteredData.months.length);

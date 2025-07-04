@@ -7,6 +7,7 @@ import { calculateGrandTotals } from '../utils/gridCalculationUtils';
 interface UseDemandMatrixGridProps {
   filteredData: DemandMatrixData;
   groupingMode: 'skill' | 'client';
+  selectedClients?: string[]; // Add optional selectedClients parameter
 }
 
 interface UseDemandMatrixGridReturn {
@@ -32,14 +33,15 @@ interface UseDemandMatrixGridReturn {
  */
 export const useDemandMatrixGrid = ({
   filteredData,
-  groupingMode
+  groupingMode,
+  selectedClients
 }: UseDemandMatrixGridProps): UseDemandMatrixGridReturn => {
   // Determine row items based on grouping mode
   const rowItems = useMemo(() => {
     return groupingMode === 'client' 
-      ? getUniqueClientsFromData(filteredData) 
+      ? getUniqueClientsFromData(filteredData, selectedClients) 
       : filteredData.skills;
-  }, [groupingMode, filteredData]);
+  }, [groupingMode, filteredData, selectedClients]);
 
   // Calculate grid template columns
   const gridTemplateColumns = useMemo(() => {

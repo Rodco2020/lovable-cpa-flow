@@ -191,6 +191,7 @@ export const DemandMatrixPresentation: React.FC<DemandMatrixPresentationProps> =
                   <DemandMatrixGrid
                     filteredData={filteredData}
                     groupingMode={groupingMode}
+                    selectedClients={demandMatrixControls?.selectedClients}
                   />
                 </div>
                 

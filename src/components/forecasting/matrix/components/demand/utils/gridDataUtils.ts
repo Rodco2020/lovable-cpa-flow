@@ -92,9 +92,40 @@ export const getDataPointForSkill = (
 
 /**
  * FIXED: Extract unique client names from task breakdowns (now uses resolved names)
- * Enhanced with better filtering for resolved vs fallback names
+ * Enhanced with better filtering for resolved vs fallback names and client filter support
  */
-export const getUniqueClientsFromData = (filteredData: DemandMatrixData): string[] => {
+export const getUniqueClientsFromData = (
+  filteredData: DemandMatrixData,
+  selectedClients?: string[]  // Add optional parameter for selected client IDs
+): string[] => {
+  // If client filters are active, return only the selected clients
+  if (selectedClients && selectedClients.length > 0) {
+    console.log('🎯 CLIENT FILTER - Returning only selected clients:', selectedClients.length);
+    
+    // Get the client names for the selected client IDs
+    const selectedClientNames = new Set<string>();
+    
+    filteredData.dataPoints.forEach(point => {
+      point.taskBreakdown?.forEach(task => {
+        if (selectedClients.includes(task.clientId)) {
+          selectedClientNames.add(task.clientName);
+        }
+      });
+    });
+    
+    const result = Array.from(selectedClientNames).sort();
+    console.log('🔍 CLIENT GRID DEBUG:', {
+      selectedClientsCount: selectedClients.length,
+      returnedClientsCount: result.length,
+      returnedClients: result
+    });
+    
+    return result;
+  }
+  
+  // Otherwise, use existing logic (when no client filter is active)
+  console.log('🎯 CLIENT FILTER - No active filter, showing all clients');
+  
   const clientNames = new Set<string>();
   
   console.log('🔍 [GRID DATA UTILS] Extracting unique clients from resolved data...');
