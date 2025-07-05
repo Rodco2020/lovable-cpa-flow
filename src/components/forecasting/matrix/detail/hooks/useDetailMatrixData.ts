@@ -86,88 +86,75 @@ interface UseDetailMatrixDataProps {
 }
 
 /**
- * Detail Matrix Data Hook - Step 1
+ * FIXED: Detail Matrix Data Hook - React Queue Error Resolved
  * 
  * Handles all data fetching and transformation logic for Detail Matrix.
- * Maintains exact same data structure and behavior as original container.
+ * ALL HOOKS CALLED UNCONDITIONALLY AT TOP TO PREVENT QUEUE CORRUPTION.
  */
 export const useDetailMatrixData = ({
   groupingMode
 }: UseDetailMatrixDataProps): UseDetailMatrixDataResult => {
   
-  try {
-    // Step 1: Load data with empty filters
-    const { demandData, isLoading, error, loadDemandData } = useDemandMatrixData(
-      groupingMode, 
-      {}
-    );
-    
-    // Step 2: ALWAYS call controls hook (no conditions!)
-    const demandMatrixControls = useDemandMatrixControls({
-      demandData: demandData || null, // Safe null fallback
-      groupingMode
-    });
-    
-    // Step 3: ALWAYS call filtering hook (no ternary operators!)
-    const matrixFiltering = useMatrixFiltering({
-      demandData: demandData || null,
-      selectedSkills: demandMatrixControls.selectedSkills || [],
-      selectedClients: demandMatrixControls.selectedClients || [],
-      selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff || [],
-      monthRange: demandMatrixControls.monthRange || { start: 0, end: 11 },
-      groupingMode
-    });
-
-    // Step 4: Create enhanced controls (after ALL hooks are called)
-    const enhancedDemandMatrixControls = {
-      ...demandMatrixControls,
-      availableSkills: matrixFiltering.availableSkills,
-      availableClients: matrixFiltering.availableClients,
-      availablePreferredStaff: matrixFiltering.availablePreferredStaff,
-    };
+  // STEP 1: Call ALL hooks OUTSIDE try/catch (unconditionally)
+  console.log('[useDetailMatrixData] ✅ Calling all hooks unconditionally');
   
-    // Step 5: Create stable active filters from the enhanced controls
-    const activeFilters = useMemo(() => ({
-      preferredStaff: enhancedDemandMatrixControls?.selectedPreferredStaff || [],
-      skills: enhancedDemandMatrixControls?.selectedSkills || [],
-      clients: enhancedDemandMatrixControls?.selectedClients || []
-    }), [
-      JSON.stringify(enhancedDemandMatrixControls?.selectedPreferredStaff),
-      JSON.stringify(enhancedDemandMatrixControls?.selectedSkills),
-      JSON.stringify(enhancedDemandMatrixControls?.selectedClients)
-    ]);
+  const { demandData, isLoading, error: dataError, loadDemandData } = useDemandMatrixData(
+    groupingMode, 
+    {}
+  );
+  
+  const demandMatrixControls = useDemandMatrixControls({
+    demandData: demandData || null,
+    groupingMode
+  });
+  
+  const matrixFiltering = useMatrixFiltering({
+    demandData: demandData || null,
+    selectedSkills: demandMatrixControls.selectedSkills || [],
+    selectedClients: demandMatrixControls.selectedClients || [],
+    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff || [],
+    monthRange: demandMatrixControls.monthRange || { start: 0, end: 11 },
+    groupingMode
+  });
 
-    // Step 6: Handle loading state HERE (after all hooks are called)
-    if (isLoading || !demandData) {
-      return {
-        data: [],
-        loading: true,
-        error: null,
-        refetch: loadDemandData,
-        activeFilters,
-        demandMatrixControls: enhancedDemandMatrixControls,
-        months: []
-      };
-    }
+  // Create enhanced controls (always, even with errors)
+  const enhancedDemandMatrixControls = {
+    ...demandMatrixControls,
+    availableSkills: matrixFiltering.availableSkills || [],
+    availableClients: matrixFiltering.availableClients || [],
+    availablePreferredStaff: matrixFiltering.availablePreferredStaff || [],
+  };
 
-    // Step 7: Transform demand data to task-level data
-    const taskLevelData = useMemo(() => {
-      if (!demandData?.dataPoints) return [];
+  // Create stable active filters from the enhanced controls
+  const activeFilters = useMemo(() => ({
+    preferredStaff: enhancedDemandMatrixControls?.selectedPreferredStaff || [],
+    skills: enhancedDemandMatrixControls?.selectedSkills || [],
+    clients: enhancedDemandMatrixControls?.selectedClients || []
+  }), [
+    JSON.stringify(enhancedDemandMatrixControls?.selectedPreferredStaff),
+    JSON.stringify(enhancedDemandMatrixControls?.selectedSkills),
+    JSON.stringify(enhancedDemandMatrixControls?.selectedClients)
+  ]);
 
-      console.log('📊 [DETAIL MATRIX] Data loaded:', {
+  // STEP 2: Handle data processing with try/catch (NOT hook calls)
+  let processedData: Task[] = [];
+  let processError: string | null = null;
+  
+  try {
+    // Data processing logic here (no hooks!)
+    if (demandData && !isLoading && demandData.dataPoints) {
+      console.log('📊 [DETAIL MATRIX] Processing data loaded:', {
         totalDataPoints: demandData.dataPoints.length,
         availableMonths: demandData?.months?.map(m => m.label),
         monthRange: enhancedDemandMatrixControls?.monthRange,
         sampleDataPoint: demandData.dataPoints[0]
       });
 
-      const tasks: Task[] = [];
-      
       // Extract individual tasks from the demand data points
       demandData.dataPoints.forEach(point => {
         if (point.taskBreakdown) {
           point.taskBreakdown.forEach(task => {
-            tasks.push({
+            processedData.push({
               id: `${task.taskName}-${task.clientName}-${point.month}`,
               taskName: task.taskName,
               clientName: task.clientName,
@@ -188,52 +175,64 @@ export const useDetailMatrixData = ({
 
       console.log('📊 [DETAIL MATRIX] Data transformation complete:', {
         totalRecurringTasks: demandData.dataPoints.length,
-        totalDetailTasks: tasks.length,
-        sampleTask: tasks[0],
+        totalDetailTasks: processedData.length,
+        sampleTask: processedData[0],
         monthRange: enhancedDemandMatrixControls?.monthRange
       });
-
-      return tasks;
-    }, [demandData, enhancedDemandMatrixControls?.monthRange]);
-
-    // Add diagnostic logging
-    console.log('📊 [DETAIL MATRIX] Data flow status:', {
-      hasData: !!demandData,
-      hasControls: !!demandMatrixControls,
-      availableSkillsCount: matrixFiltering.availableSkills.length,
-      availableClientsCount: matrixFiltering.availableClients.length
-    });
-
+    }
+  } catch (err) {
+    console.error('Data processing error:', err);
+    processError = err instanceof Error ? err.message : 'Data processing failed';
+  }
+  
+  // STEP 3: Return with proper error handling
+  const finalError = dataError || processError;
+  
+  if (isLoading || !demandData) {
+    console.log('[useDetailMatrixData] ⏳ Loading state');
     return {
-      data: taskLevelData,
-      loading: false,
-      error,
+      data: [],
+      loading: true,
+      error: null,
       refetch: loadDemandData,
       activeFilters,
       demandMatrixControls: enhancedDemandMatrixControls,
-      months: demandData?.months || [] // Pass months array for proper filtering
-    };
-    
-  } catch (err) {
-    console.error('useDetailMatrixData error:', err);
-    console.error('Error details:', {
-      message: err instanceof Error ? err.message : 'Unknown error',
-      stack: err instanceof Error ? err.stack : undefined,
-      type: err instanceof Error ? err.name : typeof err
-    });
-    
-    return {
-      data: [],
-      loading: false,
-      error: err instanceof Error ? err.message : 'An error occurred loading detail matrix data',
-      refetch: () => Promise.resolve(),
-      activeFilters: {
-        preferredStaff: [],
-        skills: [],
-        clients: []
-      },
-      demandMatrixControls: defaultDemandMatrixControls, // ✅ FIXED: Use default instead of null
       months: []
     };
   }
+  
+  if (finalError) {
+    console.log('[useDetailMatrixData] ❌ Error state:', finalError);
+    return {
+      data: [],
+      loading: false,
+      error: finalError,
+      refetch: loadDemandData,
+      activeFilters,
+      demandMatrixControls: enhancedDemandMatrixControls,
+      months: demandData?.months || []
+    };
+  }
+  
+  // STEP 4: Normal return with processed data
+  console.log('[useDetailMatrixData] ✅ Success state - data loaded');
+  
+  // Add diagnostic logging
+  console.log('📊 [DETAIL MATRIX] Data flow status:', {
+    hasData: !!demandData,
+    hasControls: !!demandMatrixControls,
+    availableSkillsCount: matrixFiltering.availableSkills.length,
+    availableClientsCount: matrixFiltering.availableClients.length,
+    processedTasksCount: processedData.length
+  });
+
+  return {
+    data: processedData,
+    loading: false,
+    error: null,
+    refetch: loadDemandData,
+    activeFilters,
+    demandMatrixControls: enhancedDemandMatrixControls,
+    months: demandData?.months || []
+  };
 };
