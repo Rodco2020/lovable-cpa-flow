@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDemandMatrixControls } from '../hooks/useDemandMatrixControls';
 import { useDemandMatrixData } from '../hooks/useDemandMatrixData';
@@ -11,9 +11,12 @@ import { DetailMatrixExportDialog } from './components/DetailMatrixExportDialog'
 import { openDetailMatrixPrint } from './components/DetailMatrixPrintView';
 import { useDetailMatrixState } from './DetailMatrixStateProvider';
 import { useDetailMatrixFiltering } from './hooks/useDetailMatrixFiltering';
-import { Loader2, Filter, X } from 'lucide-react';
+import { usePerformanceMonitoring, usePerformanceAlerts } from '../hooks/usePerformanceMonitoring';
+import { useLocalStoragePersistence, useKeyboardNavigation } from '../hooks/useLocalStoragePersistence';
+import { Loader2, Filter, X, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DetailMatrixContainerProps {
   groupingMode: 'skill' | 'client';
@@ -26,18 +29,26 @@ interface DetailMatrixContentProps {
 }
 
 /**
- * Detail Matrix Content - Phase 3
+ * Detail Matrix Content - Phase 5 Enhanced
  * 
- * Inner component that uses DetailMatrixState context with integrated filter controls.
- * Now includes DemandMatrixControls panel and task-level filtering capabilities.
+ * Inner component with performance monitoring, keyboard navigation,
+ * and localStorage persistence integrated.
  */
-const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
+const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   groupingMode,
   className
 }) => {
   const { viewMode } = useDetailMatrixState();
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+
+  // Phase 5: localStorage persistence
+  const {
+    preferences,
+    setViewMode: persistedSetViewMode,
+    toggleSkillGroupExpansion,
+    setSortConfig: persistedSetSortConfig
+  } = useLocalStoragePersistence();
 
   // Use existing demand matrix controls hook
   const demandMatrixControls = useDemandMatrixControls({
@@ -107,6 +118,21 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
     groupingMode
   });
 
+  // Phase 5: Performance monitoring
+  const performanceData = usePerformanceMonitoring(
+    taskLevelData.length,
+    filteredTasks.length,
+    { enabled: true, sampleRate: 3 }
+  );
+  const performanceAlerts = usePerformanceAlerts(performanceData);
+
+  // Phase 5: Keyboard navigation
+  const keyboardNav = useKeyboardNavigation(
+    filteredTasks,
+    preferences.expandedSkillGroups,
+    toggleSkillGroupExpansion
+  );
+
   if (isLoading) {
     return (
       <Card className={className}>
@@ -163,6 +189,20 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
 
         {/* Main Content Area */}
         <div className="lg:col-span-3 space-y-4">
+          {/* Performance Alerts */}
+          {performanceAlerts.length > 0 && (
+            <Alert className="bg-yellow-50 border-yellow-200">
+              <Zap className="h-4 w-4" />
+              <AlertDescription className="text-yellow-700">
+                <div className="space-y-1">
+                  {performanceAlerts.map((alert, index) => (
+                    <p key={index} className="text-xs">{alert}</p>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Enhanced Header with Filter State */}
           <div className="flex flex-col space-y-4">
             <DetailMatrixHeader 
@@ -200,18 +240,39 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
             )}
           </div>
 
-          {/* Conditional View Rendering */}
-          <div className="animate-fade-in">
+          {/* Conditional View Rendering with Performance Monitoring */}
+          <div className="animate-fade-in" tabIndex={0}>
             {viewMode === 'all-tasks' ? (
               <DetailMatrixGrid 
                 tasks={filteredTasks}
                 groupingMode={groupingMode}
+                performanceData={performanceData}
               />
             ) : (
               <SkillGroupView 
                 tasks={filteredTasks}
                 groupingMode={groupingMode}
+                expandedGroups={preferences.expandedSkillGroups}
+                onToggleExpansion={toggleSkillGroupExpansion}
               />
+            )}
+            
+            {/* Performance Debug Info (dev mode) */}
+            {process.env.NODE_ENV === 'development' && performanceData.analysis.performanceGrade === 'D' && (
+              <Card className="mt-4 bg-red-50 border-red-200">
+                <CardContent className="pt-4">
+                  <div className="text-xs text-red-700 space-y-1">
+                    <p><strong>Performance Warning:</strong> Grade {performanceData.analysis.performanceGrade}</p>
+                    <p>Avg Render: {performanceData.analysis.averageRenderTime.toFixed(1)}ms</p>
+                    <p>Max Render: {performanceData.analysis.maxRenderTime.toFixed(1)}ms</p>
+                    <div className="space-y-1">
+                      {performanceData.recommendations.map((rec, i) => (
+                        <p key={i}>• {rec}</p>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
@@ -233,13 +294,13 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
       </div>
     </div>
   );
-};
+});
 
 /**
- * Detail Matrix Container - Phase 3
+ * Detail Matrix Container - Phase 5 Enhanced
  * 
- * Enhanced container with state provider, view mode management, and integrated filter controls.
- * Uses existing infrastructure while providing new view capabilities and filtering.
+ * Enhanced container with state provider, performance monitoring,
+ * and persistence capabilities integrated.
  */
 export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   groupingMode,

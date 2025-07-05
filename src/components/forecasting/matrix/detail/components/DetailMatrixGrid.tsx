@@ -24,6 +24,19 @@ interface Task {
 interface DetailMatrixGridProps {
   tasks: Task[];
   groupingMode: 'skill' | 'client';
+  performanceData?: {
+    metrics: any[];
+    analysis: {
+      averageRenderTime: number;
+      maxRenderTime: number;
+      isSlowRender: (threshold?: number) => boolean;
+      needsVirtualization: boolean;
+      performanceGrade: string;
+    };
+    recommendations: string[];
+    clearMetrics: () => void;
+    isMonitoring: boolean;
+  };
 }
 
 type SortField = 'taskName' | 'clientName' | 'skillRequired' | 'monthlyHours' | 'monthLabel' | 'priority' | 'status' | 'createdDate';
@@ -36,7 +49,8 @@ type SortField = 'taskName' | 'clientName' | 'skillRequired' | 'monthlyHours' | 
  */
 export const DetailMatrixGrid: React.FC<DetailMatrixGridProps> = ({
   tasks,
-  groupingMode
+  groupingMode,
+  performanceData
 }) => {
   const { 
     sortConfig, 

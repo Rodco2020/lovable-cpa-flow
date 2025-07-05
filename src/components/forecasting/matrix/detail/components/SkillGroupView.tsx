@@ -32,6 +32,8 @@ interface SkillGroup {
 interface SkillGroupViewProps {
   tasks: Task[];
   groupingMode: 'skill' | 'client';
+  expandedGroups?: Set<string>;
+  onToggleExpansion?: (skillName: string) => void;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 
 interface Task {
   id: string;
@@ -51,6 +51,14 @@ export const useDetailMatrixFiltering = ({
   monthRange,
   groupingMode
 }: UseDetailMatrixFilteringProps): UseDetailMatrixFilteringResult => {
+  
+  // Memoize filter dependencies to prevent unnecessary recalculations
+  const filterDeps = useMemo(() => ({
+    skillsHash: selectedSkills.sort().join(','),
+    clientsHash: selectedClients.sort().join(','),
+    staffHash: selectedPreferredStaff.sort().join(','),
+    monthHash: `${monthRange.start}-${monthRange.end}`
+  }), [selectedSkills, selectedClients, selectedPreferredStaff, monthRange]);
   
   const filteredResult = useMemo(() => {
     console.log('🔍 [DETAIL MATRIX FILTERING] Applying filters to tasks:', {
@@ -142,7 +150,7 @@ export const useDetailMatrixFiltering = ({
       filteredTasks,
       stats
     };
-  }, [tasks, selectedSkills, selectedClients, selectedPreferredStaff, monthRange, groupingMode]);
+  }, [tasks, filterDeps, groupingMode]);
 
   // Calculate active filters
   const hasActiveFilters = useMemo(() => {
