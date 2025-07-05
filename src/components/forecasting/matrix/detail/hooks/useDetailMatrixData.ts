@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useDemandMatrixData } from '../../hooks/useDemandMatrixData';
 import { useDemandMatrixControls } from '../../hooks/useDemandMatrixControls';
 import { useMatrixFiltering } from '../../hooks/useMatrixFiltering';
@@ -45,27 +45,18 @@ export const useDetailMatrixData = ({
   groupingMode
 }: UseDetailMatrixDataProps): UseDetailMatrixDataResult => {
   
-  const [demandMatrixControls, setDemandMatrixControls] = useState<ReturnType<typeof useDemandMatrixControls> | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  
-  // Step 1: Load data FIRST with empty filters - breaks the circular dependency
+  // Step 1: Load data with empty filters
   const { demandData, isLoading, error, loadDemandData } = useDemandMatrixData(
     groupingMode, 
     {} // Empty filters initially
   );
   
-  // Step 2: Create controls AFTER data loads
-  useEffect(() => {
-    if (demandData && !demandMatrixControls) {
-      console.log('📊 [DETAIL MATRIX] Creating controls with loaded data');
-      const newControls = useDemandMatrixControls({
-        demandData, // Now we have actual data!
-        groupingMode
-      });
-      setDemandMatrixControls(newControls);
-      setIsInitializing(false);
-    }
-  }, [demandData, groupingMode, demandMatrixControls]);
+  // Step 2: Call controls hook at TOP LEVEL (not in useEffect!)
+  // This follows the exact pattern from DemandMatrixContainer
+  const demandMatrixControls = useDemandMatrixControls({
+    demandData: demandData || null, // Start with null, update when data loads
+    groupingMode
+  });
   
   // Step 3: Extract filter options from loaded data (like Demand Matrix does)
   const matrixFiltering = useMatrixFiltering({
@@ -148,13 +139,12 @@ export const useDetailMatrixData = ({
     hasData: !!demandData,
     hasControls: !!demandMatrixControls,
     availableSkillsCount: matrixFiltering.availableSkills.length,
-    availableClientsCount: matrixFiltering.availableClients.length,
-    isInitializing
+    availableClientsCount: matrixFiltering.availableClients.length
   });
 
   return {
     data: taskLevelData,
-    loading: isLoading || isInitializing,
+    loading: isLoading,
     error,
     refetch: loadDemandData,
     activeFilters,

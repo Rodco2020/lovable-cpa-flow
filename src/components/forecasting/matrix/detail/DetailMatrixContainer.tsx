@@ -43,7 +43,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
   
-  // Handle loading while initializing controls
+  // Handle loading while initializing controls or if controls are null
   if (loading || !demandMatrixControls) {
     return (
       <Card className={className}>
