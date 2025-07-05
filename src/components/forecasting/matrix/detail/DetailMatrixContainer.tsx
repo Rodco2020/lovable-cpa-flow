@@ -43,6 +43,20 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
   
+  // Handle loading while initializing controls
+  if (loading || !demandMatrixControls) {
+    return (
+      <Card className={className}>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Loading Detail Matrix...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   // Apply filters using extracted hook
   const {
     filteredTasks,
@@ -65,19 +79,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { preferences, toggleSkillGroupExpansion } = useLocalStoragePersistence();
   const keyboardNav = useKeyboardNavigation(filteredTasks, preferences.expandedSkillGroups, toggleSkillGroupExpansion);
 
-  // Loading state
-  if (loading) {
-    return (
-      <Card className={className}>
-        <CardContent className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Loading task details...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Loading state is now handled above before we get here
 
   // Error state
   if (error) {

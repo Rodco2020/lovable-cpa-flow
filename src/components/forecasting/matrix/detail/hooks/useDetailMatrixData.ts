@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDemandMatrixData } from '../../hooks/useDemandMatrixData';
 import { useDemandMatrixControls } from '../../hooks/useDemandMatrixControls';
+import { useMatrixFiltering } from '../../hooks/useMatrixFiltering';
 
 interface Task {
   id: string;
@@ -44,28 +45,57 @@ export const useDetailMatrixData = ({
   groupingMode
 }: UseDetailMatrixDataProps): UseDetailMatrixDataResult => {
   
-  // Use existing demand matrix controls hook
-  const demandMatrixControls = useDemandMatrixControls({
-    demandData: null, // Will be populated after data loading
-    groupingMode
-  });
-
-  // Create stable active filters
-  const activeFilters = useMemo(() => ({
-    preferredStaff: demandMatrixControls.selectedPreferredStaff,
-    skills: demandMatrixControls.selectedSkills,
-    clients: demandMatrixControls.selectedClients
-  }), [
-    JSON.stringify(demandMatrixControls.selectedPreferredStaff),
-    JSON.stringify(demandMatrixControls.selectedSkills),
-    JSON.stringify(demandMatrixControls.selectedClients)
-  ]);
-
-  // Use existing data loading hook
+  const [demandMatrixControls, setDemandMatrixControls] = useState<ReturnType<typeof useDemandMatrixControls> | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  
+  // Step 1: Load data FIRST with empty filters - breaks the circular dependency
   const { demandData, isLoading, error, loadDemandData } = useDemandMatrixData(
     groupingMode, 
-    activeFilters
+    {} // Empty filters initially
   );
+  
+  // Step 2: Create controls AFTER data loads
+  useEffect(() => {
+    if (demandData && !demandMatrixControls) {
+      console.log('📊 [DETAIL MATRIX] Creating controls with loaded data');
+      const newControls = useDemandMatrixControls({
+        demandData, // Now we have actual data!
+        groupingMode
+      });
+      setDemandMatrixControls(newControls);
+      setIsInitializing(false);
+    }
+  }, [demandData, groupingMode, demandMatrixControls]);
+  
+  // Step 3: Extract filter options from loaded data (like Demand Matrix does)
+  const matrixFiltering = useMatrixFiltering({
+    demandData,
+    selectedSkills: demandMatrixControls?.selectedSkills || [],
+    selectedClients: demandMatrixControls?.selectedClients || [],
+    selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff || [],
+    monthRange: demandMatrixControls?.monthRange || { start: 0, end: 11 },
+    groupingMode
+  });
+  
+  // Step 4: Create enhanced controls with extracted filter options
+  const enhancedDemandMatrixControls = demandMatrixControls ? {
+    ...demandMatrixControls,
+    // Override with actual extracted data (CRITICAL FIX)
+    availableSkills: matrixFiltering.availableSkills,
+    availableClients: matrixFiltering.availableClients,
+    availablePreferredStaff: matrixFiltering.availablePreferredStaff,
+  } : null;
+  
+  // Create stable active filters from the enhanced controls
+  const activeFilters = useMemo(() => ({
+    preferredStaff: enhancedDemandMatrixControls?.selectedPreferredStaff || [],
+    skills: enhancedDemandMatrixControls?.selectedSkills || [],
+    clients: enhancedDemandMatrixControls?.selectedClients || []
+  }), [
+    JSON.stringify(enhancedDemandMatrixControls?.selectedPreferredStaff),
+    JSON.stringify(enhancedDemandMatrixControls?.selectedSkills),
+    JSON.stringify(enhancedDemandMatrixControls?.selectedClients)
+  ]);
 
   // Transform demand data to task-level data
   const taskLevelData = useMemo(() => {
@@ -74,7 +104,7 @@ export const useDetailMatrixData = ({
     console.log('📊 [DETAIL MATRIX] Data loaded:', {
       totalDataPoints: demandData.dataPoints.length,
       availableMonths: demandData?.months?.map(m => m.label),
-      monthRange: demandMatrixControls.monthRange,
+      monthRange: enhancedDemandMatrixControls?.monthRange,
       sampleDataPoint: demandData.dataPoints[0]
     });
 
@@ -107,19 +137,28 @@ export const useDetailMatrixData = ({
       totalRecurringTasks: demandData.dataPoints.length,
       totalDetailTasks: tasks.length,
       sampleTask: tasks[0],
-      monthRange: demandMatrixControls.monthRange
+      monthRange: enhancedDemandMatrixControls?.monthRange
     });
 
     return tasks;
-  }, [demandData, demandMatrixControls.monthRange]);
+  }, [demandData, enhancedDemandMatrixControls?.monthRange]);
+
+  // Add diagnostic logging
+  console.log('📊 [DETAIL MATRIX] Data flow status:', {
+    hasData: !!demandData,
+    hasControls: !!demandMatrixControls,
+    availableSkillsCount: matrixFiltering.availableSkills.length,
+    availableClientsCount: matrixFiltering.availableClients.length,
+    isInitializing
+  });
 
   return {
     data: taskLevelData,
-    loading: isLoading,
+    loading: isLoading || isInitializing,
     error,
     refetch: loadDemandData,
     activeFilters,
-    demandMatrixControls,
+    demandMatrixControls: enhancedDemandMatrixControls,
     months: demandData?.months || [] // Pass months array for proper filtering
   };
 };
