@@ -3,6 +3,56 @@ import { useDemandMatrixData } from '../../hooks/useDemandMatrixData';
 import { useDemandMatrixControls } from '../../hooks/useDemandMatrixControls';
 import { useMatrixFiltering } from '../../hooks/useMatrixFiltering';
 
+// Safe default controls object for error states
+const defaultDemandMatrixControls = {
+  // State properties
+  selectedSkills: [],
+  selectedClients: [],
+  monthRange: { start: 0, end: 11 },
+  selectedPreferredStaff: [],
+  
+  // Handler methods (all safe no-ops)
+  handleSkillToggle: (skill: string) => {
+    console.warn('Controls in error state - skill toggle ignored');
+  },
+  handleClientToggle: (clientId: string) => {
+    console.warn('Controls in error state - client toggle ignored');
+  },
+  handleMonthRangeChange: (monthRange: { start: number; end: number }) => {
+    console.warn('Controls in error state - month range change ignored');
+  },
+  handleReset: () => {
+    console.warn('Controls in error state - reset ignored');
+  },
+  handleExport: () => {
+    console.warn('Controls in error state - export ignored');
+  },
+  handlePreferredStaffToggle: (staffId: string) => {
+    console.warn('Controls in error state - staff toggle ignored');
+  },
+  
+  // Data arrays (empty but valid)
+  availableSkills: [],
+  availableClients: [],
+  availablePreferredStaff: [],
+  
+  // Loading states (false in error state)
+  skillsLoading: false,
+  clientsLoading: false,
+  preferredStaffLoading: false,
+  
+  // Selection states (false when empty)
+  isAllSkillsSelected: false,
+  isAllClientsSelected: false,
+  isAllPreferredStaffSelected: false,
+  
+  // Error handling
+  preferredStaffError: null,
+  refetchPreferredStaff: () => {
+    console.warn('Controls in error state - refetch ignored');
+  }
+};
+
 interface Task {
   id: string;
   taskName: string;
@@ -166,6 +216,12 @@ export const useDetailMatrixData = ({
     
   } catch (err) {
     console.error('useDetailMatrixData error:', err);
+    console.error('Error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : undefined,
+      type: err instanceof Error ? err.name : typeof err
+    });
+    
     return {
       data: [],
       loading: false,
@@ -176,7 +232,7 @@ export const useDetailMatrixData = ({
         skills: [],
         clients: []
       },
-      demandMatrixControls: null,
+      demandMatrixControls: defaultDemandMatrixControls, // ✅ FIXED: Use default instead of null
       months: []
     };
   }
