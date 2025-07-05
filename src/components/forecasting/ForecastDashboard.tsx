@@ -12,6 +12,7 @@ import FinancialTab from './tabs/FinancialTab';
 import DebugTab from './tabs/DebugTab';
 import { MatrixTab, MatrixErrorBoundary } from './matrix';
 import { DemandMatrixTab } from './matrix/DemandMatrixTab';
+import { DetailMatrixTab } from './matrix/detail/DetailMatrixTab';
 
 /**
  * ForecastDashboard Component
@@ -83,6 +84,7 @@ const ForecastDashboard: React.FC = () => {
             <TabsTrigger value="charts">Charts</TabsTrigger>
             <TabsTrigger value="matrix">Capacity Matrix</TabsTrigger>
             <TabsTrigger value="demand-matrix">Demand Matrix</TabsTrigger>
+            <TabsTrigger value="detail-matrix">Detail Matrix</TabsTrigger>
             <TabsTrigger value="gaps">Gap Analysis</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="debug">Debug</TabsTrigger>
@@ -125,6 +127,13 @@ const ForecastDashboard: React.FC = () => {
           <TabsContent value="demand-matrix">
             <MatrixErrorBoundary>
               <DemandMatrixTab />
+            </MatrixErrorBoundary>
+          </TabsContent>
+
+          {/* NEW: Detail Matrix Tab */}
+          <TabsContent value="detail-matrix">
+            <MatrixErrorBoundary>
+              <DetailMatrixTab />
             </MatrixErrorBoundary>
           </TabsContent>
           
