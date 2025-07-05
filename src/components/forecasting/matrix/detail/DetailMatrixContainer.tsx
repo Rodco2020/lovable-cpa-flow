@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDemandMatrixControls } from '../hooks/useDemandMatrixControls';
 import { useDemandMatrixData } from '../hooks/useDemandMatrixData';
@@ -7,6 +7,8 @@ import { DetailMatrixStateProvider } from './DetailMatrixStateProvider';
 import { DetailMatrixHeader } from './components/DetailMatrixHeader';
 import { DetailMatrixGrid } from './components/DetailMatrixGrid';
 import { SkillGroupView } from './components/SkillGroupView';
+import { DetailMatrixExportDialog } from './components/DetailMatrixExportDialog';
+import { openDetailMatrixPrint } from './components/DetailMatrixPrintView';
 import { useDetailMatrixState } from './DetailMatrixStateProvider';
 import { useDetailMatrixFiltering } from './hooks/useDetailMatrixFiltering';
 import { Loader2, Filter, X } from 'lucide-react';
@@ -34,6 +36,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
   className
 }) => {
   const { viewMode } = useDetailMatrixState();
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   // Use existing demand matrix controls hook
   const demandMatrixControls = useDemandMatrixControls({
@@ -132,30 +136,30 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
   return (
     <div className={className}>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filter Controls Panel */}
-        <div className="lg:col-span-1">
-          <DemandMatrixControls
-            selectedSkills={demandMatrixControls.selectedSkills}
-            selectedClients={demandMatrixControls.selectedClients}
-            selectedPreferredStaff={demandMatrixControls.selectedPreferredStaff}
-            onSkillToggle={demandMatrixControls.handleSkillToggle}
-            onClientToggle={demandMatrixControls.handleClientToggle}
-            onPreferredStaffToggle={demandMatrixControls.handlePreferredStaffToggle}
-            monthRange={demandMatrixControls.monthRange}
-            onMonthRangeChange={demandMatrixControls.handleMonthRangeChange}
-            onExport={demandMatrixControls.handleExport}
-            onPrintExport={() => console.log('Print export for Detail Matrix')}
-            onReset={demandMatrixControls.handleReset}
-            groupingMode={groupingMode}
-            availableSkills={demandMatrixControls.availableSkills}
-            availableClients={demandMatrixControls.availableClients}
-            availablePreferredStaff={demandMatrixControls.availablePreferredStaff}
-            preferredStaffLoading={demandMatrixControls.preferredStaffLoading}
-            preferredStaffError={demandMatrixControls.preferredStaffError?.message || null}
-            isAllPreferredStaffSelected={demandMatrixControls.isAllPreferredStaffSelected}
-            onRetryPreferredStaff={demandMatrixControls.refetchPreferredStaff}
-          />
-        </div>
+          {/* Filter Controls Panel */}
+          <div className="lg:col-span-1">
+            <DemandMatrixControls
+              selectedSkills={demandMatrixControls.selectedSkills}
+              selectedClients={demandMatrixControls.selectedClients}
+              selectedPreferredStaff={demandMatrixControls.selectedPreferredStaff}  
+              onSkillToggle={demandMatrixControls.handleSkillToggle}
+              onClientToggle={demandMatrixControls.handleClientToggle}
+              onPreferredStaffToggle={demandMatrixControls.handlePreferredStaffToggle}
+              monthRange={demandMatrixControls.monthRange}
+              onMonthRangeChange={demandMatrixControls.handleMonthRangeChange}
+              onExport={() => setShowExportDialog(true)}
+              onPrintExport={() => setShowPrintDialog(true)}
+              onReset={demandMatrixControls.handleReset}
+              groupingMode={groupingMode}
+              availableSkills={demandMatrixControls.availableSkills}
+              availableClients={demandMatrixControls.availableClients}
+              availablePreferredStaff={demandMatrixControls.availablePreferredStaff}
+              preferredStaffLoading={demandMatrixControls.preferredStaffLoading}
+              preferredStaffError={demandMatrixControls.preferredStaffError?.message || null}
+              isAllPreferredStaffSelected={demandMatrixControls.isAllPreferredStaffSelected}
+              onRetryPreferredStaff={demandMatrixControls.refetchPreferredStaff}
+            />
+          </div>
 
         {/* Main Content Area */}
         <div className="lg:col-span-3 space-y-4">
@@ -211,6 +215,21 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
             )}
           </div>
         </div>
+
+        {/* Export Dialogs */}
+        <DetailMatrixExportDialog
+          isOpen={showExportDialog}
+          onClose={() => setShowExportDialog(false)}
+          tasks={filteredTasks}
+          viewMode={viewMode}
+          selectedSkills={demandMatrixControls.selectedSkills}
+          selectedClients={demandMatrixControls.selectedClients}
+          selectedPreferredStaff={demandMatrixControls.selectedPreferredStaff}
+          monthRange={demandMatrixControls.monthRange}
+          groupingMode={groupingMode}
+          hasActiveFilters={hasActiveFilters}
+          activeFiltersCount={activeFiltersCount}
+        />
       </div>
     </div>
   );
