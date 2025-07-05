@@ -37,13 +37,34 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   groupingMode,
   className
 }) => {
+  // STEP 1: Call ALL hooks FIRST (no conditions!) - Fixed Rules of Hooks violation
   const { viewMode } = useDetailMatrixState();
-  
-  // Step 5: Use extracted hooks
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
   
-  // Handle loading state - show loading until both data and controls are ready
+  // All remaining hooks called unconditionally with safe defaults
+  const {
+    filteredTasks,
+    filterStats,
+    hasActiveFilters,
+    activeFiltersCount
+  } = useDetailMatrixFilters({
+    tasks: data || [], // Safe default when loading/error
+    selectedSkills: demandMatrixControls?.selectedSkills || [],
+    selectedClients: demandMatrixControls?.selectedClients || [],
+    selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff || [],
+    monthRange: demandMatrixControls?.monthRange || { start: 0, end: 11 },
+    groupingMode,
+    months: months || [] // Safe default
+  });
+
+  // Performance monitoring and preferences with safe defaults
+  const performanceData = usePerformanceMonitoring((data || []).length, (filteredTasks || []).length, { enabled: true, sampleRate: 3 });
+  const performanceAlerts = usePerformanceAlerts(performanceData);
+  const { preferences, toggleSkillGroupExpansion } = useLocalStoragePersistence();
+  const keyboardNav = useKeyboardNavigation(filteredTasks || [], preferences.expandedSkillGroups, toggleSkillGroupExpansion);
+
+  // STEP 2: Handle loading state with conditional RENDERING (not early returns!)
   if (loading || !demandMatrixControls) {
     return (
       <Card className={className}>
@@ -56,28 +77,6 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
       </Card>
     );
   }
-  
-  // Apply filters using extracted hook
-  const {
-    filteredTasks,
-    filterStats,
-    hasActiveFilters,
-    activeFiltersCount
-  } = useDetailMatrixFilters({
-    tasks: data,
-    selectedSkills: demandMatrixControls.selectedSkills,
-    selectedClients: demandMatrixControls.selectedClients,
-    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
-    monthRange: demandMatrixControls.monthRange,
-    groupingMode,
-    months // Pass months array for proper filtering
-  });
-
-  // Performance monitoring and preferences
-  const performanceData = usePerformanceMonitoring(data.length, filteredTasks.length, { enabled: true, sampleRate: 3 });
-  const performanceAlerts = usePerformanceAlerts(performanceData);
-  const { preferences, toggleSkillGroupExpansion } = useLocalStoragePersistence();
-  const keyboardNav = useKeyboardNavigation(filteredTasks, preferences.expandedSkillGroups, toggleSkillGroupExpansion);
 
   // Loading state is now handled above before we get here
 
