@@ -2,7 +2,11 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDemandMatrixControls } from '../hooks/useDemandMatrixControls';
 import { useDemandMatrixData } from '../hooks/useDemandMatrixData';
+import { DetailMatrixStateProvider } from './DetailMatrixStateProvider';
+import { DetailMatrixHeader } from './components/DetailMatrixHeader';
 import { DetailMatrixGrid } from './components/DetailMatrixGrid';
+import { SkillGroupView } from './components/SkillGroupView';
+import { useDetailMatrixState } from './DetailMatrixStateProvider';
 import { Loader2 } from 'lucide-react';
 
 interface DetailMatrixContainerProps {
@@ -10,16 +14,23 @@ interface DetailMatrixContainerProps {
   className?: string;
 }
 
+interface DetailMatrixContentProps {
+  groupingMode: 'skill' | 'client';
+  className?: string;
+}
+
 /**
- * Detail Matrix Container - Phase 1
+ * Detail Matrix Content - Phase 2
  * 
- * Uses existing infrastructure but transforms data to show individual tasks
- * instead of aggregated demand data.
+ * Inner component that uses DetailMatrixState context.
+ * Separated to properly consume context from DetailMatrixStateProvider.
  */
-export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
+const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
   groupingMode,
   className
 }) => {
+  const { viewMode } = useDetailMatrixState();
+
   // Use existing demand matrix controls hook
   const demandMatrixControls = useDemandMatrixControls({
     demandData: null, // Will be populated after data loading
@@ -102,25 +113,47 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   return (
     <div className={className}>
       <div className="space-y-4">
-        {/* Controls Panel - reuse existing controls */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Filters & Controls</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-muted-foreground">
-              Filter controls will be integrated in Phase 2. 
-              Currently showing {taskLevelData.length} recurring tasks.
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Detail Grid */}
-        <DetailMatrixGrid 
-          tasks={taskLevelData}
-          groupingMode={groupingMode}
+        {/* Enhanced Header with View Mode Toggle */}
+        <DetailMatrixHeader 
+          taskCount={taskLevelData.length}
+          selectedCount={0}
         />
+
+        {/* Conditional View Rendering */}
+        <div className="animate-fade-in">
+          {viewMode === 'all-tasks' ? (
+            <DetailMatrixGrid 
+              tasks={taskLevelData}
+              groupingMode={groupingMode}
+            />
+          ) : (
+            <SkillGroupView 
+              tasks={taskLevelData}
+              groupingMode={groupingMode}
+            />
+          )}
+        </div>
       </div>
     </div>
+  );
+};
+
+/**
+ * Detail Matrix Container - Phase 2
+ * 
+ * Enhanced container with state provider and view mode management.
+ * Uses existing infrastructure while providing new view capabilities.
+ */
+export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
+  groupingMode,
+  className
+}) => {
+  return (
+    <DetailMatrixStateProvider>
+      <DetailMatrixContent 
+        groupingMode={groupingMode}
+        className={className}
+      />
+    </DetailMatrixStateProvider>
   );
 };
