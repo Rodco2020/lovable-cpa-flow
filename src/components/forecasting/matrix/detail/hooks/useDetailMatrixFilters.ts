@@ -21,6 +21,7 @@ interface UseDetailMatrixFiltersProps {
   selectedPreferredStaff: (string | number | null | undefined)[];
   monthRange: { start: number; end: number };
   groupingMode: 'skill' | 'client';
+  months: Array<{ key: string; label: string }>; // ADD THIS - months array for proper filtering
 }
 
 interface UseDetailMatrixFiltersResult {
@@ -49,7 +50,8 @@ export const useDetailMatrixFilters = ({
   selectedClients,
   selectedPreferredStaff,
   monthRange,
-  groupingMode
+  groupingMode,
+  months
 }: UseDetailMatrixFiltersProps): UseDetailMatrixFiltersResult => {
   
   // Use existing filtering hook with proper type conversion
@@ -59,7 +61,8 @@ export const useDetailMatrixFilters = ({
     selectedClients,
     selectedPreferredStaff: selectedPreferredStaff.filter(staff => staff != null).map(String),
     monthRange,
-    groupingMode
+    groupingMode,
+    months // Pass the months array for proper filtering
   });
 
   return {

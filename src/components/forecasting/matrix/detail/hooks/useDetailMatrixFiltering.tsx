@@ -21,6 +21,7 @@ interface UseDetailMatrixFilteringProps {
   selectedPreferredStaff: string[];
   monthRange: { start: number; end: number };
   groupingMode: 'skill' | 'client';
+  months: Array<{ key: string; label: string }>; // ADD THIS - months array for proper filtering
 }
 
 interface UseDetailMatrixFilteringResult {
@@ -49,7 +50,8 @@ export const useDetailMatrixFiltering = ({
   selectedClients,
   selectedPreferredStaff,
   monthRange,
-  groupingMode
+  groupingMode,
+  months
 }: UseDetailMatrixFilteringProps): UseDetailMatrixFilteringResult => {
   
   // Memoize filter dependencies to prevent unnecessary recalculations
@@ -121,20 +123,27 @@ export const useDetailMatrixFiltering = ({
     }
 
     // Apply Month Range Filter
-    // Convert month strings to numbers for comparison
+    // Use array slicing approach (same as Demand Matrix) instead of parseInt
     const beforeCount = filteredTasks.length;
-    filteredTasks = filteredTasks.filter(task => {
-      // Extract month number from monthLabel or month field
-      const monthNum = parseInt(task.month) || 0;
-      return monthNum >= monthRange.start && monthNum <= monthRange.end;
-    });
+    if (monthRange.start !== 0 || monthRange.end !== 11) {
+      // Get the filtered month keys using array slicing (same as Demand Matrix)
+      const filteredMonths = months.slice(monthRange.start, monthRange.end + 1);
+      const allowedMonthKeys = filteredMonths.map(m => m.key);
+      
+      console.log('🗓️ [DETAIL MATRIX] Month filtering:', {
+        monthRange,
+        filteredMonths: filteredMonths.map(m => m.label),
+        allowedMonthKeys,
+        tasksBeforeFilter: filteredTasks.length
+      });
+      
+      filteredTasks = filteredTasks.filter(task => 
+        allowedMonthKeys.includes(task.month)
+      );
+      
+      console.log('🗓️ [DETAIL MATRIX] After month filter:', filteredTasks.length);
+    }
     stats.monthRangeFiltered = beforeCount - filteredTasks.length;
-    console.log('📅 Month range filter applied:', {
-      before: beforeCount,
-      after: filteredTasks.length,
-      filtered: stats.monthRangeFiltered,
-      range: `${monthRange.start}-${monthRange.end}`
-    });
 
     stats.filteredCount = filteredTasks.length;
 

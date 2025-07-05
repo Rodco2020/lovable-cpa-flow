@@ -27,6 +27,7 @@ interface UseDetailMatrixDataResult {
     clients: string[];
   };
   demandMatrixControls: ReturnType<typeof useDemandMatrixControls>;
+  months: Array<{ key: string; label: string }>; // ADD THIS - months array for filtering
 }
 
 interface UseDetailMatrixDataProps {
@@ -70,6 +71,13 @@ export const useDetailMatrixData = ({
   const taskLevelData = useMemo(() => {
     if (!demandData?.dataPoints) return [];
 
+    console.log('📊 [DETAIL MATRIX] Data loaded:', {
+      totalDataPoints: demandData.dataPoints.length,
+      availableMonths: demandData?.months?.map(m => m.label),
+      monthRange: demandMatrixControls.monthRange,
+      sampleDataPoint: demandData.dataPoints[0]
+    });
+
     const tasks: Task[] = [];
     
     // Extract individual tasks from the demand data points
@@ -95,8 +103,15 @@ export const useDetailMatrixData = ({
       }
     });
 
+    console.log('📊 [DETAIL MATRIX] Data transformation complete:', {
+      totalRecurringTasks: demandData.dataPoints.length,
+      totalDetailTasks: tasks.length,
+      sampleTask: tasks[0],
+      monthRange: demandMatrixControls.monthRange
+    });
+
     return tasks;
-  }, [demandData]);
+  }, [demandData, demandMatrixControls.monthRange]);
 
   return {
     data: taskLevelData,
@@ -104,6 +119,7 @@ export const useDetailMatrixData = ({
     error,
     refetch: loadDemandData,
     activeFilters,
-    demandMatrixControls
+    demandMatrixControls,
+    months: demandData?.months || [] // Pass months array for proper filtering
   };
 };

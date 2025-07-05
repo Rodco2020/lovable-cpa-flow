@@ -40,7 +40,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { viewMode } = useDetailMatrixState();
   
   // Step 5: Use extracted hooks
-  const { data, loading, error, demandMatrixControls } = useDetailMatrixData({ groupingMode });
+  const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
   
   // Apply filters using extracted hook
@@ -55,7 +55,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     selectedClients: demandMatrixControls.selectedClients,
     selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
     monthRange: demandMatrixControls.monthRange,
-    groupingMode
+    groupingMode,
+    months // Pass months array for proper filtering
   });
 
   // Performance monitoring and preferences
