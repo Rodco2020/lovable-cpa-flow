@@ -45,37 +45,54 @@ export const useDetailMatrixData = ({
   groupingMode
 }: UseDetailMatrixDataProps): UseDetailMatrixDataResult => {
   
-  // Step 1: Load data with empty filters
-  const { demandData, isLoading, error, loadDemandData } = useDemandMatrixData(
-    groupingMode, 
-    {} // Empty filters initially
-  );
+  try {
+    // Step 1: Load data with empty filters
+    const { demandData, isLoading, error, loadDemandData } = useDemandMatrixData(
+      groupingMode, 
+      {} // Empty filters initially
+    );
+    
+    // CRITICAL: Return early if still loading or no data
+    if (isLoading || !demandData) {
+      return {
+        data: [],
+        loading: true,
+        error: null,
+        refetch: loadDemandData,
+        activeFilters: {
+          preferredStaff: [],
+          skills: [],
+          clients: []
+        },
+        demandMatrixControls: null,
+        months: []
+      };
+    }
+    
+    // Step 2: Only create controls when we have data
+    const demandMatrixControls = useDemandMatrixControls({
+      demandData,
+      groupingMode
+    });
+    
+    // Step 3: Only create filtering when controls exist
+    const matrixFiltering = demandMatrixControls ? useMatrixFiltering({
+      demandData,
+      selectedSkills: demandMatrixControls.selectedSkills || [],
+      selectedClients: demandMatrixControls.selectedClients || [],
+      selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff || [],
+      monthRange: demandMatrixControls.monthRange || { start: 0, end: 11 },
+      groupingMode
+    }) : { availableSkills: [], availableClients: [], availablePreferredStaff: [] };
   
-  // Step 2: Call controls hook at TOP LEVEL (not in useEffect!)
-  // This follows the exact pattern from DemandMatrixContainer
-  const demandMatrixControls = useDemandMatrixControls({
-    demandData: demandData || null, // Start with null, update when data loads
-    groupingMode
-  });
-  
-  // Step 3: Extract filter options from loaded data (like Demand Matrix does)
-  const matrixFiltering = useMatrixFiltering({
-    demandData,
-    selectedSkills: demandMatrixControls?.selectedSkills || [],
-    selectedClients: demandMatrixControls?.selectedClients || [],
-    selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff || [],
-    monthRange: demandMatrixControls?.monthRange || { start: 0, end: 11 },
-    groupingMode
-  });
-  
-  // Step 4: Create enhanced controls with extracted filter options
-  const enhancedDemandMatrixControls = demandMatrixControls ? {
-    ...demandMatrixControls,
-    // Override with actual extracted data (CRITICAL FIX)
-    availableSkills: matrixFiltering.availableSkills,
-    availableClients: matrixFiltering.availableClients,
-    availablePreferredStaff: matrixFiltering.availablePreferredStaff,
-  } : null;
+    // Step 4: Create enhanced controls only when everything is ready
+    const enhancedDemandMatrixControls = demandMatrixControls ? {
+      ...demandMatrixControls,
+      // Override with actual extracted data (CRITICAL FIX)
+      availableSkills: matrixFiltering.availableSkills,
+      availableClients: matrixFiltering.availableClients,
+      availablePreferredStaff: matrixFiltering.availablePreferredStaff,
+    } : null;
   
   // Create stable active filters from the enhanced controls
   const activeFilters = useMemo(() => ({
@@ -142,13 +159,30 @@ export const useDetailMatrixData = ({
     availableClientsCount: matrixFiltering.availableClients.length
   });
 
-  return {
-    data: taskLevelData,
-    loading: isLoading,
-    error,
-    refetch: loadDemandData,
-    activeFilters,
-    demandMatrixControls: enhancedDemandMatrixControls,
-    months: demandData?.months || [] // Pass months array for proper filtering
-  };
+    return {
+      data: taskLevelData,
+      loading: false,
+      error,
+      refetch: loadDemandData,
+      activeFilters,
+      demandMatrixControls: enhancedDemandMatrixControls,
+      months: demandData?.months || [] // Pass months array for proper filtering
+    };
+    
+  } catch (err) {
+    console.error('useDetailMatrixData error:', err);
+    return {
+      data: [],
+      loading: false,
+      error: err instanceof Error ? err.message : 'An error occurred loading detail matrix data',
+      refetch: () => Promise.resolve(),
+      activeFilters: {
+        preferredStaff: [],
+        skills: [],
+        clients: []
+      },
+      demandMatrixControls: null,
+      months: []
+    };
+  }
 };

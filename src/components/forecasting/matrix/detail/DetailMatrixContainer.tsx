@@ -12,7 +12,7 @@ import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useDetailMatrixHandlers } from './hooks/useDetailMatrixHandlers';
 import { usePerformanceMonitoring, usePerformanceAlerts } from '../hooks/usePerformanceMonitoring';
 import { useLocalStoragePersistence, useKeyboardNavigation } from '../hooks/useLocalStoragePersistence';
-import { Loader2, Filter, X, Zap } from 'lucide-react';
+import { Loader2, Filter, X, Zap, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -43,7 +43,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
   
-  // Handle loading while initializing controls or if controls are null
+  // Handle loading state - show loading until both data and controls are ready
   if (loading || !demandMatrixControls) {
     return (
       <Card className={className}>
@@ -86,9 +86,24 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     return (
       <Card className={className}>
         <CardContent className="flex items-center justify-center h-64">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Error loading task data: {error}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Empty state
+  if (!data || data.length === 0) {
+    return (
+      <Card className={className}>
+        <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
-            <p className="text-red-600 mb-2">Error loading task data</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
+            <p className="text-muted-foreground">No task data available</p>
           </div>
         </CardContent>
       </Card>

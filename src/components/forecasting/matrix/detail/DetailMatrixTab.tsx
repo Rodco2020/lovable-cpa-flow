@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, FileText } from 'lucide-react';
 import { DetailMatrixContainer } from './DetailMatrixContainer';
+import { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
 
 interface DetailMatrixTabProps {
   className?: string;
@@ -75,7 +76,9 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
         </Alert>
         
         {/* Detail matrix container */}
-        <DetailMatrixContainer groupingMode={groupingMode} />
+        <DetailMatrixErrorBoundary>
+          <DetailMatrixContainer groupingMode={groupingMode} />
+        </DetailMatrixErrorBoundary>
       </div>
     </div>
   );
