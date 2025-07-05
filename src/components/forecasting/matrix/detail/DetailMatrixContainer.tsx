@@ -2,12 +2,16 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDemandMatrixControls } from '../hooks/useDemandMatrixControls';
 import { useDemandMatrixData } from '../hooks/useDemandMatrixData';
+import { DemandMatrixControls } from '../components/demand/DemandMatrixControls';
 import { DetailMatrixStateProvider } from './DetailMatrixStateProvider';
 import { DetailMatrixHeader } from './components/DetailMatrixHeader';
 import { DetailMatrixGrid } from './components/DetailMatrixGrid';
 import { SkillGroupView } from './components/SkillGroupView';
 import { useDetailMatrixState } from './DetailMatrixStateProvider';
-import { Loader2 } from 'lucide-react';
+import { useDetailMatrixFiltering } from './hooks/useDetailMatrixFiltering';
+import { Loader2, Filter, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface DetailMatrixContainerProps {
   groupingMode: 'skill' | 'client';
@@ -20,10 +24,10 @@ interface DetailMatrixContentProps {
 }
 
 /**
- * Detail Matrix Content - Phase 2
+ * Detail Matrix Content - Phase 3
  * 
- * Inner component that uses DetailMatrixState context.
- * Separated to properly consume context from DetailMatrixStateProvider.
+ * Inner component that uses DetailMatrixState context with integrated filter controls.
+ * Now includes DemandMatrixControls panel and task-level filtering capabilities.
  */
 const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
   groupingMode,
@@ -84,6 +88,21 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
     return tasks;
   }, [demandData]);
 
+  // Apply filters to task-level data
+  const {
+    filteredTasks,
+    filterStats,
+    hasActiveFilters,
+    activeFiltersCount
+  } = useDetailMatrixFiltering({
+    tasks: taskLevelData,
+    selectedSkills: demandMatrixControls.selectedSkills,
+    selectedClients: demandMatrixControls.selectedClients,
+    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
+    monthRange: demandMatrixControls.monthRange,
+    groupingMode
+  });
+
   if (isLoading) {
     return (
       <Card className={className}>
@@ -112,26 +131,85 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
 
   return (
     <div className={className}>
-      <div className="space-y-4">
-        {/* Enhanced Header with View Mode Toggle */}
-        <DetailMatrixHeader 
-          taskCount={taskLevelData.length}
-          selectedCount={0}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Filter Controls Panel */}
+        <div className="lg:col-span-1">
+          <DemandMatrixControls
+            selectedSkills={demandMatrixControls.selectedSkills}
+            selectedClients={demandMatrixControls.selectedClients}
+            selectedPreferredStaff={demandMatrixControls.selectedPreferredStaff}
+            onSkillToggle={demandMatrixControls.handleSkillToggle}
+            onClientToggle={demandMatrixControls.handleClientToggle}
+            onPreferredStaffToggle={demandMatrixControls.handlePreferredStaffToggle}
+            monthRange={demandMatrixControls.monthRange}
+            onMonthRangeChange={demandMatrixControls.handleMonthRangeChange}
+            onExport={demandMatrixControls.handleExport}
+            onPrintExport={() => console.log('Print export for Detail Matrix')}
+            onReset={demandMatrixControls.handleReset}
+            groupingMode={groupingMode}
+            availableSkills={demandMatrixControls.availableSkills}
+            availableClients={demandMatrixControls.availableClients}
+            availablePreferredStaff={demandMatrixControls.availablePreferredStaff}
+            preferredStaffLoading={demandMatrixControls.preferredStaffLoading}
+            preferredStaffError={demandMatrixControls.preferredStaffError?.message || null}
+            isAllPreferredStaffSelected={demandMatrixControls.isAllPreferredStaffSelected}
+            onRetryPreferredStaff={demandMatrixControls.refetchPreferredStaff}
+          />
+        </div>
 
-        {/* Conditional View Rendering */}
-        <div className="animate-fade-in">
-          {viewMode === 'all-tasks' ? (
-            <DetailMatrixGrid 
-              tasks={taskLevelData}
-              groupingMode={groupingMode}
+        {/* Main Content Area */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Enhanced Header with Filter State */}
+          <div className="flex flex-col space-y-4">
+            <DetailMatrixHeader 
+              taskCount={filteredTasks.length}
+              selectedCount={0}
             />
-          ) : (
-            <SkillGroupView 
-              tasks={taskLevelData}
-              groupingMode={groupingMode}
-            />
-          )}
+            
+            {/* Filter State Indicators */}
+            {hasActiveFilters && (
+              <Card className="bg-muted/30">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Filter className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Active Filters</span>
+                      <Badge variant="secondary">{activeFiltersCount}</Badge>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-muted-foreground">
+                        Showing {filteredTasks.length} of {taskLevelData.length} tasks
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={demandMatrixControls.handleReset}
+                        className="text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear All
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Conditional View Rendering */}
+          <div className="animate-fade-in">
+            {viewMode === 'all-tasks' ? (
+              <DetailMatrixGrid 
+                tasks={filteredTasks}
+                groupingMode={groupingMode}
+              />
+            ) : (
+              <SkillGroupView 
+                tasks={filteredTasks}
+                groupingMode={groupingMode}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -139,10 +217,10 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = ({
 };
 
 /**
- * Detail Matrix Container - Phase 2
+ * Detail Matrix Container - Phase 3
  * 
- * Enhanced container with state provider and view mode management.
- * Uses existing infrastructure while providing new view capabilities.
+ * Enhanced container with state provider, view mode management, and integrated filter controls.
+ * Uses existing infrastructure while providing new view capabilities and filtering.
  */
 export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   groupingMode,
