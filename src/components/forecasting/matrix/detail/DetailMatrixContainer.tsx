@@ -6,7 +6,6 @@ import { DetailMatrixGrid } from './components/DetailMatrixGrid';
 import { SkillGroupView } from './components/SkillGroupView';
 import { DetailMatrixExportDialog } from './components/DetailMatrixExportDialog';
 import { DemandMatrixControls } from '../components/demand/DemandMatrixControls';
-import { useDetailMatrixState } from './DetailMatrixStateProvider';
 import { useDetailMatrixData } from './hooks/useDetailMatrixData';
 import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useDetailMatrixHandlers } from './hooks/useDetailMatrixHandlers';
@@ -19,11 +18,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DetailMatrixContainerProps {
   groupingMode: 'skill' | 'client';
+  viewMode?: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
   className?: string;
 }
 
 interface DetailMatrixContentProps {
   groupingMode: 'skill' | 'client';
+  viewMode?: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
   className?: string;
 }
 
@@ -35,10 +36,11 @@ interface DetailMatrixContentProps {
  */
 const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   groupingMode,
+  viewMode: initialViewMode = 'all-tasks',
   className
 }) => {
   // STEP 1: Call ALL hooks FIRST (no conditions!) - Fixed Rules of Hooks violation
-  const { viewMode } = useDetailMatrixState();
+  const viewMode = initialViewMode; // Use prop instead of hook
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
   
@@ -228,12 +230,14 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
  */
 export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   groupingMode,
+  viewMode,
   className
 }) => {
   return (
     <DetailMatrixStateProvider>
       <DetailMatrixContent 
         groupingMode={groupingMode}
+        viewMode={viewMode}
         className={className}
       />
     </DetailMatrixStateProvider>

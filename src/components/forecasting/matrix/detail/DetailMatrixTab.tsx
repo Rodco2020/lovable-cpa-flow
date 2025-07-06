@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, FileText } from 'lucide-react';
 import { DetailMatrixContainer } from './DetailMatrixContainer';
 import { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
-import { useDetailMatrixState } from './DetailMatrixStateProvider';
 
 interface DetailMatrixTabProps {
   className?: string;
@@ -22,7 +21,7 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
   className 
 }) => {
   const [groupingMode, setGroupingMode] = useState<'skill' | 'client'>('client');
-  const { viewMode, setViewMode } = useDetailMatrixState();
+  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix'>('all-tasks');
 
   return (
     <div className={className}>
@@ -87,7 +86,7 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
         
         {/* Detail matrix container */}
         <DetailMatrixErrorBoundary>
-          <DetailMatrixContainer groupingMode={groupingMode} />
+          <DetailMatrixContainer groupingMode={groupingMode} viewMode={viewMode} />
         </DetailMatrixErrorBoundary>
       </div>
     </div>
