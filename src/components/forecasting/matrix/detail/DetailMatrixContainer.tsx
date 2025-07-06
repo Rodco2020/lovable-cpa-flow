@@ -1,14 +1,18 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DetailMatrixStateProvider } from './DetailMatrixStateProvider';
 import { DetailMatrixHeader } from './components/DetailMatrixHeader';
 import { DetailMatrixGrid } from './components/DetailMatrixGrid';
 import { SkillGroupView } from './components/SkillGroupView';
 import { DetailMatrixExportDialog } from './components/DetailMatrixExportDialog';
+import { DetailForecastMatrixGrid } from './components/DetailForecastMatrixGrid';
 import { DemandMatrixControls } from '../components/demand/DemandMatrixControls';
 import { useDetailMatrixData } from './hooks/useDetailMatrixData';
 import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useDetailMatrixHandlers } from './hooks/useDetailMatrixHandlers';
+import { DetailTaskRevenueCalculator } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
+import { getAllClients } from '@/services/clientService';
+import { getSkillFeeRatesMap } from '@/services/skills/feeRateService';
 import { usePerformanceMonitoring, usePerformanceAlerts } from '../hooks/usePerformanceMonitoring';
 import { useLocalStoragePersistence, useKeyboardNavigation } from '../hooks/useLocalStoragePersistence';
 import { Loader2, Filter, X, Zap, AlertCircle } from 'lucide-react';
@@ -39,7 +43,12 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   viewMode: initialViewMode = 'all-tasks',
   className
 }) => {
-  // STEP 1: Call ALL hooks FIRST (no conditions!) - Fixed Rules of Hooks violation
+  // STEP 1: Revenue calculation state
+  const [revenueData, setRevenueData] = useState(new Map());
+  const [revenueLoading, setRevenueLoading] = useState(false);
+  const [revenueError, setRevenueError] = useState<string | null>(null);
+
+  // STEP 2: Call ALL hooks FIRST (no conditions!) - Fixed Rules of Hooks violation
   const viewMode = initialViewMode; // Use prop instead of hook
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
   const handlers = useDetailMatrixHandlers();
@@ -66,7 +75,67 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { preferences, toggleSkillGroupExpansion } = useLocalStoragePersistence();
   const keyboardNav = useKeyboardNavigation(filteredTasks || [], preferences.expandedSkillGroups, toggleSkillGroupExpansion);
 
-  // STEP 2: Handle loading state with conditional RENDERING (not early returns!)
+  // STEP 3: Revenue calculation effect for detail-forecast-matrix view
+  useEffect(() => {
+    if (viewMode === 'detail-forecast-matrix' && filteredTasks && filteredTasks.length > 0 && !loading) {
+      calculateTaskRevenue();
+    }
+  }, [viewMode, JSON.stringify(filteredTasks), loading]);
+
+  const calculateTaskRevenue = async () => {
+    if (!filteredTasks || filteredTasks.length === 0) return;
+
+    console.log('💰 [DETAIL MATRIX] Starting revenue calculation for', filteredTasks.length, 'tasks');
+    setRevenueLoading(true);
+    setRevenueError(null);
+
+    try {
+      // Fetch client data with expected monthly revenue
+      const clientsData = await getAllClients();
+      console.log('📊 [DETAIL MATRIX] Loaded', clientsData.length, 'clients');
+
+      // Get skill fee rates
+      const skillFeeRates = await getSkillFeeRatesMap();
+      console.log('💰 [DETAIL MATRIX] Loaded', skillFeeRates.size, 'skill fee rates');
+
+      // Calculate the month count for the period
+      const monthCount = months ? months.length : 12;
+
+      // Build client revenue data
+      const clientRevenueData = DetailTaskRevenueCalculator.buildClientRevenueData(
+        clientsData.map(client => ({
+          id: client.id,
+          legal_name: client.legalName,
+          expected_monthly_revenue: client.expectedMonthlyRevenue
+        })),
+        filteredTasks,
+        monthCount
+      );
+
+      // Calculate revenue for all tasks
+      const taskRevenueResults = await DetailTaskRevenueCalculator.calculateBulkTaskRevenue(
+        filteredTasks,
+        clientRevenueData,
+        skillFeeRates
+      );
+
+      console.log('💰 [DETAIL MATRIX] Revenue calculation complete:', {
+        tasksProcessed: taskRevenueResults.size,
+        clientsProcessed: clientRevenueData.size,
+        monthCount
+      });
+
+      setRevenueData(taskRevenueResults);
+      setRevenueError(null);
+    } catch (err) {
+      console.error('❌ [DETAIL MATRIX] Revenue calculation error:', err);
+      setRevenueError(err instanceof Error ? err.message : 'Revenue calculation failed');
+    } finally {
+      setRevenueLoading(false);
+    }
+  };
+
+  // STEP 4: Handle loading state with conditional RENDERING (not early returns!)
   if (loading || !demandMatrixControls) {
     return (
       <Card className={className}>
@@ -80,17 +149,31 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     );
   }
 
+  // Revenue loading state for detail-forecast-matrix view
+  if (viewMode === 'detail-forecast-matrix' && revenueLoading) {
+    return (
+      <Card className={className}>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Calculating task revenue...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Loading state is now handled above before we get here
 
   // Error state
-  if (error) {
+  if (error || revenueError) {
     return (
       <Card className={className}>
         <CardContent className="flex items-center justify-center h-64">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Error loading task data: {error}
+              {error ? `Error loading task data: ${error}` : `Error calculating revenue: ${revenueError}`}
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -186,7 +269,15 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
 
           {/* Conditional View Rendering */}
           <div className="animate-fade-in" tabIndex={0}>
-            {viewMode === 'all-tasks' ? (
+            {viewMode === 'detail-forecast-matrix' ? (
+              <DetailForecastMatrixGrid 
+                tasks={filteredTasks}
+                months={months?.map(m => m.key) || []}
+                monthLabels={months?.map(m => m.label) || []}
+                revenueData={revenueData}
+                isLoading={revenueLoading}
+              />
+            ) : viewMode === 'all-tasks' ? (
               <DetailMatrixGrid tasks={filteredTasks} groupingMode={groupingMode} performanceData={performanceData} />
             ) : viewMode === 'group-by-skill' ? (
               <SkillGroupView 
@@ -197,7 +288,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
               />
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">Detail Forecast Matrix view coming soon...</p>
+                <p className="text-muted-foreground">Unknown view mode: {viewMode}</p>
               </div>
             )}
           </div>
