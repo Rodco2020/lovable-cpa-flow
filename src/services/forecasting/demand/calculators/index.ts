@@ -8,11 +8,17 @@
 // Main calculator services
 export { ClientTotalsCalculator } from './clientTotalsCalculator';
 export { RevenueComparisonService } from './RevenueComparisonService';
+export { DetailTaskRevenueCalculator } from './detailTaskRevenueCalculator';
 
 // Types
 export type { 
   RevenueDifferenceResult,
 } from './RevenueComparisonService';
+export type {
+  Task,
+  TaskRevenueResult,
+  ClientRevenueData
+} from './detailTaskRevenueCalculator';
 
 // Additional types that might be needed
 export interface SkillDemandData {
