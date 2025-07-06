@@ -68,32 +68,60 @@ export class DetailTaskRevenueCalculator {
     clientExpectedRevenue: number,
     skillFeeRate: number
   ): TaskRevenueResult {
-    // Validate inputs
+    // Enhanced validation with detailed error handling
     if (!task || typeof task.monthlyHours !== 'number') {
+      console.error(`[DETAIL TASK REVENUE] Invalid task:`, { task });
       throw new Error('Invalid task or missing monthlyHours');
     }
     
+    // Handle missing or zero client data gracefully
     if (clientTotalHours <= 0) {
-      console.warn(`[DETAIL TASK REVENUE] Zero or negative client total hours for ${task.clientName}`);
+      console.warn(`[DETAIL TASK REVENUE] Zero client hours for ${task.clientName} - using zero revenue`);
       return this.createZeroRevenueResult(task, skillFeeRate);
+    }
+
+    if (clientExpectedRevenue < 0) {
+      console.warn(`[DETAIL TASK REVENUE] Negative client revenue for ${task.clientName} - using zero`);
+      clientExpectedRevenue = 0;
+    }
+
+    // Handle missing skill fee rate
+    if (skillFeeRate <= 0) {
+      console.warn(`[DETAIL TASK REVENUE] Missing or zero skill fee rate for ${task.skillRequired} - using default $75`);
+      skillFeeRate = 75.00; // Default fallback rate
     }
 
     const taskHours = task.totalHours || task.monthlyHours;
     
-    // Apportionment calculation
-    const apportionmentPercentage = taskHours / clientTotalHours;
-    const totalExpectedRevenue = apportionmentPercentage * clientExpectedRevenue;
-    const expectedHourlyRate = taskHours > 0 ? totalExpectedRevenue / taskHours : 0;
-    const totalSuggestedRevenue = taskHours * skillFeeRate;
+    // Prevent division by zero and handle edge cases
+    if (taskHours <= 0) {
+      console.warn(`[DETAIL TASK REVENUE] Zero task hours for ${task.taskName} - using zero revenue`);
+      return this.createZeroRevenueResult(task, skillFeeRate);
+    }
+    
+    // Apportionment calculation with safe math
+    const apportionmentPercentage = Math.min(taskHours / clientTotalHours, 1.0); // Cap at 100%
+    const totalExpectedRevenue = Math.max(apportionmentPercentage * clientExpectedRevenue, 0);
+    const expectedHourlyRate = totalExpectedRevenue / taskHours; // Safe division - taskHours > 0 guaranteed
+    const totalSuggestedRevenue = Math.max(taskHours * skillFeeRate, 0);
     const expectedLessSuggested = totalExpectedRevenue - totalSuggestedRevenue;
     
-    console.log(`💰 [DETAIL TASK REVENUE] ${task.taskName} (${task.clientName}):`, {
+    // Enhanced logging with error detection
+    const hasWarnings = clientExpectedRevenue === 0 || skillFeeRate === 75.00 || apportionmentPercentage > 0.8;
+    const logLevel = hasWarnings ? '⚠️' : '💰';
+    
+    console.log(`${logLevel} [DETAIL TASK REVENUE] ${task.taskName} (${task.clientName}):`, {
       taskHours,
-      apportionmentPercentage: `${(apportionmentPercentage * 100).toFixed(1)}%`,
+      apportionmentPercentage: `${(apportionmentPercentage * 100).toFixed(2)}%`,
       totalExpectedRevenue: `$${totalExpectedRevenue.toFixed(2)}`,
       expectedHourlyRate: `$${expectedHourlyRate.toFixed(2)}/hr`,
       totalSuggestedRevenue: `$${totalSuggestedRevenue.toFixed(2)}`,
-      expectedLessSuggested: `$${expectedLessSuggested.toFixed(2)}`
+      expectedLessSuggested: `$${expectedLessSuggested.toFixed(2)}`,
+      warnings: {
+        zeroClientRevenue: clientExpectedRevenue === 0,
+        defaultSkillRate: skillFeeRate === 75.00,
+        highApportionment: apportionmentPercentage > 0.8
+      }
     });
 
     return {
@@ -142,26 +170,32 @@ export class DetailTaskRevenueCalculator {
       try {
         const clientData = clientRevenueData.get(task.clientName);
         if (!clientData) {
-          console.warn(`[BULK TASK REVENUE] No client data for ${task.clientName}, skipping task ${task.taskName}`);
-          results.set(task.id, this.createZeroRevenueResult(task, 0));
+          console.warn(`[BULK TASK REVENUE] No client data for ${task.clientName} - using zero revenue for task ${task.taskName}`);
+          const fallbackSkillRate = feeRatesMap.get(task.skillRequired) || 75.00;
+          results.set(task.id, this.createZeroRevenueResult(task, fallbackSkillRate));
           continue;
         }
 
-        const skillFeeRate = feeRatesMap.get(task.skillRequired) || 75.00; // Default fallback rate
+        const skillFeeRate = feeRatesMap.get(task.skillRequired);
+        if (!skillFeeRate || skillFeeRate <= 0) {
+          console.warn(`[BULK TASK REVENUE] Missing skill fee rate for ${task.skillRequired} - using default $75`);
+        }
+        const finalSkillRate = skillFeeRate && skillFeeRate > 0 ? skillFeeRate : 75.00;
         
         const revenueResult = this.calculateTaskRevenue(
           task,
           clientData.totalHours,
           clientData.totalExpectedRevenue,
-          skillFeeRate
+          finalSkillRate
         );
 
         results.set(task.id, revenueResult);
         processedCount++;
 
       } catch (error) {
-        console.error(`[BULK TASK REVENUE] Error processing task ${task.id}:`, error);
-        results.set(task.id, this.createZeroRevenueResult(task, 0));
+        console.error(`[BULK TASK REVENUE] Error processing task ${task.id} (${task.taskName}):`, error);
+        const fallbackSkillRate = feeRatesMap.get(task.skillRequired) || 75.00;
+        results.set(task.id, this.createZeroRevenueResult(task, fallbackSkillRate));
         errorCount++;
       }
     }

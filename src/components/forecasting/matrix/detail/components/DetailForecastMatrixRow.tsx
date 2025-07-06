@@ -36,14 +36,36 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
     return task.month === month ? task.monthlyHours : 0;
   };
 
-  // Format revenue values with proper styling
-  const formatRevenueValue = (value: number, isNegative?: boolean) => {
+  // Enhanced revenue formatting with error handling
+  const formatRevenueValue = (value: number | undefined, isNegative?: boolean, showNA?: boolean) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return <span className="text-muted-foreground text-xs">N/A</span>;
+    }
+    
+    if (showNA && value === 0) {
+      return <span className="text-muted-foreground text-xs">$0.00</span>;
+    }
+    
     const formatted = formatCurrency(value);
+    const textColor = isNegative && value < 0 
+      ? 'text-destructive font-medium' 
+      : value > 0 
+        ? 'text-foreground' 
+        : 'text-muted-foreground';
+    
     return (
-      <span className={isNegative && value < 0 ? 'text-destructive font-medium' : ''}>
+      <span className={textColor}>
         {formatted}
       </span>
     );
+  };
+
+  // Format hours with error handling
+  const formatHoursValue = (hours: number | undefined) => {
+    if (hours === undefined || hours === null || isNaN(hours)) {
+      return <span className="text-muted-foreground text-xs">N/A</span>;
+    }
+    return formatHours(hours, 1);
   };
 
   const Cell = ({ 
@@ -105,25 +127,25 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
         );
       })}
       
-      {/* Revenue Calculation Columns */}
+      {/* Revenue Calculation Columns with Enhanced Error Handling */}
       <Cell className="bg-slate-50 border-l-2 border-slate-300 font-semibold">
-        {revenueData ? formatHours(revenueData.totalHours, 1) : '-'}
+        {revenueData ? formatHoursValue(revenueData.totalHours) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
       <Cell className="bg-green-50 border-l-2 border-green-300 font-semibold">
-        {revenueData ? formatRevenueValue(revenueData.totalExpectedRevenue) : '-'}
+        {revenueData ? formatRevenueValue(revenueData.totalExpectedRevenue, false, true) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
       <Cell className="bg-purple-50 border-l-2 border-purple-300 font-semibold">
-        {revenueData ? formatCurrency(revenueData.expectedHourlyRate) : '-'}
+        {revenueData ? formatRevenueValue(revenueData.expectedHourlyRate, false, true) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
       <Cell className="bg-emerald-50 border-l-2 border-emerald-300 font-semibold">
-        {revenueData ? formatRevenueValue(revenueData.totalSuggestedRevenue) : '-'}
+        {revenueData ? formatRevenueValue(revenueData.totalSuggestedRevenue, false, true) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
       <Cell className="bg-amber-50 border-l-2 border-amber-300 font-semibold">
-        {revenueData ? formatRevenueValue(revenueData.expectedLessSuggested, true) : '-'}
+        {revenueData ? formatRevenueValue(revenueData.expectedLessSuggested, true, false) : <span className="text-muted-foreground">-</span>}
       </Cell>
     </tr>
   );

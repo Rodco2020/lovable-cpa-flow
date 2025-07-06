@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency, formatHours, formatNumber } from '@/lib/numberUtils';
+import { TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
 
 interface Task {
   id: string;
@@ -52,16 +53,17 @@ interface DetailMatrixExportDialogProps {
   groupingMode: 'skill' | 'client';
   hasActiveFilters: boolean;
   activeFiltersCount: number;
+  revenueData?: Map<string, TaskRevenueResult>; // New: Revenue data for detail-forecast-matrix view
 }
 
 /**
- * Detail Matrix Export Dialog - Phase 4
+ * Detail Matrix Export Dialog - Phase 5
  * 
- * Specialized export dialog for task-level data with enhanced options:
- * - Support for both view modes (all tasks vs grouped by skill)
- * - Task metadata inclusion options
+ * Enhanced export dialog with support for Detail Forecast Matrix revenue data:
+ * - All 18 columns including revenue calculations
+ * - Currency formatting for revenue columns
+ * - Error handling for missing revenue data
  * - Large export handling with progress indicators
- * - Detail-specific export formats
  */
 export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> = ({
   isOpen,
@@ -74,7 +76,8 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
   monthRange,
   groupingMode,
   hasActiveFilters,
-  activeFiltersCount
+  activeFiltersCount,
+  revenueData
 }) => {
   const [exportOptions, setExportOptions] = useState({
     format: 'xlsx' as 'xlsx' | 'csv' | 'json',
@@ -84,7 +87,9 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
     includeFilterSummary: hasActiveFilters,
     includeSkillGrouping: viewMode === 'group-by-skill',
     exportFilteredOnly: hasActiveFilters,
-    addSummarySheet: true
+    addSummarySheet: true,
+    includeRevenueData: viewMode === 'detail-forecast-matrix', // New: Include revenue columns
+    formatCurrencyColumns: viewMode === 'detail-forecast-matrix' // New: Format currency properly
   });
   
   const [isExporting, setIsExporting] = useState(false);
@@ -106,12 +111,13 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
   }, [tasks.length, exportOptions.exportFilteredOnly]);
 
   function calculateEstimatedFileSize(taskCount: number): string {
-    // Base size per task with all metadata
-    const baseSize = taskCount * 200; // Increased for task-level detail
+    // Enhanced size calculation including revenue data
+    const baseSize = taskCount * 200;
     const metadataSize = exportOptions.includeTaskMetadata ? taskCount * 100 : 0;
     const groupingSize = exportOptions.includeSkillGrouping ? taskCount * 50 : 0;
+    const revenueSize = exportOptions.includeRevenueData ? taskCount * 150 : 0; // Revenue columns add significant size
     
-    const totalBytes = baseSize + metadataSize + groupingSize;
+    const totalBytes = baseSize + metadataSize + groupingSize + revenueSize;
     
     if (totalBytes < 1024) return `${totalBytes} B`;
     if (totalBytes < 1024 * 1024) return `${(totalBytes / 1024).toFixed(1)} KB`;
@@ -194,11 +200,44 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
         category: task.category
       };
 
+      // Add revenue data for detail-forecast-matrix view
+      if (exportOptions.includeRevenueData && revenueData) {
+        const taskRevenue = revenueData.get(task.id);
+        if (taskRevenue) {
+          (baseData as any).totalHours = taskRevenue.totalHours;
+          (baseData as any).totalExpectedRevenue = exportOptions.formatCurrencyColumns 
+            ? formatCurrency(taskRevenue.totalExpectedRevenue) 
+            : taskRevenue.totalExpectedRevenue;
+          (baseData as any).expectedHourlyRate = exportOptions.formatCurrencyColumns 
+            ? formatCurrency(taskRevenue.expectedHourlyRate)
+            : taskRevenue.expectedHourlyRate;
+          (baseData as any).totalSuggestedRevenue = exportOptions.formatCurrencyColumns 
+            ? formatCurrency(taskRevenue.totalSuggestedRevenue)
+            : taskRevenue.totalSuggestedRevenue;
+          (baseData as any).expectedLessSuggested = exportOptions.formatCurrencyColumns 
+            ? formatCurrency(taskRevenue.expectedLessSuggested)
+            : taskRevenue.expectedLessSuggested;
+          (baseData as any).skillFeeRate = exportOptions.formatCurrencyColumns 
+            ? formatCurrency(taskRevenue.skillFeeRate)
+            : taskRevenue.skillFeeRate;
+          (baseData as any).apportionmentPercentage = `${(taskRevenue.apportionmentPercentage * 100).toFixed(2)}%`;
+        } else {
+          // Handle missing revenue data
+          (baseData as any).totalHours = task.monthlyHours;
+          (baseData as any).totalExpectedRevenue = 'N/A';
+          (baseData as any).expectedHourlyRate = 'N/A';
+          (baseData as any).totalSuggestedRevenue = 'N/A';
+          (baseData as any).expectedLessSuggested = 'N/A';
+          (baseData as any).skillFeeRate = 'N/A';
+          (baseData as any).apportionmentPercentage = 'N/A';
+        }
+      }
+
       // Add optional metadata
       if (exportOptions.includeTaskMetadata) {
         return {
           ...baseData,
-          createdDate: '2024-01-01', // Mock data for Phase 4
+          createdDate: '2024-01-01', // Mock data for Phase 5
           modifiedDate: new Date().toISOString().split('T')[0],
           status: 'Active',
           taskType: 'Recurring'
@@ -209,7 +248,7 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
         return {
           ...baseData,
           recurrencePattern: task.recurrencePattern,
-          recurrenceType: 'Monthly' // Default for Phase 4
+          recurrenceType: 'Monthly' // Default for Phase 5
         };
       }
 
@@ -429,10 +468,14 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Export Detail Matrix ({viewMode === 'all-tasks' ? 'All Tasks' : 'Grouped by Skill'})
-          </DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Export Detail Matrix ({
+                viewMode === 'all-tasks' ? 'All Tasks' : 
+                viewMode === 'group-by-skill' ? 'Grouped by Skill' :
+                'Forecast Matrix'
+              })
+            </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -548,11 +591,25 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
                   desc: 'Maintain skill group structure in export',
                   disabled: viewMode !== 'group-by-skill'
                 },
-                { 
-                  key: 'addSummarySheet', 
-                  label: 'Summary Sheet', 
-                  desc: 'Add summary sheet with totals by skill and client'
-                }
+                 { 
+                   key: 'addSummarySheet', 
+                   label: 'Summary Sheet', 
+                   desc: 'Add summary sheet with totals by skill and client'
+                 },
+                 // New: Revenue-specific options for detail-forecast-matrix view
+                 { 
+                   key: 'includeRevenueData', 
+                   label: 'Revenue Analysis', 
+                   desc: 'Include all revenue calculation columns (Total Expected, Suggested, etc.)',
+                   disabled: viewMode !== 'detail-forecast-matrix',
+                   highlight: viewMode === 'detail-forecast-matrix'
+                 },
+                 { 
+                   key: 'formatCurrencyColumns', 
+                   label: 'Format Currency', 
+                   desc: 'Format revenue columns as currency ($1,234.56)',
+                   disabled: viewMode !== 'detail-forecast-matrix' || !exportOptions.includeRevenueData
+                 }
               ].map((option) => (
                 <div key={option.key} className="flex items-start space-x-3">
                   <Checkbox

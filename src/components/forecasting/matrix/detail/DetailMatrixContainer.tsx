@@ -307,6 +307,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           groupingMode={groupingMode}
           hasActiveFilters={hasActiveFilters}
           activeFiltersCount={activeFiltersCount}
+          revenueData={revenueData}
         />
       </div>
     </div>
