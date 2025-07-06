@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, FileText } from 'lucide-react';
 import { DetailMatrixContainer } from './DetailMatrixContainer';
 import { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
+import { useDetailMatrixState } from './DetailMatrixStateProvider';
 
 interface DetailMatrixTabProps {
   className?: string;
@@ -21,6 +22,7 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
   className 
 }) => {
   const [groupingMode, setGroupingMode] = useState<'skill' | 'client'>('client');
+  const { viewMode, setViewMode } = useDetailMatrixState();
 
   return (
     <div className={className}>
@@ -39,29 +41,37 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
           <div>
             <h3 className="text-lg font-semibold">Detail Matrix</h3>
             <p className="text-sm text-muted-foreground">
-              Task-level view of recurring assignments with drill-down capabilities
+              Task-level view with multiple display modes and revenue calculations
             </p>
           </div>
           
-          {/* Grouping mode selector */}
+          {/* View Mode Toggle */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Group by:</span>
-            <div className="flex rounded-md border">
+            <span className="text-sm text-muted-foreground">View:</span>
+            <div className="flex rounded-md border bg-muted/30">
               <Button
-                variant={groupingMode === 'skill' ? 'default' : 'ghost'}
+                variant={viewMode === 'all-tasks' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setGroupingMode('skill')}
-                className="rounded-r-none"
+                onClick={() => setViewMode('all-tasks')}
+                className="rounded-r-none border-r"
               >
-                Skill
+                Show All Tasks
               </Button>
               <Button
-                variant={groupingMode === 'client' ? 'default' : 'ghost'}
+                variant={viewMode === 'group-by-skill' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setGroupingMode('client')}
+                onClick={() => setViewMode('group-by-skill')}
+                className="rounded-none border-r"
+              >
+                Group by Skill
+              </Button>
+              <Button
+                variant={viewMode === 'detail-forecast-matrix' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('detail-forecast-matrix')}
                 className="rounded-l-none"
               >
-                Client
+                Detail Forecast Matrix
               </Button>
             </div>
           </div>

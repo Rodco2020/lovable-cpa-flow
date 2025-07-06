@@ -44,7 +44,7 @@ interface DetailMatrixExportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: Task[];
-  viewMode: 'all-tasks' | 'group-by-skill';
+  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
   selectedSkills: string[];
   selectedClients: string[];
   selectedPreferredStaff: string[];

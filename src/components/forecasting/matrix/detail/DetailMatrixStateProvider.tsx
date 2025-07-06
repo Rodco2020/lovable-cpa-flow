@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface DetailMatrixState {
-  viewMode: 'all-tasks' | 'group-by-skill';
+  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
   expandedSkills: Set<string>;
   sortConfig: { field: string; direction: 'asc' | 'desc' };
   selectedTasks: Set<string>;
 }
 
 interface DetailMatrixContextType extends DetailMatrixState {
-  setViewMode: (mode: 'all-tasks' | 'group-by-skill') => void;
+  setViewMode: (mode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix') => void;
   toggleSkillExpansion: (skill: string) => void;
   setSortConfig: (config: { field: string; direction: 'asc' | 'desc' }) => void;
   toggleTaskSelection: (taskId: string) => void;
@@ -31,7 +31,7 @@ interface DetailMatrixStateProviderProps {
 export const DetailMatrixStateProvider: React.FC<DetailMatrixStateProviderProps> = ({
   children
 }) => {
-  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill'>('all-tasks');
+  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix'>('all-tasks');
   const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' }>({
     field: 'taskName',

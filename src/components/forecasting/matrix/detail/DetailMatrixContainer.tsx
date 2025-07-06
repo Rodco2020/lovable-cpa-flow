@@ -186,13 +186,17 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           <div className="animate-fade-in" tabIndex={0}>
             {viewMode === 'all-tasks' ? (
               <DetailMatrixGrid tasks={filteredTasks} groupingMode={groupingMode} performanceData={performanceData} />
-            ) : (
+            ) : viewMode === 'group-by-skill' ? (
               <SkillGroupView 
                 tasks={filteredTasks}
                 groupingMode={groupingMode}
                 expandedGroups={preferences.expandedSkillGroups}
                 onToggleExpansion={toggleSkillGroupExpansion}
               />
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Detail Forecast Matrix view coming soon...</p>
+              </div>
             )}
           </div>
         </div>
