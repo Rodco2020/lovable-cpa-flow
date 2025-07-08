@@ -5,6 +5,9 @@ import { DetailForecastMatrixRow } from './DetailForecastMatrixRow';
 
 interface DetailForecastMatrixGridProps {
   tasks: Task[];
+  totalTaskCount: number;
+  currentPage: number;
+  totalPages: number;
   months: string[];
   monthLabels: string[];
   revenueData: Map<string, TaskRevenueResult>;
@@ -13,6 +16,9 @@ interface DetailForecastMatrixGridProps {
 
 export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> = ({
   tasks,
+  totalTaskCount,
+  currentPage,
+  totalPages,
   months,
   monthLabels,
   revenueData,
@@ -20,6 +26,9 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
 }) => {
   console.log('📊 [DETAIL GRID] Rendering grid:', {
     tasksCount: tasks.length,
+    totalTaskCount,
+    currentPage,
+    totalPages,
     monthsCount: months.length,
     revenueDataSize: revenueData.size,
     isLoading
@@ -52,7 +61,7 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
       <table className="w-full border-collapse">
         <DetailForecastMatrixHeader months={months} monthLabels={monthLabels} />
         <tbody>
-          {tasks.slice(0, 100).map((task, index) => (
+          {tasks.map((task, index) => (
             <DetailForecastMatrixRow
               key={task.id}
               task={task}

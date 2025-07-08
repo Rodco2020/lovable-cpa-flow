@@ -48,6 +48,10 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [revenueError, setRevenueError] = useState<string | null>(null);
 
+  // STEP 1.5: Pagination state for detail-forecast-matrix view
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+
   // STEP 2: Call ALL hooks FIRST (no conditions!) - Fixed Rules of Hooks violation
   const viewMode = initialViewMode; // Use prop instead of hook
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
@@ -68,6 +72,19 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     groupingMode,
     months: months || [] // Safe default
   });
+
+  // Calculate pagination values
+  const totalPages = Math.ceil((filteredTasks?.length || 0) / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedTasks = React.useMemo(() => {
+    return filteredTasks?.slice(startIndex, endIndex) || [];
+  }, [filteredTasks, startIndex, endIndex]);
+
+  // When filters change, reset to page 1
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [demandMatrixControls?.selectedSkills, demandMatrixControls?.selectedClients, demandMatrixControls?.selectedPreferredStaff]);
 
   // Performance monitoring and preferences with safe defaults
   const performanceData = usePerformanceMonitoring((data || []).length, (filteredTasks || []).length, { enabled: true, sampleRate: 3 });
@@ -271,7 +288,10 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           <div className="animate-fade-in" tabIndex={0}>
             {viewMode === 'detail-forecast-matrix' ? (
               <DetailForecastMatrixGrid 
-                tasks={filteredTasks}
+                tasks={paginatedTasks}
+                totalTaskCount={filteredTasks?.length || 0}
+                currentPage={currentPage}
+                totalPages={totalPages}
                 months={months?.map(m => m.key) || []}
                 monthLabels={months?.map(m => m.label) || []}
                 revenueData={revenueData}
