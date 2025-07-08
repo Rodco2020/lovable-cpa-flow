@@ -12,9 +12,9 @@ interface Task {
   recurrencePattern: string;
   priority: string;
   category: string;
-  monthlyDistribution: Record<string, number>; // New aggregated format
-  totalHours: number; // Sum of all monthly hours
-  recurringTaskId: string; // For unique identification
+  monthlyDistribution?: Record<string, number>; // New aggregated format (optional for compatibility)
+  totalHours?: number; // Sum of all monthly hours (optional for compatibility)
+  recurringTaskId?: string; // For unique identification (optional for compatibility)
   totalExpectedRevenue?: number;
   expectedHourlyRate?: number;
   totalSuggestedRevenue?: number;

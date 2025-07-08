@@ -12,9 +12,9 @@ interface Task {
   recurrencePattern: string;
   priority: string;
   category: string;
-  monthlyDistribution: Record<string, number>; // New aggregated format
-  totalHours: number; // Sum of all monthly hours
-  recurringTaskId: string; // For unique identification
+  monthlyDistribution?: Record<string, number>; // New aggregated format (optional for compatibility)
+  totalHours?: number; // Sum of all monthly hours (optional for compatibility)
+  recurringTaskId?: string; // For unique identification (optional for compatibility)
   totalExpectedRevenue?: number;
   expectedHourlyRate?: number;
   totalSuggestedRevenue?: number;
@@ -70,6 +70,8 @@ export const useDetailMatrixFiltering = ({
   }), [selectedSkills, selectedClients, selectedPreferredStaff, monthRange]);
   
   const filteredResult = useMemo(() => {
+    console.log(`🔍 [PHASE 4] Starting task filtering with ${tasks.length} aggregated tasks`);
+    
     // Apply filters to tasks
     let filteredTasks = [...tasks];
     const stats = {
@@ -109,21 +111,62 @@ export const useDetailMatrixFiltering = ({
       stats.staffFiltered = 0;
     }
 
-    // Apply Month Range Filter
-    // Use array slicing approach (same as Demand Matrix) instead of parseInt
+    // Apply Month Range Filter - Updated for Aggregated Tasks
+    // Check if task has any hours in the selected month range
     const beforeCount = filteredTasks.length;
     if (monthRange.start !== 0 || monthRange.end !== 11) {
       // Get the filtered month keys using array slicing (same as Demand Matrix)
       const filteredMonths = months.slice(monthRange.start, monthRange.end + 1);
       const allowedMonthKeys = filteredMonths.map(m => m.key);
       
-      filteredTasks = filteredTasks.filter(task => 
-        allowedMonthKeys.includes(task.month)
-      );
+      console.log(`🗓️ [PHASE 4] Month range filter active:`, {
+        monthRange,
+        allowedMonths: allowedMonthKeys,
+        totalMonths: months.length
+      });
+      
+      filteredTasks = filteredTasks.filter(task => {
+        // For aggregated tasks, check if any month in monthlyDistribution 
+        // falls within the selected range AND has hours > 0
+        if (task.monthlyDistribution) {
+          const hasHoursInRange = allowedMonthKeys.some(monthKey => 
+            (task.monthlyDistribution![monthKey] || 0) > 0
+          );
+          if (!hasHoursInRange) {
+            console.log(`🗓️ [PHASE 4] Task ${task.taskName} filtered out - no hours in range`, {
+              taskDistribution: task.monthlyDistribution,
+              allowedMonths: allowedMonthKeys
+            });
+          }
+          return hasHoursInRange;
+        }
+        // Fallback for backward compatibility with non-aggregated tasks
+        return allowedMonthKeys.includes(task.month);
+      });
     }
     stats.monthRangeFiltered = beforeCount - filteredTasks.length;
 
     stats.filteredCount = filteredTasks.length;
+
+    // Phase 4 comprehensive logging for testing verification
+    console.log(`✅ [PHASE 4] Filtering complete:`, {
+      originalTasks: stats.originalCount,
+      filteredTasks: stats.filteredCount,
+      filtersApplied: {
+        skills: selectedSkills.length > 0 ? `${selectedSkills.length} skills` : 'none',
+        clients: selectedClients.length > 0 ? `${selectedClients.length} clients` : 'none',
+        staff: selectedPreferredStaff.length > 0 ? `${selectedPreferredStaff.length} staff` : 'none',
+        monthRange: monthRange.start !== 0 || monthRange.end !== 11 ? `${monthRange.start}-${monthRange.end}` : 'all months'
+      },
+      tasksSample: filteredTasks.slice(0, 2).map(task => ({
+        name: task.taskName,
+        client: task.clientName,
+        skill: task.skillRequired,
+        totalHours: task.totalHours,
+        hasDistribution: !!task.monthlyDistribution,
+        distributionMonths: task.monthlyDistribution ? Object.keys(task.monthlyDistribution).length : 0
+      }))
+    });
 
     return {
       filteredTasks,
