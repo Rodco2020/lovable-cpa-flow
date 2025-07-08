@@ -65,6 +65,13 @@ interface Task {
   recurrencePattern: string;
   priority: string;
   category: string;
+  monthlyDistribution: Record<string, number>; // e.g., { "2025-01": 40, "2025-02": 40 }
+  totalHours: number; // Sum of all monthly hours
+  recurringTaskId: string; // For unique identification
+  totalExpectedRevenue?: number;
+  expectedHourlyRate?: number;
+  totalSuggestedRevenue?: number;
+  expectedLessSuggested?: number;
 }
 
 interface UseDetailMatrixDataResult {
@@ -142,31 +149,68 @@ export const useDetailMatrixData = ({
   try {
     // Data processing logic here (no hooks!)
     if (demandData && !isLoading && demandData.dataPoints) {
-      // Process demand data into individual task records
+      // PHASE 1: Implement Task Aggregation Logic
+      
+      // Create a map to aggregate tasks
+      const taskMap = new Map<string, Task>();
 
-      // Extract individual tasks from the demand data points
+      // Process all data points to aggregate tasks
       demandData.dataPoints.forEach(point => {
         if (point.taskBreakdown) {
           point.taskBreakdown.forEach(task => {
-            processedData.push({
-              id: `${task.taskName}-${task.clientName}-${point.month}`,
-              taskName: task.taskName,
-              clientName: task.clientName,
-              clientId: task.clientId,
-              skillRequired: point.skillType,
-              monthlyHours: task.monthlyHours,
-              month: point.month,
-              monthLabel: demandData.months.find(m => m.key === point.month)?.label || point.month,
-              recurrencePattern: typeof task.recurrencePattern === 'string' 
-                ? task.recurrencePattern 
-                : task.recurrencePattern?.type || 'Monthly',
-              priority: 'Medium', // Default value since not available in data
-              category: 'General' // Default value since not available in data
-            });
+            // Create unique key using recurringTaskId (fallback to taskName-clientName if not available)
+            const recurringTaskId = task.recurringTaskId || `${task.taskName}-${task.clientName}`;
+            const taskKey = `${task.taskName}-${task.clientName}-${recurringTaskId}`;
+            
+            if (!taskMap.has(taskKey)) {
+              // Initialize new aggregated task
+              taskMap.set(taskKey, {
+                id: taskKey,
+                taskName: task.taskName,
+                clientName: task.clientName,
+                clientId: task.clientId,
+                skillRequired: point.skillType,
+                recurringTaskId: recurringTaskId,
+                category: 'General', // Default value
+                priority: 'Medium', // Default value
+                recurrencePattern: typeof task.recurrencePattern === 'string' 
+                  ? task.recurrencePattern 
+                  : task.recurrencePattern?.type || 'Monthly',
+                monthlyDistribution: {},
+                totalHours: 0,
+                // Revenue fields - defaults for now
+                totalExpectedRevenue: 0,
+                expectedHourlyRate: 0,
+                totalSuggestedRevenue: 0,
+                expectedLessSuggested: 0,
+                // Legacy fields for compatibility
+                month: '', // Not needed for aggregated view
+                monthLabel: '', // Not needed for aggregated view
+                monthlyHours: 0 // Will use monthlyDistribution instead
+              });
+            }
+            
+            // Add hours for this month to the aggregated task
+            const aggregatedTask = taskMap.get(taskKey)!;
+            aggregatedTask.monthlyDistribution[point.month] = task.monthlyHours;
+            aggregatedTask.totalHours += task.monthlyHours;
           });
         }
       });
-      // Data transformation complete
+
+      // Convert map to array
+      processedData = Array.from(taskMap.values());
+      
+      console.log(`🎯 [PHASE 1] Task aggregation complete:`, {
+        originalDataPoints: demandData.dataPoints.length,
+        aggregatedTasks: processedData.length,
+        sampleTask: processedData[0] ? {
+          name: processedData[0].taskName,
+          client: processedData[0].clientName,
+          totalHours: processedData[0].totalHours,
+          monthlyDistribution: Object.keys(processedData[0].monthlyDistribution).length
+        } : null
+      });
     }
   } catch (err) {
     console.error('Data processing error:', err);
