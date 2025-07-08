@@ -52,7 +52,7 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
       <table className="w-full border-collapse">
         <DetailForecastMatrixHeader months={months} monthLabels={monthLabels} />
         <tbody>
-          {tasks.map((task, index) => (
+          {tasks.slice(0, 100).map((task, index) => (
             <DetailForecastMatrixRow
               key={task.id}
               task={task}
