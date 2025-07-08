@@ -15,7 +15,7 @@ import { getAllClients } from '@/services/clientService';
 import { getSkillFeeRatesMap } from '@/services/skills/feeRateService';
 import { usePerformanceMonitoring, usePerformanceAlerts } from '../hooks/usePerformanceMonitoring';
 import { useLocalStoragePersistence, useKeyboardNavigation } from '../hooks/useLocalStoragePersistence';
-import { Loader2, Filter, X, Zap, AlertCircle } from 'lucide-react';
+import { Loader2, Filter, X, Zap, AlertCircle, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -287,16 +287,96 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           {/* Conditional View Rendering */}
           <div className="animate-fade-in" tabIndex={0}>
             {viewMode === 'detail-forecast-matrix' ? (
-              <DetailForecastMatrixGrid 
-                tasks={paginatedTasks}
-                totalTaskCount={filteredTasks?.length || 0}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                months={months?.map(m => m.key) || []}
-                monthLabels={months?.map(m => m.label) || []}
-                revenueData={revenueData}
-                isLoading={revenueLoading}
-              />
+              <div className="space-y-4">
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-between mb-4 p-3 bg-muted/30 rounded-lg border">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {filteredTasks.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} tasks
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    {/* Rows per page selector */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-muted-foreground">Rows per page:</label>
+                      <select 
+                        value={rowsPerPage} 
+                        onChange={(e) => {
+                          setRowsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="border border-input rounded px-2 py-1 text-sm bg-background"
+                      >
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                        <option value={500}>500</option>
+                      </select>
+                    </div>
+                    
+                    {/* Page navigation */}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                        title="First page"
+                      >
+                        <ChevronFirst className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                        title="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <span className="px-3 py-1 text-sm">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                        title="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                        title="Last page"
+                      >
+                        <ChevronLast className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <DetailForecastMatrixGrid 
+                  tasks={paginatedTasks}
+                  totalTaskCount={filteredTasks?.length || 0}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  months={months?.map(m => m.key) || []}
+                  monthLabels={months?.map(m => m.label) || []}
+                  revenueData={revenueData}
+                  isLoading={revenueLoading}
+                />
+              </div>
             ) : viewMode === 'all-tasks' ? (
               <DetailMatrixGrid tasks={filteredTasks} groupingMode={groupingMode} performanceData={performanceData} />
             ) : viewMode === 'group-by-skill' ? (
