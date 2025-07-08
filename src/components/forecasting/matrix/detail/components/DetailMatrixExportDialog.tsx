@@ -494,6 +494,9 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
                     <Badge variant="secondary">{activeFiltersCount} active filters</Badge>
                   )}
                 </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <strong>Note:</strong> Export will include all {tasks.length} filtered tasks, not just the current page.
+                </p>
               </div>
             </AlertDescription>
           </Alert>
