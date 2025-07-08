@@ -1,7 +1,29 @@
 import React from 'react';
-import { Task, TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
+import { TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
 import { DetailForecastMatrixHeader } from './DetailForecastMatrixHeader';
 import { DetailForecastMatrixRow } from './DetailForecastMatrixRow';
+
+// Use the aggregated Task interface from Detail Matrix
+interface Task {
+  id: string;
+  taskName: string;
+  clientName: string;
+  clientId: string;
+  skillRequired: string;
+  monthlyHours: number;
+  month: string;
+  monthLabel: string;
+  recurrencePattern: string;
+  priority: string;
+  category: string;
+  monthlyDistribution: Record<string, number>; // New aggregated format
+  totalHours: number; // Sum of all monthly hours
+  recurringTaskId: string; // For unique identification
+  totalExpectedRevenue?: number;
+  expectedHourlyRate?: number;
+  totalSuggestedRevenue?: number;
+  expectedLessSuggested?: number;
+}
 
 interface DetailForecastMatrixGridProps {
   tasks: Task[];

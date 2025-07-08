@@ -1,7 +1,29 @@
 import React from 'react';
-import { Task, TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
+import { TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
 import { formatHours, formatCurrency, formatNumber } from '@/lib/numberUtils';
 import { Badge } from '@/components/ui/badge';
+
+// Use the aggregated Task interface from Detail Matrix
+interface Task {
+  id: string;
+  taskName: string;
+  clientName: string;
+  clientId: string;
+  skillRequired: string;
+  monthlyHours: number;
+  month: string;
+  monthLabel: string;
+  recurrencePattern: string;
+  priority: string;
+  category: string;
+  monthlyDistribution: Record<string, number>; // New aggregated format
+  totalHours: number; // Sum of all monthly hours
+  recurringTaskId: string; // For unique identification
+  totalExpectedRevenue?: number;
+  expectedHourlyRate?: number;
+  totalSuggestedRevenue?: number;
+  expectedLessSuggested?: number;
+}
 
 interface DetailForecastMatrixRowProps {
   task: Task;
@@ -30,9 +52,13 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
     }
   };
 
-  // Get monthly hours for each month (for now, we'll show the monthlyHours for the task's month)
+  // Get monthly hours from aggregated monthlyDistribution
   const getMonthlyHours = (month: string) => {
-    // If this is the task's month, show the hours, otherwise 0
+    // Use monthlyDistribution if available (new aggregated format)
+    if (task.monthlyDistribution) {
+      return task.monthlyDistribution[month] || 0;
+    }
+    // Fallback for backward compatibility
     return task.month === month ? task.monthlyHours : 0;
   };
 
@@ -129,7 +155,7 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
       
       {/* Revenue Calculation Columns with Enhanced Error Handling */}
       <Cell className="bg-slate-50 border-l-2 border-slate-300 font-semibold">
-        {revenueData ? formatHoursValue(revenueData.totalHours) : <span className="text-muted-foreground">-</span>}
+        {task.totalHours ? formatHoursValue(task.totalHours) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
       <Cell className="bg-green-50 border-l-2 border-green-300 font-semibold">

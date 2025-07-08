@@ -12,6 +12,13 @@ interface Task {
   recurrencePattern: string;
   priority: string;
   category: string;
+  monthlyDistribution: Record<string, number>; // New aggregated format
+  totalHours: number; // Sum of all monthly hours
+  recurringTaskId: string; // For unique identification
+  totalExpectedRevenue?: number;
+  expectedHourlyRate?: number;
+  totalSuggestedRevenue?: number;
+  expectedLessSuggested?: number;
 }
 
 interface UseDetailMatrixFilteringProps {
