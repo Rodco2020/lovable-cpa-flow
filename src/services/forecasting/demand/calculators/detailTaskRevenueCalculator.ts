@@ -16,7 +16,13 @@ export interface Task {
   recurrencePattern: string;
   priority: string;
   category: string;
-  totalHours?: number; // Computed property for revenue calculation
+  monthlyDistribution?: Record<string, number>; // New aggregated format (optional for backward compatibility)
+  totalHours?: number; // Sum of all monthly hours - main field for revenue calculations (optional for backward compatibility)
+  recurringTaskId?: string; // For unique identification (optional for backward compatibility)
+  totalExpectedRevenue?: number;
+  expectedHourlyRate?: number;
+  totalSuggestedRevenue?: number;
+  expectedLessSuggested?: number;
 }
 
 /**
