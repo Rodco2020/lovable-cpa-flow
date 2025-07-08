@@ -102,18 +102,16 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const calculateTaskRevenue = async () => {
     if (!filteredTasks || filteredTasks.length === 0) return;
 
-    console.log('💰 [DETAIL MATRIX] Starting revenue calculation for', filteredTasks.length, 'tasks');
+    // Revenue calculation for detail-forecast-matrix view
     setRevenueLoading(true);
     setRevenueError(null);
 
     try {
       // Fetch client data with expected monthly revenue
       const clientsData = await getAllClients();
-      console.log('📊 [DETAIL MATRIX] Loaded', clientsData.length, 'clients');
 
       // Get skill fee rates
       const skillFeeRates = await getSkillFeeRatesMap();
-      console.log('💰 [DETAIL MATRIX] Loaded', skillFeeRates.size, 'skill fee rates');
 
       // Calculate the month count for the period
       const monthCount = months ? months.length : 12;
@@ -135,12 +133,6 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
         clientRevenueData,
         skillFeeRates
       );
-
-      console.log('💰 [DETAIL MATRIX] Revenue calculation complete:', {
-        tasksProcessed: taskRevenueResults.size,
-        clientsProcessed: clientRevenueData.size,
-        monthCount
-      });
 
       setRevenueData(taskRevenueResults);
       setRevenueError(null);
@@ -288,7 +280,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           <div className="animate-fade-in" tabIndex={0}>
             {viewMode === 'detail-forecast-matrix' ? (
               <div className="space-y-4">
-                {/* Pagination Controls */}
+                {/* Pagination Controls - Only show if more than one page */}
+                {totalPages > 1 && (
                 <div className="flex items-center justify-between mb-4 p-3 bg-muted/30 rounded-lg border">
                   <div className="text-sm text-muted-foreground">
                     Showing {filteredTasks.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} tasks
@@ -365,8 +358,9 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                     </div>
                   </div>
                 </div>
+                )}
 
-                <DetailForecastMatrixGrid 
+                <DetailForecastMatrixGrid
                   tasks={paginatedTasks}
                   totalTaskCount={filteredTasks?.length || 0}
                   currentPage={currentPage}

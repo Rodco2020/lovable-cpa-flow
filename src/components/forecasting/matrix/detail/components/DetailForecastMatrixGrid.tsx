@@ -24,16 +24,6 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
   revenueData,
   isLoading = false
 }) => {
-  console.log('📊 [DETAIL GRID] Rendering grid:', {
-    tasksCount: tasks.length,
-    totalTaskCount,
-    currentPage,
-    totalPages,
-    monthsCount: months.length,
-    revenueDataSize: revenueData.size,
-    isLoading
-  });
-
   if (isLoading) {
     return (
       <div className="animate-pulse">

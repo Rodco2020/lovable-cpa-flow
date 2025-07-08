@@ -63,14 +63,7 @@ export const useDetailMatrixFiltering = ({
   }), [selectedSkills, selectedClients, selectedPreferredStaff, monthRange]);
   
   const filteredResult = useMemo(() => {
-    console.log('🔍 [DETAIL MATRIX FILTERING] Applying filters to tasks:', {
-      totalTasks: tasks.length,
-      selectedSkills: selectedSkills.length,
-      selectedClients: selectedClients.length,
-      selectedPreferredStaff: selectedPreferredStaff.length,
-      monthRange
-    });
-
+    // Apply filters to tasks
     let filteredTasks = [...tasks];
     const stats = {
       originalCount: tasks.length,
@@ -88,11 +81,6 @@ export const useDetailMatrixFiltering = ({
         selectedSkills.includes(task.skillRequired)
       );
       stats.skillsFiltered = beforeCount - filteredTasks.length;
-      console.log('📊 Skills filter applied:', {
-        before: beforeCount,
-        after: filteredTasks.length,
-        filtered: stats.skillsFiltered
-      });
     }
 
     // Apply Clients Filter
@@ -102,11 +90,6 @@ export const useDetailMatrixFiltering = ({
         selectedClients.includes(task.clientId)
       );
       stats.clientsFiltered = beforeCount - filteredTasks.length;
-      console.log('🏢 Clients filter applied:', {
-        before: beforeCount,
-        after: filteredTasks.length,
-        filtered: stats.clientsFiltered
-      });
     }
 
     // Apply Preferred Staff Filter (based on task assignments)
@@ -114,12 +97,9 @@ export const useDetailMatrixFiltering = ({
     // since individual task staff assignments may not be available yet
     if (selectedPreferredStaff.length > 0) {
       const beforeCount = filteredTasks.length;
-      // For now, preserve all tasks but log the filter application
+      // For now, preserve all tasks but track the filter application
       // This can be enhanced when preferred staff task assignments are available
-      console.log('👥 Preferred Staff filter (placeholder):', {
-        before: beforeCount,
-        selectedStaff: selectedPreferredStaff.length
-      });
+      stats.staffFiltered = 0;
     }
 
     // Apply Month Range Filter
@@ -130,30 +110,13 @@ export const useDetailMatrixFiltering = ({
       const filteredMonths = months.slice(monthRange.start, monthRange.end + 1);
       const allowedMonthKeys = filteredMonths.map(m => m.key);
       
-      console.log('🗓️ [DETAIL MATRIX] Month filtering:', {
-        monthRange,
-        filteredMonths: filteredMonths.map(m => m.label),
-        allowedMonthKeys,
-        tasksBeforeFilter: filteredTasks.length
-      });
-      
       filteredTasks = filteredTasks.filter(task => 
         allowedMonthKeys.includes(task.month)
       );
-      
-      console.log('🗓️ [DETAIL MATRIX] After month filter:', filteredTasks.length);
     }
     stats.monthRangeFiltered = beforeCount - filteredTasks.length;
 
     stats.filteredCount = filteredTasks.length;
-
-    console.log('✅ [DETAIL MATRIX FILTERING] Filtering complete:', {
-      originalTasks: stats.originalCount,
-      filteredTasks: stats.filteredCount,
-      reductionPercentage: stats.originalCount > 0 
-        ? ((stats.originalCount - stats.filteredCount) / stats.originalCount * 100).toFixed(1)
-        : '0'
-    });
 
     return {
       filteredTasks,

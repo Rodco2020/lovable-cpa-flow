@@ -95,8 +95,7 @@ export const useDetailMatrixData = ({
   groupingMode
 }: UseDetailMatrixDataProps): UseDetailMatrixDataResult => {
   
-  // STEP 1: Call ALL hooks OUTSIDE try/catch (unconditionally)
-  console.log('[useDetailMatrixData] ✅ Calling all hooks unconditionally');
+  // Call ALL hooks OUTSIDE try/catch (unconditionally)
   
   const { demandData, isLoading, error: dataError, loadDemandData } = useDemandMatrixData(
     groupingMode, 
@@ -143,12 +142,7 @@ export const useDetailMatrixData = ({
   try {
     // Data processing logic here (no hooks!)
     if (demandData && !isLoading && demandData.dataPoints) {
-      console.log('📊 [DETAIL MATRIX] Processing data loaded:', {
-        totalDataPoints: demandData.dataPoints.length,
-        availableMonths: demandData?.months?.map(m => m.label),
-        monthRange: enhancedDemandMatrixControls?.monthRange,
-        sampleDataPoint: demandData.dataPoints[0]
-      });
+      // Process demand data into individual task records
 
       // Extract individual tasks from the demand data points
       demandData.dataPoints.forEach(point => {
@@ -172,13 +166,7 @@ export const useDetailMatrixData = ({
           });
         }
       });
-
-      console.log('📊 [DETAIL MATRIX] Data transformation complete:', {
-        totalRecurringTasks: demandData.dataPoints.length,
-        totalDetailTasks: processedData.length,
-        sampleTask: processedData[0],
-        monthRange: enhancedDemandMatrixControls?.monthRange
-      });
+      // Data transformation complete
     }
   } catch (err) {
     console.error('Data processing error:', err);
@@ -189,7 +177,6 @@ export const useDetailMatrixData = ({
   const finalError = dataError || processError;
   
   if (isLoading || !demandData) {
-    console.log('[useDetailMatrixData] ⏳ Loading state');
     return {
       data: [],
       loading: true,
@@ -202,7 +189,6 @@ export const useDetailMatrixData = ({
   }
   
   if (finalError) {
-    console.log('[useDetailMatrixData] ❌ Error state:', finalError);
     return {
       data: [],
       loading: false,
@@ -214,17 +200,7 @@ export const useDetailMatrixData = ({
     };
   }
   
-  // STEP 4: Normal return with processed data
-  console.log('[useDetailMatrixData] ✅ Success state - data loaded');
-  
-  // Add diagnostic logging
-  console.log('📊 [DETAIL MATRIX] Data flow status:', {
-    hasData: !!demandData,
-    hasControls: !!demandMatrixControls,
-    availableSkillsCount: matrixFiltering.availableSkills.length,
-    availableClientsCount: matrixFiltering.availableClients.length,
-    processedTasksCount: processedData.length
-  });
+  // Return processed data with all required properties
 
   return {
     data: processedData,
