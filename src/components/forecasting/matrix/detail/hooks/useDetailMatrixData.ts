@@ -68,6 +68,8 @@ interface Task {
   monthlyDistribution: Record<string, number>; // e.g., { "2025-01": 40, "2025-02": 40 }
   totalHours: number; // Sum of all monthly hours
   recurringTaskId: string; // For unique identification
+  preferredStaffId?: string | null;
+  preferredStaffName?: string;
   totalExpectedRevenue?: number;
   expectedHourlyRate?: number;
   totalSuggestedRevenue?: number;
@@ -178,6 +180,8 @@ export const useDetailMatrixData = ({
                   : task.recurrencePattern?.type || 'Monthly',
                 monthlyDistribution: {},
                 totalHours: 0,
+                preferredStaffId: task.preferredStaffId || null,
+                preferredStaffName: task.preferredStaffName || undefined,
                 // Revenue fields - defaults for now
                 totalExpectedRevenue: 0,
                 expectedHourlyRate: 0,
@@ -188,6 +192,21 @@ export const useDetailMatrixData = ({
                 monthLabel: '', // Not needed for aggregated view
                 monthlyHours: 0 // Will use monthlyDistribution instead
               });
+              
+              console.log('[AGGREGATION] New task with staff:', {
+                taskName: task.taskName,
+                preferredStaffId: task.preferredStaffId,
+                preferredStaffName: task.preferredStaffName
+              });
+            } else {
+              // Update existing task - keep the most recent staff assignment
+              const aggregatedTask = taskMap.get(taskKey)!;
+              
+              // Only update if this month's data has staff assignment
+              if (task.preferredStaffId !== undefined && task.preferredStaffId !== null) {
+                aggregatedTask.preferredStaffId = task.preferredStaffId;
+                aggregatedTask.preferredStaffName = task.preferredStaffName;
+              }
             }
             
             // Add hours for this month to the aggregated task
@@ -208,9 +227,15 @@ export const useDetailMatrixData = ({
           name: processedData[0].taskName,
           client: processedData[0].clientName,
           totalHours: processedData[0].totalHours,
-          monthlyDistribution: Object.keys(processedData[0].monthlyDistribution).length
+          monthlyDistribution: Object.keys(processedData[0].monthlyDistribution).length,
+          preferredStaffId: processedData[0].preferredStaffId,
+          preferredStaffName: processedData[0].preferredStaffName
         } : null
       });
+      
+      console.log('[AGGREGATION] Sample aggregated task with staff:', 
+        processedData.find(task => task.preferredStaffId) || 'No tasks with preferred staff found'
+      );
     }
   } catch (err) {
     console.error('Data processing error:', err);

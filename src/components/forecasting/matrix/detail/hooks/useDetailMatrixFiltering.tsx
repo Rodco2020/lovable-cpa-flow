@@ -15,6 +15,8 @@ interface Task {
   monthlyDistribution?: Record<string, number>; // New aggregated format (optional for compatibility)
   totalHours?: number; // Sum of all monthly hours (optional for compatibility)
   recurringTaskId?: string; // For unique identification (optional for compatibility)
+  preferredStaffId?: string | null;
+  preferredStaffName?: string;
   totalExpectedRevenue?: number;
   expectedHourlyRate?: number;
   totalSuggestedRevenue?: number;
@@ -101,14 +103,24 @@ export const useDetailMatrixFiltering = ({
       stats.clientsFiltered = beforeCount - filteredTasks.length;
     }
 
-    // Apply Preferred Staff Filter (based on task assignments)
-    // Note: For Phase 3, we'll filter based on client assignments
-    // since individual task staff assignments may not be available yet
+    // Apply Preferred Staff Filter
     if (selectedPreferredStaff.length > 0) {
       const beforeCount = filteredTasks.length;
-      // For now, preserve all tasks but track the filter application
-      // This can be enhanced when preferred staff task assignments are available
-      stats.staffFiltered = 0;
+      filteredTasks = filteredTasks.filter(task => {
+        // Only include tasks that have a preferred staff AND match selected staff
+        const hasMatchingStaff = task.preferredStaffId && 
+                               selectedPreferredStaff.includes(task.preferredStaffId);
+        
+        return hasMatchingStaff;
+      });
+      stats.staffFiltered = beforeCount - filteredTasks.length;
+      
+      console.log(`[DETAIL MATRIX] Preferred staff filter applied:`, {
+        selectedStaff: selectedPreferredStaff,
+        tasksBeforeFilter: beforeCount,
+        tasksAfterFilter: filteredTasks.length,
+        filtered: stats.staffFiltered
+      });
     }
 
     // Apply Month Range Filter - Updated for Aggregated Tasks
