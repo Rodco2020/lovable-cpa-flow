@@ -58,17 +58,16 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
     }));
   }, [months, monthLabels]);
 
-  // Use tasksForRevenue for consistent totals calculation
-  // This ensures totals reflect the revenue calculation base, not just display filtering
-  const revenueTasksForTotals = tasksForRevenue || tasks;
-  
-  // Merge revenue tasks with their revenue data for totals calculation
+  // Merge displayed tasks with their revenue data for totals calculation
   const enhancedTasksForRevenue = useMemo(() => {
-    // If no revenue data, return revenue tasks
-    if (!revenueData || revenueData.size === 0) return revenueTasksForTotals;
+    // Use displayed tasks for totals calculation
+    const tasksForTotals = tasks; // This ensures totals match what's displayed
     
-    // Merge revenue data into each revenue task
-    return revenueTasksForTotals.map(task => {
+    // If no revenue data, return displayed tasks
+    if (!revenueData || revenueData.size === 0) return tasksForTotals;
+    
+    // Merge revenue data into each displayed task
+    return tasksForTotals.map(task => {
       const taskRevenue = revenueData.get(task.id);
       
       if (taskRevenue) {
@@ -83,7 +82,7 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
       
       return task;
     });
-  }, [revenueTasksForTotals, revenueData]); // Use revenue tasks for consistent totals
+  }, [tasks, revenueData]); // Update dependencies to use 'tasks' instead of 'revenueTasksForTotals'
 
   // Calculate totals from revenue-consistent data
   const totals = useMemo(() => {
