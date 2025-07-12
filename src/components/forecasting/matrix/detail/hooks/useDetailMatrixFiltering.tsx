@@ -34,7 +34,8 @@ interface UseDetailMatrixFilteringProps {
 }
 
 interface UseDetailMatrixFilteringResult {
-  filteredTasks: Task[];
+  filteredTasks: Task[];      // For display (all filters applied)
+  tasksForRevenue: Task[];    // For revenue calculation (client + date only)
   filterStats: {
     originalCount: number;
     filteredCount: number;
@@ -42,6 +43,8 @@ interface UseDetailMatrixFilteringResult {
     clientsFiltered: number;
     staffFiltered: number;
     monthRangeFiltered: number;
+    revenueBaseTasks: number;
+    displayTasks: number;
   };
   hasActiveFilters: boolean;
   activeFiltersCount: number;
@@ -72,20 +75,50 @@ export const useDetailMatrixFiltering = ({
   }), [selectedSkills, selectedClients, selectedPreferredStaff, monthRange]);
   
   const filteredResult = useMemo(() => {
-    console.log(`🔍 [PHASE 4] Starting task filtering with ${tasks.length} aggregated tasks`);
+    console.log(`🔍 [TWO-STAGE FILTERING] Starting with ${tasks.length} aggregated tasks`);
     
-    // Apply filters to tasks
-    let filteredTasks = [...tasks];
+    // STAGE 1: Revenue-affecting filters (Client + Date Range ONLY)
+    let tasksForRevenue = [...tasks];
+
+    // Apply client filter to revenue base
+    if (selectedClients.length > 0) {
+      tasksForRevenue = tasksForRevenue.filter(task => 
+        selectedClients.includes(task.clientId)
+      );
+    }
+
+    // Apply month range filter to revenue base
+    if (monthRange.start !== 0 || monthRange.end !== 11) {
+      const filteredMonths = months.slice(monthRange.start, monthRange.end + 1);
+      const allowedMonthKeys = filteredMonths.map(m => m.key);
+      
+      tasksForRevenue = tasksForRevenue.filter(task => {
+        if (task.monthlyDistribution) {
+          const hasHoursInRange = allowedMonthKeys.some(monthKey => 
+            (task.monthlyDistribution![monthKey] || 0) > 0
+          );
+          return hasHoursInRange;
+        }
+        // Fallback for backward compatibility with non-aggregated tasks
+        return allowedMonthKeys.includes(task.month);
+      });
+    }
+
+    // STAGE 2: Display filters (ALL filters including Skill + Staff)
+    let filteredTasks = [...tasksForRevenue]; // Start with revenue-filtered tasks
+    
     const stats = {
       originalCount: tasks.length,
       filteredCount: 0,
       skillsFiltered: 0,
       clientsFiltered: 0,
       staffFiltered: 0,
-      monthRangeFiltered: 0
+      monthRangeFiltered: 0,
+      revenueBaseTasks: tasksForRevenue.length,
+      displayTasks: 0
     };
 
-    // Apply Skills Filter
+    // Apply skill filter to display only
     if (selectedSkills.length > 0) {
       const beforeCount = filteredTasks.length;
       filteredTasks = filteredTasks.filter(task => 
@@ -94,16 +127,7 @@ export const useDetailMatrixFiltering = ({
       stats.skillsFiltered = beforeCount - filteredTasks.length;
     }
 
-    // Apply Clients Filter
-    if (selectedClients.length > 0) {
-      const beforeCount = filteredTasks.length;
-      filteredTasks = filteredTasks.filter(task => 
-        selectedClients.includes(task.clientId)
-      );
-      stats.clientsFiltered = beforeCount - filteredTasks.length;
-    }
-
-    // Apply Preferred Staff Filter
+    // Apply preferred staff filter to display only
     if (selectedPreferredStaff.length > 0) {
       const beforeCount = filteredTasks.length;
       filteredTasks = filteredTasks.filter(task => {
@@ -115,7 +139,7 @@ export const useDetailMatrixFiltering = ({
       });
       stats.staffFiltered = beforeCount - filteredTasks.length;
       
-      console.log(`[DETAIL MATRIX] Preferred staff filter applied:`, {
+      console.log(`[TWO-STAGE] Preferred staff filter applied to display:`, {
         selectedStaff: selectedPreferredStaff,
         tasksBeforeFilter: beforeCount,
         tasksAfterFilter: filteredTasks.length,
@@ -123,65 +147,40 @@ export const useDetailMatrixFiltering = ({
       });
     }
 
-    // Apply Month Range Filter - Updated for Aggregated Tasks
-    // Check if task has any hours in the selected month range
-    const beforeCount = filteredTasks.length;
-    if (monthRange.start !== 0 || monthRange.end !== 11) {
-      // Get the filtered month keys using array slicing (same as Demand Matrix)
-      const filteredMonths = months.slice(monthRange.start, monthRange.end + 1);
-      const allowedMonthKeys = filteredMonths.map(m => m.key);
-      
-      console.log(`🗓️ [PHASE 4] Month range filter active:`, {
-        monthRange,
-        allowedMonths: allowedMonthKeys,
-        totalMonths: months.length
-      });
-      
-      filteredTasks = filteredTasks.filter(task => {
-        // For aggregated tasks, check if any month in monthlyDistribution 
-        // falls within the selected range AND has hours > 0
-        if (task.monthlyDistribution) {
-          const hasHoursInRange = allowedMonthKeys.some(monthKey => 
-            (task.monthlyDistribution![monthKey] || 0) > 0
-          );
-          if (!hasHoursInRange) {
-            console.log(`🗓️ [PHASE 4] Task ${task.taskName} filtered out - no hours in range`, {
-              taskDistribution: task.monthlyDistribution,
-              allowedMonths: allowedMonthKeys
-            });
-          }
-          return hasHoursInRange;
-        }
-        // Fallback for backward compatibility with non-aggregated tasks
-        return allowedMonthKeys.includes(task.month);
-      });
-    }
-    stats.monthRangeFiltered = beforeCount - filteredTasks.length;
-
     stats.filteredCount = filteredTasks.length;
+    stats.displayTasks = filteredTasks.length;
 
-    // Phase 4 comprehensive logging for testing verification
-    console.log(`✅ [PHASE 4] Filtering complete:`, {
+    // Calculate filter stats based on revenue-affecting filters
+    stats.clientsFiltered = tasks.length - (selectedClients.length > 0 ? tasksForRevenue.length : tasks.length);
+    stats.monthRangeFiltered = (selectedClients.length > 0 ? tasksForRevenue.length : tasks.length) - 
+                              (monthRange.start !== 0 || monthRange.end !== 11 ? tasksForRevenue.length : 
+                               (selectedClients.length > 0 ? tasksForRevenue.length : tasks.length));
+
+    console.log(`✅ [TWO-STAGE] Filtering complete:`, {
       originalTasks: stats.originalCount,
-      filteredTasks: stats.filteredCount,
+      revenueBaseTasks: stats.revenueBaseTasks,
+      displayTasks: stats.displayTasks,
       filtersApplied: {
-        skills: selectedSkills.length > 0 ? `${selectedSkills.length} skills` : 'none',
-        clients: selectedClients.length > 0 ? `${selectedClients.length} clients` : 'none',
-        staff: selectedPreferredStaff.length > 0 ? `${selectedPreferredStaff.length} staff` : 'none',
-        monthRange: monthRange.start !== 0 || monthRange.end !== 11 ? `${monthRange.start}-${monthRange.end}` : 'all months'
+        clients: selectedClients.length > 0 ? `${selectedClients.length} clients (revenue)` : 'none',
+        monthRange: monthRange.start !== 0 || monthRange.end !== 11 ? `${monthRange.start}-${monthRange.end} (revenue)` : 'all months',
+        skills: selectedSkills.length > 0 ? `${selectedSkills.length} skills (display)` : 'none',
+        staff: selectedPreferredStaff.length > 0 ? `${selectedPreferredStaff.length} staff (display)` : 'none'
       },
-      tasksSample: filteredTasks.slice(0, 2).map(task => ({
+      revenueSample: tasksForRevenue.slice(0, 2).map(task => ({
         name: task.taskName,
         client: task.clientName,
+        totalHours: task.totalHours
+      })),
+      displaySample: filteredTasks.slice(0, 2).map(task => ({
+        name: task.taskName,
         skill: task.skillRequired,
-        totalHours: task.totalHours,
-        hasDistribution: !!task.monthlyDistribution,
-        distributionMonths: task.monthlyDistribution ? Object.keys(task.monthlyDistribution).length : 0
+        staff: task.preferredStaffName || 'None'
       }))
     });
 
     return {
       filteredTasks,
+      tasksForRevenue,
       stats
     };
   }, [tasks, filterDeps, groupingMode]);
@@ -205,6 +204,7 @@ export const useDetailMatrixFiltering = ({
 
   return {
     filteredTasks: filteredResult.filteredTasks,
+    tasksForRevenue: filteredResult.tasksForRevenue,
     filterStats: filteredResult.stats,
     hasActiveFilters,
     activeFiltersCount

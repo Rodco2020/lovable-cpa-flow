@@ -28,7 +28,8 @@ interface Task {
 }
 
 interface DetailForecastMatrixGridProps {
-  tasks: Task[];
+  tasks: Task[];                // Display tasks (filtered for UI)
+  tasksForRevenue?: Task[];     // Revenue calculation tasks (client + date filters only)
   totalTaskCount: number;
   currentPage: number;
   totalPages: number;
@@ -40,6 +41,7 @@ interface DetailForecastMatrixGridProps {
 
 export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> = ({
   tasks,
+  tasksForRevenue,
   totalTaskCount,
   currentPage,
   totalPages,
@@ -56,17 +58,19 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
     }));
   }, [months, monthLabels]);
 
-  // Merge tasks with their revenue data for totals calculation
-  const enhancedTasks = useMemo(() => {
-    // If no revenue data, return original tasks
-    if (!revenueData || revenueData.size === 0) return tasks;
+  // Use tasksForRevenue for consistent totals calculation
+  // This ensures totals reflect the revenue calculation base, not just display filtering
+  const revenueTasksForTotals = tasksForRevenue || tasks;
+  
+  // Merge revenue tasks with their revenue data for totals calculation
+  const enhancedTasksForRevenue = useMemo(() => {
+    // If no revenue data, return revenue tasks
+    if (!revenueData || revenueData.size === 0) return revenueTasksForTotals;
     
-    // Merge revenue data into each task
-    return tasks.map(task => {
+    // Merge revenue data into each revenue task
+    return revenueTasksForTotals.map(task => {
       const taskRevenue = revenueData.get(task.id);
       
-      // Revenue data is guaranteed to exist (per your analysis)
-      // but add safety check anyway
       if (taskRevenue) {
         return {
           ...task,
@@ -77,21 +81,19 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
         };
       }
       
-      // Fallback (should never happen based on your analysis)
       return task;
     });
-  }, [tasks, revenueData]); // Dependencies ensure recalculation when either changes
+  }, [revenueTasksForTotals, revenueData]); // Use revenue tasks for consistent totals
 
-  // Calculate totals from enhanced tasks that include revenue data
+  // Calculate totals from revenue-consistent data
   const totals = useMemo(() => {
-    // Use enhancedTasks instead of tasks
-    if (!enhancedTasks || enhancedTasks.length === 0) return null;
+    if (!enhancedTasksForRevenue || enhancedTasksForRevenue.length === 0) return null;
     
     return DetailMatrixTotalsCalculator.calculateDetailMatrixTotals(
-      enhancedTasks,  // Changed from 'tasks' to 'enhancedTasks'
+      enhancedTasksForRevenue,  // Use revenue tasks for consistent totals
       monthsData
     );
-  }, [enhancedTasks, monthsData]); // Changed dependency from 'tasks' to 'enhancedTasks'
+  }, [enhancedTasksForRevenue, monthsData]);
   if (isLoading) {
     return (
       <div className="animate-pulse">

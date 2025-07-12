@@ -32,7 +32,8 @@ interface UseDetailMatrixFiltersProps {
 }
 
 interface UseDetailMatrixFiltersResult {
-  filteredTasks: Task[];
+  filteredTasks: Task[];      // For display (all filters applied)
+  tasksForRevenue: Task[];    // For revenue calculation (client + date only)
   filterStats: {
     originalCount: number;
     filteredCount: number;
@@ -40,6 +41,8 @@ interface UseDetailMatrixFiltersResult {
     clientsFiltered: number;
     staffFiltered: number;
     monthRangeFiltered: number;
+    revenueBaseTasks: number;
+    displayTasks: number;
   };
   hasActiveFilters: boolean;
   activeFiltersCount: number;
@@ -74,6 +77,7 @@ export const useDetailMatrixFilters = ({
 
   return {
     filteredTasks: filterResult.filteredTasks,
+    tasksForRevenue: filterResult.tasksForRevenue,
     filterStats: filterResult.filterStats,
     hasActiveFilters: filterResult.hasActiveFilters,
     activeFiltersCount: filterResult.activeFiltersCount
