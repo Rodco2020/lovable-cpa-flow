@@ -56,11 +56,42 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
     }));
   }, [months, monthLabels]);
 
-  // Calculate totals from ALL tasks (before pagination)
+  // Merge tasks with their revenue data for totals calculation
+  const enhancedTasks = useMemo(() => {
+    // If no revenue data, return original tasks
+    if (!revenueData || revenueData.size === 0) return tasks;
+    
+    // Merge revenue data into each task
+    return tasks.map(task => {
+      const taskRevenue = revenueData.get(task.id);
+      
+      // Revenue data is guaranteed to exist (per your analysis)
+      // but add safety check anyway
+      if (taskRevenue) {
+        return {
+          ...task,
+          totalExpectedRevenue: taskRevenue.totalExpectedRevenue,
+          expectedHourlyRate: taskRevenue.expectedHourlyRate,
+          totalSuggestedRevenue: taskRevenue.totalSuggestedRevenue,
+          expectedLessSuggested: taskRevenue.expectedLessSuggested
+        };
+      }
+      
+      // Fallback (should never happen based on your analysis)
+      return task;
+    });
+  }, [tasks, revenueData]); // Dependencies ensure recalculation when either changes
+
+  // Calculate totals from enhanced tasks that include revenue data
   const totals = useMemo(() => {
-    if (!tasks || tasks.length === 0) return null;
-    return DetailMatrixTotalsCalculator.calculateDetailMatrixTotals(tasks, monthsData);
-  }, [tasks, monthsData]);
+    // Use enhancedTasks instead of tasks
+    if (!enhancedTasks || enhancedTasks.length === 0) return null;
+    
+    return DetailMatrixTotalsCalculator.calculateDetailMatrixTotals(
+      enhancedTasks,  // Changed from 'tasks' to 'enhancedTasks'
+      monthsData
+    );
+  }, [enhancedTasks, monthsData]); // Changed dependency from 'tasks' to 'enhancedTasks'
   if (isLoading) {
     return (
       <div className="animate-pulse">
