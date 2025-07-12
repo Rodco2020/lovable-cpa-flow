@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DetailMatrixStateProvider } from './DetailMatrixStateProvider';
 import { DetailMatrixHeader } from './components/DetailMatrixHeader';
@@ -10,9 +10,9 @@ import { DemandMatrixControls } from '../components/demand/DemandMatrixControls'
 import { useDetailMatrixData } from './hooks/useDetailMatrixData';
 import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useDetailMatrixHandlers } from './hooks/useDetailMatrixHandlers';
-import { DetailTaskRevenueCalculator } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
-import { getAllClients } from '@/services/clientService';
-import { getSkillFeeRatesMap } from '@/services/skills/feeRateService';
+import { useDetailMatrixRevenue } from './hooks/useDetailMatrixRevenue';
+import { useDetailMatrixPagination } from './hooks/useDetailMatrixPagination';
+import { exportDetailMatrixToExcel } from './utils/detailMatrixExport';
 import { usePerformanceMonitoring, usePerformanceAlerts } from '../hooks/usePerformanceMonitoring';
 import { useLocalStoragePersistence, useKeyboardNavigation } from '../hooks/useLocalStoragePersistence';
 import { Loader2, Filter, X, Zap, AlertCircle, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -33,31 +33,23 @@ interface DetailMatrixContentProps {
 }
 
 /**
- * Detail Matrix Content - Refactored Step 5
+ * Detail Matrix Content - Refactored Component
  * 
- * Thin orchestration layer using extracted hooks and utilities.
- * Under 100 lines, maintains exact same functionality and behavior.
+ * Clean, focused component using extracted hooks and utilities.
+ * Maintains exact same functionality and behavior as original.
  */
 const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   groupingMode,
   viewMode: initialViewMode = 'all-tasks',
   className
 }) => {
-  // STEP 1: Revenue calculation state
-  const [revenueData, setRevenueData] = useState(new Map());
-  const [revenueLoading, setRevenueLoading] = useState(false);
-  const [revenueError, setRevenueError] = useState<string | null>(null);
-
-  // STEP 1.5: Pagination state for detail-forecast-matrix view
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-
-  // STEP 2: Call ALL hooks FIRST (no conditions!) - Fixed Rules of Hooks violation
-  const viewMode = initialViewMode; // Use prop instead of hook
+  // Data fetching
   const { data, loading, error, demandMatrixControls, months } = useDetailMatrixData({ groupingMode });
+  
+  // Event handlers
   const handlers = useDetailMatrixHandlers();
   
-  // All remaining hooks called unconditionally with safe defaults
+  // Filtering with safe defaults
   const {
     filteredTasks,
     tasksForRevenue,
@@ -65,27 +57,42 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     hasActiveFilters,
     activeFiltersCount
   } = useDetailMatrixFilters({
-    tasks: data || [], // Safe default when loading/error
+    tasks: data || [],
     selectedSkills: demandMatrixControls?.selectedSkills || [],
     selectedClients: demandMatrixControls?.selectedClients || [],
     selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff || [],
     monthRange: demandMatrixControls?.monthRange || { start: 0, end: 11 },
     groupingMode,
-    months: months || [] // Safe default
+    months: months || []
   });
 
-  // Calculate pagination values
-  const totalPages = Math.ceil((filteredTasks?.length || 0) / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const paginatedTasks = React.useMemo(() => {
-    return filteredTasks?.slice(startIndex, endIndex) || [];
-  }, [filteredTasks, startIndex, endIndex]);
+  // Revenue calculations for detail-forecast-matrix view
+  const { revenueData, isLoading: revenueLoading, error: revenueError } = useDetailMatrixRevenue({
+    tasks: tasksForRevenue,
+    months: months || [],
+    enabled: initialViewMode === 'detail-forecast-matrix'
+  });
 
-  // When filters change, reset to page 1
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [demandMatrixControls?.selectedSkills, demandMatrixControls?.selectedClients, demandMatrixControls?.selectedPreferredStaff]);
+  // Pagination for detail-forecast-matrix view
+  const {
+    paginatedTasks,
+    currentPage,
+    totalPages,
+    rowsPerPage,
+    startIndex,
+    endIndex,
+    setCurrentPage,
+    setRowsPerPage,
+    goToFirstPage,
+    goToLastPage,
+    goToNextPage,
+    goToPreviousPage,
+    isFirstPage,
+    isLastPage
+  } = useDetailMatrixPagination({
+    tasks: filteredTasks || [],
+    initialRowsPerPage: 100
+  });
 
   // Performance monitoring and preferences with safe defaults
   const performanceData = usePerformanceMonitoring((data || []).length, (filteredTasks || []).length, { enabled: true, sampleRate: 3 });
@@ -93,55 +100,23 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   const { preferences, toggleSkillGroupExpansion } = useLocalStoragePersistence();
   const keyboardNav = useKeyboardNavigation(filteredTasks || [], preferences.expandedSkillGroups, toggleSkillGroupExpansion);
 
-  // STEP 3: Revenue calculation effect for detail-forecast-matrix view
-  useEffect(() => {
-    if (viewMode === 'detail-forecast-matrix' && filteredTasks && filteredTasks.length > 0 && !loading) {
-      calculateTaskRevenue();
-    }
-  }, [viewMode, JSON.stringify(filteredTasks), loading]);
-
-  const calculateTaskRevenue = async () => {
-    if (!filteredTasks || filteredTasks.length === 0) return;
-
-    // Revenue calculation for detail-forecast-matrix view
-    setRevenueLoading(true);
-    setRevenueError(null);
-
+  // Export handler using extracted utility
+  const handleExportClick = async () => {
     try {
-      // Fetch client data with expected monthly revenue
-      const clientsData = await getAllClients();
-
-      // Get skill fee rates
-      const skillFeeRates = await getSkillFeeRatesMap();
-
-      // Calculate the month count for the period
-      const monthCount = months ? months.length : 12;
-
-      // Build client revenue data
-      const clientRevenueData = DetailTaskRevenueCalculator.buildClientRevenueData(
-        clientsData.map(client => ({
-          id: client.id,
-          legal_name: client.legalName,
-          expected_monthly_revenue: client.expectedMonthlyRevenue
-        })),
-        tasksForRevenue,
-        monthCount
-      );
-
-      // Calculate revenue for all tasks
-      const taskRevenueResults = await DetailTaskRevenueCalculator.calculateBulkTaskRevenue(
-        tasksForRevenue,
-        clientRevenueData,
-        skillFeeRates
-      );
-
-      setRevenueData(taskRevenueResults);
-      setRevenueError(null);
-    } catch (err) {
-      console.error('❌ [DETAIL MATRIX] Revenue calculation error:', err);
-      setRevenueError(err instanceof Error ? err.message : 'Revenue calculation failed');
-    } finally {
-      setRevenueLoading(false);
+      await exportDetailMatrixToExcel({
+        tasks: filteredTasks || [],
+        viewMode: initialViewMode,
+        selectedSkills: demandMatrixControls?.selectedSkills || [],
+        selectedClients: demandMatrixControls?.selectedClients || [],
+        selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff || [],
+        monthRange: demandMatrixControls?.monthRange || { start: 0, end: 11 },
+        groupingMode,
+        hasActiveFilters,
+        activeFiltersCount,
+        revenueData: initialViewMode === 'detail-forecast-matrix' ? revenueData : undefined
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
     }
   };
 
@@ -160,7 +135,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   }
 
   // Revenue loading state for detail-forecast-matrix view
-  if (viewMode === 'detail-forecast-matrix' && revenueLoading) {
+  if (initialViewMode === 'detail-forecast-matrix' && revenueLoading) {
     return (
       <Card className={className}>
         <CardContent className="flex items-center justify-center h-64">
@@ -172,8 +147,6 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
       </Card>
     );
   }
-
-  // Loading state is now handled above before we get here
 
   // Error state
   if (error || revenueError) {
@@ -279,7 +252,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
 
           {/* Conditional View Rendering */}
           <div className="animate-fade-in" tabIndex={0}>
-            {viewMode === 'detail-forecast-matrix' ? (
+            {initialViewMode === 'detail-forecast-matrix' ? (
               <div className="space-y-4">
                 {/* Pagination Controls - Only show if more than one page */}
                 {totalPages > 1 && (
@@ -296,7 +269,6 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                         value={rowsPerPage} 
                         onChange={(e) => {
                           setRowsPerPage(Number(e.target.value));
-                          setCurrentPage(1);
                         }}
                         className="border border-input rounded px-2 py-1 text-sm bg-background"
                       >
@@ -312,8 +284,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setCurrentPage(1)}
-                        disabled={currentPage === 1}
+                        onClick={goToFirstPage}
+                        disabled={isFirstPage}
                         className="h-8 w-8 p-0"
                         title="First page"
                       >
@@ -323,8 +295,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
+                        onClick={goToPreviousPage}
+                        disabled={isFirstPage}
                         className="h-8 w-8 p-0"
                         title="Previous page"
                       >
@@ -338,8 +310,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
+                        onClick={goToNextPage}
+                        disabled={isLastPage}
                         className="h-8 w-8 p-0"
                         title="Next page"
                       >
@@ -349,8 +321,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setCurrentPage(totalPages)}
-                        disabled={currentPage === totalPages}
+                        onClick={goToLastPage}
+                        disabled={isLastPage}
                         className="h-8 w-8 p-0"
                         title="Last page"
                       >
@@ -373,9 +345,9 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                   isLoading={revenueLoading}
                 />
               </div>
-            ) : viewMode === 'all-tasks' ? (
+            ) : initialViewMode === 'all-tasks' ? (
               <DetailMatrixGrid tasks={filteredTasks} groupingMode={groupingMode} performanceData={performanceData} />
-            ) : viewMode === 'group-by-skill' ? (
+            ) : initialViewMode === 'group-by-skill' ? (
               <SkillGroupView 
                 tasks={filteredTasks}
                 groupingMode={groupingMode}
@@ -384,7 +356,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
               />
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">Unknown view mode: {viewMode}</p>
+                <p className="text-muted-foreground">Unknown view mode: {initialViewMode}</p>
               </div>
             )}
           </div>
@@ -395,7 +367,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           isOpen={handlers.showExportDialog}
           onClose={handlers.handleCloseExportDialog}
           tasks={filteredTasks}
-          viewMode={viewMode}
+          viewMode={initialViewMode}
           selectedSkills={demandMatrixControls.selectedSkills}
           selectedClients={demandMatrixControls.selectedClients}
           selectedPreferredStaff={demandMatrixControls.selectedPreferredStaff}
