@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
 import { DetailForecastMatrixHeader } from './DetailForecastMatrixHeader';
 import { DetailForecastMatrixRow } from './DetailForecastMatrixRow';
+import { DetailMatrixTotalsCalculator } from '@/services/forecasting/detail/detailMatrixTotalsCalculator';
+import { DetailMatrixTotalsRow } from './DetailMatrixTotalsRow';
 
 // Use the aggregated Task interface from Detail Matrix
 interface Task {
@@ -46,6 +48,19 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
   revenueData,
   isLoading = false
 }) => {
+  // Transform months data for totals calculator
+  const monthsData = useMemo(() => {
+    return months.map((month, index) => ({
+      key: month,
+      label: monthLabels[index] || month
+    }));
+  }, [months, monthLabels]);
+
+  // Calculate totals from ALL tasks (before pagination)
+  const totals = useMemo(() => {
+    if (!tasks || tasks.length === 0) return null;
+    return DetailMatrixTotalsCalculator.calculateDetailMatrixTotals(tasks, monthsData);
+  }, [tasks, monthsData]);
   if (isLoading) {
     return (
       <div className="animate-pulse">
@@ -83,6 +98,9 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
               isEvenRow={index % 2 === 0}
             />
           ))}
+          {totals && tasks.length > 0 && (
+            <DetailMatrixTotalsRow totals={totals} months={monthsData} />
+          )}
         </tbody>
       </table>
     </div>
