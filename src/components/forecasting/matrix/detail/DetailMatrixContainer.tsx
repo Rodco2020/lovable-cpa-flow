@@ -60,6 +60,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
   // All remaining hooks called unconditionally with safe defaults
   const {
     filteredTasks,
+    tasksForRevenue,
     filterStats,
     hasActiveFilters,
     activeFiltersCount
@@ -123,13 +124,13 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           legal_name: client.legalName,
           expected_monthly_revenue: client.expectedMonthlyRevenue
         })),
-        filteredTasks,
+        tasksForRevenue,
         monthCount
       );
 
       // Calculate revenue for all tasks
       const taskRevenueResults = await DetailTaskRevenueCalculator.calculateBulkTaskRevenue(
-        filteredTasks,
+        tasksForRevenue,
         clientRevenueData,
         skillFeeRates
       );
@@ -362,6 +363,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
 
                 <DetailForecastMatrixGrid
                   tasks={paginatedTasks}
+                  tasksForRevenue={tasksForRevenue}
                   totalTaskCount={filteredTasks?.length || 0}
                   currentPage={currentPage}
                   totalPages={totalPages}
