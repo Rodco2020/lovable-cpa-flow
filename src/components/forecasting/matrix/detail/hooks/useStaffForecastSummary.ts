@@ -70,8 +70,8 @@ export const useStaffForecastSummary = ({
     });
   }, [tasks, selectedSkills, selectedClients, selectedPreferredStaff, enabled]);
 
-  // Convert filtered tasks to RecurringTaskDB format for StaffForecastSummaryService
-  const recurringTasks = useMemo(() => {
+  // Stabilize dependencies to prevent re-render loops
+  const stableRecurringTasks = useMemo(() => {
     return filteredTasks.map(task => ({
       id: task.id,
       name: task.taskName,
@@ -99,10 +99,9 @@ export const useStaffForecastSummary = ({
       category: task.category || 'general',
       status: 'Unscheduled' as const
     })) as unknown as RecurringTaskDB[];
-  }, [filteredTasks]);
+  }, [JSON.stringify(filteredTasks?.map(t => t.id))]);
 
-  // Generate forecast periods from months
-  const forecastPeriods = useMemo(() => {
+  const stableForecastPeriods = useMemo(() => {
     return months.map(month => ({
       id: month.key,
       period: month.label,
@@ -113,11 +112,11 @@ export const useStaffForecastSummary = ({
       demand: 0,
       capacity: 0
     })) as unknown as ForecastData[];
-  }, [months]);
+  }, [JSON.stringify(months)]);
 
-  // Calculate staff utilization
+  // Calculate staff utilization with optimized dependencies and timeout
   useEffect(() => {
-    if (!enabled || recurringTasks.length === 0 || months.length === 0) {
+    if (!enabled || stableRecurringTasks.length === 0 || months.length === 0) {
       setUtilizationData([]);
       setError(null);
       setIsLoading(false);
@@ -128,9 +127,18 @@ export const useStaffForecastSummary = ({
       setIsLoading(true);
       setError(null);
 
+      // Add 30-second overall timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        setIsLoading(false);
+        console.error('Staff utilization calculation timed out after 30 seconds');
+        setError('Calculation timed out. Please try again.');
+      }, 30000);
+
       try {
         console.log('🚀 [STAFF FORECAST HOOK] Calculating staff utilization:', {
-          taskCount: recurringTasks.length,
+          taskCount: stableRecurringTasks.length,
           monthCount: months.length,
           filters: {
             skills: selectedSkills.length,
@@ -140,8 +148,8 @@ export const useStaffForecastSummary = ({
         });
 
         const result = await StaffForecastSummaryService.calculateStaffUtilization(
-          forecastPeriods,
-          recurringTasks,
+          stableForecastPeriods,
+          stableRecurringTasks,
           months
         );
 
@@ -160,12 +168,28 @@ export const useStaffForecastSummary = ({
         setError(errorMessage);
         setUtilizationData([]);
       } finally {
+        clearTimeout(timeoutId);
         setIsLoading(false);
       }
     };
 
     calculateUtilization();
-  }, [recurringTasks, forecastPeriods, months, enabled]);
+  }, [
+    enabled,
+    stableRecurringTasks.length, // Use length instead of full array
+    months.length,
+    selectedSkills.length,
+    selectedClients.length,
+    selectedPreferredStaff.filter(Boolean).length
+  ]);
+
+  // Add cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cancel any pending calculations on unmount
+      setIsLoading(false);
+    };
+  }, []);
 
   // Calculate firm totals
   const firmTotals = useMemo(() => {

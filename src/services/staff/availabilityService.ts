@@ -18,23 +18,17 @@ export const getWeeklyAvailabilityByStaff = async (staffId: string): Promise<Wee
   try {
     console.log(`Fetching availability for staff ${staffId}`);
     
-    // First check if the connection is available
-    try {
-      const { error: pingError } = await supabase.from('staff_availability').select('count').limit(1);
-      if (pingError) {
-        console.error("Database connection error during ping:", pingError);
-        throw new Error(`Database connection error: ${pingError.message}`);
-      }
-    } catch (pingErr) {
-      console.error("Failed to connect to Supabase:", pingErr);
-      throw new Error('Cannot connect to database. Please check your connection and try again.');
-    }
+    // Add timeout wrapper to prevent deadlock
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 5000);
+    });
     
-    // Now fetch the actual data
-    const { data, error } = await supabase
+    const queryPromise = supabase
       .from('staff_availability')
       .select('*')
       .eq('staff_id', staffId);
+    
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
     
     if (error) {
       console.error(`Error fetching staff availability for ${staffId}:`, error);

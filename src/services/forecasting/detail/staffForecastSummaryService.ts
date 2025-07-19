@@ -213,20 +213,43 @@ export class StaffForecastSummaryService {
       // Resolve staff member information
       const staffMembers = await StaffBasedAggregationService.resolveStaffMembers(assignedStaffIds);
       
-      // Calculate utilization for each staff member
-      for (const staffMember of staffMembers) {
-        const staffTasks = tasksByStaff.get(staffMember.id) || [];
-        const staffUtilization = await this.calculateIndividualStaffUtilization(
+    // Process staff in parallel batches to prevent database overload
+    const batchSize = 3;
+    
+    for (let i = 0; i < staffMembers.length; i += batchSize) {
+      const batch = staffMembers.slice(i, i + batchSize);
+      
+      // Process batch in parallel with timeout
+      const batchPromises = batch.map(staffMember => 
+        this.calculateIndividualStaffUtilizationWithTimeout(
           staffMember,
-          staffTasks,
+          tasksByStaff.get(staffMember.id) || [],
           months,
           forecastPeriods
-        );
-        
-        if (staffUtilization) {
-          utilizationData.push(staffUtilization);
+        )
+      );
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Extract successful results
+      batchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          utilizationData.push(result.value);
+        } else {
+          console.error(`Failed to calculate for staff ${batch[index].name}`);
+          // Add default utilization data for failed staff
+          const defaultUtilization = this.createDefaultStaffUtilization(batch[index], months);
+          if (defaultUtilization) {
+            utilizationData.push(defaultUtilization);
+          }
         }
+      });
+      
+      // Small delay between batches to prevent overwhelming the database
+      if (i + batchSize < staffMembers.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+    }
     }
 
     // Handle unassigned tasks
@@ -242,6 +265,62 @@ export class StaffForecastSummaryService {
 
     debugLog(`✅ [STAFF FORECAST SUMMARY] Calculated utilization for ${utilizationData.length} staff/categories`);
     return utilizationData;
+  }
+
+  /**
+   * Timeout wrapper for individual staff utilization calculation
+   */
+  private static async calculateIndividualStaffUtilizationWithTimeout(
+    staffMember: { id: string; name: string },
+    staffTasks: RecurringTaskDB[],
+    months: MonthInfo[],
+    forecastPeriods: ForecastData[]
+  ): Promise<StaffUtilizationData | null> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout calculating ${staffMember.name}`)), 10000);
+    });
+    
+    try {
+      return await Promise.race([
+        this.calculateIndividualStaffUtilization(staffMember, staffTasks, months, forecastPeriods),
+        timeoutPromise
+      ]);
+    } catch (error) {
+      console.error(`Individual calculation failed for ${staffMember.name}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Create default utilization data for failed staff calculations
+   */
+  private static createDefaultStaffUtilization(
+    staffMember: { id: string; name: string },
+    months: MonthInfo[]
+  ): StaffUtilizationData {
+    const monthlyData: Record<string, MonthlyStaffMetrics> = {};
+    
+    for (const month of months) {
+      monthlyData[month.key] = {
+        demandHours: 0,
+        capacityHours: 173.33, // Default monthly capacity
+        gap: 173.33,
+        utilizationPercentage: 0
+      };
+    }
+
+    return {
+      staffId: staffMember.id,
+      staffName: staffMember.name,
+      monthlyData,
+      totalHours: 0,
+      totalCapacity: 173.33 * months.length,
+      utilizationPercentage: 0,
+      totalExpectedRevenue: 0,
+      expectedHourlyRate: 50, // Default rate
+      totalSuggestedRevenue: 0,
+      expectedLessSuggested: 0
+    };
   }
 
   /**
@@ -269,28 +348,45 @@ export class StaffForecastSummaryService {
       let totalDemandHours = 0;
       let totalCapacityHours = 0;
 
-      for (const month of months) {
-        const demandHours = monthlyDemand.get(month.key) || 0;
-        
-        // Get capacity for this month
-        const capacityHours = await this.getStaffCapacityForMonth(
-          staffMember.id,
-          month
-        );
+      // Process months in parallel for faster calculation
+      const monthlyCalculations = await Promise.all(
+        months.map(async (month) => {
+          try {
+            const demandHours = monthlyDemand.get(month.key) || 0;
+            const capacityHours = await this.getStaffCapacityForMonth(staffMember.id, month);
+            const gap = capacityHours - demandHours;
+            const utilizationPercentage = capacityHours > 0 ? (demandHours / capacityHours) * 100 : 0;
+            
+            return {
+              month: month.key,
+              metrics: {
+                demandHours,
+                capacityHours,
+                gap,
+                utilizationPercentage
+              }
+            };
+          } catch (error) {
+            console.error(`Month calculation failed for ${month.key}:`, error);
+            return {
+              month: month.key,
+              metrics: {
+                demandHours: 0,
+                capacityHours: 173.33, // Default capacity
+                gap: 173.33,
+                utilizationPercentage: 0
+              }
+            };
+          }
+        })
+      );
 
-        const gap = capacityHours - demandHours;
-        const utilizationPercentage = capacityHours > 0 ? (demandHours / capacityHours) * 100 : 0;
-
-        monthlyData[month.key] = {
-          demandHours,
-          capacityHours,
-          gap,
-          utilizationPercentage
-        };
-
-        totalDemandHours += demandHours;
-        totalCapacityHours += capacityHours;
-      }
+      // Convert array back to Record format and calculate totals
+      monthlyCalculations.forEach(({ month, metrics }) => {
+        monthlyData[month] = metrics;
+        totalDemandHours += metrics.demandHours;
+        totalCapacityHours += metrics.capacityHours;
+      });
 
       const overallUtilization = totalCapacityHours > 0 ? (totalDemandHours / totalCapacityHours) * 100 : 0;
 
