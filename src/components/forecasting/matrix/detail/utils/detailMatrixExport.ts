@@ -173,7 +173,7 @@ export class DetailMatrixExport {
   }
 
   /**
-   * Prepare staff utilization data for Excel export
+   * Prepare staff utilization data for Excel export - FIXED: Changed from Map to Record
    */
   private static prepareStaffUtilizationData(utilizationData: StaffUtilizationData[]): any[] {
     return utilizationData.map(staff => {
@@ -188,8 +188,8 @@ export class DetailMatrixExport {
         'Expected Less Suggested': `$${staff.expectedLessSuggested.toFixed(2)}`
       };
 
-      // Add monthly breakdown
-      staff.monthlyData.forEach((monthlyMetrics, monthKey) => {
+      // FIXED: Changed from Map.forEach to Object.entries
+      Object.entries(staff.monthlyData).forEach(([monthKey, monthlyMetrics]) => {
         const monthPrefix = monthKey.replace(/^\d{4}-/, ''); // Remove year prefix
         baseData[`${monthPrefix} Demand`] = monthlyMetrics.demandHours.toFixed(1);
         baseData[`${monthPrefix} Capacity`] = monthlyMetrics.capacityHours.toFixed(1);

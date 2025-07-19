@@ -137,7 +137,7 @@ export interface MatrixRevenueComparison {
   difference: number;
 }
 
-// NEW: Staff Forecast Summary interfaces for Phase 1
+// NEW: Staff Forecast Summary interfaces for Phase 1 - FIXED: Changed Map to Record
 export interface MonthlyStaffMetrics {
   demandHours: number;
   capacityHours: number;
@@ -148,7 +148,7 @@ export interface MonthlyStaffMetrics {
 export interface StaffUtilizationData {
   staffId: string;
   staffName: string;
-  monthlyData: Map<string, MonthlyStaffMetrics>;
+  monthlyData: Record<string, MonthlyStaffMetrics>; // FIXED: Changed from Map to Record
   totalHours: number;
   totalCapacity: number;
   utilizationPercentage: number;

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { formatHours, formatCurrency, formatNumber } from '@/lib/numberUtils';
@@ -94,9 +95,15 @@ export const StaffForecastSummaryRow: React.FC<StaffForecastSummaryRowProps> = (
       
       {/* Monthly Metrics Columns */}
       {months.map((month) => {
-        const monthlyMetrics = staff.monthlyData.get(month.key);
+        // FIXED: Changed from Map.get() to object access with proper null safety
+        const monthlyMetrics = staff.monthlyData?.[month.key] || {
+          demandHours: 0,
+          capacityHours: 0,
+          gap: 0,
+          utilizationPercentage: 0
+        };
         
-        if (!monthlyMetrics) {
+        if (!monthlyMetrics || (monthlyMetrics.demandHours === 0 && monthlyMetrics.capacityHours === 0)) {
           return (
             <React.Fragment key={month.key}>
               <Cell className="font-mono">-</Cell>
