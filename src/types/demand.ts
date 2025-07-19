@@ -137,6 +137,27 @@ export interface MatrixRevenueComparison {
   difference: number;
 }
 
+// NEW: Staff Forecast Summary interfaces for Phase 1
+export interface MonthlyStaffMetrics {
+  demandHours: number;
+  capacityHours: number;
+  gap: number;
+  utilizationPercentage: number;
+}
+
+export interface StaffUtilizationData {
+  staffId: string;
+  staffName: string;
+  monthlyData: Map<string, MonthlyStaffMetrics>;
+  totalHours: number;
+  totalCapacity: number;
+  utilizationPercentage: number;
+  totalExpectedRevenue: number;
+  expectedHourlyRate: number;
+  totalSuggestedRevenue: number;
+  expectedLessSuggested: number;
+}
+
 // Legacy support types
 export interface LegacyDemandMatrixData extends DemandMatrixData {
   // Legacy properties for backward compatibility

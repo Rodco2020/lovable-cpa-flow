@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from "uuid";
 import { WeeklyAvailability, AvailabilitySummary } from "@/types/staff";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,6 +71,84 @@ export const getWeeklyAvailabilityByStaff = async (staffId: string): Promise<Wee
     } else {
       throw new Error(`Failed to fetch availability data: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
+  }
+};
+
+/**
+ * Convert weekly availability to monthly capacity hours
+ * Accounts for different month lengths and calculates total available hours for a given month
+ * 
+ * @param weeklyAvailability Array of weekly availability records
+ * @param monthStart Start date of the month
+ * @param monthEnd End date of the month
+ * @returns Promise resolving to total monthly capacity hours
+ */
+export const convertWeeklyToMonthlyCapacity = async (
+  weeklyAvailability: WeeklyAvailability[],
+  monthStart: Date,
+  monthEnd: Date
+): Promise<number> => {
+  try {
+    console.log(`Converting weekly availability to monthly capacity for period ${monthStart.toISOString()} to ${monthEnd.toISOString()}`);
+    
+    if (!weeklyAvailability || weeklyAvailability.length === 0) {
+      // Default capacity: 40 hours/week (173.33 hours/month average)
+      console.log('No availability data found, using default capacity of 173.33 hours/month');
+      return 173.33;
+    }
+
+    // Calculate weekly capacity from availability records
+    let weeklyCapacityHours = 0;
+    
+    // Group availability by day of week
+    const availabilityByDay = weeklyAvailability.reduce<Record<number, WeeklyAvailability[]>>(
+      (acc, avail) => {
+        if (avail.isAvailable) {
+          if (!acc[avail.dayOfWeek]) {
+            acc[avail.dayOfWeek] = [];
+          }
+          acc[avail.dayOfWeek].push(avail);
+        }
+        return acc;
+      },
+      {}
+    );
+
+    // Calculate hours for each day
+    for (const [dayOfWeek, dayAvailabilities] of Object.entries(availabilityByDay)) {
+      let dailyHours = 0;
+      
+      for (const avail of dayAvailabilities) {
+        // Parse time strings (e.g., "09:00" to hours)
+        const startParts = avail.startTime.split(':').map(Number);
+        const endParts = avail.endTime.split(':').map(Number);
+        
+        const startHours = startParts[0] + (startParts[1] || 0) / 60;
+        const endHours = endParts[0] + (endParts[1] || 0) / 60;
+        
+        const slotHours = endHours - startHours;
+        dailyHours += slotHours;
+      }
+      
+      weeklyCapacityHours += dailyHours;
+    }
+
+    console.log(`Calculated weekly capacity: ${weeklyCapacityHours} hours`);
+
+    // Calculate number of weeks in the month period
+    const millisecondsPerWeek = 7 * 24 * 60 * 60 * 1000;
+    const monthDurationMs = monthEnd.getTime() - monthStart.getTime();
+    const weeksInMonth = monthDurationMs / millisecondsPerWeek;
+
+    // Calculate monthly capacity
+    const monthlyCapacity = weeklyCapacityHours * weeksInMonth;
+
+    console.log(`Monthly capacity calculated: ${monthlyCapacity} hours (${weeksInMonth} weeks)`);
+    return monthlyCapacity;
+  } catch (error) {
+    console.error('Error converting weekly to monthly capacity:', error);
+    // Return default capacity on error
+    return 173.33;
   }
 };
 
