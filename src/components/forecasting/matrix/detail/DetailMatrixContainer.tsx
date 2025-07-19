@@ -6,12 +6,14 @@ import { DetailMatrixGrid } from './components/DetailMatrixGrid';
 import { SkillGroupView } from './components/SkillGroupView';
 import { DetailMatrixExportDialog } from './components/DetailMatrixExportDialog';
 import { DetailForecastMatrixGrid } from './components/DetailForecastMatrixGrid';
+import { StaffForecastSummaryGrid } from './components/StaffForecastSummaryGrid';
 import { DemandMatrixControls } from '../components/demand/DemandMatrixControls';
 import { useDetailMatrixData } from './hooks/useDetailMatrixData';
 import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useDetailMatrixHandlers } from './hooks/useDetailMatrixHandlers';
 import { useDetailMatrixRevenue } from './hooks/useDetailMatrixRevenue';
 import { useDetailMatrixPagination } from './hooks/useDetailMatrixPagination';
+import { useStaffForecastSummary } from './hooks/useStaffForecastSummary';
 import { exportDetailMatrixToExcel } from './utils/detailMatrixExport';
 import { usePerformanceMonitoring, usePerformanceAlerts } from '../hooks/usePerformanceMonitoring';
 import { useLocalStoragePersistence, useKeyboardNavigation } from '../hooks/useLocalStoragePersistence';
@@ -22,13 +24,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DetailMatrixContainerProps {
   groupingMode: 'skill' | 'client';
-  viewMode?: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
+  viewMode?: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary';
   className?: string;
 }
 
 interface DetailMatrixContentProps {
   groupingMode: 'skill' | 'client';
-  viewMode?: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
+  viewMode?: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary';
   className?: string;
 }
 
@@ -73,6 +75,20 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     enabled: initialViewMode === 'detail-forecast-matrix'
   });
 
+  // Staff Forecast Summary calculations for staff-forecast-summary view
+  const { 
+    utilizationData, 
+    isLoading: staffLoading, 
+    error: staffError 
+  } = useStaffForecastSummary({
+    tasks: data || [],
+    months: months || [],
+    selectedSkills: demandMatrixControls?.selectedSkills || [],
+    selectedClients: demandMatrixControls?.selectedClients || [],
+    selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff || [],
+    enabled: initialViewMode === 'staff-forecast-summary'
+  });
+
   // Pagination for detail-forecast-matrix view
   const {
     paginatedTasks,
@@ -113,7 +129,8 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
         groupingMode,
         hasActiveFilters,
         activeFiltersCount,
-        revenueData: initialViewMode === 'detail-forecast-matrix' ? revenueData : undefined
+        revenueData: initialViewMode === 'detail-forecast-matrix' ? revenueData : undefined,
+        utilizationData: initialViewMode === 'staff-forecast-summary' ? utilizationData : undefined
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -148,15 +165,34 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
     );
   }
 
+  // Staff loading state for staff-forecast-summary view
+  if (initialViewMode === 'staff-forecast-summary' && staffLoading) {
+    return (
+      <Card className={className}>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Calculating staff utilization...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Error state
-  if (error || revenueError) {
+  if (error || revenueError || staffError) {
     return (
       <Card className={className}>
         <CardContent className="flex items-center justify-center h-64">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error ? `Error loading task data: ${error}` : `Error calculating revenue: ${revenueError}`}
+              {error 
+                ? `Error loading task data: ${error}` 
+                : revenueError 
+                  ? `Error calculating revenue: ${revenueError}`
+                  : `Error calculating staff utilization: ${staffError}`
+              }
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -354,6 +390,12 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
                 expandedGroups={preferences.expandedSkillGroups}
                 onToggleExpansion={toggleSkillGroupExpansion}
               />
+            ) : initialViewMode === 'staff-forecast-summary' ? (
+              <StaffForecastSummaryGrid
+                utilizationData={utilizationData}
+                months={months || []}
+                isLoading={staffLoading}
+              />
             ) : (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">Unknown view mode: {initialViewMode}</p>
@@ -376,6 +418,7 @@ const DetailMatrixContent: React.FC<DetailMatrixContentProps> = memo(({
           hasActiveFilters={hasActiveFilters}
           activeFiltersCount={activeFiltersCount}
           revenueData={revenueData}
+          utilizationData={utilizationData}
         />
       </div>
     </div>

@@ -12,3 +12,12 @@ export { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
 export { DetailForecastMatrixGrid } from './components/DetailForecastMatrixGrid';
 export { DetailForecastMatrixHeader } from './components/DetailForecastMatrixHeader';
 export { DetailForecastMatrixRow } from './components/DetailForecastMatrixRow';
+
+// Staff Forecast Summary Components - Phase 4 Integration
+export { StaffForecastSummaryGrid } from './components/StaffForecastSummaryGrid';
+export { StaffForecastSummaryHeader } from './components/StaffForecastSummaryHeader';
+export { StaffForecastSummaryRow } from './components/StaffForecastSummaryRow';
+export { StaffSummaryTotalsRow } from './components/StaffSummaryTotalsRow';
+
+// Hooks
+export { useStaffForecastSummary } from './hooks/useStaffForecastSummary';

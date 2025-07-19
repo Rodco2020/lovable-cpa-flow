@@ -21,7 +21,7 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
   className 
 }) => {
   const [groupingMode, setGroupingMode] = useState<'skill' | 'client'>('client');
-  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix'>('all-tasks');
+  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary'>('all-tasks');
 
   return (
     <div className={className}>
@@ -47,12 +47,12 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">View:</span>
-            <div className="flex rounded-md border bg-muted/30">
+            <div className="grid grid-cols-2 gap-1 rounded-md border bg-muted/30 p-1">
               <Button
                 variant={viewMode === 'all-tasks' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('all-tasks')}
-                className="rounded-r-none border-r"
+                className="text-xs"
               >
                 Show All Tasks
               </Button>
@@ -60,7 +60,7 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
                 variant={viewMode === 'group-by-skill' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('group-by-skill')}
-                className="rounded-none border-r"
+                className="text-xs"
               >
                 Group by Skill
               </Button>
@@ -68,9 +68,17 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
                 variant={viewMode === 'detail-forecast-matrix' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('detail-forecast-matrix')}
-                className="rounded-l-none"
+                className="text-xs"
               >
                 Detail Forecast Matrix
+              </Button>
+              <Button
+                variant={viewMode === 'staff-forecast-summary' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('staff-forecast-summary')}
+                className="text-xs"
+              >
+                Staff Forecast Summary
               </Button>
             </div>
           </div>

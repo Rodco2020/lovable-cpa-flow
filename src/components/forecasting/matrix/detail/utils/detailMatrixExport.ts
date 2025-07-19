@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { TaskRevenueResult } from '@/services/forecasting/demand/calculators/detailTaskRevenueCalculator';
+import { StaffUtilizationData } from '@/types/demand';
 
 /**
  * Task interface for export
@@ -34,6 +35,7 @@ export interface DetailMatrixExportOptions {
   hasActiveFilters: boolean;
   activeFiltersCount: number;
   revenueData?: Map<string, TaskRevenueResult>;
+  utilizationData?: StaffUtilizationData[];
   filename?: string;
 }
 
@@ -63,6 +65,7 @@ export class DetailMatrixExport {
       hasActiveFilters,
       activeFiltersCount,
       revenueData,
+      utilizationData,
       filename = 'detail-matrix-export'
     } = options;
 
@@ -78,12 +81,18 @@ export class DetailMatrixExport {
       // Create workbook
       const workbook = XLSX.utils.book_new();
 
-      // Prepare task data for export
-      const exportData = this.prepareTaskData(tasks, revenueData);
-
-      // Create main data worksheet
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Task Data');
+      // Handle different view modes
+      if (viewMode === 'staff-forecast-summary' && utilizationData) {
+        // Export staff utilization data
+        const staffData = this.prepareStaffUtilizationData(utilizationData);
+        const staffWorksheet = XLSX.utils.json_to_sheet(staffData);
+        XLSX.utils.book_append_sheet(workbook, staffWorksheet, 'Staff Utilization');
+      } else {
+        // Export task data (existing functionality)
+        const exportData = this.prepareTaskData(tasks, revenueData);
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Task Data');
+      }
 
       // Add metadata worksheet
       const metadataSheet = this.createMetadataSheet({
@@ -158,6 +167,35 @@ export class DetailMatrixExport {
           'Apportionment %': `${(revenue.apportionmentPercentage * 100).toFixed(2)}%`
         };
       }
+
+      return baseData;
+    });
+  }
+
+  /**
+   * Prepare staff utilization data for Excel export
+   */
+  private static prepareStaffUtilizationData(utilizationData: StaffUtilizationData[]): any[] {
+    return utilizationData.map(staff => {
+      const baseData = {
+        'Staff Name': staff.staffName,
+        'Total Hours': staff.totalHours.toFixed(1),
+        'Total Capacity': staff.totalCapacity.toFixed(1),
+        'Utilization %': `${staff.utilizationPercentage.toFixed(1)}%`,
+        'Total Expected Revenue': `$${staff.totalExpectedRevenue.toFixed(2)}`,
+        'Expected Hourly Rate': `$${staff.expectedHourlyRate.toFixed(2)}`,
+        'Total Suggested Revenue': `$${staff.totalSuggestedRevenue.toFixed(2)}`,
+        'Expected Less Suggested': `$${staff.expectedLessSuggested.toFixed(2)}`
+      };
+
+      // Add monthly breakdown
+      staff.monthlyData.forEach((monthlyMetrics, monthKey) => {
+        const monthPrefix = monthKey.replace(/^\d{4}-/, ''); // Remove year prefix
+        baseData[`${monthPrefix} Demand`] = monthlyMetrics.demandHours.toFixed(1);
+        baseData[`${monthPrefix} Capacity`] = monthlyMetrics.capacityHours.toFixed(1);
+        baseData[`${monthPrefix} Gap`] = monthlyMetrics.gap.toFixed(1);
+        baseData[`${monthPrefix} Util %`] = `${monthlyMetrics.utilizationPercentage.toFixed(1)}%`;
+      });
 
       return baseData;
     });

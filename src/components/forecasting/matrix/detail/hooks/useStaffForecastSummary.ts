@@ -1,0 +1,191 @@
+import { useState, useEffect, useMemo } from 'react';
+import { StaffUtilizationData, MonthInfo } from '@/types/demand';
+import { ForecastData } from '@/types/forecasting';
+import { RecurringTaskDB } from '@/types/task';
+import { StaffForecastSummaryService } from '@/services/forecasting/detail/staffForecastSummaryService';
+
+interface UseStaffForecastSummaryOptions {
+  tasks: any[]; // Task data from DetailMatrixData
+  months: MonthInfo[];
+  selectedSkills: string[];
+  selectedClients: string[];
+  selectedPreferredStaff: (string | number | null | undefined)[];
+  enabled?: boolean;
+}
+
+interface UseStaffForecastSummaryResult {
+  utilizationData: StaffUtilizationData[];
+  isLoading: boolean;
+  error: string | null;
+  firmTotals: {
+    totalDemand: number;
+    totalCapacity: number;
+    overallUtilization: number;
+    totalRevenue: number;
+    totalGap: number;
+  };
+}
+
+/**
+ * Hook for Staff Forecast Summary data
+ * 
+ * Integrates with existing filter system and provides staff utilization calculations
+ */
+export const useStaffForecastSummary = ({
+  tasks,
+  months,
+  selectedSkills,
+  selectedClients,
+  selectedPreferredStaff,
+  enabled = true
+}: UseStaffForecastSummaryOptions): UseStaffForecastSummaryResult => {
+  const [utilizationData, setUtilizationData] = useState<StaffUtilizationData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filter tasks based on current filter selections
+  const filteredTasks = useMemo(() => {
+    if (!tasks || !enabled) return [];
+
+    return tasks.filter(task => {
+      // Skills filter
+      if (selectedSkills.length > 0 && !selectedSkills.includes(task.skillRequired)) {
+        return false;
+      }
+
+      // Clients filter
+      if (selectedClients.length > 0 && !selectedClients.includes(task.clientId)) {
+        return false;
+      }
+
+      // Preferred Staff filter
+      if (selectedPreferredStaff.length > 0) {
+        const staffFilters = selectedPreferredStaff.filter(Boolean);
+        if (staffFilters.length > 0 && !staffFilters.includes(task.preferredStaffId)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [tasks, selectedSkills, selectedClients, selectedPreferredStaff, enabled]);
+
+  // Convert filtered tasks to RecurringTaskDB format for StaffForecastSummaryService
+  const recurringTasks = useMemo(() => {
+    return filteredTasks.map(task => ({
+      id: task.id,
+      name: task.taskName,
+      client_id: task.clientId,
+      estimated_hours: task.monthlyHours || task.totalHours || 0,
+      recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
+      preferred_staff_id: task.preferredStaffId || null,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      template_id: task.id,
+      due_date: null,
+      recurrence_interval: 1,
+      weekdays: null,
+      day_of_month: null,
+      month_of_year: null,
+      end_date: null,
+      custom_offset_days: null,
+      last_generated_date: null,
+      weekdays_for_daily: null,
+      notes: null,
+      description: task.description || null,
+      required_skills: [task.skillRequired],
+      priority: task.priority || 'medium',
+      category: task.category || 'general',
+      status: 'Unscheduled' as const
+    })) as unknown as RecurringTaskDB[];
+  }, [filteredTasks]);
+
+  // Generate forecast periods from months
+  const forecastPeriods = useMemo(() => {
+    return months.map(month => ({
+      id: month.key,
+      period: month.label,
+      label: month.label,
+      startDate: month.startDate || new Date(),
+      endDate: month.endDate || new Date(),
+      type: 'virtual' as const,
+      demand: 0,
+      capacity: 0
+    })) as unknown as ForecastData[];
+  }, [months]);
+
+  // Calculate staff utilization
+  useEffect(() => {
+    if (!enabled || recurringTasks.length === 0 || months.length === 0) {
+      setUtilizationData([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const calculateUtilization = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        console.log('🚀 [STAFF FORECAST HOOK] Calculating staff utilization:', {
+          taskCount: recurringTasks.length,
+          monthCount: months.length,
+          filters: {
+            skills: selectedSkills.length,
+            clients: selectedClients.length,
+            staff: selectedPreferredStaff.filter(Boolean).length
+          }
+        });
+
+        const result = await StaffForecastSummaryService.calculateStaffUtilization(
+          forecastPeriods,
+          recurringTasks,
+          months
+        );
+
+        setUtilizationData(result);
+        setError(null);
+
+        console.log('✅ [STAFF FORECAST HOOK] Utilization calculation complete:', {
+          staffCount: result.length,
+          totalStaff: result.filter(s => s.staffId !== 'unassigned').length,
+          unassignedTasks: result.find(s => s.staffId === 'unassigned')?.totalHours || 0
+        });
+
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        console.error('❌ [STAFF FORECAST HOOK] Calculation failed:', err);
+        setError(errorMessage);
+        setUtilizationData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    calculateUtilization();
+  }, [recurringTasks, forecastPeriods, months, enabled]);
+
+  // Calculate firm totals
+  const firmTotals = useMemo(() => {
+    if (utilizationData.length === 0) {
+      return {
+        totalDemand: 0,
+        totalCapacity: 0,
+        overallUtilization: 0,
+        totalRevenue: 0,
+        totalGap: 0
+      };
+    }
+
+    return StaffForecastSummaryService.calculateFirmWideTotals(utilizationData);
+  }, [utilizationData]);
+
+  return {
+    utilizationData,
+    isLoading,
+    error,
+    firmTotals
+  };
+};

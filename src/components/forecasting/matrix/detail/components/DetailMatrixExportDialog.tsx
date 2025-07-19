@@ -45,15 +45,16 @@ interface DetailMatrixExportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: Task[];
-  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
+  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary';
   selectedSkills: string[];
   selectedClients: string[];
-  selectedPreferredStaff: string[];
+  selectedPreferredStaff: (string | number | null | undefined)[];
   monthRange: { start: number; end: number };
   groupingMode: 'skill' | 'client';
   hasActiveFilters: boolean;
   activeFiltersCount: number;
   revenueData?: Map<string, TaskRevenueResult>; // New: Revenue data for detail-forecast-matrix view
+  utilizationData?: any[]; // StaffUtilizationData[] - using any to avoid import issues
 }
 
 /**
@@ -77,7 +78,8 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
   groupingMode,
   hasActiveFilters,
   activeFiltersCount,
-  revenueData
+  revenueData,
+  utilizationData
 }) => {
   const [exportOptions, setExportOptions] = useState({
     format: 'xlsx' as 'xlsx' | 'csv' | 'json',
@@ -473,7 +475,8 @@ export const DetailMatrixExportDialog: React.FC<DetailMatrixExportDialogProps> =
               Export Detail Matrix ({
                 viewMode === 'all-tasks' ? 'All Tasks' : 
                 viewMode === 'group-by-skill' ? 'Grouped by Skill' :
-                'Forecast Matrix'
+                viewMode === 'detail-forecast-matrix' ? 'Forecast Matrix' :
+                'Staff Forecast Summary'
               })
             </DialogTitle>
         </DialogHeader>
