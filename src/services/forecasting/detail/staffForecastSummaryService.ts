@@ -162,18 +162,18 @@ export class StaffForecastSummaryService {
     debugLog(`🔧 [STAFF FORECAST SUMMARY] Handling ${unassignedTasks.length} unassigned tasks`);
 
     const monthlyDemand = this.calculateMonthlyDemand(unassignedTasks, forecastPeriods, months);
-    const monthlyData = new Map<string, MonthlyStaffMetrics>();
+    const monthlyData: Record<string, MonthlyStaffMetrics> = {};
     let totalDemandHours = 0;
 
     for (const month of months) {
       const demandHours = monthlyDemand.get(month.key) || 0;
       
-      monthlyData.set(month.key, {
+      monthlyData[month.key] = {
         demandHours,
         capacityHours: 0, // Unassigned tasks don't have capacity
         gap: -demandHours, // Negative gap indicates unmet demand
         utilizationPercentage: 0
-      });
+      };
 
       totalDemandHours += demandHours;
     }
@@ -265,7 +265,7 @@ export class StaffForecastSummaryService {
       const monthlyDemand = this.calculateMonthlyDemand(staffTasks, forecastPeriods, months);
       
       // Calculate monthly metrics
-      const monthlyData = new Map<string, MonthlyStaffMetrics>();
+      const monthlyData: Record<string, MonthlyStaffMetrics> = {};
       let totalDemandHours = 0;
       let totalCapacityHours = 0;
 
@@ -281,12 +281,12 @@ export class StaffForecastSummaryService {
         const gap = capacityHours - demandHours;
         const utilizationPercentage = capacityHours > 0 ? (demandHours / capacityHours) * 100 : 0;
 
-        monthlyData.set(month.key, {
+        monthlyData[month.key] = {
           demandHours,
           capacityHours,
           gap,
           utilizationPercentage
-        });
+        };
 
         totalDemandHours += demandHours;
         totalCapacityHours += capacityHours;
