@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { MonthInfo } from '@/types/demand';
 import { formatHours, formatCurrency, formatNumber } from '@/lib/numberUtils';
@@ -30,36 +31,21 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
     return 'text-gray-600 bg-gray-100'; // Under-utilized
   };
 
-  // Get gap health indicator
-  const getGapHealthColor = (gap: number) => {
-    if (gap < 0) return 'text-red-600 font-semibold'; // Shortage
-    if (gap > 0) return 'text-green-600 font-semibold'; // Surplus
-    return 'text-gray-600'; // Balanced
-  };
-
   const utilizationClass = getUtilizationColor(totals.overallUtilization);
-  const gapClass = getGapHealthColor(totals.totalGap);
 
   const Cell = ({ 
     children, 
     className = "", 
-    align = "center",
-    colSpan = 1,
     tooltip
   }: { 
     children: React.ReactNode;
     className?: string;
-    align?: string;
-    colSpan?: number;
     tooltip?: string;
   }) => {
     const cellContent = (
-      <td 
-        className={`p-3 text-sm border-t-2 border-primary bg-primary/5 text-${align} font-semibold ${className}`}
-        colSpan={colSpan}
-      >
+      <div className={`text-center font-semibold text-sm border-t-2 border-primary bg-primary/5 p-2 ${className}`}>
         {children}
-      </td>
+      </div>
     );
 
     if (tooltip) {
@@ -81,11 +67,15 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
   };
 
   return (
-    <tr className="border-t-2 border-primary">
+    <div 
+      className="grid gap-1 border-t-2 border-primary"
+      style={{
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 100px 120px 120px`
+      }}
+    >
       {/* Firm Totals Label */}
       <Cell 
-        align="left" 
-        className="font-bold text-primary"
+        className="text-left text-primary font-bold"
         tooltip={`Aggregated metrics across ${totalStaffCount} staff members`}
       >
         <div className="flex items-center gap-2">
@@ -96,50 +86,29 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
         </div>
       </Cell>
       
-      {/* Monthly Summary - Show aggregate metrics per month */}
+      {/* Monthly Summary - Show aggregate placeholder cells */}
       {months.map((month) => (
-        <React.Fragment key={month.key}>
-          <Cell 
-            className="bg-blue-100 font-mono"
-            tooltip="Total firm demand for this month"
-          >
-            {/* We don't have monthly breakdowns in totals, so show dash */}
-            <span className="text-muted-foreground">-</span>
-          </Cell>
-          
-          <Cell 
-            className="bg-green-100 font-mono"
-            tooltip="Total firm capacity for this month"
-          >
-            <span className="text-muted-foreground">-</span>
-          </Cell>
-          
-          <Cell 
-            className="bg-orange-100 font-mono"
-            tooltip="Total firm gap for this month"
-          >
-            <span className="text-muted-foreground">-</span>
-          </Cell>
-          
-          <Cell 
-            className="bg-purple-100 font-mono"
-            tooltip="Average firm utilization for this month"
-          >
-            <span className="text-muted-foreground">-</span>
-          </Cell>
-        </React.Fragment>
+        <Cell 
+          key={month.key}
+          className="bg-gray-100"
+          tooltip="Monthly firm totals calculated from individual staff metrics"
+        >
+          <div className="h-16 flex items-center justify-center">
+            <span className="text-muted-foreground text-xs">Aggregated</span>
+          </div>
+        </Cell>
       ))}
       
       {/* Summary Totals */}
       <Cell 
-        className="bg-slate-100 border-l-2 border-slate-400 font-bold"
+        className="border-l-2 border-slate-400 bg-slate-100 font-bold"
         tooltip={`Total demand hours across all staff: ${formatHours(totals.totalDemand, 1)}`}
       >
         {formatHours(totals.totalDemand, 1)}
       </Cell>
       
       <Cell 
-        className={`bg-slate-100 border-l-2 border-slate-400 font-bold ${utilizationClass} rounded-sm`}
+        className={`bg-slate-100 font-bold ${utilizationClass} rounded-sm`}
         tooltip={`Overall firm utilization: ${formatNumber(totals.overallUtilization, 1)}%`}
       >
         {formatNumber(totals.overallUtilization, 1)}%
@@ -172,6 +141,6 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
       >
         <span className="text-muted-foreground text-xs">Net Diff</span>
       </Cell>
-    </tr>
+    </div>
   );
 };

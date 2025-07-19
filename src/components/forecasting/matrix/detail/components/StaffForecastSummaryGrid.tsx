@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { StaffForecastSummaryHeader } from './StaffForecastSummaryHeader';
@@ -102,21 +103,24 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
   }
 
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="w-full border-collapse">
+    <div className="w-full overflow-x-auto border rounded-lg">
+      <div className="min-w-[1400px]">
+        {/* Header */}
         <StaffForecastSummaryHeader 
           months={months}
           sortField={sortField}
           sortDirection={sortDirection}
           onSort={handleSort}
         />
-        <tbody>
+
+        {/* Body */}
+        <div className="divide-y">
           {sortedData.map((staff, index) => (
             <StaffForecastSummaryRow
               key={staff.staffId}
               staff={staff}
               months={months}
-              isEvenRow={index % 2 === 0}
+              index={index}
             />
           ))}
           <StaffSummaryTotalsRow 
@@ -124,8 +128,8 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
             months={months}
             totalStaffCount={sortedData.length}
           />
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   );
 };
