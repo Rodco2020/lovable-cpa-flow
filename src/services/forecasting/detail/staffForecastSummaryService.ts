@@ -1,15 +1,16 @@
-
 import { supabase } from '@/lib/supabase';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { AvailabilityService } from '@/services/availability/availabilityService';
 import { PeriodProcessingService } from '../demand/matrixTransformer/periodProcessingService';
+import { staffQueries } from '@/utils/staffQueries';
 
 /**
  * Staff Forecast Summary Service
  * 
  * Handles calculation of staff utilization data for forecast summary views
+ * FIXED: Now uses centralized staff queries to avoid schema mismatch
  */
 export class StaffForecastSummaryService {
   private static availabilityService = new AvailabilityService();
@@ -29,15 +30,8 @@ export class StaffForecastSummaryService {
     });
 
     try {
-      // Get all staff members
-      const { data: staffMembers, error } = await supabase
-        .from('staff')
-        .select('*')
-        .eq('is_active', true);
-
-      if (error) {
-        throw new Error(`Failed to fetch staff: ${error.message}`);
-      }
+      // FIXED: Use centralized staff query utility instead of direct Supabase call
+      const staffMembers = await staffQueries.getActiveStaff();
 
       if (!staffMembers || staffMembers.length === 0) {
         console.warn('No active staff members found');

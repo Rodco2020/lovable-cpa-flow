@@ -13,6 +13,7 @@ export interface StaffAvailability {
  * Availability Service
  * 
  * Handles staff availability data and capacity calculations
+ * FIXED: Uses correct 'status' column instead of 'is_active'
  */
 export class AvailabilityService {
   /**
@@ -86,13 +87,14 @@ export class AvailabilityService {
 
   /**
    * Get capacity for all staff members
+   * FIXED: Uses correct 'status' column instead of 'is_active'
    */
   async getAllStaffCapacities(): Promise<Record<string, number>> {
     try {
       const { data: staffMembers, error } = await supabase
         .from('staff')
         .select('id')
-        .eq('is_active', true);
+        .eq('status', 'active'); // FIXED: Changed from 'is_active' to 'status'
 
       if (error || !staffMembers) {
         console.error('Error fetching staff members:', error);

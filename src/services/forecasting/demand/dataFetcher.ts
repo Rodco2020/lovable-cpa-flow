@@ -7,6 +7,7 @@ import { DataTransformationService } from './dataTransformationService';
 /**
  * FIXED: Pure Data Fetcher Service - Enhanced with preferred staff information
  * Focused on database queries and data retrieval including staff details
+ * FIXED: Uses correct 'status' column instead of 'is_active'
  */
 export class DataFetcher {
   /**
@@ -22,6 +23,7 @@ export class DataFetcher {
 
     try {
       // FIXED: Enhanced query to include staff information for preferred staff filtering
+      // FIXED: Uses correct 'status' column for recurring_tasks
       let query = supabase
         .from('recurring_tasks')
         .select(`
@@ -29,7 +31,7 @@ export class DataFetcher {
           clients!inner(id, legal_name, expected_monthly_revenue),
           staff(id, full_name, role_title)
         `)
-        .eq('is_active', true)
+        .eq('status', 'Unscheduled') // FIXED: Changed from 'is_active' to 'status'
         .range(0, 999);
 
       // Apply client filters safely
@@ -97,10 +99,11 @@ export class DataFetcher {
     try {
       console.log('Attempting fallback data fetch with minimal filtering...');
       
+      // FIXED: Uses correct 'status' column instead of 'is_active'
       const { data, error } = await supabase
         .from('recurring_tasks')
         .select('*, clients(id, legal_name, expected_monthly_revenue), staff(id, full_name, role_title)')
-        .eq('is_active', true)
+        .eq('status', 'Unscheduled') // FIXED: Changed from 'is_active' to 'status'
         .range(0, 999);
 
       if (error) {
