@@ -176,7 +176,7 @@ export interface ClientRevenueData {
   expectedMonthlyRevenue: number;
   expectedRevenue?: number; // Add missing property for compatibility
   suggestedRevenue: number;
-  expectedLessSuggested: number;
+  expectedLessSuggested?: number; // Make optional to fix test compatibility
   totalHours?: number; // Add missing property for tests
 }
 
@@ -207,7 +207,7 @@ export const hasRevenueData = (data: DemandMatrixData): boolean => {
 
 // Additional missing types
 export interface SkillSummaryItem {
-  skillType: SkillType;
+  skillType?: SkillType; // Make optional to fix compatibility issues
   totalHours: number;
   demandHours: number;
   taskCount: number;
@@ -228,6 +228,7 @@ export interface SkillSummary {
 export interface RecurrenceCalculation {
   monthlyHours: number;
   frequency: number;
+  monthlyOccurrences?: number; // Add missing property
   pattern: {
     type: string;
     interval: number;
@@ -236,6 +237,8 @@ export interface RecurrenceCalculation {
 
 export interface DemandForecastResult {
   demandData: DemandMatrixData;
+  matrixData?: DemandMatrixData; // Add missing property for compatibility
+  success?: boolean; // Add missing property for compatibility
   metadata: {
     calculationTime: number;
     totalRecords: number;
