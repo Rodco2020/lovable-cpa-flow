@@ -1,496 +1,269 @@
 
-import { StaffUtilizationData, MonthlyStaffMetrics, DemandDataPoint, MonthInfo } from '@/types/demand';
+import { supabase } from '@/lib/supabase';
+import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
-import { StaffBasedAggregationService } from '../demand/staffBasedAggregationService';
-import { getWeeklyAvailabilityByStaff, convertWeeklyToMonthlyCapacity } from '@/services/staff/availabilityService';
-import { supabase } from '@/integrations/supabase/client';
-import { debugLog } from '../logger';
+import { AvailabilityService } from '@/services/availability/availabilityService';
+import { PeriodProcessingService } from '../demand/matrixTransformer/periodProcessingService';
 
 /**
  * Staff Forecast Summary Service
  * 
- * Calculates staff utilization metrics including demand, capacity, and gaps.
- * Works alongside StaffBasedAggregationService to provide detailed staff-level forecasting.
+ * Handles calculation of staff utilization data for forecast summary views
  */
 export class StaffForecastSummaryService {
-  
-  /**
-   * Aggregate tasks by staff member for easier processing
-   */
-  static aggregateTasksByStaff(allTasks: RecurringTaskDB[]): Map<string, RecurringTaskDB[]> {
-    const tasksByStaff = new Map<string, RecurringTaskDB[]>();
-    
-    for (const task of allTasks) {
-      const staffId = task.preferred_staff_id || 'unassigned';
-      
-      if (!tasksByStaff.has(staffId)) {
-        tasksByStaff.set(staffId, []);
-      }
-      
-      tasksByStaff.get(staffId)!.push(task);
-    }
-    
-    debugLog(`📋 [STAFF FORECAST SUMMARY] Aggregated tasks for ${tasksByStaff.size} staff/categories`);
-    return tasksByStaff;
-  }
+  private static availabilityService = new AvailabilityService();
 
   /**
-   * Calculate monthly demand hours for a specific staff member
-   */
-  static calculateMonthlyDemand(
-    staffTasks: RecurringTaskDB[],
-    forecastPeriods: ForecastData[],
-    months: MonthInfo[]
-  ): Map<string, number> {
-    const monthlyDemand = new Map<string, number>();
-    
-    for (const month of months) {
-      let totalDemandHours = 0;
-      
-      for (const task of staffTasks) {
-        // Calculate task demand based on recurrence pattern and estimated hours
-        const taskDemand = this.calculateTaskDemandForMonth(task, month);
-        totalDemandHours += taskDemand;
-      }
-      
-      monthlyDemand.set(month.key, totalDemandHours);
-    }
-    
-    return monthlyDemand;
-  }
-
-  /**
-   * Calculate demand hours for a single task in a specific month
-   */
-  private static calculateTaskDemandForMonth(task: RecurringTaskDB, month: MonthInfo): number {
-    if (!task.is_active) return 0;
-    
-    const estimatedHours = Number(task.estimated_hours) || 0;
-    
-    switch (task.recurrence_type) {
-      case 'weekly':
-        // Assume 4.33 weeks per month on average
-        return estimatedHours * 4.33;
-      case 'monthly':
-        return estimatedHours;
-      case 'quarterly':
-        // Quarterly tasks occur every 3 months
-        return estimatedHours / 3;
-      case 'annually':
-        // Annual tasks occur once per year (12 months)
-        return estimatedHours / 12;
-      case 'daily':
-        // Daily tasks with weekday restrictions
-        const workdaysPerMonth = 22; // Typical business days
-        return estimatedHours * workdaysPerMonth;
-      default:
-        return estimatedHours;
-    }
-  }
-
-  /**
-   * Calculate financial metrics for a staff member
-   */
-  static async calculateStaffFinancials(
-    staffId: string,
-    totalDemandHours: number
-  ): Promise<{
-    expectedHourlyRate: number;
-    totalSuggestedRevenue: number;
-    totalExpectedRevenue: number;
-    expectedLessSuggested: number;
-  }> {
-    try {
-      // Get staff cost per hour from database
-      const { data: staffData, error } = await supabase
-        .from('staff')
-        .select('cost_per_hour')
-        .eq('id', staffId)
-        .maybeSingle();
-
-      if (error) {
-        console.error(`❌ [STAFF FORECAST SUMMARY] Error fetching staff data for ${staffId}:`, error);
-        return {
-          expectedHourlyRate: 0,
-          totalSuggestedRevenue: 0,
-          totalExpectedRevenue: 0,
-          expectedLessSuggested: 0
-        };
-      }
-
-      const expectedHourlyRate = Number(staffData?.cost_per_hour) || 50; // Default rate
-      const totalSuggestedRevenue = totalDemandHours * expectedHourlyRate;
-      
-      // For now, expected revenue equals suggested revenue
-      // This could be extended to include client-specific rates
-      const totalExpectedRevenue = totalSuggestedRevenue;
-      const expectedLessSuggested = totalExpectedRevenue - totalSuggestedRevenue;
-
-      debugLog(`💰 [STAFF FORECAST SUMMARY] Financial calculations for ${staffId}:`, {
-        expectedHourlyRate,
-        totalDemandHours,
-        totalSuggestedRevenue,
-        totalExpectedRevenue
-      });
-
-      return {
-        expectedHourlyRate,
-        totalSuggestedRevenue,
-        totalExpectedRevenue,
-        expectedLessSuggested
-      };
-    } catch (error) {
-      console.error(`❌ [STAFF FORECAST SUMMARY] Error calculating financials for ${staffId}:`, error);
-      return {
-        expectedHourlyRate: 0,
-        totalSuggestedRevenue: 0,
-        totalExpectedRevenue: 0,
-        expectedLessSuggested: 0
-      };
-    }
-  }
-
-  /**
-   * Handle unassigned tasks and create utilization data
-   */
-  static handleUnassignedTasks(
-    unassignedTasks: RecurringTaskDB[],
-    forecastPeriods: ForecastData[],
-    months: MonthInfo[]
-  ): StaffUtilizationData {
-    debugLog(`🔧 [STAFF FORECAST SUMMARY] Handling ${unassignedTasks.length} unassigned tasks`);
-
-    const monthlyDemand = this.calculateMonthlyDemand(unassignedTasks, forecastPeriods, months);
-    const monthlyData: Record<string, MonthlyStaffMetrics> = {};
-    let totalDemandHours = 0;
-
-    for (const month of months) {
-      const demandHours = monthlyDemand.get(month.key) || 0;
-      
-      monthlyData[month.key] = {
-        demandHours,
-        capacityHours: 0, // Unassigned tasks don't have capacity
-        gap: -demandHours, // Negative gap indicates unmet demand
-        utilizationPercentage: 0
-      };
-
-      totalDemandHours += demandHours;
-    }
-
-    return {
-      staffId: 'unassigned',
-      staffName: 'Unassigned',
-      monthlyData,
-      totalHours: totalDemandHours,
-      totalCapacity: 0,
-      utilizationPercentage: 0,
-      totalExpectedRevenue: 0,
-      expectedHourlyRate: 0,
-      totalSuggestedRevenue: 0,
-      expectedLessSuggested: 0
-    };
-  }
-
-  /**
-   * Calculate staff utilization data for all staff members across forecast periods
+   * Calculate staff utilization across forecast periods
    */
   static async calculateStaffUtilization(
     forecastPeriods: ForecastData[],
-    allTasks: RecurringTaskDB[],
+    recurringTasks: RecurringTaskDB[],
     months: MonthInfo[]
   ): Promise<StaffUtilizationData[]> {
-    debugLog(`🚀 [STAFF FORECAST SUMMARY] Calculating staff utilization for ${forecastPeriods.length} periods`);
-
-    // Aggregate tasks by staff
-    const tasksByStaff = this.aggregateTasksByStaff(allTasks);
-    const utilizationData: StaffUtilizationData[] = [];
-
-    // Get unique staff IDs (excluding unassigned)
-    const assignedStaffIds = [...tasksByStaff.keys()].filter(id => id !== 'unassigned');
-    
-    if (assignedStaffIds.length > 0) {
-      // Resolve staff member information
-      const staffMembers = await StaffBasedAggregationService.resolveStaffMembers(assignedStaffIds);
-      
-    // Process staff in parallel batches to prevent database overload
-    const batchSize = 3;
-    
-    for (let i = 0; i < staffMembers.length; i += batchSize) {
-      const batch = staffMembers.slice(i, i + batchSize);
-      
-      // Process batch in parallel with timeout
-      const batchPromises = batch.map(staffMember => 
-        this.calculateIndividualStaffUtilizationWithTimeout(
-          staffMember,
-          tasksByStaff.get(staffMember.id) || [],
-          months,
-          forecastPeriods
-        )
-      );
-      
-      const batchResults = await Promise.allSettled(batchPromises);
-      
-      // Extract successful results
-      batchResults.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value) {
-          utilizationData.push(result.value);
-        } else {
-          console.error(`Failed to calculate for staff ${batch[index].name}`);
-          // Add default utilization data for failed staff
-          const defaultUtilization = this.createDefaultStaffUtilization(batch[index], months);
-          if (defaultUtilization) {
-            utilizationData.push(defaultUtilization);
-          }
-        }
-      });
-      
-      // Small delay between batches to prevent overwhelming the database
-      if (i + batchSize < staffMembers.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-    }
-
-    // Handle unassigned tasks
-    const unassignedTasks = tasksByStaff.get('unassigned') || [];
-    if (unassignedTasks.length > 0) {
-      const unassignedUtilization = this.handleUnassignedTasks(
-        unassignedTasks,
-        forecastPeriods,
-        months
-      );
-      utilizationData.push(unassignedUtilization);
-    }
-
-    debugLog(`✅ [STAFF FORECAST SUMMARY] Calculated utilization for ${utilizationData.length} staff/categories`);
-    return utilizationData;
-  }
-
-  /**
-   * Timeout wrapper for individual staff utilization calculation
-   */
-  private static async calculateIndividualStaffUtilizationWithTimeout(
-    staffMember: { id: string; name: string },
-    staffTasks: RecurringTaskDB[],
-    months: MonthInfo[],
-    forecastPeriods: ForecastData[]
-  ): Promise<StaffUtilizationData | null> {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timeout calculating ${staffMember.name}`)), 10000);
+    console.log('🚀 [STAFF FORECAST SUMMARY] Starting staff utilization calculation:', {
+      periodsCount: forecastPeriods.length,
+      tasksCount: recurringTasks.length,
+      monthsCount: months.length
     });
-    
+
     try {
-      return await Promise.race([
-        this.calculateIndividualStaffUtilization(staffMember, staffTasks, months, forecastPeriods),
-        timeoutPromise
-      ]);
+      // Get all staff members
+      const { data: staffMembers, error } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) {
+        throw new Error(`Failed to fetch staff: ${error.message}`);
+      }
+
+      if (!staffMembers || staffMembers.length === 0) {
+        console.warn('No active staff members found');
+        return [];
+      }
+
+      console.log(`📊 [STAFF FORECAST SUMMARY] Processing ${staffMembers.length} staff members`);
+
+      // Calculate utilization for each staff member
+      const utilizationPromises = staffMembers.map(staff => 
+        this.calculateStaffMemberUtilization(staff, recurringTasks, months)
+      );
+
+      const staffUtilization = await Promise.all(utilizationPromises);
+
+      // Handle unassigned tasks
+      const unassignedUtilization = this.calculateUnassignedTasksUtilization(recurringTasks, months);
+      
+      const allUtilization = [...staffUtilization, unassignedUtilization].filter(Boolean);
+
+      console.log('✅ [STAFF FORECAST SUMMARY] Staff utilization calculation complete:', {
+        totalStaff: allUtilization.length,
+        assignedStaff: staffUtilization.filter(Boolean).length,
+        hasUnassigned: !!unassignedUtilization
+      });
+
+      return allUtilization;
+
     } catch (error) {
-      console.error(`Individual calculation failed for ${staffMember.name}:`, error);
-      return null;
+      console.error('❌ [STAFF FORECAST SUMMARY] Error calculating staff utilization:', error);
+      throw error;
     }
   }
 
   /**
-   * Create default utilization data for failed staff calculations
+   * Calculate utilization for a single staff member
    */
-  private static createDefaultStaffUtilization(
-    staffMember: { id: string; name: string },
+  private static async calculateStaffMemberUtilization(
+    staff: any,
+    recurringTasks: RecurringTaskDB[],
     months: MonthInfo[]
-  ): StaffUtilizationData {
-    const monthlyData: Record<string, MonthlyStaffMetrics> = {};
-    
-    for (const month of months) {
-      monthlyData[month.key] = {
-        demandHours: 0,
-        capacityHours: 173.33, // Default monthly capacity
-        gap: 173.33,
-        utilizationPercentage: 0
-      };
-    }
-
-    return {
-      staffId: staffMember.id,
-      staffName: staffMember.name,
-      monthlyData,
-      totalHours: 0,
-      totalCapacity: 173.33 * months.length,
-      utilizationPercentage: 0,
-      totalExpectedRevenue: 0,
-      expectedHourlyRate: 50, // Default rate
-      totalSuggestedRevenue: 0,
-      expectedLessSuggested: 0
-    };
-  }
-
-  /**
-   * Calculate utilization metrics for an individual staff member
-   */
-  private static async calculateIndividualStaffUtilization(
-    staffMember: { id: string; name: string },
-    staffTasks: RecurringTaskDB[],
-    months: MonthInfo[],
-    forecastPeriods: ForecastData[]
   ): Promise<StaffUtilizationData | null> {
     try {
-      debugLog(`🔧 [STAFF FORECAST SUMMARY] Calculating utilization for ${staffMember.name} (${staffMember.id})`);
+      // Get tasks assigned to this staff member
+      const assignedTasks = recurringTasks.filter(task => 
+        task.preferred_staff_id === staff.id
+      );
 
-      if (staffTasks.length === 0) {
-        debugLog(`⚠️ [STAFF FORECAST SUMMARY] No tasks found for staff ${staffMember.name}`);
+      if (assignedTasks.length === 0) {
+        console.log(`📝 [STAFF FORECAST SUMMARY] No tasks assigned to ${staff.full_name}`);
         return null;
       }
 
-      // Calculate monthly demand for this staff member
-      const monthlyDemand = this.calculateMonthlyDemand(staffTasks, forecastPeriods, months);
-      
-      // Calculate monthly metrics
-      const monthlyData: Record<string, MonthlyStaffMetrics> = {};
-      let totalDemandHours = 0;
+      console.log(`📝 [STAFF FORECAST SUMMARY] Processing ${assignedTasks.length} tasks for ${staff.full_name}`);
+
+      // Calculate monthly data
+      const monthlyData: Record<string, any> = {};
+      let totalHours = 0;
       let totalCapacityHours = 0;
 
-      // Process months in parallel for faster calculation
-      const monthlyCalculations = await Promise.all(
-        months.map(async (month) => {
-          try {
-            const demandHours = monthlyDemand.get(month.key) || 0;
-            const capacityHours = await this.getStaffCapacityForMonth(staffMember.id, month);
-            const gap = capacityHours - demandHours;
-            const utilizationPercentage = capacityHours > 0 ? (demandHours / capacityHours) * 100 : 0;
-            
-            return {
-              month: month.key,
-              metrics: {
-                demandHours,
-                capacityHours,
-                gap,
-                utilizationPercentage
-              }
-            };
-          } catch (error) {
-            console.error(`Month calculation failed for ${month.key}:`, error);
-            return {
-              month: month.key,
-              metrics: {
-                demandHours: 0,
-                capacityHours: 173.33, // Default capacity
-                gap: 173.33,
-                utilizationPercentage: 0
-              }
-            };
-          }
-        })
-      );
+      for (const month of months) {
+        const monthlyCapacity = await this.getStaffCapacityForMonth(staff.id, month);
+        const monthlyDemand = this.calculateMonthlyDemand(assignedTasks, month);
 
-      // Convert array back to Record format and calculate totals
-      monthlyCalculations.forEach(({ month, metrics }) => {
-        monthlyData[month] = metrics;
-        totalDemandHours += metrics.demandHours;
-        totalCapacityHours += metrics.capacityHours;
-      });
+        console.log(`Staff capacity calculated for ${staff.full_name}:`, {
+          staffId: staff.id,
+          month: month.key,
+          monthlyCapacity,
+          monthlyDemand,
+          hasValidDates: !!(month.startDate && month.endDate)
+        });
 
-      const overallUtilization = totalCapacityHours > 0 ? (totalDemandHours / totalCapacityHours) * 100 : 0;
+        monthlyData[month.key] = {
+          demandHours: monthlyDemand,
+          capacityHours: monthlyCapacity,
+          gap: monthlyCapacity - monthlyDemand,
+          utilizationPercentage: monthlyCapacity > 0 ? (monthlyDemand / monthlyCapacity) * 100 : 0
+        };
 
-      // Calculate financial metrics
-      const financials = await this.calculateStaffFinancials(staffMember.id, totalDemandHours);
+        totalHours += monthlyDemand;
+        totalCapacityHours += monthlyCapacity;
+      }
 
-      const utilizationData: StaffUtilizationData = {
-        staffId: staffMember.id,
-        staffName: staffMember.name,
-        monthlyData,
-        totalHours: totalDemandHours,
-        totalCapacity: totalCapacityHours,
-        utilizationPercentage: overallUtilization,
-        totalExpectedRevenue: financials.totalExpectedRevenue,
-        expectedHourlyRate: financials.expectedHourlyRate,
-        totalSuggestedRevenue: financials.totalSuggestedRevenue,
-        expectedLessSuggested: financials.expectedLessSuggested
-      };
+      const overallUtilization = totalCapacityHours > 0 ? (totalHours / totalCapacityHours) * 100 : 0;
 
-      debugLog(`✅ [STAFF FORECAST SUMMARY] Calculated utilization for ${staffMember.name}:`, {
-        totalDemandHours,
+      // Calculate revenue metrics
+      const expectedHourlyRate = staff.expected_hourly_rate || 0;
+      const totalExpectedRevenue = totalHours * expectedHourlyRate;
+      const totalSuggestedRevenue = totalHours * (staff.cost_per_hour || 0) * 1.5; // Example markup
+      const expectedLessSuggested = totalExpectedRevenue - totalSuggestedRevenue;
+
+      return {
+        staffId: staff.id,
+        staffName: staff.full_name,
+        totalHours,
         totalCapacityHours,
         utilizationPercentage: overallUtilization,
-        totalSuggestedRevenue: financials.totalSuggestedRevenue
-      });
+        expectedHourlyRate,
+        totalExpectedRevenue,
+        totalSuggestedRevenue,
+        expectedLessSuggested,
+        monthlyData
+      };
 
-      return utilizationData;
     } catch (error) {
-      console.error(`❌ [STAFF FORECAST SUMMARY] Error calculating utilization for ${staffMember.name}:`, error);
+      console.error(`Error calculating utilization for staff ${staff.full_name}:`, error);
       return null;
     }
   }
 
-
   /**
-   * Get staff capacity for a specific month
+   * Get staff capacity for a specific month with fallback date generation
+   * PHASE 2 FIX: Add fallback to generate dates from month key
    */
   private static async getStaffCapacityForMonth(
     staffId: string,
     month: MonthInfo
   ): Promise<number> {
     try {
-      // Get staff availability
-      const availability = await getWeeklyAvailabilityByStaff(staffId);
-      
-      if (availability.length === 0) {
-        // Use default capacity: 40 hours/week (173.33 hours/month)
-        debugLog(`📅 [STAFF FORECAST SUMMARY] Using default capacity for staff ${staffId}: 173.33 hours/month`);
-        return 173.33;
+      // Get weekly capacity
+      const availability = await this.availabilityService.getAvailabilityForStaff(staffId);
+      if (!availability || availability.length === 0) {
+        return 0;
       }
 
-      // Convert weekly availability to monthly capacity
-      const monthlyCapacity = await convertWeeklyToMonthlyCapacity(
-        availability,
-        month.startDate || new Date(),
-        month.endDate || new Date()
+      const weeklyCapacityHours = this.availabilityService.calculateWeeklyCapacity(availability);
+      
+      // Ensure we have valid dates, with fallback to period processing service
+      let startDate = month.startDate;
+      let endDate = month.endDate;
+      
+      if (!startDate || !endDate) {
+        // Fallback: Generate dates from month key
+        const dateRange = PeriodProcessingService.getPeriodDateRange(month.key);
+        startDate = dateRange.startDate;
+        endDate = dateRange.endDate;
+        
+        console.warn(`Month ${month.key} missing dates, generated from key:`, {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        });
+      }
+      
+      // Convert to monthly with valid dates
+      return this.availabilityService.convertWeeklyToMonthlyCapacity(
+        weeklyCapacityHours,
+        startDate,
+        endDate
       );
-
-      debugLog(`📅 [STAFF FORECAST SUMMARY] Calculated capacity for staff ${staffId}: ${monthlyCapacity} hours`);
-      return monthlyCapacity;
     } catch (error) {
-      console.error(`❌ [STAFF FORECAST SUMMARY] Error getting capacity for staff ${staffId}:`, error);
-      // Return default capacity on error
-      return 173.33;
+      console.error(`Error calculating capacity for staff ${staffId} in month ${month.key}:`, error);
+      return 0;
     }
   }
 
   /**
-   * Calculate firm-wide totals across all staff
+   * Calculate monthly demand for assigned tasks
    */
-  static calculateFirmWideTotals(utilizationData: StaffUtilizationData[]): {
-    totalDemand: number;
-    totalCapacity: number;
-    overallUtilization: number;
-    totalRevenue: number;
-    totalGap: number;
-  } {
-    const totals = utilizationData.reduce(
-      (acc, staff) => {
-        acc.totalDemand += staff.totalHours;
-        acc.totalCapacity += staff.totalCapacity;
-        acc.totalRevenue += staff.totalExpectedRevenue;
-        return acc;
-      },
-      {
-        totalDemand: 0,
-        totalCapacity: 0,
-        totalRevenue: 0
-      }
-    );
+  private static calculateMonthlyDemand(
+    tasks: RecurringTaskDB[],
+    month: MonthInfo
+  ): number {
+    return tasks.reduce((total, task) => {
+      // Simple monthly calculation - could be enhanced with recurrence logic
+      return total + (task.estimated_hours || 0);
+    }, 0);
+  }
 
-    const overallUtilization = totals.totalCapacity > 0 ? (totals.totalDemand / totals.totalCapacity) * 100 : 0;
-    const totalGap = totals.totalCapacity - totals.totalDemand;
+  /**
+   * Calculate utilization for unassigned tasks
+   */
+  private static calculateUnassignedTasksUtilization(
+    recurringTasks: RecurringTaskDB[],
+    months: MonthInfo[]
+  ): StaffUtilizationData | null {
+    const unassignedTasks = recurringTasks.filter(task => !task.preferred_staff_id);
 
-    debugLog(`📊 [STAFF FORECAST SUMMARY] Firm-wide totals calculated:`, {
-      totalDemand: totals.totalDemand,
-      totalCapacity: totals.totalCapacity,
-      overallUtilization,
-      totalGap
-    });
+    if (unassignedTasks.length === 0) {
+      return null;
+    }
+
+    const monthlyData: Record<string, any> = {};
+    let totalHours = 0;
+
+    for (const month of months) {
+      const monthlyDemand = this.calculateMonthlyDemand(unassignedTasks, month);
+      
+      monthlyData[month.key] = {
+        demandHours: monthlyDemand,
+        capacityHours: 0,
+        gap: -monthlyDemand,
+        utilizationPercentage: 0
+      };
+
+      totalHours += monthlyDemand;
+    }
 
     return {
-      ...totals,
+      staffId: 'unassigned',
+      staffName: 'Unassigned Tasks',
+      totalHours,
+      totalCapacityHours: 0,
+      utilizationPercentage: 0,
+      expectedHourlyRate: 0,
+      totalExpectedRevenue: 0,
+      totalSuggestedRevenue: 0,
+      expectedLessSuggested: 0,
+      monthlyData
+    };
+  }
+
+  /**
+   * Calculate firm-wide totals
+   */
+  static calculateFirmWideTotals(utilizationData: StaffUtilizationData[]) {
+    const totalDemand = utilizationData.reduce((sum, staff) => sum + staff.totalHours, 0);
+    const totalCapacity = utilizationData.reduce((sum, staff) => sum + staff.totalCapacityHours, 0);
+    const totalRevenue = utilizationData.reduce((sum, staff) => sum + staff.totalExpectedRevenue, 0);
+    const overallUtilization = totalCapacity > 0 ? (totalDemand / totalCapacity) * 100 : 0;
+    const totalGap = totalCapacity - totalDemand;
+
+    return {
+      totalDemand,
+      totalCapacity,
       overallUtilization,
+      totalRevenue,
       totalGap
     };
   }

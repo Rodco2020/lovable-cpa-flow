@@ -3,6 +3,7 @@ import { DemandMatrixData, DemandMatrixMode } from '@/types/demand';
 import { DemandMatrixOrchestrator } from './demand/demandMatrixOrchestrator';
 import { DemandMatrixCacheService } from './demand/demandMatrixCacheService';
 import { DemandMatrixValidationService } from './demand/demandMatrixValidationService';
+import { PeriodProcessingService } from './demand/matrixTransformer/periodProcessingService';
 
 /**
  * Demand Matrix Service - ENHANCED WITH CACHE INVALIDATION SUPPORT
@@ -91,5 +92,48 @@ export class DemandMatrixService {
    */
   static getCacheStats() {
     return DemandMatrixCacheService.getCacheStats();
+  }
+
+  /**
+   * Generate months with proper date boundaries for forecast calculations
+   * PHASE 1 FIX: Use PeriodProcessingService for proper month generation
+   */
+  static generateMonthsWithDates(
+    forecastStartDate: Date,
+    forecastEndDate: Date
+  ): Array<{ key: string; label: string; startDate: Date; endDate: Date }> {
+    console.log(`📅 [DEMAND MATRIX SERVICE] Generating months with date boundaries:`, {
+      forecastStartDate: forecastStartDate.toISOString(),
+      forecastEndDate: forecastEndDate.toISOString()
+    });
+
+    // Generate month sequence from start to end date
+    const startPeriod = `${forecastStartDate.getFullYear()}-${String(forecastStartDate.getMonth() + 1).padStart(2, '0')}`;
+    const endDate = new Date(forecastEndDate);
+    const monthCount = Math.ceil((endDate.getTime() - forecastStartDate.getTime()) / (30 * 24 * 60 * 60 * 1000)) + 1;
+    
+    const periods = PeriodProcessingService.generatePeriodSequence(startPeriod, monthCount);
+    
+    const monthsWithDates = periods.map(period => {
+      const { startDate, endDate } = PeriodProcessingService.getPeriodDateRange(period);
+      
+      return {
+        key: period,
+        label: PeriodProcessingService.formatPeriodLabel(period),
+        startDate,
+        endDate
+      };
+    });
+
+    console.log(`✅ [DEMAND MATRIX SERVICE] Generated ${monthsWithDates.length} months with dates:`, 
+      monthsWithDates.map(m => ({
+        key: m.key,
+        label: m.label,
+        startDate: m.startDate.toISOString(),
+        endDate: m.endDate.toISOString()
+      }))
+    );
+
+    return monthsWithDates;
   }
 }
