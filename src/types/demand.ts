@@ -52,16 +52,16 @@ export interface DemandMatrixDataPoint {
 export interface TaskBreakdown {
   clientId: string;
   clientName: string;
-  recurringTaskId: string;
+  recurringTaskId?: string; // Make optional for compatibility with ClientTaskDemand
   taskName: string;
   skillType: SkillType;
-  estimatedHours: number;
-  recurrencePattern: {
+  estimatedHours?: number; // Make optional for compatibility
+  recurrencePattern?: { // Make optional for compatibility
     type: string;
     interval: number;
     frequency: number;
   };
-  monthlyHours: number;
+  monthlyHours?: number; // Make optional for compatibility with ClientTaskDemand
   preferredStaffId?: string | null;
   preferredStaffName?: string | null;
 }
@@ -124,8 +124,8 @@ export interface DemandFilters {
   skills?: string[]; // Legacy compatibility
   clients?: string[];
   preferredStaff?: string[];
-  timeHorizon?: string | { start: Date; end: Date }; // Support both string and object formats
-  includeInactive?: boolean; // Add missing property
+  timeHorizon?: string | { start: Date; end: Date } | Date; // Support multiple formats
+  includeInactive?: boolean;
   dateRange?: {
     start: Date;
     end: Date;
@@ -135,21 +135,21 @@ export interface DemandFilters {
 export interface ClientTaskDemand {
   clientId: string;
   clientName: string;
-  taskId: string;
+  taskId?: string; // Make optional for compatibility
   taskName: string;
   skillType: SkillType;
-  demandHours: number;
-  month: string;
-  monthlyHours?: number; // Add missing property
-  recurringTaskId?: string; // Add missing property
-  estimatedHours?: number; // Add missing property
+  demandHours?: number; // Make optional for compatibility
+  month?: string; // Make optional for compatibility
+  monthlyHours?: number;
+  recurringTaskId?: string; // Already optional, keep it
+  estimatedHours?: number;
   recurrencePattern?: {
     type: string;
     interval: number;
     frequency: number;
   };
-  preferredStaffId?: string | null; // Add missing property
-  preferredStaffName?: string | null; // Add missing property
+  preferredStaffId?: string | null;
+  preferredStaffName?: string | null;
 }
 
 export interface DemandDataPoint {
@@ -226,20 +226,23 @@ export interface SkillSummary {
 }
 
 export interface RecurrenceCalculation {
-  monthlyHours: number;
-  frequency: number;
-  monthlyOccurrences?: number; // Add missing property
-  pattern: {
+  monthlyHours?: number; // Make optional for compatibility
+  frequency?: number; // Make optional for compatibility
+  monthlyOccurrences?: number;
+  taskId?: string; // Add missing property for compatibility
+  nextDueDates?: Date[]; // Add missing property for compatibility
+  pattern?: { // Make optional for compatibility
     type: string;
     interval: number;
   };
 }
 
 export interface DemandForecastResult {
-  demandData: DemandMatrixData;
-  matrixData?: DemandMatrixData; // Add missing property for compatibility
-  success?: boolean; // Add missing property for compatibility
-  metadata: {
+  demandData?: DemandMatrixData; // Make optional for compatibility
+  matrixData?: DemandMatrixData;
+  success?: boolean;
+  errors?: string[]; // Add missing property
+  metadata?: { // Make optional for compatibility
     calculationTime: number;
     totalRecords: number;
     dateRange: { start: Date; end: Date };

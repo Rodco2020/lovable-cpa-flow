@@ -15,7 +15,7 @@ export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
   }
 
   shouldApply(filters: DemandFilters): boolean {
-    return !!(filters.timeHorizon && filters.timeHorizon.start && filters.timeHorizon.end);
+    return !!(filters.timeHorizon && typeof filters.timeHorizon === 'object' && 'start' in filters.timeHorizon && 'end' in filters.timeHorizon);
   }
 
   apply(data: DemandMatrixData, filters: DemandFilters): DemandMatrixData {
@@ -24,7 +24,8 @@ export class TimeHorizonFilterStrategy extends AbstractFilterStrategy {
       return data;
     }
 
-    const { start, end } = filters.timeHorizon!;
+    const timeRange = filters.timeHorizon as { start: Date; end: Date };
+    const { start, end } = timeRange;
     console.log(`🎯 [TIME FILTER] Applying time horizon filter: ${start.toISOString()} to ${end.toISOString()}`);
 
     // Enhanced range validation and expansion
