@@ -1,22 +1,24 @@
 
 import { getClientRecurringTasks } from '@/services/clientTaskService';
-import { getAllStaff } from '@/services/staffService';
 import { SkillsIntegrationService } from './skillsIntegrationService';
 import { normalizeSkills } from '../skillNormalizationService';
 import { ForecastData, SkillHours } from '@/types/forecasting';
 import { SkillType } from '@/types/task';
 import { debugLog } from './logger';
 import { addMonths, format, startOfMonth } from 'date-fns';
+import { AvailabilityBasedCapacityService } from './capacity/availabilityBasedCapacityService';
 
 /**
  * Skill-Aware Forecasting Service
- * Handles forecasting with proper skill ID resolution and normalization
- * FIXED: Now uses full task hours for each skill (matching Demand Forecast Matrix logic)
+ * Now enhanced with availability-based capacity calculation
+ * UPDATED: Uses real staff availability data instead of fixed 160-hour assumption
  */
 export class SkillAwareForecastingService {
+  private static capacityService = new AvailabilityBasedCapacityService();
+
   /**
    * Generate demand forecast with proper skill resolution
-   * FIXED: Allocates full task hours to each required skill instead of dividing
+   * UNCHANGED: Demand calculation logic remains the same
    */
   static async generateDemandForecast(startDate: Date, endDate: Date): Promise<ForecastData[]> {
     debugLog('Generating demand forecast with skill resolution (FIXED: full hours per skill)', { startDate, endDate });
@@ -108,13 +110,44 @@ export class SkillAwareForecastingService {
   }
   
   /**
-   * Generate capacity forecast with proper skill resolution
-   * NOTE: Capacity calculation remains unchanged (uses division for capacity distribution)
+   * Generate capacity forecast using availability-based calculation
+   * ENHANCED: Now uses real staff availability data from availability matrix
    */
   static async generateCapacityForecast(startDate: Date, endDate: Date): Promise<ForecastData[]> {
-    debugLog('Generating capacity forecast with skill resolution', { startDate, endDate });
+    debugLog('Generating AVAILABILITY-BASED capacity forecast', { startDate, endDate });
     
     try {
+      console.log('🔄 [CAPACITY FORECAST] Switching to availability-based calculation...');
+      
+      // Use the new availability-based capacity service
+      const forecastPeriods = await this.capacityService.generateAvailabilityBasedCapacityForecast(
+        startDate, 
+        endDate
+      );
+
+      debugLog(`Generated ${forecastPeriods.length} availability-based capacity forecast periods`);
+      console.log('✅ [CAPACITY FORECAST] Availability-based calculation complete');
+      
+      return forecastPeriods;
+      
+    } catch (error) {
+      debugLog('Error generating availability-based capacity forecast:', error);
+      console.error('❌ [CAPACITY FORECAST] Failed, falling back to fixed capacity');
+      
+      // Fallback to previous fixed capacity logic
+      return this.generateFallbackCapacityForecast(startDate, endDate);
+    }
+  }
+
+  /**
+   * Fallback capacity forecast using fixed 160-hour assumption
+   * Used when availability data is insufficient
+   */
+  private static async generateFallbackCapacityForecast(startDate: Date, endDate: Date): Promise<ForecastData[]> {
+    debugLog('Generating FALLBACK capacity forecast with fixed hours', { startDate, endDate });
+    
+    try {
+      const { getAllStaff } = await import('@/services/staffService');
       const staff = await getAllStaff();
       const forecastPeriods: ForecastData[] = [];
       
@@ -133,16 +166,16 @@ export class SkillAwareForecastingService {
             const resolvedSkillNames = await SkillsIntegrationService.resolveSkillIds(staffMember.assignedSkills);
             const normalizedSkills = await normalizeSkills(resolvedSkillNames, staffMember.id);
             
-            debugLog(`Staff "${staffMember.fullName}" skills resolved:`, {
+            debugLog(`Staff "${staffMember.fullName}" skills resolved (FALLBACK):`, {
               originalIds: staffMember.assignedSkills,
               resolvedNames: resolvedSkillNames,
               normalized: normalizedSkills
             });
             
-            // Assume 160 hours per month capacity per staff member
+            // Assume 160 hours per month capacity per staff member (FALLBACK)
             const monthlyCapacity = 160;
             
-            // NOTE: For capacity, we still divide among skills (staff splits time)
+            // For capacity, we divide among skills (staff splits time)
             const hoursPerSkill = normalizedSkills.length > 0 ? monthlyCapacity / normalizedSkills.length : 0;
             
             normalizedSkills.forEach(skill => {
@@ -151,7 +184,7 @@ export class SkillAwareForecastingService {
             });
             
           } catch (error) {
-            debugLog(`Error processing staff ${staffMember.id}:`, error);
+            debugLog(`Error processing staff ${staffMember.id} (FALLBACK):`, error);
             // Fallback: assign to Junior Staff if resolution fails
             const fallbackSkill: SkillType = 'Junior Staff';
             const currentCapacity = capacityBySkill.get(fallbackSkill) || 0;
@@ -161,10 +194,16 @@ export class SkillAwareForecastingService {
         
         // Convert map to SkillHours array
         capacityBySkill.forEach((hours, skill) => {
-          capacitySkillHours.push({ skill, hours });
+          capacitySkillHours.push({ 
+            skill, 
+            hours,
+            metadata: {
+              calculationNotes: 'Fallback: Fixed 160h/month assumption'
+            }
+          });
         });
         
-        debugLog(`Period ${periodKey} capacity:`, capacitySkillHours);
+        debugLog(`Period ${periodKey} capacity (FALLBACK):`, capacitySkillHours);
         
         forecastPeriods.push({
           period: periodKey,
@@ -174,11 +213,11 @@ export class SkillAwareForecastingService {
         });
       }
       
-      debugLog(`Generated ${forecastPeriods.length} capacity forecast periods`);
+      debugLog(`Generated ${forecastPeriods.length} fallback capacity forecast periods`);
       return forecastPeriods;
       
     } catch (error) {
-      debugLog('Error generating capacity forecast:', error);
+      debugLog('Error generating fallback capacity forecast:', error);
       throw error;
     }
   }
