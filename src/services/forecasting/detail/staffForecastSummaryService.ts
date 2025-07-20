@@ -1,8 +1,9 @@
+
 import { supabase } from '@/lib/supabase';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
-import { AvailabilityService } from '@/services/availability/availabilityService';
+import { EnhancedAvailabilityService } from '@/services/availability/enhancedAvailabilityService';
 import { PeriodProcessingService } from '../demand/matrixTransformer/periodProcessingService';
 import { staffQueries } from '@/utils/staffQueries';
 
@@ -10,10 +11,10 @@ import { staffQueries } from '@/utils/staffQueries';
  * Staff Forecast Summary Service
  * 
  * Handles calculation of staff utilization data for forecast summary views
- * FIXED: Now uses centralized staff queries to avoid schema mismatch
+ * FIXED: Now uses EnhancedAvailabilityService to properly parse time slots
  */
 export class StaffForecastSummaryService {
-  private static availabilityService = new AvailabilityService();
+  private static enhancedAvailabilityService = new EnhancedAvailabilityService();
 
   /**
    * Calculate staff utilization across forecast periods
@@ -96,13 +97,7 @@ export class StaffForecastSummaryService {
         const monthlyCapacity = await this.getStaffCapacityForMonth(staff.id, month);
         const monthlyDemand = this.calculateMonthlyDemand(assignedTasks, month);
 
-        console.log(`Staff capacity calculated for ${staff.full_name}:`, {
-          staffId: staff.id,
-          month: month.key,
-          monthlyCapacity,
-          monthlyDemand,
-          hasValidDates: !!(month.startDate && month.endDate)
-        });
+        console.log(`Calculated capacity for ${staff.full_name} in ${month.key}: ${monthlyCapacity} hours`);
 
         monthlyData[month.key] = {
           demandHours: monthlyDemand,
@@ -143,22 +138,25 @@ export class StaffForecastSummaryService {
   }
 
   /**
-   * Get staff capacity for a specific month with fallback date generation
-   * PHASE 2 FIX: Add fallback to generate dates from month key
+   * Get staff capacity for a specific month using EnhancedAvailabilityService
+   * FIXED: Replaced legacy service with enhanced service that parses time slots
    */
   private static async getStaffCapacityForMonth(
     staffId: string,
     month: MonthInfo
   ): Promise<number> {
     try {
-      // Get weekly capacity
-      const availability = await this.availabilityService.getAvailabilityForStaff(staffId);
-      if (!availability || availability.length === 0) {
+      // Use enhanced service to get weekly capacity with proper time slot parsing
+      const weeklyCapacitySummary = await this.enhancedAvailabilityService.calculateWeeklyCapacitySummary(staffId);
+      
+      if (!weeklyCapacitySummary || weeklyCapacitySummary.weeklyHours === 0) {
+        console.warn(`No availability found for staff ${staffId}`);
         return 0;
       }
 
-      const weeklyCapacityHours = this.availabilityService.calculateWeeklyCapacity(availability);
-      
+      // Log for debugging
+      console.log(`Staff ${staffId} weekly capacity: ${weeklyCapacitySummary.weeklyHours} hours`);
+
       // Ensure we have valid dates, with fallback to period processing service
       let startDate = month.startDate;
       let endDate = month.endDate;
@@ -174,13 +172,17 @@ export class StaffForecastSummaryService {
           endDate: endDate.toISOString()
         });
       }
-      
-      // Convert to monthly with valid dates
-      return this.availabilityService.convertWeeklyToMonthlyCapacity(
-        weeklyCapacityHours,
+
+      // Convert weekly to monthly using enhanced service method
+      const monthlyCapacity = this.enhancedAvailabilityService.calculateMonthlyCapacity(
+        weeklyCapacitySummary.weeklyHours,
         startDate,
         endDate
       );
+
+      console.log(`Staff ${staffId} monthly capacity for ${month.key}: ${monthlyCapacity} hours`);
+      
+      return monthlyCapacity;
     } catch (error) {
       console.error(`Error calculating capacity for staff ${staffId} in month ${month.key}:`, error);
       return 0;
