@@ -53,12 +53,12 @@ export const DetailForecastMatrixHeader: React.FC<DetailForecastMatrixHeaderProp
     <thead>
       <tr>
         {/* Task Identification Columns */}
-        <RegularHeader>Task Name</RegularHeader>
-        <RegularHeader>Client Name</RegularHeader>
-        <RegularHeader>Skill Required</RegularHeader>
-        <RegularHeader>Priority</RegularHeader>
-        <RegularHeader>Category</RegularHeader>
-        <RegularHeader>Recurrence Pattern</RegularHeader>
+        <RegularHeader className="min-w-[200px]">Task Name</RegularHeader>
+        <RegularHeader className="min-w-[150px]">Client Name</RegularHeader>
+        <RegularHeader className="min-w-[100px]">Skill Required</RegularHeader>
+        <RegularHeader className="min-w-[80px]">Priority</RegularHeader>
+        <RegularHeader className="min-w-[100px]">Category</RegularHeader>
+        <RegularHeader className="min-w-[120px]">Recurrence Pattern</RegularHeader>
         
         {/* Monthly Hour Columns */}
         {monthLabels.map((monthLabel, index) => (
@@ -68,27 +68,27 @@ export const DetailForecastMatrixHeader: React.FC<DetailForecastMatrixHeaderProp
         ))}
         
         {/* Revenue Calculation Columns */}
-        <RegularHeader className="bg-slate-200 border-l-2 border-slate-300">
+        <RegularHeader className="bg-slate-200 border-l-2 border-slate-300 min-w-[100px]">
           Total Hours
         </RegularHeader>
         
-        <RegularHeader className="bg-green-200 border-l-2 border-green-300">
+        <RegularHeader className="bg-green-200 border-l-2 border-green-300 min-w-[150px]">
           Total Expected Revenue
         </RegularHeader>
         
-        <RegularHeader className="bg-purple-200 border-l-2 border-purple-300">
+        <RegularHeader className="bg-purple-200 border-l-2 border-purple-300 min-w-[130px]">
           Expected Hourly Rate
         </RegularHeader>
         
         <TooltipHeader 
-          className="bg-emerald-200 border-l-2 border-emerald-300"
+          className="bg-emerald-200 border-l-2 border-emerald-300 min-w-[150px]"
           tooltip="Revenue calculated using skill-based fee rates multiplied by total hours"
         >
           Total Suggested Revenue
         </TooltipHeader>
         
         <TooltipHeader 
-          className="bg-amber-200 border-l-2 border-amber-300"
+          className="bg-amber-200 border-l-2 border-amber-300 min-w-[160px]"
           tooltip="Difference between Expected Revenue (apportioned from client revenue) and Suggested Revenue (skill-based rates). Positive values indicate higher profitability."
         >
           Expected Less Suggested
