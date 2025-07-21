@@ -138,7 +138,6 @@ export const useStaffForecastSummary = ({
         name: task.taskName,
         client_id: task.clientId,
         estimated_hours: estimatedHours, // Use the validated hours
-        monthlyDistribution: task.monthlyDistribution, // ← PHASE 4: VERIFY THIS EXISTS
         recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
         preferred_staff_id: task.preferredStaffId || null,
         is_active: true,
@@ -169,10 +168,8 @@ export const useStaffForecastSummary = ({
       sampleTask: transformed[0] ? {
         name: transformed[0].name,
         estimatedHours: transformed[0].estimated_hours,
-        preferredStaffId: transformed[0].preferred_staff_id,
-        hasMonthlyDistribution: !!transformed[0].monthlyDistribution
-      } : null,
-      preservedMonthlyDistribution: transformed.filter(t => t.monthlyDistribution).length
+        preferredStaffId: transformed[0].preferred_staff_id
+      } : null
     });
 
     return transformed;

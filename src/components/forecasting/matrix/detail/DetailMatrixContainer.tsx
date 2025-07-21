@@ -9,6 +9,7 @@ import { useDemandMatrixHandlers } from '../hooks/useDemandMatrixHandlers';
 import { useMatrixFiltering } from '../hooks/useMatrixFiltering';
 import { useStaffForecastSummary } from './hooks/useStaffForecastSummary';
 import { createCloseHandlers, isComponentLoading } from '../utils/demandMatrixUtils';
+import { DetailMatrixPresentation } from './DetailMatrixPresentation';
 
 interface DetailMatrixContainerProps {
   className?: string;
@@ -19,11 +20,11 @@ interface DetailMatrixContainerProps {
 /**
  * PHASE 1: DetailMatrixContainer with corrected data flow for Staff Forecast Summary
  */
-export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
+export const DetailMatrixContainer = ({
   className,
   groupingMode,
   initialViewMode = 'detail-matrix'
-}) => {
+}: DetailMatrixContainerProps) => {
   const {
     validationIssues,
     isControlsExpanded,
@@ -96,21 +97,41 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   // Get filtered data
   const filteredData = getFilteredData();
 
-  // Extract filtered tasks from the filtered data
+  // Extract filtered tasks from the data points task breakdown
   const filteredTasks = useMemo(() => {
-    if (!filteredData || !filteredData.tasks) return [];
+    if (!filteredData || !filteredData.dataPoints) return [];
+    
+    // Extract tasks from dataPoints taskBreakdown
+    const allTasks = filteredData.dataPoints.flatMap(dp => 
+      dp.taskBreakdown.map(task => ({
+        id: task.recurringTaskId || `${task.clientId}-${task.taskName}`,
+        taskName: task.taskName,
+        clientId: task.clientId,
+        clientName: task.clientName,
+        skillRequired: task.skillType,
+        preferredStaffId: task.preferredStaffId,
+        preferredStaffName: task.preferredStaffName,
+        monthlyHours: task.monthlyHours || task.estimatedHours || 0,
+        totalHours: task.estimatedHours || 0,
+        recurrencePattern: task.recurrencePattern,
+        priority: 'medium',
+        category: 'general',
+        description: '',
+        monthlyDistribution: {} // Empty object as fallback
+      }))
+    );
     
     console.log('🎯 [DETAIL CONTAINER] Extracting filtered tasks:', {
       totalDataPoints: filteredData.dataPoints.length,
-      tasksCount: filteredData.tasks.length,
-      sampleTask: filteredData.tasks[0] ? {
-        taskName: filteredData.tasks[0].taskName,
-        preferredStaffId: filteredData.tasks[0].preferredStaffId,
-        skillRequired: filteredData.tasks[0].skillRequired
+      tasksCount: allTasks.length,
+      sampleTask: allTasks[0] ? {
+        taskName: allTasks[0].taskName,
+        preferredStaffId: allTasks[0].preferredStaffId,
+        skillRequired: allTasks[0].skillRequired
       } : null
     });
     
-    return filteredData.tasks;
+    return allTasks;
   }, [filteredData]);
 
   // Get months from data
@@ -160,7 +181,7 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   useEffect(() => {
     if (initialViewMode === 'staff-forecast-summary') {
       console.log(`🎯 [DETAIL CONTAINER] Staff Forecast Summary Data Flow:`, {
-        rawDataTasks: data?.tasks?.length || 0,
+        rawDataPoints: data?.dataPoints?.length || 0,
         filteredTasksCount: filteredTasks.length,
         utilizationDataCount: utilizationData.length,
         staffLoading,
@@ -194,7 +215,11 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
     preferredStaffError: null
   };
 
-  return {
+  // Prepare all props for the presentation component
+  const presentationProps = {
+    className,
+    groupingMode,
+    initialViewMode,
     data,
     filteredData,
     filteredTasks,
@@ -222,4 +247,6 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
     onShowPrintExport: handleShowPrintExport,
     ...closeHandlers,
   };
+
+  return <DetailMatrixPresentation {...presentationProps} />;
 };

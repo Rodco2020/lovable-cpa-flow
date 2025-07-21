@@ -94,7 +94,7 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
         
         {/* Detail matrix container */}
         <DetailMatrixErrorBoundary>
-          <DetailMatrixContainer groupingMode={groupingMode} viewMode={viewMode} />
+          <DetailMatrixContainer groupingMode={groupingMode} initialViewMode={viewMode} />
         </DetailMatrixErrorBoundary>
       </div>
     </div>
