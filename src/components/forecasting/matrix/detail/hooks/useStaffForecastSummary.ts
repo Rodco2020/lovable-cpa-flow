@@ -72,33 +72,57 @@ export const useStaffForecastSummary = ({
 
   // Stabilize dependencies to prevent re-render loops
   const stableRecurringTasks = useMemo(() => {
-    return filteredTasks.map(task => ({
-      id: task.id,
-      name: task.taskName,
-      client_id: task.clientId,
-      estimated_hours: task.monthlyHours || task.totalHours || 0,
-      recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
-      preferred_staff_id: task.preferredStaffId || null,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      template_id: task.id,
-      due_date: null,
-      recurrence_interval: 1,
-      weekdays: null,
-      day_of_month: null,
-      month_of_year: null,
-      end_date: null,
-      custom_offset_days: null,
-      last_generated_date: null,
-      weekdays_for_daily: null,
-      notes: null,
-      description: task.description || null,
-      required_skills: [task.skillRequired],
-      priority: task.priority || 'medium',
-      category: task.category || 'general',
-      status: 'Unscheduled' as const
-    })) as unknown as RecurringTaskDB[];
+    return filteredTasks.map(task => {
+      // PHASE 4: Verify Staff Forecast Summary Hook - Add validation logging
+      const estimatedHours = (() => {
+        const hours = task.monthlyHours || 0;
+        
+        // Log Ana's tasks to verify the fix
+        if (task.preferredStaffName?.includes('Ana Florian') && task.taskName.includes('Monthly Bookkeeping')) {
+          console.log(`🎯 [STAFF SUMMARY VALIDATION] Ana's task: ${task.taskName}`, {
+            monthlyHours: task.monthlyHours,  // Should be 1.0 for monthly bookkeeping
+            totalHours: task.totalHours,      // Should be 12+ for yearly total
+            using: hours                      // Should use monthlyHours (1.0)
+          });
+        }
+        
+        // Safety check - per-occurrence hours should never be > 100
+        if (hours > 100) {
+          console.error(`❌ [ERROR] Task ${task.taskName} has invalid monthlyHours: ${hours}`);
+          return 1; // Fallback to 1 hour
+        }
+        
+        return hours || 1; // Default to 1 if still 0
+      })();
+
+      return {
+        id: task.id,
+        name: task.taskName,
+        client_id: task.clientId,
+        estimated_hours: estimatedHours, // Use the validated hours
+        recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
+        preferred_staff_id: task.preferredStaffId || null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        template_id: task.id,
+        due_date: null,
+        recurrence_interval: 1,
+        weekdays: null,
+        day_of_month: null,
+        month_of_year: null,
+        end_date: null,
+        custom_offset_days: null,
+        last_generated_date: null,
+        weekdays_for_daily: null,
+        notes: null,
+        description: task.description || null,
+        required_skills: [task.skillRequired],
+        priority: task.priority || 'medium',
+        category: task.category || 'general',
+        status: 'Unscheduled' as const
+      };
+    }) as unknown as RecurringTaskDB[];
   }, [JSON.stringify(filteredTasks?.map(t => t.id))]);
 
   const stableForecastPeriods = useMemo(() => {
