@@ -11,7 +11,6 @@ interface UseStaffForecastSummaryOptions {
   selectedClients: string[];
   selectedPreferredStaff: (string | number | null | undefined)[];
   enabled?: boolean;
-  isPreFiltered?: boolean; // ← PHASE 2: ADD THIS FLAG
 }
 
 interface UseStaffForecastSummaryResult {
@@ -38,8 +37,7 @@ export const useStaffForecastSummary = ({
   selectedSkills,
   selectedClients,
   selectedPreferredStaff,
-  enabled = true,
-  isPreFiltered = false // ← PHASE 2: ADD DEFAULT VALUE
+  enabled = true
 }: UseStaffForecastSummaryOptions): UseStaffForecastSummaryResult => {
   const [utilizationData, setUtilizationData] = useState<StaffUtilizationData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,25 +46,6 @@ export const useStaffForecastSummary = ({
   // Filter tasks based on current filter selections
   const filteredTasks = useMemo(() => {
     if (!tasks || !enabled) return [];
-
-    // PHASE 2: SKIP FILTERING IF DATA IS ALREADY FILTERED
-    if (isPreFiltered) {
-      console.log('🎯 [STAFF SUMMARY] Using pre-filtered tasks:', {
-        taskCount: tasks.length,
-        isPreFiltered: true,
-        skipFilteringLogic: true
-      });
-      return tasks;
-    }
-
-    // Only apply filtering if data is NOT pre-filtered
-    console.log('🔍 [STAFF SUMMARY] Applying filters to raw tasks:', {
-      inputTaskCount: tasks.length,
-      isPreFiltered: false,
-      selectedSkillsCount: selectedSkills.length,
-      selectedClientsCount: selectedClients.length,
-      selectedStaffCount: selectedPreferredStaff.filter(Boolean).length
-    });
 
     return tasks.filter(task => {
       // Skills filter
@@ -89,35 +68,11 @@ export const useStaffForecastSummary = ({
 
       return true;
     });
-  }, [tasks, selectedSkills, selectedClients, selectedPreferredStaff, enabled, isPreFiltered]);
-
-  // PHASE 3: Add comprehensive debug logging
-  useEffect(() => {
-    console.log('📊 [STAFF SUMMARY] Data Flow Analysis:', {
-      inputTasksCount: tasks?.length || 0,
-      isPreFiltered: isPreFiltered,
-      filteredTasksCount: filteredTasks.length,
-      selectedStaffCount: selectedPreferredStaff.filter(Boolean).length,
-      selectedSkillsCount: selectedSkills.length,
-      selectedClientsCount: selectedClients.length,
-      enabledState: enabled,
-      filteringSkipped: isPreFiltered,
-      dataFlowCorrect: isPreFiltered ? filteredTasks.length > 0 : true
-    });
-  }, [tasks, isPreFiltered, filteredTasks, selectedPreferredStaff, selectedSkills, selectedClients, enabled]);
+  }, [tasks, selectedSkills, selectedClients, selectedPreferredStaff, enabled]);
 
   // Stabilize dependencies to prevent re-render loops
   const stableRecurringTasks = useMemo(() => {
-    /**
-     * Transform task data from Detail Matrix format to RecurringTaskDB format
-     * @param task - Task with recurrencePattern as {type: string, interval: number, frequency: number}
-     */
-    const transformed = filteredTasks.map(task => {
-      // Add validation before the transformation
-      if (task.recurrencePattern && typeof task.recurrencePattern !== 'object') {
-        console.warn('Unexpected recurrencePattern type:', typeof task.recurrencePattern, task);
-      }
-
+    return filteredTasks.map(task => {
       // PHASE 4: Verify Staff Forecast Summary Hook - Add validation logging
       const estimatedHours = (() => {
         const hours = task.monthlyHours || 0;
@@ -127,8 +82,7 @@ export const useStaffForecastSummary = ({
           console.log(`🎯 [STAFF SUMMARY VALIDATION] Ana's task: ${task.taskName}`, {
             monthlyHours: task.monthlyHours,  // Should be 1.0 for monthly bookkeeping
             totalHours: task.totalHours,      // Should be 12+ for yearly total
-            using: hours,                     // Should use monthlyHours (1.0)
-            monthlyDistribution: task.monthlyDistribution // Should show per-month breakdown
+            using: hours                      // Should use monthlyHours (1.0)
           });
         }
         
@@ -146,15 +100,15 @@ export const useStaffForecastSummary = ({
         name: task.taskName,
         client_id: task.clientId,
         estimated_hours: estimatedHours, // Use the validated hours
-        recurrence_type: task.recurrencePattern?.type?.toLowerCase() || 'monthly', // ← SURGICAL FIX: Access .type property
+        recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
         preferred_staff_id: task.preferredStaffId || null,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         template_id: task.id,
         due_date: null,
-        recurrence_interval: task.recurrencePattern?.interval || 1,
-        weekdays: task.recurrencePattern?.weekdays || null,
+        recurrence_interval: 1,
+        weekdays: null,
         day_of_month: null,
         month_of_year: null,
         end_date: null,
@@ -169,19 +123,6 @@ export const useStaffForecastSummary = ({
         status: 'Unscheduled' as const
       };
     }) as unknown as RecurringTaskDB[];
-
-    // PHASE 3: Log transformed tasks for service
-    console.log('🔄 [STAFF SUMMARY] Transformed tasks for service:', {
-      recurringTasksCount: transformed.length,
-      sampleTask: transformed[0] ? {
-        name: transformed[0].name,
-        estimatedHours: transformed[0].estimated_hours,
-        preferredStaffId: transformed[0].preferred_staff_id,
-        recurrenceType: transformed[0].recurrence_type // Log the fixed recurrence type
-      } : null
-    });
-
-    return transformed;
   }, [JSON.stringify(filteredTasks?.map(t => t.id))]);
 
   const stableForecastPeriods = useMemo(() => {
@@ -227,9 +168,7 @@ export const useStaffForecastSummary = ({
             skills: selectedSkills.length,
             clients: selectedClients.length,
             staff: selectedPreferredStaff.filter(Boolean).length
-          },
-          isPreFiltered: isPreFiltered,
-          dataSource: isPreFiltered ? 'PRE-FILTERED' : 'RAW-WITH-FILTERING'
+          }
         });
 
         const result = await StaffForecastSummaryService.calculateStaffUtilization(
@@ -244,8 +183,7 @@ export const useStaffForecastSummary = ({
         console.log('✅ [STAFF FORECAST HOOK] Utilization calculation complete:', {
           staffCount: result.length,
           totalStaff: result.filter(s => s.staffId !== 'unassigned').length,
-          unassignedTasks: result.find(s => s.staffId === 'unassigned')?.totalHours || 0,
-          dataFlowSuccess: true
+          unassignedTasks: result.find(s => s.staffId === 'unassigned')?.totalHours || 0
         });
 
       } catch (err) {
@@ -266,8 +204,7 @@ export const useStaffForecastSummary = ({
     months.length,
     selectedSkills.length,
     selectedClients.length,
-    selectedPreferredStaff.filter(Boolean).length,
-    isPreFiltered // Add to dependencies
+    selectedPreferredStaff.filter(Boolean).length
   ]);
 
   // Add cleanup on unmount

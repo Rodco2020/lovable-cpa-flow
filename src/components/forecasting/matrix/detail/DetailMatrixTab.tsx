@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, FileText } from 'lucide-react';
-import { DetailMatrix } from './DetailMatrix';
+import { DetailMatrixContainer } from './DetailMatrixContainer';
 import { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
 
 interface DetailMatrixTabProps {
@@ -17,9 +16,6 @@ interface DetailMatrixTabProps {
  * 
  * New tab for the forecasting dashboard that displays task-level detail data.
  * Phase 3 complete: Full filter integration with existing controls.
- * 
- * SURGICAL FIX: Now uses DetailMatrix wrapper instead of DetailMatrixContainer
- * to ensure proper DemandMatrixStateProvider context.
  */
 export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({ 
   className 
@@ -96,12 +92,9 @@ export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({
           </AlertDescription>
         </Alert>
         
-        {/* Detail matrix container - NOW USING WRAPPER WITH CONTEXT */}
+        {/* Detail matrix container */}
         <DetailMatrixErrorBoundary>
-          <DetailMatrix 
-            groupingMode={groupingMode} 
-            initialViewMode={viewMode} 
-          />
+          <DetailMatrixContainer groupingMode={groupingMode} viewMode={viewMode} />
         </DetailMatrixErrorBoundary>
       </div>
     </div>
