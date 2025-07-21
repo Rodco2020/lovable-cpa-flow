@@ -2,8 +2,13 @@
  * Detail Matrix Module Exports
  * 
  * Phase 4: Complete integration of DetailForecastMatrixGrid
+ * SURGICAL FIX: Added DetailMatrix wrapper export
  */
 
+// NEW: Main wrapper component with context provider
+export { DetailMatrix } from './DetailMatrix';
+
+// Existing exports for backwards compatibility
 export { DetailMatrixContainer } from './DetailMatrixContainer';
 export { DetailMatrixStateProvider } from './DetailMatrixStateProvider';
 export { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
