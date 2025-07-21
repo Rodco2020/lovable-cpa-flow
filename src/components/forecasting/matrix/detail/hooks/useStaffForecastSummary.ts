@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
@@ -82,7 +83,8 @@ export const useStaffForecastSummary = ({
           console.log(`🎯 [STAFF SUMMARY VALIDATION] Ana's task: ${task.taskName}`, {
             monthlyHours: task.monthlyHours,  // Should be 1.0 for monthly bookkeeping
             totalHours: task.totalHours,      // Should be 12+ for yearly total
-            using: hours                      // Should use monthlyHours (1.0)
+            using: hours,                     // Should use monthlyHours (1.0)
+            monthlyDistribution: task.monthlyDistribution // Should show per-month breakdown
           });
         }
         
@@ -100,6 +102,7 @@ export const useStaffForecastSummary = ({
         name: task.taskName,
         client_id: task.clientId,
         estimated_hours: estimatedHours, // Use the validated hours
+        monthlyDistribution: task.monthlyDistribution, // ← PHASE 1: ADD THIS LINE
         recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
         preferred_staff_id: task.preferredStaffId || null,
         is_active: true,
