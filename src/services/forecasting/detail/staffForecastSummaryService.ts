@@ -1,9 +1,8 @@
 
-import { StaffUtilizationData, MonthInfo } from '@/types/demand';
+import { StaffUtilizationData, MonthInfo, MonthlyStaffMetrics } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
-import { DetailMatrixDataService } from '@/services/forecasting/matrix/detailMatrixDataService';
-import { MonthlyDemandCalculationService } from './monthlyDemandCalculationService';
+import { MonthlyDemandCalculationService } from '@/services/forecasting/demand/matrixTransformer/monthlyDemandCalculationService';
 
 // PHASE 3: Type extension for TypeScript
 interface RecurringTaskWithDistribution extends RecurringTaskDB {
@@ -79,15 +78,19 @@ export class StaffForecastSummaryService {
     const staffTasks = tasks.filter(task => task.preferred_staff_id === staff.id);
     
     // Calculate monthly data
-    const monthlyData = months.map(month => {
-      const demand = this.calculateMonthlyDemandForStaff(staffTasks, month, staff.name);
-      const capacity = 160; // Standard monthly capacity (40 hours/week * 4 weeks)
+    const monthlyData: Record<string, MonthlyStaffMetrics> = {};
+    
+    months.forEach(month => {
+      const demandHours = this.calculateMonthlyDemandForStaff(staffTasks, month, staff.name);
+      const capacityHours = 160; // Standard monthly capacity (40 hours/week * 4 weeks)
+      const gap = demandHours - capacityHours;
+      const utilizationPercentage = capacityHours > 0 ? (demandHours / capacityHours) * 100 : 0;
       
-      return {
-        month: month.key,
-        demand,
-        capacity,
-        utilization: capacity > 0 ? (demand / capacity) * 100 : 0
+      monthlyData[month.key] = {
+        demandHours,
+        capacityHours,
+        gap,
+        utilizationPercentage
       };
     });
     
@@ -98,23 +101,25 @@ export class StaffForecastSummaryService {
     }
     
     // Calculate totals
-    const totalHours = monthlyData.reduce((sum, month) => sum + month.demand, 0);
-    const totalCapacity = monthlyData.reduce((sum, month) => sum + month.capacity, 0);
-    const utilizationPercentage = totalCapacity > 0 ? (totalHours / totalCapacity) * 100 : 0;
+    const totalHours = Object.values(monthlyData).reduce((sum, month) => sum + month.demandHours, 0);
+    const totalCapacityHours = Object.values(monthlyData).reduce((sum, month) => sum + month.capacityHours, 0);
+    const utilizationPercentage = totalCapacityHours > 0 ? (totalHours / totalCapacityHours) * 100 : 0;
     
     // Calculate revenue (simplified - could be enhanced with actual rates)
-    const avgHourlyRate = 75; // Default rate
-    const totalExpectedRevenue = totalHours * avgHourlyRate;
+    const expectedHourlyRate = 75; // Default rate
+    const totalExpectedRevenue = totalHours * expectedHourlyRate;
     
     return {
       staffId: staff.id,
       staffName: staff.name,
       totalHours,
-      totalCapacity,
+      totalCapacityHours,
       utilizationPercentage,
+      expectedHourlyRate,
       totalExpectedRevenue,
-      monthlyData,
-      gap: totalHours - totalCapacity
+      totalSuggestedRevenue: totalExpectedRevenue, // Same as expected for now
+      expectedLessSuggested: 0, // No difference for now
+      monthlyData
     };
   }
   
@@ -176,28 +181,32 @@ export class StaffForecastSummaryService {
     }
     
     // Calculate monthly data for unassigned tasks
-    const monthlyData = months.map(month => {
-      const demand = this.calculateMonthlyDemandForStaff(unassignedTasks, month, 'Unassigned');
+    const monthlyData: Record<string, MonthlyStaffMetrics> = {};
+    
+    months.forEach(month => {
+      const demandHours = this.calculateMonthlyDemandForStaff(unassignedTasks, month, 'Unassigned');
       
-      return {
-        month: month.key,
-        demand,
-        capacity: 0, // No capacity for unassigned
-        utilization: 0
+      monthlyData[month.key] = {
+        demandHours,
+        capacityHours: 0, // No capacity for unassigned
+        gap: demandHours, // All demand is gap since no capacity
+        utilizationPercentage: 0
       };
     });
     
-    const totalHours = monthlyData.reduce((sum, month) => sum + month.demand, 0);
+    const totalHours = Object.values(monthlyData).reduce((sum, month) => sum + month.demandHours, 0);
     
     return {
       staffId: 'unassigned',
       staffName: 'Unassigned Tasks',
       totalHours,
-      totalCapacity: 0,
+      totalCapacityHours: 0,
       utilizationPercentage: 0,
+      expectedHourlyRate: 75,
       totalExpectedRevenue: 0,
-      monthlyData,
-      gap: totalHours
+      totalSuggestedRevenue: 0,
+      expectedLessSuggested: 0,
+      monthlyData
     };
   }
   
@@ -212,12 +221,15 @@ export class StaffForecastSummaryService {
     totalGap: number;
   } {
     
-    const totals = utilizationData.reduce((acc, staff) => ({
-      totalDemand: acc.totalDemand + staff.totalHours,
-      totalCapacity: acc.totalCapacity + staff.totalCapacity,
-      totalRevenue: acc.totalRevenue + staff.totalExpectedRevenue,
-      totalGap: acc.totalGap + staff.gap
-    }), {
+    const totals = utilizationData.reduce((acc, staff) => {
+      const staffGap = staff.totalHours - staff.totalCapacityHours;
+      return {
+        totalDemand: acc.totalDemand + staff.totalHours,
+        totalCapacity: acc.totalCapacity + staff.totalCapacityHours,
+        totalRevenue: acc.totalRevenue + staff.totalExpectedRevenue,
+        totalGap: acc.totalGap + staffGap
+      };
+    }, {
       totalDemand: 0,
       totalCapacity: 0,
       totalRevenue: 0,
