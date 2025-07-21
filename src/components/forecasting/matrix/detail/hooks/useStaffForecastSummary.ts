@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
@@ -109,7 +108,16 @@ export const useStaffForecastSummary = ({
 
   // Stabilize dependencies to prevent re-render loops
   const stableRecurringTasks = useMemo(() => {
+    /**
+     * Transform task data from Detail Matrix format to RecurringTaskDB format
+     * @param task - Task with recurrencePattern as {type: string, interval: number, frequency: number}
+     */
     const transformed = filteredTasks.map(task => {
+      // Add validation before the transformation
+      if (task.recurrencePattern && typeof task.recurrencePattern !== 'object') {
+        console.warn('Unexpected recurrencePattern type:', typeof task.recurrencePattern, task);
+      }
+
       // PHASE 4: Verify Staff Forecast Summary Hook - Add validation logging
       const estimatedHours = (() => {
         const hours = task.monthlyHours || 0;
@@ -138,15 +146,15 @@ export const useStaffForecastSummary = ({
         name: task.taskName,
         client_id: task.clientId,
         estimated_hours: estimatedHours, // Use the validated hours
-        recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
+        recurrence_type: task.recurrencePattern?.type?.toLowerCase() || 'monthly', // ← SURGICAL FIX: Access .type property
         preferred_staff_id: task.preferredStaffId || null,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         template_id: task.id,
         due_date: null,
-        recurrence_interval: 1,
-        weekdays: null,
+        recurrence_interval: task.recurrencePattern?.interval || 1,
+        weekdays: task.recurrencePattern?.weekdays || null,
         day_of_month: null,
         month_of_year: null,
         end_date: null,
@@ -168,7 +176,8 @@ export const useStaffForecastSummary = ({
       sampleTask: transformed[0] ? {
         name: transformed[0].name,
         estimatedHours: transformed[0].estimated_hours,
-        preferredStaffId: transformed[0].preferred_staff_id
+        preferredStaffId: transformed[0].preferred_staff_id,
+        recurrenceType: transformed[0].recurrence_type // Log the fixed recurrence type
       } : null
     });
 
