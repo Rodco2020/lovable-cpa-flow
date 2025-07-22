@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { MonthlyStaffMetrics } from '@/types/demand';
-import { getUtilizationColor } from '@/utils/utilizationColors';
 
 interface StaffTotalSummaryCellProps {
   staffName: string;
@@ -16,6 +15,14 @@ export const StaffTotalSummaryCell: React.FC<StaffTotalSummaryCellProps> = ({
   totalCapacityHours,
   utilizationPercentage
 }) => {
+  // Get utilization color coding based on percentage
+  const getUtilizationColor = (percentage: number) => {
+    if (percentage > 100) return 'text-red-600 bg-red-50 font-semibold'; // Over-utilized
+    if (percentage >= 80) return 'text-yellow-600 bg-yellow-50 font-medium'; // High utilization
+    if (percentage >= 50) return 'text-green-600 bg-green-50'; // Good utilization
+    return 'text-gray-500 bg-gray-50'; // Under-utilized
+  };
+
   const gap = totalCapacityHours - totalHours;
   const gapColor = gap > 0 ? 'text-green-600' : gap < 0 ? 'text-red-600' : 'text-gray-500';
   const utilColor = getUtilizationColor(utilizationPercentage);
