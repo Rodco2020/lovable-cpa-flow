@@ -70,7 +70,7 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
     <div 
       className="grid gap-1 border-t-2 border-primary"
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 120px 100px 120px 120px`
+        gridTemplateColumns: `200px repeat(${months.length}, minmax(90px, 120px)) 120px 100px 120px 120px`
       }}
     >
       {/* Firm Totals Label */}
