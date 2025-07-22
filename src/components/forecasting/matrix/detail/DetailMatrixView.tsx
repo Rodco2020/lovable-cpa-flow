@@ -38,6 +38,7 @@ export const DetailMatrixView: React.FC<DetailMatrixViewProps> = ({
   groupingMode
 }) => {
   const { viewMode } = useDetailMatrixState();
+  console.log('DetailMatrixView - viewMode from context:', viewMode);
 
   if (isLoading) {
     return (
