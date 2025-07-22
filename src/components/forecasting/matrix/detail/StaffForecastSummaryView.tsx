@@ -63,7 +63,7 @@ export const StaffForecastSummaryView: React.FC<StaffForecastSummaryViewProps> =
         </div>
       )}
       
-      {/* Responsive Container for Staff Forecast Summary Grid */}
+      {/* Staff Forecast Summary Grid */}
       <div className="overflow-x-auto min-w-0">
         <div className="min-w-fit">
           <StaffForecastSummaryGrid
@@ -72,14 +72,12 @@ export const StaffForecastSummaryView: React.FC<StaffForecastSummaryViewProps> =
             isLoading={isLoading}
           />
           
-          {/* Firm Totals */}
-          <div className="mt-4 border-t pt-4">
-            <StaffSummaryTotalsRow
-              totals={firmTotals}
-              months={months}
-              totalStaffCount={utilizationData.filter(s => s.staffId !== 'unassigned').length}
-            />
-          </div>
+          {/* Firm Totals Row - Single instance only */}
+          <StaffSummaryTotalsRow
+            totals={firmTotals}
+            months={months}
+            totalStaffCount={utilizationData.filter(s => s.staffId !== 'unassigned').length}
+          />
         </div>
       </div>
     </div>
