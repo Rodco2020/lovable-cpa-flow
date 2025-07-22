@@ -1,7 +1,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { TaskTemplate, RecurringTask, TaskInstance } from '@/types/task';
-import { mapRecurringTaskToDatabase } from '../clientTask/mappers';
+import { mapRecurringTaskToDatabase, mapPartialRecurringTaskToDatabase } from '../clientTask/mappers';
 
 export class TaskServiceError extends Error {
   constructor(message: string) {
@@ -282,7 +282,7 @@ export const updateRecurringTask = async (taskId: string, updates: Partial<Recur
     console.log(`[TaskService] Updating recurring task ${taskId}:`, updates);
     
     // Map the updates to database format
-    const dbUpdates = mapRecurringTaskToDatabase(updates);
+    const dbUpdates = mapPartialRecurringTaskToDatabase(updates);
     
     console.log(`[TaskService] Database updates for recurring task ${taskId}:`, dbUpdates);
     
