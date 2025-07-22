@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { StaffForecastSummaryGrid } from './components/StaffForecastSummaryGrid';
 import { StaffSummaryTotalsRow } from './components/StaffSummaryTotalsRow';
@@ -62,20 +63,24 @@ export const StaffForecastSummaryView: React.FC<StaffForecastSummaryViewProps> =
         </div>
       )}
       
-      {/* Staff Forecast Summary Grid */}
-      <StaffForecastSummaryGrid
-        utilizationData={utilizationData}
-        months={months}
-        isLoading={isLoading}
-      />
-      
-      {/* Firm Totals */}
-      <div className="mt-4 border-t pt-4">
-        <StaffSummaryTotalsRow
-          totals={firmTotals}
-          months={months}
-          totalStaffCount={utilizationData.filter(s => s.staffId !== 'unassigned').length}
-        />
+      {/* Responsive Container for Staff Forecast Summary Grid */}
+      <div className="overflow-x-auto min-w-0">
+        <div className="min-w-fit">
+          <StaffForecastSummaryGrid
+            utilizationData={utilizationData}
+            months={months}
+            isLoading={isLoading}
+          />
+          
+          {/* Firm Totals */}
+          <div className="mt-4 border-t pt-4">
+            <StaffSummaryTotalsRow
+              totals={firmTotals}
+              months={months}
+              totalStaffCount={utilizationData.filter(s => s.staffId !== 'unassigned').length}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
