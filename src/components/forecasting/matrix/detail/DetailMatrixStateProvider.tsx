@@ -6,6 +6,7 @@ interface DetailMatrixState {
   expandedSkills: Set<string>;
   sortConfig: { field: string; direction: 'asc' | 'desc' };
   selectedTasks: Set<string>;
+  isControlsExpanded: boolean;
 }
 
 interface DetailMatrixContextType extends DetailMatrixState {
@@ -15,6 +16,7 @@ interface DetailMatrixContextType extends DetailMatrixState {
   toggleTaskSelection: (taskId: string) => void;
   selectAllTasks: (taskIds: string[]) => void;
   clearSelectedTasks: () => void;
+  setIsControlsExpanded: (expanded: boolean) => void;
 }
 
 const DetailMatrixContext = createContext<DetailMatrixContextType | null>(null);
@@ -28,7 +30,7 @@ interface DetailMatrixStateProviderProps {
  * 
  * Independent state management for Detail Matrix view modes and UI state.
  * Does not interfere with existing Demand Matrix state.
- * Updated to support all view modes including 'staff-forecast-summary'.
+ * Updated to support all view modes including 'staff-forecast-summary' and controls panel expansion.
  */
 export const DetailMatrixStateProvider: React.FC<DetailMatrixStateProviderProps> = ({
   children
@@ -40,6 +42,7 @@ export const DetailMatrixStateProvider: React.FC<DetailMatrixStateProviderProps>
     direction: 'asc'
   });
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [isControlsExpanded, setIsControlsExpanded] = useState<boolean>(false);
 
   const toggleSkillExpansion = (skill: string) => {
     setExpandedSkills(prev => {
@@ -78,12 +81,14 @@ export const DetailMatrixStateProvider: React.FC<DetailMatrixStateProviderProps>
     expandedSkills,
     sortConfig,
     selectedTasks,
+    isControlsExpanded,
     setViewMode,
     toggleSkillExpansion,
     setSortConfig,
     toggleTaskSelection,
     selectAllTasks,
-    clearSelectedTasks
+    clearSelectedTasks,
+    setIsControlsExpanded
   };
 
   return (
