@@ -109,7 +109,7 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
     <div 
       className="grid gap-1 p-2 bg-muted/50 border-b font-semibold text-sm"
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 100px 120px 120px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 120px 100px 120px 120px`
       }}
     >
       {/* Staff Information Column */}
@@ -129,18 +129,11 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
       
       {/* Summary Columns */}
       <SortableHeader 
-        field="totalHours"
-        className="border-l-2 border-slate-300"
-        tooltip="Total demand hours across all months"
-      >
-        Total Hours
-      </SortableHeader>
-      
-      <SortableHeader 
         field="utilization"
-        tooltip="Overall utilization percentage across all months"
+        className="border-l-2 border-slate-300"
+        tooltip="Total demand/capacity with gap and overall utilization across all months"
       >
-        Overall Util %
+        Total Summary
       </SortableHeader>
       
       <SortableHeader 
