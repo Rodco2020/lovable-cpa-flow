@@ -1,9 +1,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
-import { RecurringTaskDB } from '@/types/task';
+import { RecurringTaskDB, RecurringTask } from '@/types/task';
 import { StaffForecastSummaryService } from '@/services/forecasting/detail/staffForecastSummaryService';
 import { getAllRecurringTasks } from '@/services/clientTask/getAllRecurringTasks';
+import { mapRecurringTaskToDatabase } from '@/services/clientTask/mappers';
 
 interface UseStaffForecastSummaryOptions {
   months: MonthInfo[];
@@ -41,7 +42,7 @@ export const useStaffForecastSummary = ({
   const [utilizationData, setUtilizationData] = useState<StaffUtilizationData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rawTasks, setRawTasks] = useState<RecurringTaskDB[]>([]);
+  const [rawTasks, setRawTasks] = useState<RecurringTask[]>([]);
 
   // Fetch raw recurring tasks from database
   useEffect(() => {
@@ -120,33 +121,7 @@ export const useStaffForecastSummary = ({
 
   // Convert filtered RecurringTask[] to RecurringTaskDB[] format expected by service
   const convertedTasks = useMemo(() => {
-    return filteredTasks.map(task => ({
-      id: task.id,
-      template_id: task.templateId,
-      client_id: task.clientId,
-      name: task.name,
-      description: task.description || null,
-      estimated_hours: task.estimatedHours,
-      required_skills: task.requiredSkills,
-      priority: task.priority,
-      category: task.category,
-      status: task.status,
-      due_date: task.dueDate ? task.dueDate.toISOString() : null,
-      recurrence_type: task.recurrencePattern?.type.toLowerCase() || 'monthly',
-      recurrence_interval: task.recurrencePattern?.interval || 1,
-      weekdays: task.recurrencePattern?.weekdays || null,
-      day_of_month: task.recurrencePattern?.dayOfMonth || null,
-      month_of_year: task.recurrencePattern?.monthOfYear || null,
-      end_date: task.recurrencePattern?.endDate ? task.recurrencePattern.endDate.toISOString() : null,
-      custom_offset_days: task.recurrencePattern?.customOffsetDays || null,
-      last_generated_date: task.lastGeneratedDate ? task.lastGeneratedDate.toISOString() : null,
-      is_active: task.isActive,
-      preferred_staff_id: task.preferredStaffId || null,
-      created_at: task.createdAt.toISOString(),
-      updated_at: task.updatedAt.toISOString(),
-      notes: null,
-      weekdays_for_daily: null
-    })) as RecurringTaskDB[];
+    return filteredTasks.map(task => mapRecurringTaskToDatabase(task));
   }, [filteredTasks]);
 
   // Generate forecast periods matching the months array
@@ -158,8 +133,8 @@ export const useStaffForecastSummary = ({
       startDate: month.startDate || new Date(),
       endDate: month.endDate || new Date(),
       type: 'virtual' as const,
-      demand: 0,
-      capacity: 0
+      demand: [] as Array<{ skill: string; hours: number }>, // Empty skills array for now
+      capacity: [] as Array<{ skill: string; hours: number }>
     }));
   }, [months]);
 

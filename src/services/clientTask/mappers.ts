@@ -66,8 +66,7 @@ export const mapRecurringTaskToDatabase = (task: RecurringTask): Omit<RecurringT
     preferred_staff_id: task.preferredStaffId || null,
     created_at: task.createdAt.toISOString(),
     updated_at: task.updatedAt.toISOString(),
-    notes: task.notes || null,
-    weekdays_for_daily: null
+    notes: task.notes || null
   };
 };
 

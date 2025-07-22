@@ -7,31 +7,23 @@ import { DetailMatrixView } from './DetailMatrixView';
 import { StaffForecastSummaryView } from './StaffForecastSummaryView';
 
 interface DetailMatrixContainerProps {
-  filters: {
-    selectedSkills: string[];
-    selectedClients: string[];
-    selectedPreferredStaff: (string | number | null | undefined)[];
-    monthRange: { start: number; end: number };
-    groupingMode: 'skill' | 'client';
-  };
-  activeView: 'matrix' | 'staff-summary';
+  groupingMode: 'skill' | 'client';
+  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary';
 }
 
 export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
-  filters,
-  activeView
+  groupingMode,
+  viewMode
 }) => {
-  const {
-    selectedSkills,
-    selectedClients,
-    selectedPreferredStaff,
-    monthRange,
-    groupingMode
-  } = filters;
+  // For now, use default filters until we integrate with the parent component properly
+  const selectedSkills: string[] = [];
+  const selectedClients: string[] = [];
+  const selectedPreferredStaff: (string | number | null | undefined)[] = [];
+  const monthRange = { start: 0, end: 11 };
 
   // Get matrix data and months
-  const { data: matrixData, months, isLoading: isMatrixLoading } = useDetailMatrixData();
-  const { tasks } = matrixData || { tasks: [] };
+  const { data: matrixData, months, loading: isMatrixLoading } = useDetailMatrixData({ groupingMode });
+  const tasks = matrixData || [];
 
   // Apply filters to tasks (for matrix view)
   const filterResult = useDetailMatrixFilters({
@@ -50,11 +42,11 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
     selectedSkills,
     selectedClients,
     selectedPreferredStaff,
-    enabled: activeView === 'staff-summary'
+    enabled: viewMode === 'staff-forecast-summary'
   });
 
-  // Show appropriate view based on activeView
-  if (activeView === 'staff-summary') {
+  // Show appropriate view based on viewMode
+  if (viewMode === 'staff-forecast-summary') {
     return (
       <StaffForecastSummaryView
         utilizationData={staffSummary.utilizationData}
@@ -78,7 +70,7 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
 
   return (
     <DetailMatrixView
-      data={filterResult}
+      data={filterResult.filteredTasks || []}
       months={months}
       isLoading={isMatrixLoading}
       groupingMode={groupingMode}
