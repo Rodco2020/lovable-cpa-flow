@@ -5,6 +5,7 @@ import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useStaffForecastSummary } from './hooks/useStaffForecastSummary';
 import { DetailMatrixView } from './DetailMatrixView';
 import { StaffForecastSummaryView } from './StaffForecastSummaryView';
+import { DetailMatrixPresentation } from '@/features/detail-matrix/components/DetailMatrixPresentation';
 
 interface DetailMatrixContainerProps {
   groupingMode: 'skill' | 'client';
@@ -22,7 +23,7 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   const monthRange = { start: 0, end: 11 };
 
   // Get matrix data and months
-  const { data: matrixData, months, loading: isMatrixLoading } = useDetailMatrixData({ groupingMode });
+  const { data: matrixData, months, loading: isMatrixLoading, error, demandMatrixControls } = useDetailMatrixData({ groupingMode });
   const tasks = matrixData || [];
 
   // Apply filters to tasks (for matrix view)
@@ -69,11 +70,17 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   }
 
   return (
-    <DetailMatrixView
-      data={filterResult.filteredTasks || []}
-      months={months}
+    <DetailMatrixPresentation
+      demandMatrixControls={demandMatrixControls}
       isLoading={isMatrixLoading}
-      groupingMode={groupingMode}
-    />
+      error={error}
+    >
+      <DetailMatrixView
+        data={filterResult.filteredTasks || []}
+        months={months}
+        isLoading={isMatrixLoading}
+        groupingMode={groupingMode}
+      />
+    </DetailMatrixPresentation>
   );
 };
