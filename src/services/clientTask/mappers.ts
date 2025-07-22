@@ -1,11 +1,21 @@
 
-import { RecurringTask, RecurringTaskDB } from '@/types/task';
+import { RecurringTaskDB, RecurringTask, RecurrencePattern } from '@/types/task';
 
 /**
- * Map database recurring task to application-level RecurringTask
- * FIXED: Consistent field name mapping from snake_case to camelCase
+ * Map database recurring task to application RecurringTask interface
  */
 export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTask => {
+  // Map recurrence pattern from database fields
+  const recurrencePattern: RecurrencePattern = {
+    type: mapRecurrenceType(dbTask.recurrence_type),
+    interval: dbTask.recurrence_interval || 1,
+    weekdays: dbTask.weekdays || undefined,
+    dayOfMonth: dbTask.day_of_month || undefined,
+    monthOfYear: dbTask.month_of_year || undefined,
+    endDate: dbTask.end_date ? new Date(dbTask.end_date) : undefined,
+    customOffsetDays: dbTask.custom_offset_days || undefined
+  };
+
   return {
     id: dbTask.id,
     templateId: dbTask.template_id,
@@ -18,19 +28,10 @@ export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTa
     category: dbTask.category,
     status: dbTask.status,
     dueDate: dbTask.due_date ? new Date(dbTask.due_date) : null,
-    // FIXED: Consistent camelCase field mapping - crucial for filter compatibility
-    preferredStaffId: dbTask.preferred_staff_id,
-    recurrencePattern: {
-      type: dbTask.recurrence_type as any,
-      interval: dbTask.recurrence_interval || undefined,
-      weekdays: dbTask.weekdays || undefined,
-      dayOfMonth: dbTask.day_of_month || undefined,
-      monthOfYear: dbTask.month_of_year || undefined,
-      endDate: dbTask.end_date ? new Date(dbTask.end_date) : undefined,
-      customOffsetDays: dbTask.custom_offset_days || undefined
-    },
+    recurrencePattern,
     lastGeneratedDate: dbTask.last_generated_date ? new Date(dbTask.last_generated_date) : null,
     isActive: dbTask.is_active,
+    preferredStaffId: dbTask.preferred_staff_id,
     createdAt: new Date(dbTask.created_at),
     updatedAt: new Date(dbTask.updated_at),
     notes: dbTask.notes || undefined
@@ -38,42 +39,56 @@ export const mapDatabaseToRecurringTask = (dbTask: RecurringTaskDB): RecurringTa
 };
 
 /**
- * Map application-level RecurringTask to database format for updates
- * FIXED: Consistent field name mapping from camelCase to snake_case
+ * Map application RecurringTask to database RecurringTaskDB interface
  */
-export const mapRecurringTaskToDatabase = (task: Partial<RecurringTask>) => {
-  const dbUpdate: any = {};
-  
-  if (task.name !== undefined) dbUpdate.name = task.name;
-  if (task.description !== undefined) dbUpdate.description = task.description;
-  if (task.estimatedHours !== undefined) dbUpdate.estimated_hours = task.estimatedHours;
-  if (task.requiredSkills !== undefined) dbUpdate.required_skills = task.requiredSkills;
-  if (task.priority !== undefined) dbUpdate.priority = task.priority;
-  if (task.category !== undefined) dbUpdate.category = task.category;
-  if (task.dueDate !== undefined) dbUpdate.due_date = task.dueDate?.toISOString() || null;
-  // FIXED: Consistent mapping from camelCase to snake_case for database operations
-  if (task.preferredStaffId !== undefined) dbUpdate.preferred_staff_id = task.preferredStaffId;
-  if (task.isActive !== undefined) dbUpdate.is_active = task.isActive;
-  
-  // Handle recurrence pattern
-  if (task.recurrencePattern) {
-    const pattern = task.recurrencePattern;
-    if (pattern.type !== undefined) dbUpdate.recurrence_type = pattern.type;
-    if (pattern.interval !== undefined) dbUpdate.recurrence_interval = pattern.interval;
-    if (pattern.weekdays !== undefined) dbUpdate.weekdays = pattern.weekdays;
-    if (pattern.dayOfMonth !== undefined) dbUpdate.day_of_month = pattern.dayOfMonth;
-    if (pattern.monthOfYear !== undefined) dbUpdate.month_of_year = pattern.monthOfYear;
-    if (pattern.endDate !== undefined) dbUpdate.end_date = pattern.endDate?.toISOString() || null;
-    if (pattern.customOffsetDays !== undefined) dbUpdate.custom_offset_days = pattern.customOffsetDays;
+export const mapRecurringTaskToDatabase = (task: RecurringTask): Omit<RecurringTaskDB, 'clients' | 'staff'> => {
+  return {
+    id: task.id,
+    template_id: task.templateId,
+    client_id: task.clientId,
+    name: task.name,
+    description: task.description || null,
+    estimated_hours: task.estimatedHours,
+    required_skills: task.requiredSkills,
+    priority: task.priority,
+    category: task.category,
+    status: task.status,
+    due_date: task.dueDate ? task.dueDate.toISOString() : null,
+    recurrence_type: task.recurrencePattern.type.toLowerCase(),
+    recurrence_interval: task.recurrencePattern.interval || null,
+    weekdays: task.recurrencePattern.weekdays || null,
+    day_of_month: task.recurrencePattern.dayOfMonth || null,
+    month_of_year: task.recurrencePattern.monthOfYear || null,
+    end_date: task.recurrencePattern.endDate ? task.recurrencePattern.endDate.toISOString() : null,
+    custom_offset_days: task.recurrencePattern.customOffsetDays || null,
+    last_generated_date: task.lastGeneratedDate ? task.lastGeneratedDate.toISOString() : null,
+    is_active: task.isActive,
+    preferred_staff_id: task.preferredStaffId || null,
+    created_at: task.createdAt.toISOString(),
+    updated_at: task.updatedAt.toISOString(),
+    notes: task.notes || null,
+    weekdays_for_daily: null
+  };
+};
+
+/**
+ * Map database recurrence_type to application RecurrencePattern.type
+ */
+const mapRecurrenceType = (dbType: string): RecurrencePattern['type'] => {
+  switch (dbType.toLowerCase()) {
+    case 'daily':
+      return 'Daily';
+    case 'weekly':
+      return 'Weekly';
+    case 'monthly':
+      return 'Monthly';
+    case 'quarterly':
+      return 'Quarterly';
+    case 'annually':
+      return 'Annually';
+    case 'custom':
+      return 'Custom';
+    default:
+      return 'Monthly'; // Default fallback
   }
-  
-  dbUpdate.updated_at = new Date().toISOString();
-  
-  console.log('🔧 [MAPPER] Database update mapping verification:', {
-    camelCase_preferredStaffId: task.preferredStaffId,
-    snake_case_preferred_staff_id: dbUpdate.preferred_staff_id,
-    mappingConsistent: true
-  });
-  
-  return dbUpdate;
 };

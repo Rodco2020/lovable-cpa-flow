@@ -1,11 +1,11 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
-import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { StaffForecastSummaryService } from '@/services/forecasting/detail/staffForecastSummaryService';
+import { getAllRecurringTasks } from '@/services/clientTask/getAllRecurringTasks';
 
 interface UseStaffForecastSummaryOptions {
-  tasks: any[]; // Task data from DetailMatrixData
   months: MonthInfo[];
   selectedSkills: string[];
   selectedClients: string[];
@@ -29,10 +29,9 @@ interface UseStaffForecastSummaryResult {
 /**
  * Hook for Staff Forecast Summary data
  * 
- * Integrates with existing filter system and provides staff utilization calculations
+ * Fetches raw recurring tasks directly from database and applies consistent filtering
  */
 export const useStaffForecastSummary = ({
-  tasks,
   months,
   selectedSkills,
   selectedClients,
@@ -42,89 +41,115 @@ export const useStaffForecastSummary = ({
   const [utilizationData, setUtilizationData] = useState<StaffUtilizationData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rawTasks, setRawTasks] = useState<RecurringTaskDB[]>([]);
 
-  // Filter tasks based on current filter selections
+  // Fetch raw recurring tasks from database
+  useEffect(() => {
+    if (!enabled || months.length === 0) {
+      setRawTasks([]);
+      return;
+    }
+
+    const fetchRawTasks = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        console.log('🔍 [STAFF FORECAST HOOK] Fetching raw recurring tasks from database...');
+        
+        const tasks = await getAllRecurringTasks(true); // Only active tasks
+        
+        console.log('✅ [STAFF FORECAST HOOK] Raw tasks fetched:', {
+          totalTasks: tasks.length,
+          sampleTask: tasks[0] ? {
+            id: tasks[0].id,
+            name: tasks[0].name,
+            estimatedHours: tasks[0].estimatedHours,
+            recurrenceType: tasks[0].recurrencePattern?.type,
+            preferredStaffId: tasks[0].preferredStaffId
+          } : null
+        });
+
+        setRawTasks(tasks);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch recurring tasks';
+        console.error('❌ [STAFF FORECAST HOOK] Error fetching raw tasks:', err);
+        setError(errorMessage);
+        setRawTasks([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRawTasks();
+  }, [enabled, months.length]);
+
+  // Apply consistent filtering logic (same as Detail Matrix)
   const filteredTasks = useMemo(() => {
-    if (!tasks || !enabled) return [];
+    if (!rawTasks.length) return [];
 
-    return tasks.filter(task => {
-      // Skills filter
-      if (selectedSkills.length > 0 && !selectedSkills.includes(task.skillRequired)) {
-        return false;
+    return rawTasks.filter(task => {
+      // Skills filter - check if task's required skills match selected skills
+      if (selectedSkills.length > 0) {
+        const taskSkills = task.requiredSkills || [];
+        const hasMatchingSkill = taskSkills.some(skill => selectedSkills.includes(skill));
+        if (!hasMatchingSkill) {
+          return false;
+        }
       }
 
-      // Clients filter
+      // Clients filter - check if task's client is in selected clients
       if (selectedClients.length > 0 && !selectedClients.includes(task.clientId)) {
         return false;
       }
 
-      // Preferred Staff filter
+      // Preferred Staff filter - check if task's preferred staff is in selected staff
       if (selectedPreferredStaff.length > 0) {
         const staffFilters = selectedPreferredStaff.filter(Boolean);
-        if (staffFilters.length > 0 && !staffFilters.includes(task.preferredStaffId)) {
-          return false;
+        if (staffFilters.length > 0) {
+          const taskStaffId = task.preferredStaffId;
+          if (!taskStaffId || !staffFilters.includes(taskStaffId)) {
+            return false;
+          }
         }
       }
 
       return true;
     });
-  }, [tasks, selectedSkills, selectedClients, selectedPreferredStaff, enabled]);
+  }, [rawTasks, selectedSkills, selectedClients, selectedPreferredStaff]);
 
-  // Stabilize dependencies to prevent re-render loops
-  const stableRecurringTasks = useMemo(() => {
-    return filteredTasks.map(task => {
-      // PHASE 4: Verify Staff Forecast Summary Hook - Add validation logging
-      const estimatedHours = (() => {
-        const hours = task.monthlyHours || 0;
-        
-        // Log Ana's tasks to verify the fix
-        if (task.preferredStaffName?.includes('Ana Florian') && task.taskName.includes('Monthly Bookkeeping')) {
-          console.log(`🎯 [STAFF SUMMARY VALIDATION] Ana's task: ${task.taskName}`, {
-            monthlyHours: task.monthlyHours,  // Should be 1.0 for monthly bookkeeping
-            totalHours: task.totalHours,      // Should be 12+ for yearly total
-            using: hours                      // Should use monthlyHours (1.0)
-          });
-        }
-        
-        // Safety check - per-occurrence hours should never be > 100
-        if (hours > 100) {
-          console.error(`❌ [ERROR] Task ${task.taskName} has invalid monthlyHours: ${hours}`);
-          return 1; // Fallback to 1 hour
-        }
-        
-        return hours || 1; // Default to 1 if still 0
-      })();
+  // Convert filtered RecurringTask[] to RecurringTaskDB[] format expected by service
+  const convertedTasks = useMemo(() => {
+    return filteredTasks.map(task => ({
+      id: task.id,
+      template_id: task.templateId,
+      client_id: task.clientId,
+      name: task.name,
+      description: task.description || null,
+      estimated_hours: task.estimatedHours,
+      required_skills: task.requiredSkills,
+      priority: task.priority,
+      category: task.category,
+      status: task.status,
+      due_date: task.dueDate ? task.dueDate.toISOString() : null,
+      recurrence_type: task.recurrencePattern?.type.toLowerCase() || 'monthly',
+      recurrence_interval: task.recurrencePattern?.interval || 1,
+      weekdays: task.recurrencePattern?.weekdays || null,
+      day_of_month: task.recurrencePattern?.dayOfMonth || null,
+      month_of_year: task.recurrencePattern?.monthOfYear || null,
+      end_date: task.recurrencePattern?.endDate ? task.recurrencePattern.endDate.toISOString() : null,
+      custom_offset_days: task.recurrencePattern?.customOffsetDays || null,
+      last_generated_date: task.lastGeneratedDate ? task.lastGeneratedDate.toISOString() : null,
+      is_active: task.isActive,
+      preferred_staff_id: task.preferredStaffId || null,
+      created_at: task.createdAt.toISOString(),
+      updated_at: task.updatedAt.toISOString(),
+      notes: null,
+      weekdays_for_daily: null
+    })) as RecurringTaskDB[];
+  }, [filteredTasks]);
 
-      return {
-        id: task.id,
-        name: task.taskName,
-        client_id: task.clientId,
-        estimated_hours: estimatedHours, // Use the validated hours
-        recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
-        preferred_staff_id: task.preferredStaffId || null,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        template_id: task.id,
-        due_date: null,
-        recurrence_interval: 1,
-        weekdays: null,
-        day_of_month: null,
-        month_of_year: null,
-        end_date: null,
-        custom_offset_days: null,
-        last_generated_date: null,
-        weekdays_for_daily: null,
-        notes: null,
-        description: task.description || null,
-        required_skills: [task.skillRequired],
-        priority: task.priority || 'medium',
-        category: task.category || 'general',
-        status: 'Unscheduled' as const
-      };
-    }) as unknown as RecurringTaskDB[];
-  }, [JSON.stringify(filteredTasks?.map(t => t.id))]);
-
+  // Generate forecast periods matching the months array
   const stableForecastPeriods = useMemo(() => {
     return months.map(month => ({
       id: month.key,
@@ -135,15 +160,14 @@ export const useStaffForecastSummary = ({
       type: 'virtual' as const,
       demand: 0,
       capacity: 0
-    })) as unknown as ForecastData[];
-  }, [JSON.stringify(months)]);
+    }));
+  }, [months]);
 
-  // Calculate staff utilization with optimized dependencies and timeout
+  // Calculate staff utilization with raw tasks
   useEffect(() => {
-    if (!enabled || stableRecurringTasks.length === 0 || months.length === 0) {
+    if (!enabled || convertedTasks.length === 0 || months.length === 0) {
       setUtilizationData([]);
       setError(null);
-      setIsLoading(false);
       return;
     }
 
@@ -151,7 +175,7 @@ export const useStaffForecastSummary = ({
       setIsLoading(true);
       setError(null);
 
-      // Add 30-second overall timeout
+      // Add timeout protection
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
@@ -161,19 +185,26 @@ export const useStaffForecastSummary = ({
       }, 30000);
 
       try {
-        console.log('🚀 [STAFF FORECAST HOOK] Calculating staff utilization:', {
-          taskCount: stableRecurringTasks.length,
+        console.log('🚀 [STAFF FORECAST HOOK] Calculating staff utilization from raw tasks:', {
+          rawTaskCount: convertedTasks.length,
           monthCount: months.length,
           filters: {
             skills: selectedSkills.length,
             clients: selectedClients.length,
             staff: selectedPreferredStaff.filter(Boolean).length
-          }
+          },
+          sampleTask: convertedTasks[0] ? {
+            id: convertedTasks[0].id,
+            name: convertedTasks[0].name,
+            estimatedHours: convertedTasks[0].estimated_hours,
+            recurrenceType: convertedTasks[0].recurrence_type,
+            preferredStaffId: convertedTasks[0].preferred_staff_id
+          } : null
         });
 
         const result = await StaffForecastSummaryService.calculateStaffUtilization(
           stableForecastPeriods,
-          stableRecurringTasks,
+          convertedTasks,
           months
         );
 
@@ -183,7 +214,8 @@ export const useStaffForecastSummary = ({
         console.log('✅ [STAFF FORECAST HOOK] Utilization calculation complete:', {
           staffCount: result.length,
           totalStaff: result.filter(s => s.staffId !== 'unassigned').length,
-          unassignedTasks: result.find(s => s.staffId === 'unassigned')?.totalHours || 0
+          unassignedTasks: result.find(s => s.staffId === 'unassigned')?.totalHours || 0,
+          anaFlorian: result.find(s => s.staffName.includes('Ana Florian'))?.totalHours || 0
         });
 
       } catch (err) {
@@ -200,20 +232,12 @@ export const useStaffForecastSummary = ({
     calculateUtilization();
   }, [
     enabled,
-    stableRecurringTasks.length, // Use length instead of full array
+    convertedTasks.length,
     months.length,
     selectedSkills.length,
     selectedClients.length,
     selectedPreferredStaff.filter(Boolean).length
   ]);
-
-  // Add cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Cancel any pending calculations on unmount
-      setIsLoading(false);
-    };
-  }, []);
 
   // Calculate firm totals
   const firmTotals = useMemo(() => {
