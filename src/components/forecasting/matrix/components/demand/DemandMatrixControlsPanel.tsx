@@ -35,6 +35,7 @@ interface DemandMatrixControlsPanelProps {
   preferredStaffError: Error | null;
   isAllPreferredStaffSelected: boolean;
   onRetryPreferredStaff?: () => void;
+  matrixType?: 'demand' | 'detail';
 }
 
 export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps> = ({
@@ -60,7 +61,8 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
   preferredStaffLoading,
   preferredStaffError,
   isAllPreferredStaffSelected,
-  onRetryPreferredStaff
+  onRetryPreferredStaff,
+  matrixType = 'demand'
 }) => {
   return (
     <div className={`xl:col-span-1 ${isControlsExpanded ? 'xl:col-span-2' : ''}`}>
@@ -99,6 +101,7 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
           preferredStaffError={preferredStaffError}
           isAllPreferredStaffSelected={isAllPreferredStaffSelected}
           refetchPreferredStaff={onRetryPreferredStaff || (() => {})}
+          matrixType={matrixType}
         />
       </div>
     </div>
