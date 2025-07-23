@@ -46,6 +46,36 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
     enabled: viewMode === 'staff-forecast-summary'
   });
 
+  // Handle loading state when data is not yet available
+  if (isMatrixLoading && !matrixData) {
+    return (
+      <DetailMatrixPresentation
+        demandMatrixControls={demandMatrixControls}
+        isLoading={true}
+        error={null}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Loading detail matrix data...</div>
+        </div>
+      </DetailMatrixPresentation>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <DetailMatrixPresentation
+        demandMatrixControls={demandMatrixControls}
+        isLoading={false}
+        error={error}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-destructive">Error loading data: {error}</div>
+        </div>
+      </DetailMatrixPresentation>
+    );
+  }
+
   // Show appropriate view based on viewMode
   if (viewMode === 'staff-forecast-summary') {
     return (

@@ -99,11 +99,11 @@ export const useDetailMatrixData = ({
     const tasks: any[] = [];
     
     dataToUse.dataPoints.forEach(point => {
-      point.taskBreakdown?.forEach(task => {
+      point.taskBreakdown?.forEach((task: any) => {
         // Create task entries for each month with hours
         if (task.monthlyDistribution) {
           Object.entries(task.monthlyDistribution).forEach(([monthKey, hours]) => {
-            if (hours > 0) {
+            if (typeof hours === 'number' && hours > 0) {
               tasks.push({
                 id: `${task.recurringTaskId || task.taskName}-${monthKey}`,
                 taskName: task.taskName,
