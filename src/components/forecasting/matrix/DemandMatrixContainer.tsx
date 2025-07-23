@@ -38,54 +38,27 @@ export const DemandMatrixContainer: React.FC<DemandMatrixContainerProps> = ({
     setShowPrintExportDialog,
   } = useDemandMatrixState();
 
-  // Controls for filtering
-  const demandMatrixControls = useDemandMatrixControls({
-    demandData: null, // Will be populated after data loading
-    groupingMode
-  });
-
-  console.log(`🔍 [FIXED CONTAINER] ========= CONTAINER RENDER =========`);
-  console.log(`🔍 [FIXED CONTAINER] Controls state:`, {
-    selectedSkills: demandMatrixControls.selectedSkills,
-    selectedClients: demandMatrixControls.selectedClients,
-    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
-    monthRange: demandMatrixControls.monthRange,
-    groupingMode
-  });
-
-  // FIXED: Stabilize activeFilters to prevent infinite loops
-  const activeFilters = useMemo(() => ({
-    preferredStaff: demandMatrixControls.selectedPreferredStaff,
-    skills: demandMatrixControls.selectedSkills,
-    clients: demandMatrixControls.selectedClients
-  }), [
-    JSON.stringify(demandMatrixControls.selectedPreferredStaff),
-    JSON.stringify(demandMatrixControls.selectedSkills),
-    JSON.stringify(demandMatrixControls.selectedClients)
-  ]);
-
-  console.log(`🎯 [FIXED CONTAINER] Stable active filters prepared:`, {
-    activeFilters,
-    hasPreferredStaffFilter: !!(activeFilters.preferredStaff && activeFilters.preferredStaff.length > 0),
-    preferredStaffCount: activeFilters.preferredStaff?.length || 0,
-    skillsCount: activeFilters.skills?.length || 0,
-    clientsCount: activeFilters.clients?.length || 0
-  });
-
-  // FIXED: Data loading with stabilized filters
+  // STEP 1: Load initial demand data without controls
   const { demandData, isLoading, error, loadDemandData, handleRetryWithBackoff } = useDemandMatrixData(
     groupingMode, 
-    activeFilters
+    {} // Start with empty filters for initial load
   );
 
-  // FIXED: Extract available options from the loaded demand data
+  // STEP 2: Create matrix filtering first to extract available preferred staff
   const matrixFiltering = useMatrixFiltering({
     demandData,
-    selectedSkills: demandMatrixControls.selectedSkills,
-    selectedClients: demandMatrixControls.selectedClients,
-    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
-    monthRange: demandMatrixControls.monthRange,
+    selectedSkills: [], // Start with empty selections  
+    selectedClients: [],
+    selectedPreferredStaff: [],
+    monthRange: { start: 0, end: 11 },
     groupingMode
+  });
+
+  // STEP 3: Controls for filtering - now with preferred staff from matrix filtering
+  const demandMatrixControls = useDemandMatrixControls({
+    demandData,
+    groupingMode,
+    availablePreferredStaff: matrixFiltering.availablePreferredStaff
   });
 
   // Log matrix filtering results

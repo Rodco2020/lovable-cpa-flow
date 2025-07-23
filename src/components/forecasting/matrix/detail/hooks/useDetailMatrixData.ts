@@ -36,20 +36,21 @@ export const useDetailMatrixData = ({
     error: initialError 
   } = useDemandMatrixData(groupingMode, {}); // Empty filters for initial load
 
-  // STEP 2: Initialize controls only after we have data
-  const demandMatrixControls = useDemandMatrixControls({
-    demandData: initialData || null, // Pass actual data, not null
+  // STEP 2: Create matrix filtering first to get available preferred staff
+  const matrixFiltering = useMatrixFiltering({
+    demandData: initialData || null,
+    selectedSkills: [], // Start with empty selections
+    selectedClients: [], 
+    selectedPreferredStaff: [],
+    monthRange: { start: 0, end: 11 },
     groupingMode
   });
 
-  // STEP 3: Create matrix filtering with the control selections
-  const matrixFiltering = useMatrixFiltering({
+  // STEP 3: Initialize controls with preferred staff from matrix filtering
+  const demandMatrixControls = useDemandMatrixControls({
     demandData: initialData || null,
-    selectedSkills: demandMatrixControls.selectedSkills,
-    selectedClients: demandMatrixControls.selectedClients,
-    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff,
-    monthRange: demandMatrixControls.monthRange,
-    groupingMode
+    groupingMode,
+    availablePreferredStaff: matrixFiltering.availablePreferredStaff
   });
 
   // STEP 4: Create active filters object
