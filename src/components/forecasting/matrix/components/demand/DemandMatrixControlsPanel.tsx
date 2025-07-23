@@ -32,7 +32,7 @@ interface DemandMatrixControlsPanelProps {
   // Phase 2: Add preferred staff props
   availablePreferredStaff: PreferredStaffOption[];
   preferredStaffLoading: boolean;
-  preferredStaffError: string | null;
+  preferredStaffError: Error | null;
   isAllPreferredStaffSelected: boolean;
   onRetryPreferredStaff?: () => void;
 }
@@ -80,25 +80,25 @@ export const DemandMatrixControlsPanel: React.FC<DemandMatrixControlsPanelProps>
         <DemandMatrixControls
           selectedSkills={selectedSkills}
           selectedClients={selectedClients}
-          selectedPreferredStaff={selectedPreferredStaff} // Phase 2: Pass preferred staff state
+          selectedPreferredStaff={selectedPreferredStaff}
           onSkillToggle={onSkillToggle}
           onClientToggle={onClientToggle}
-          onPreferredStaffToggle={onPreferredStaffToggle} // Phase 2: Pass preferred staff handler
+          handlePreferredStaffToggle={onPreferredStaffToggle}
           monthRange={monthRange}
           onMonthRangeChange={onMonthRangeChange}
           onExport={onExport}
-          onPrintExport={onPrintExport} // Pass through onPrintExport prop
           onReset={onReset}
-          groupingMode={groupingMode}
           availableSkills={availableSkills}
           availableClients={availableClients}
-          
-          // Phase 2: Pass preferred staff props
+          skillsLoading={false}
+          clientsLoading={false}
+          isAllSkillsSelected={selectedSkills.length === availableSkills.length}
+          isAllClientsSelected={selectedClients.length === availableClients.length}
           availablePreferredStaff={availablePreferredStaff}
           preferredStaffLoading={preferredStaffLoading}
           preferredStaffError={preferredStaffError}
           isAllPreferredStaffSelected={isAllPreferredStaffSelected}
-          onRetryPreferredStaff={onRetryPreferredStaff}
+          refetchPreferredStaff={onRetryPreferredStaff || (() => {})}
         />
       </div>
     </div>
