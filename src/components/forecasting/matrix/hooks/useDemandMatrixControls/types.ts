@@ -12,6 +12,7 @@ export interface DemandMatrixControlsState {
 export interface UseDemandMatrixControlsProps {
   demandData?: DemandMatrixData | null;
   groupingMode: 'skill' | 'client';
+  availablePreferredStaff?: Array<{ id: string; name: string; roleTitle?: string }>;
 }
 
 export interface UseDemandMatrixControlsResult extends DemandMatrixControlsState {

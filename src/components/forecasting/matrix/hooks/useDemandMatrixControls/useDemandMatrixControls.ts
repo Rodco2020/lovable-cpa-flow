@@ -4,7 +4,7 @@ import { useClients } from '@/hooks/useClients';
 import { useSkills } from '@/hooks/useSkills';
 import { useMatrixFiltering } from '../useMatrixFiltering';
 import { useMatrixExport } from '../useMatrixExport';
-import { useAvailablePreferredStaff } from '../useAvailablePreferredStaff';
+
 import { 
   DemandMatrixControlsState, 
   UseDemandMatrixControlsProps, 
@@ -26,7 +26,8 @@ import { logHookState } from './logging';
  */
 export const useDemandMatrixControls = ({ 
   demandData, 
-  groupingMode 
+  groupingMode,
+  availablePreferredStaff = [] // Default to empty array if not provided
 }: UseDemandMatrixControlsProps): UseDemandMatrixControlsResult => {
   // Initialize state with empty preferred staff array (shows all data by default)
   const [state, setState] = useState<DemandMatrixControlsState>({
@@ -40,13 +41,11 @@ export const useDemandMatrixControls = ({
   const { data: skillsData, isLoading: skillsLoading } = useSkills();
   const { data: clientsData, isLoading: clientsLoading } = useClients();
 
-  // Fetch preferred staff data
-  const { 
-    availablePreferredStaff, 
-    isLoading: preferredStaffLoading, 
-    error: preferredStaffError,
-    refetch: refetchPreferredStaff 
-  } = useAvailablePreferredStaff();
+  // Remove separate preferred staff fetch - use prop instead
+  // Set loading and error states to false/null since data comes from props
+  const preferredStaffLoading = false;
+  const preferredStaffError = null;
+  const refetchPreferredStaff = () => {}; // No-op since data comes from props
 
   // Use filtering logic hook
   const {
