@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useDemandMatrixData } from '../../hooks/useDemandMatrixData';
 import { useDemandMatrixControls } from '../../hooks/useDemandMatrixControls';
 import { useMatrixFiltering } from '../../hooks/useMatrixFiltering';
+import { formatRecurrencePattern } from '@/components/clients/ClientAssignedTasksOverview/utils';
 
 interface UseDetailMatrixDataProps {
   groupingMode: 'skill' | 'client';
@@ -114,7 +115,7 @@ export const useDetailMatrixData = ({
                 monthlyHours: hours,
                 month: monthKey,
                 monthLabel: months.find(m => m.key === monthKey)?.label || monthKey,
-                recurrencePattern: task.recurrencePattern || 'N/A',
+                recurrencePattern: task.recurrencePattern ? formatRecurrencePattern(task.recurrencePattern) : 'N/A',
                 priority: task.priority || 'Medium',
                 category: task.category || 'General',
                 preferredStaffId: task.preferredStaffId,
@@ -141,7 +142,7 @@ export const useDetailMatrixData = ({
             monthlyHours: task.estimatedHours || 0,
             month: '2024-01', // Default month
             monthLabel: 'Jan 2024',
-            recurrencePattern: task.recurrencePattern || 'N/A',
+            recurrencePattern: task.recurrencePattern ? formatRecurrencePattern(task.recurrencePattern) : 'N/A',
             priority: task.priority || 'Medium',
             category: task.category || 'General',
             preferredStaffId: task.preferredStaffId,
