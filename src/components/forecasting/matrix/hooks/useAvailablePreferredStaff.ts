@@ -32,7 +32,7 @@ export const useAvailablePreferredStaff = () => {
               role_title
             )
           `)
-          .eq('status', 'active')
+          .eq('is_active', true)
           .not('preferred_staff_id', 'is', null);
 
         if (tasksError) {
