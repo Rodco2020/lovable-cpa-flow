@@ -15,6 +15,11 @@ interface Task {
   monthlyHours: number;
   month: string;
   monthLabel: string;
+  /**
+   * Human-readable recurrence pattern string.
+   * Formatted from RecurrencePattern object for display purposes.
+   * Examples: "Monthly on day 5", "Weekly on Mon, Tue", "Daily (every 2 days)"
+   */
   recurrencePattern: string;
   priority: string;
   category: string;
