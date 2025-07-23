@@ -1,89 +1,77 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, Download, RotateCcw, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SkillType } from '@/types/task';
-import { 
-  Eye, EyeOff, Download, Printer, RotateCcw, 
-  RefreshCw, AlertCircle, Calendar, Filter
-} from 'lucide-react';
-
-// Phase 2: Add preferred staff interface
-interface PreferredStaffOption {
-  id: string;
-  name: string;
-}
 
 interface DemandMatrixControlsProps {
   selectedSkills: SkillType[];
-  selectedClients: string[];
-  selectedPreferredStaff: string[]; // Phase 2: Add preferred staff props
   onSkillToggle: (skill: SkillType) => void;
+  selectedClients: string[];
   onClientToggle: (clientId: string) => void;
-  onPreferredStaffToggle: (staffId: string) => void; // Phase 2: Add preferred staff handler
   monthRange: { start: number; end: number };
   onMonthRangeChange: (monthRange: { start: number; end: number }) => void;
   onExport: () => void;
-  onPrintExport: () => void;
   onReset: () => void;
-  groupingMode: 'skill' | 'client';
+  className?: string;
   availableSkills: SkillType[];
   availableClients: Array<{ id: string; name: string }>;
-  
-  // Phase 2: Add preferred staff props
-  availablePreferredStaff: PreferredStaffOption[];
+  skillsLoading: boolean;
+  clientsLoading: boolean;
+  isAllSkillsSelected: boolean;
+  isAllClientsSelected: boolean;
+  selectedPreferredStaff: string[];
+  handlePreferredStaffToggle: (staffId: string) => void;
+  availablePreferredStaff: Array<{ id: string; name: string; roleTitle?: string }>;
   preferredStaffLoading: boolean;
-  preferredStaffError: string | null;
+  preferredStaffError: Error | null;
   isAllPreferredStaffSelected: boolean;
-  onRetryPreferredStaff?: () => void;
+  refetchPreferredStaff: () => void;
+  matrixType?: 'demand' | 'detail';
 }
 
-/**
- * FIXED: Demand Matrix Controls Component
- * Now properly handles data extraction and empty states
- */
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
 export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
   selectedSkills,
-  selectedClients,
-  selectedPreferredStaff, // Phase 2: Add preferred staff state
   onSkillToggle,
+  selectedClients,
   onClientToggle,
-  onPreferredStaffToggle, // Phase 2: Add preferred staff handler
   monthRange,
   onMonthRangeChange,
   onExport,
-  onPrintExport,
   onReset,
-  groupingMode,
+  className,
   availableSkills,
   availableClients,
-  
-  // Phase 2: Destructure preferred staff props
+  skillsLoading,
+  clientsLoading,
+  isAllSkillsSelected,
+  isAllClientsSelected,
+  selectedPreferredStaff,
+  handlePreferredStaffToggle,
   availablePreferredStaff,
   preferredStaffLoading,
   preferredStaffError,
   isAllPreferredStaffSelected,
-  onRetryPreferredStaff
+  refetchPreferredStaff,
+  matrixType = 'demand'
 }) => {
-  console.log('🎛️ [DEMAND MATRIX CONTROLS] Rendering with data:', {
-    availableSkills: availableSkills.length,
-    availableClients: availableClients.length,
-    selectedSkills: selectedSkills.length,
-    selectedClients: selectedClients.length,
-    groupingMode
-  });
-
-  // FIXED: Skills filter section with proper empty state handling
-  const handleSelectAllSkills = (): void => {
-    if (selectedSkills.length === availableSkills.length) {
-      // Deselect all
-      availableSkills.forEach(skill => onSkillToggle(skill));
+  const handleSkillSelectAll = () => {
+    if (isAllSkillsSelected) {
+      // Deselect all skills
+      selectedSkills.forEach(skill => onSkillToggle(skill));
     } else {
-      // Select all missing skills
+      // Select all available skills
       availableSkills.forEach(skill => {
         if (!selectedSkills.includes(skill)) {
           onSkillToggle(skill);
@@ -92,13 +80,12 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
     }
   };
 
-  // FIXED: Clients filter section with proper empty state handling
-  const handleSelectAllClients = (): void => {
-    if (selectedClients.length === availableClients.length) {
-      // Deselect all
-      availableClients.forEach(client => onClientToggle(client.id));
+  const handleClientSelectAll = () => {
+    if (isAllClientsSelected) {
+      // Deselect all clients
+      selectedClients.forEach(clientId => onClientToggle(clientId));
     } else {
-      // Select all missing clients
+      // Select all available clients
       availableClients.forEach(client => {
         if (!selectedClients.includes(client.id)) {
           onClientToggle(client.id);
@@ -107,35 +94,45 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
     }
   };
 
-  // Phase 2: Preferred staff filter section
-  const handleSelectAllPreferredStaff = (): void => {
-    if (selectedPreferredStaff.length === availablePreferredStaff.length) {
-      // Deselect all
-      availablePreferredStaff.forEach(staff => onPreferredStaffToggle(staff.id));
+  const handlePreferredStaffSelectAll = () => {
+    if (isAllPreferredStaffSelected) {
+      // Deselect all staff
+      selectedPreferredStaff.forEach(staffId => handlePreferredStaffToggle(staffId));
     } else {
-      // Select all missing staff
+      // Select all available staff
       availablePreferredStaff.forEach(staff => {
         if (!selectedPreferredStaff.includes(staff.id)) {
-          onPreferredStaffToggle(staff.id);
+          handlePreferredStaffToggle(staff.id);
         }
       });
     }
   };
 
-  // Enhanced validation for empty states
-  const hasValidSkills = availableSkills && availableSkills.length > 0;
-  const hasValidClients = availableClients && availableClients.length > 0;
-  const hasValidPreferredStaff = availablePreferredStaff && availablePreferredStaff.length > 0;
-  const allSkillsSelected = hasValidSkills && selectedSkills.length === availableSkills.length;
-  const allClientsSelected = hasValidClients && selectedClients.length === availableClients.length;
+  const handleMonthStart = (value: string) => {
+    const start = parseInt(value);
+    onMonthRangeChange({ 
+      start, 
+      end: Math.max(start, monthRange.end) 
+    });
+  };
+
+  const handleMonthEnd = (value: string) => {
+    const end = parseInt(value);
+    onMonthRangeChange({ 
+      start: Math.min(monthRange.start, end), 
+      end 
+    });
+  };
 
   return (
-    <Card className="h-fit">
+    <Card className={className}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Demand Matrix Controls</CardTitle>
+          <CardTitle className="text-lg">
+            {matrixType === 'detail' ? 'Detail Matrix Controls' : 'Demand Matrix Controls'}
+          </CardTitle>
           <Button 
-            variant="ghost" 
+            variant="outline" 
             size="sm" 
             onClick={onReset}
             className="text-xs"
@@ -145,293 +142,216 @@ export const DemandMatrixControls: React.FC<DemandMatrixControlsProps> = ({
           </Button>
         </div>
       </CardHeader>
-      
       <CardContent className="space-y-4">
-        {/* Month Range Section */}
-        <div className="space-y-3">
-          <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            Time Period
-          </Label>
-          <div className="text-xs text-muted-foreground">
-            Showing months {monthRange.start + 1} to {monthRange.end + 1}
+        {/* Month Range */}
+        <div>
+          <Label className="text-sm font-medium">Time Period</Label>
+          <div className="mt-2 space-y-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Start Month</Label>
+              <select 
+                value={monthRange.start} 
+                onChange={(e) => handleMonthStart(e.target.value)}
+                className="w-full mt-1 px-3 py-1 text-sm border rounded-md bg-background"
+              >
+                {MONTH_NAMES.map((month, index) => (
+                  <option key={index} value={index}>{month}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">End Month</Label>
+              <select 
+                value={monthRange.end} 
+                onChange={(e) => handleMonthEnd(e.target.value)}
+                className="w-full mt-1 px-3 py-1 text-sm border rounded-md bg-background"
+              >
+                {MONTH_NAMES.map((month, index) => (
+                  <option key={index} value={index}>{month}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Period: {MONTH_NAMES[monthRange.start]} - {MONTH_NAMES[monthRange.end]}
           </div>
         </div>
 
         <Separator />
 
-        {/* FIXED: Skills Filter Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Filter className="h-3 w-3" />
-              Skills Filter
-            </Label>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleSelectAllSkills}
-              className="text-xs h-auto p-1"
-              disabled={!hasValidSkills}
-            >
-              {allSkillsSelected ? (
-                <>
-                  <EyeOff className="h-3 w-3 mr-1" />
-                  Hide All
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3 w-3 mr-1" />
-                  Show All
-                </>
-              )}
-            </Button>
+        {/* Skills Filter */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-medium">Skills</Label>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" className="text-xs">
+                {selectedSkills.length}/{availableSkills.length}
+              </Badge>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSkillSelectAll}
+                className="text-xs h-6 px-2"
+              >
+                {isAllSkillsSelected ? 'None' : 'All'}
+              </Button>
+            </div>
           </div>
           
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {!hasValidSkills ? (
-              <div className="text-xs text-muted-foreground italic flex items-center gap-2">
-                <AlertCircle className="h-3 w-3" />
-                Loading skills from demand data...
-              </div>
-            ) : (
-              availableSkills.map((skill) => (
+          {skillsLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Loading skills...</span>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {availableSkills.map((skill) => (
                 <div key={skill} className="flex items-center space-x-2">
                   <Checkbox
                     id={`skill-${skill}`}
                     checked={selectedSkills.includes(skill)}
                     onCheckedChange={() => onSkillToggle(skill)}
                   />
-                  <Label
-                    htmlFor={`skill-${skill}`}
-                    className="text-xs flex-1 cursor-pointer"
-                    title={skill}
+                  <Label 
+                    htmlFor={`skill-${skill}`} 
+                    className="text-sm cursor-pointer flex-1"
                   >
                     {skill}
                   </Label>
                 </div>
-              ))
-            )}
-          </div>
-          
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="outline" className="text-xs">
-              {selectedSkills.length} of {availableSkills.length} selected
-            </Badge>
-            {hasValidSkills && (
-              <Badge variant="secondary" className="text-xs">
-                Resolved
-              </Badge>
-            )}
-            {!hasValidSkills && (
-              <Badge variant="destructive" className="text-xs">
-                Loading
-              </Badge>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <Separator />
 
-        {/* FIXED: Clients Filter Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Filter className="h-3 w-3" />
-              Clients Filter
-            </Label>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleSelectAllClients}
-              className="text-xs h-auto p-1"
-              disabled={!hasValidClients}
-            >
-              {allClientsSelected ? (
-                <>
-                  <EyeOff className="h-3 w-3 mr-1" />
-                  Hide All
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3 w-3 mr-1" />
-                  Show All
-                </>
-              )}
-            </Button>
+        {/* Clients Filter */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-medium">Clients</Label>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" className="text-xs">
+                {selectedClients.length}/{availableClients.length}
+              </Badge>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleClientSelectAll}
+                className="text-xs h-6 px-2"
+              >
+                {isAllClientsSelected ? 'None' : 'All'}
+              </Button>
+            </div>
           </div>
           
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {!hasValidClients ? (
-              <div className="text-xs text-muted-foreground italic flex items-center gap-2">
-                <AlertCircle className="h-3 w-3" />
-                Loading clients from demand data...
-              </div>
-            ) : (
-              availableClients.map((client) => (
+          {clientsLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Loading clients...</span>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {availableClients.map((client) => (
                 <div key={client.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`client-${client.id}`}
                     checked={selectedClients.includes(client.id)}
                     onCheckedChange={() => onClientToggle(client.id)}
                   />
-                  <Label
-                    htmlFor={`client-${client.id}`}
-                    className="text-xs flex-1 cursor-pointer"
-                    title={client.name}
+                  <Label 
+                    htmlFor={`client-${client.id}`} 
+                    className="text-sm cursor-pointer flex-1"
                   >
                     {client.name}
                   </Label>
                 </div>
-              ))
-            )}
-          </div>
-          
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="outline" className="text-xs">
-              {selectedClients.length} of {availableClients.length} selected
-            </Badge>
-            {hasValidClients && (
-              <Badge variant="secondary" className="text-xs">
-                Resolved
-              </Badge>
-            )}
-            {!hasValidClients && (
-              <Badge variant="destructive" className="text-xs">
-                Loading
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Phase 2: Preferred Staff Filter Section */}
-        {hasValidPreferredStaff && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <Filter className="h-3 w-3" />
-                  Preferred Staff Filter
-                  {preferredStaffLoading && (
-                    <RefreshCw className="h-3 w-3 ml-1 animate-spin" />
-                  )}
-                </Label>
-                <div className="flex items-center gap-1">
-                  {preferredStaffError && onRetryPreferredStaff && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={onRetryPreferredStaff}
-                      className="text-xs h-auto p-1"
-                    >
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      Retry
-                    </Button>
-                  )}
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleSelectAllPreferredStaff}
-                    className="text-xs h-auto p-1"
-                    disabled={preferredStaffLoading || !hasValidPreferredStaff}
-                  >
-                    {isAllPreferredStaffSelected ? (
-                      <>
-                        <EyeOff className="h-3 w-3 mr-1" />
-                        Hide All
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="h-3 w-3 mr-1" />
-                        Show All
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-              
-              {preferredStaffError && (
-                <div className="text-xs text-destructive bg-destructive/10 p-2 rounded flex items-center gap-2">
-                  <AlertCircle className="h-3 w-3" />
-                  {preferredStaffError}
-                </div>
-              )}
-              
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {preferredStaffLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center space-x-2">
-                        <div className="w-4 h-4 bg-muted animate-pulse rounded" />
-                        <div className="h-3 bg-muted animate-pulse rounded flex-1" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  availablePreferredStaff.map((staff) => (
-                    <div key={staff.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`staff-${staff.id}`}
-                        checked={selectedPreferredStaff.includes(staff.id)}
-                        onCheckedChange={() => onPreferredStaffToggle(staff.id)}
-                      />
-                      <Label
-                        htmlFor={`staff-${staff.id}`}
-                        className="text-xs flex-1 cursor-pointer"
-                        title={staff.name}
-                      >
-                        {staff.name}
-                      </Label>
-                    </div>
-                  ))
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-1">
-                <Badge variant="outline" className="text-xs">
-                  {selectedPreferredStaff.length} of {availablePreferredStaff.length} selected
-                </Badge>
-                {hasValidPreferredStaff && !preferredStaffLoading && (
-                  <Badge variant="secondary" className="text-xs">
-                    Available
-                  </Badge>
-                )}
-                {preferredStaffLoading && (
-                  <Badge variant="destructive" className="text-xs">
-                    Loading
-                  </Badge>
-                )}
-              </div>
+              ))}
             </div>
-          </>
-        )}
+          )}
+        </div>
 
         <Separator />
 
-        {/* Actions Section */}
-        <div className="space-y-3">
-          <Label className="text-xs font-medium text-muted-foreground">
-            Actions
-          </Label>
-          <div className="flex flex-col gap-2">
+        {/* Preferred Staff Filter */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-medium">Preferred Staff</Label>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" className="text-xs">
+                {selectedPreferredStaff.length}/{availablePreferredStaff.length}
+              </Badge>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handlePreferredStaffSelectAll}
+                className="text-xs h-6 px-2"
+              >
+                {isAllPreferredStaffSelected ? 'None' : 'All'}
+              </Button>
+            </div>
+          </div>
+          
+          {preferredStaffLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Loading staff...</span>
+            </div>
+          ) : preferredStaffError ? (
+            <Alert className="my-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span className="text-sm">Failed to load staff</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={refetchPreferredStaff}
+                  className="text-xs h-6 px-2 ml-2"
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {availablePreferredStaff.map((staff) => (
+                <div key={staff.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`staff-${staff.id}`}
+                    checked={selectedPreferredStaff.includes(staff.id)}
+                    onCheckedChange={() => handlePreferredStaffToggle(staff.id)}
+                  />
+                  <Label 
+                    htmlFor={`staff-${staff.id}`} 
+                    className="text-sm cursor-pointer flex-1"
+                  >
+                    {staff.name}
+                    {staff.roleTitle && (
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({staff.roleTitle})
+                      </span>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Actions */}
+        <div>
+          <Label className="text-sm font-medium">Actions</Label>
+          <div className="mt-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={onExport}
-              className="w-full justify-start text-xs"
+              className="w-full text-sm"
             >
-              <Download className="h-3 w-3 mr-2" />
-              Export to Excel
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onPrintExport}
-              className="w-full justify-start text-xs"
-            >
-              <Printer className="h-3 w-3 mr-2" />
-              Print Export
+              <Download className="h-4 w-4 mr-2" />
+              Export Data
             </Button>
           </div>
         </div>
