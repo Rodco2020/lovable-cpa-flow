@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useDemandMatrixData } from '../../hooks/useDemandMatrixData';
 import { useDemandMatrixControls } from '../../hooks/useDemandMatrixControls';
 import { useMatrixFiltering } from '../../hooks/useMatrixFiltering';
@@ -17,72 +17,61 @@ interface UseDetailMatrixDataResult {
 }
 
 /**
- * FIXED: Detail Matrix Data Hook - Proper Data Initialization Order
+ * FIXED: Detail Matrix Data Hook - Single Data Fetch Pattern
  * 
- * Fixed the initialization sequence to ensure controls have actual data:
- * 1. Load initial data without filters
- * 2. Initialize controls with loaded data
- * 3. Create filtering with control selections
- * 4. Reload data with active filters
- * 5. Handle loading states properly
+ * Eliminated infinite loop by using single data fetch with stabilized dependencies:
+ * 1. Initialize controls with matrix filtering
+ * 2. Create stable activeFilters with JSON.stringify for arrays
+ * 3. Single useDemandMatrixData call with activeFilters
+ * 4. Add loading state protection
  */
 export const useDetailMatrixData = ({ 
   groupingMode 
 }: UseDetailMatrixDataProps): UseDetailMatrixDataResult => {
   
-  // STEP 1: Load initial data without filters to get all available options
-  const { 
-    demandData: initialData, 
-    isLoading: initialLoading, 
-    error: initialError 
-  } = useDemandMatrixData(groupingMode, {}); // Empty filters for initial load
-
-  // STEP 2: Create matrix filtering first to get available preferred staff
+  // Initialize controls first with matrix filtering to get available preferred staff
   const matrixFiltering = useMatrixFiltering({
-    demandData: initialData || null,
-    selectedSkills: [], // Start with empty selections
+    demandData: null, // Start with null to prevent premature filtering
+    selectedSkills: [],
     selectedClients: [], 
     selectedPreferredStaff: [],
     monthRange: { start: 0, end: 11 },
     groupingMode
   });
 
-  // STEP 3: Initialize controls with preferred staff from matrix filtering
   const demandMatrixControls = useDemandMatrixControls({
-    demandData: initialData || null,
+    demandData: null,
     groupingMode,
     availablePreferredStaff: matrixFiltering.availablePreferredStaff
   });
 
-  // STEP 4: Create active filters object
-  const activeFilters = useMemo(() => {
-    const hasActiveFilters = demandMatrixControls.selectedSkills.length > 0 ||
-                            demandMatrixControls.selectedClients.length > 0 ||
-                            demandMatrixControls.selectedPreferredStaff.length > 0 ||
-                            (demandMatrixControls.monthRange.start !== 0 || demandMatrixControls.monthRange.end !== 11);
-
-    if (!hasActiveFilters) {
-      return {}; // No filters = show all data
-    }
-
-    return {
-      skills: demandMatrixControls.selectedSkills,
-      clients: demandMatrixControls.selectedClients,
-      preferredStaff: demandMatrixControls.selectedPreferredStaff
-    };
-  }, [
-    demandMatrixControls.selectedSkills,
-    demandMatrixControls.selectedClients,
-    demandMatrixControls.selectedPreferredStaff,
-    demandMatrixControls.monthRange
+  // Track previous controls to prevent rendering while loading
+  const prevControls = useRef(demandMatrixControls);
+  
+  // FIXED: Stabilize activeFilters using JSON.stringify to prevent infinite loops
+  const activeFilters = useMemo(() => ({
+    skills: demandMatrixControls.selectedSkills,
+    clients: demandMatrixControls.selectedClients,
+    preferredStaff: demandMatrixControls.selectedPreferredStaff,
+  }), [
+    // Use JSON.stringify for array dependencies to prevent reference changes
+    JSON.stringify(demandMatrixControls.selectedSkills),
+    JSON.stringify(demandMatrixControls.selectedClients),
+    JSON.stringify(demandMatrixControls.selectedPreferredStaff),
   ]);
 
-  // STEP 5: Reload data with active filters (if any)
-  const { 
-    demandData: filteredData, 
-    isLoading: filteredLoading, 
-    error: filteredError 
-  } = useDemandMatrixData(groupingMode, activeFilters);
+  // FIXED: Single data fetch with stabilized activeFilters
+  const { demandData, isLoading, error } = useDemandMatrixData(
+    groupingMode, 
+    activeFilters
+  );
+
+  // Update prevControls when not loading
+  useEffect(() => {
+    if (!isLoading) {
+      prevControls.current = demandMatrixControls;
+    }
+  }, [isLoading, demandMatrixControls]);
 
   // Generate months array for consistency
   const months = useMemo(() => {
@@ -95,12 +84,11 @@ export const useDetailMatrixData = ({
 
   // Transform demand data to task format for Detail Matrix
   const transformedTasks = useMemo(() => {
-    const dataToUse = filteredData || initialData;
-    if (!dataToUse?.dataPoints) return [];
+    if (!demandData?.dataPoints) return [];
 
     const tasks: any[] = [];
     
-    dataToUse.dataPoints.forEach(point => {
+    demandData.dataPoints.forEach(point => {
       point.taskBreakdown?.forEach((task: any) => {
         // Create task entries for each month with hours
         if (task.monthlyDistribution) {
@@ -156,16 +144,12 @@ export const useDetailMatrixData = ({
       });
     });
 
-    console.log(`✅ [DETAIL MATRIX DATA] Transformed ${tasks.length} task entries from ${dataToUse.dataPoints.length} data points`);
+    console.log(`✅ [DETAIL MATRIX DATA] Transformed ${tasks.length} task entries from ${demandData.dataPoints.length} data points`);
     return tasks;
-  }, [filteredData, initialData, months]);
-
-  // STEP 6: Handle loading states properly
-  const isLoading = initialLoading || (Object.keys(activeFilters).length > 0 && filteredLoading);
-  const error = initialError || filteredError;
+  }, [demandData, months]);
 
   console.log(`🔄 [DETAIL MATRIX DATA] Hook state:`, {
-    initialDataLoaded: !!initialData,
+    dataLoaded: !!demandData,
     controlsInitialized: !!demandMatrixControls,
     activeFiltersCount: Object.keys(activeFilters).length,
     finalTasksCount: transformedTasks.length,
@@ -178,6 +162,7 @@ export const useDetailMatrixData = ({
     months,
     loading: isLoading,
     error,
-    demandMatrixControls
+    // Prevent controls from updating while loading
+    demandMatrixControls: isLoading ? prevControls.current : demandMatrixControls
   };
 };

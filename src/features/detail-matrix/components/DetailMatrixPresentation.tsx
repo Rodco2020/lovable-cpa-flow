@@ -58,6 +58,7 @@ export const DetailMatrixPresentation: React.FC<DetailMatrixPresentationProps> =
             onToggleControls={handleToggleControls}
             matrixType="detail"
             {...demandMatrixControls}
+            onPreferredStaffToggle={demandMatrixControls.handlePreferredStaffToggle}
           />
         </div>
       </div>
