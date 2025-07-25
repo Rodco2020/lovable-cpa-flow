@@ -31,8 +31,16 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   // Get raw demand data for matrix filtering (to extract available options)
   const { demandData } = useDemandMatrixData(groupingMode, {});
 
-  // Extract available options from loaded data using useMatrixFiltering
-  const matrixFiltering = demandData ? useMatrixFiltering({
+  // PHASE 4: Add debug logging for initialization tracking
+  if (!demandMatrixControls || !demandMatrixControls.selectedPreferredStaff) {
+    console.warn('DetailMatrix: demandMatrixControls not fully initialized', {
+      controls: demandMatrixControls,
+      selectedPreferredStaff: demandMatrixControls?.selectedPreferredStaff
+    });
+  }
+
+  // PHASE 3: Extract available options with comprehensive safety checks
+  const matrixFiltering = demandData && demandMatrixControls ? useMatrixFiltering({
     demandData,
     selectedSkills: demandMatrixControls.selectedSkills || [],
     selectedClients: demandMatrixControls.selectedClients || [],

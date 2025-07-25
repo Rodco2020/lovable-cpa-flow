@@ -23,6 +23,25 @@ export const useMatrixFiltering = ({
   monthRange,
   groupingMode
 }: UseMatrixFilteringProps) => {
+  
+  // PHASE 2: Early return with safe defaults if critical data is missing
+  if (!demandData || selectedSkills === undefined || selectedClients === undefined || selectedPreferredStaff === undefined) {
+    console.warn('🚨 [MATRIX FILTERING] Critical data missing, returning safe defaults:', {
+      demandData: !!demandData,
+      selectedSkills: selectedSkills !== undefined,
+      selectedClients: selectedClients !== undefined,
+      selectedPreferredStaff: selectedPreferredStaff !== undefined
+    });
+    return {
+      availableSkills: [],
+      availableClients: [],
+      availablePreferredStaff: [],
+      isAllSkillsSelected: false,
+      isAllClientsSelected: false,
+      isAllPreferredStaffSelected: false,
+      validationErrors: ['Data not initialized']
+    };
+  }
   // Extract available skills from resolved matrix data
   const availableSkills = useMemo(() => {
     if (!demandData) {
@@ -161,18 +180,24 @@ export const useMatrixFiltering = ({
     return extractedStaff;
   }, [demandData?.dataPoints]);
 
-  // Calculate selection state flags for proper filtering logic
+  // PHASE 1: Calculate selection state flags with null safety checks
   const isAllSkillsSelected = useMemo(() => {
-    return availableSkills.length > 0 && selectedSkills.length === availableSkills.length;
-  }, [availableSkills.length, selectedSkills.length]);
+    return availableSkills.length > 0 && 
+           selectedSkills && 
+           selectedSkills.length === availableSkills.length;
+  }, [availableSkills.length, selectedSkills?.length]);
 
   const isAllClientsSelected = useMemo(() => {
-    return availableClients.length > 0 && selectedClients.length === availableClients.length;
-  }, [availableClients.length, selectedClients.length]);
+    return availableClients.length > 0 && 
+           selectedClients && 
+           selectedClients.length === availableClients.length;
+  }, [availableClients.length, selectedClients?.length]);
 
   const isAllPreferredStaffSelected = useMemo(() => {
-    return availablePreferredStaff.length > 0 && selectedPreferredStaff.length === availablePreferredStaff.length;
-  }, [availablePreferredStaff.length, selectedPreferredStaff.length]);
+    return availablePreferredStaff.length > 0 && 
+           selectedPreferredStaff && 
+           selectedPreferredStaff.length === availablePreferredStaff.length;
+  }, [availablePreferredStaff.length, selectedPreferredStaff?.length]);
 
   // Enhanced validation and logging
   const validationErrors = useMemo(() => {
