@@ -47,12 +47,13 @@ export const useDemandMatrixControls = ({
   const preferredStaffError = null;
   const refetchPreferredStaff = () => {}; // No-op since data comes from props
 
-  // Use filtering logic hook
+  // Use filtering logic hook with safe initialization
   const {
     availableSkills,
     availableClients,
     isAllSkillsSelected: filteredIsAllSkillsSelected,
-    isAllClientsSelected: filteredIsAllClientsSelected
+    isAllClientsSelected: filteredIsAllClientsSelected,
+    validationErrors
   } = useMatrixFiltering({
     demandData,
     selectedSkills: state.selectedSkills,
@@ -116,6 +117,9 @@ export const useDemandMatrixControls = ({
     preferredStaffLoading,
     preferredStaffError,
     isAllPreferredStaffSelected: calculatedStates.isAllPreferredStaffSelected,
-    refetchPreferredStaff
+    refetchPreferredStaff,
+    
+    // Matrix filtering results - integrated to prevent race conditions
+    validationErrors
   };
 };

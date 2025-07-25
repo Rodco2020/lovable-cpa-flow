@@ -33,4 +33,6 @@ export interface UseDemandMatrixControlsResult extends DemandMatrixControlsState
   preferredStaffError: Error | null;
   isAllPreferredStaffSelected: boolean;
   refetchPreferredStaff: () => void;
+  // Matrix filtering results - integrated to prevent race conditions
+  validationErrors: string[];
 }
