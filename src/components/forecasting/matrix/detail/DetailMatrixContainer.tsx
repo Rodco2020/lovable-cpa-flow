@@ -3,6 +3,8 @@ import React from 'react';
 import { useDetailMatrixData } from './hooks/useDetailMatrixData';
 import { useDetailMatrixFilters } from './hooks/useDetailMatrixFilters';
 import { useStaffForecastSummary } from './hooks/useStaffForecastSummary';
+import { useMatrixFiltering } from '../hooks/useMatrixFiltering';
+import { useDemandMatrixData } from '../hooks/useDemandMatrixData';
 import { DetailMatrixView } from './DetailMatrixView';
 import { StaffForecastSummaryView } from './StaffForecastSummaryView';
 import { DetailMatrixPresentation } from '@/features/detail-matrix/components/DetailMatrixPresentation';
@@ -25,6 +27,49 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
   // Get matrix data and months
   const { data: matrixData, months, loading: isMatrixLoading, error, demandMatrixControls } = useDetailMatrixData({ groupingMode });
   const tasks = matrixData || [];
+
+  // Get raw demand data for matrix filtering (to extract available options)
+  const { demandData } = useDemandMatrixData(groupingMode, {});
+
+  // Extract available options from loaded data using useMatrixFiltering
+  const matrixFiltering = demandData ? useMatrixFiltering({
+    demandData,
+    selectedSkills: demandMatrixControls.selectedSkills || [],
+    selectedClients: demandMatrixControls.selectedClients || [],
+    selectedPreferredStaff: demandMatrixControls.selectedPreferredStaff || [],
+    monthRange: demandMatrixControls.monthRange || { start: 0, end: 11 },
+    groupingMode
+  }) : {
+    availableSkills: [],
+    availableClients: [],
+    availablePreferredStaff: [],
+    isAllSkillsSelected: false,
+    isAllClientsSelected: false,
+    isAllPreferredStaffSelected: false,
+  };
+
+  // Enhance controls with extracted data from matrix filtering
+  const enhancedDemandMatrixControls = {
+    ...demandMatrixControls,
+    // Override with extracted available options
+    availableSkills: matrixFiltering.availableSkills,
+    availableClients: matrixFiltering.availableClients,
+    availablePreferredStaff: matrixFiltering.availablePreferredStaff,
+    // Update selection flags
+    isAllSkillsSelected: matrixFiltering.isAllSkillsSelected,
+    isAllClientsSelected: matrixFiltering.isAllClientsSelected,
+    isAllPreferredStaffSelected: matrixFiltering.isAllPreferredStaffSelected,
+  };
+
+  // Debug logging to verify the fix
+  console.log('Detail Matrix Controls Enhanced:', {
+    availableSkills: enhancedDemandMatrixControls.availableSkills.length,
+    availableClients: enhancedDemandMatrixControls.availableClients.length,
+    availablePreferredStaff: enhancedDemandMatrixControls.availablePreferredStaff.length,
+    selectedSkills: enhancedDemandMatrixControls.selectedSkills.length,
+    selectedClients: enhancedDemandMatrixControls.selectedClients.length,
+    selectedPreferredStaff: enhancedDemandMatrixControls.selectedPreferredStaff.length,
+  });
 
   // Apply filters to tasks (for matrix view)
   const filterResult = useDetailMatrixFilters({
@@ -101,7 +146,7 @@ export const DetailMatrixContainer: React.FC<DetailMatrixContainerProps> = ({
 
   return (
     <DetailMatrixPresentation
-      demandMatrixControls={demandMatrixControls}
+      demandMatrixControls={enhancedDemandMatrixControls}
       isLoading={isMatrixLoading}
       error={error}
     >
