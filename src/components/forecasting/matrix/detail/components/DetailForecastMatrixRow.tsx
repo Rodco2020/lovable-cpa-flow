@@ -103,7 +103,7 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
     className?: string;
     align?: string;
   }) => (
-    <td className={`p-3 text-sm border-b border-border ${rowBg} text-${align} ${className} whitespace-nowrap`}>
+    <td className={`p-3 text-sm border-b border-border ${rowBg} text-${align} ${className}`}>
       {children}
     </td>
   );
@@ -111,33 +111,33 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
   return (
     <tr className="hover:bg-muted/30 transition-colors">
       {/* Task Identification Columns */}
-      <Cell align="left" className="font-medium min-w-[200px]">
+      <Cell align="left" className="font-medium">
         {task.taskName}
       </Cell>
       
-      <Cell align="left" className="min-w-[150px]">
+      <Cell align="left">
         {task.clientName}
       </Cell>
       
-      <Cell className="min-w-[100px]">
+      <Cell>
         <Badge variant="outline" className="text-xs">
           {task.skillRequired}
         </Badge>
       </Cell>
       
-      <Cell className="min-w-[80px]">
+      <Cell>
         <Badge variant={getPriorityVariant(task.priority)} className="text-xs">
           {task.priority}
         </Badge>
       </Cell>
       
-      <Cell className="min-w-[100px]">
+      <Cell>
         <Badge variant="secondary" className="text-xs">
           {task.category}
         </Badge>
       </Cell>
       
-      <Cell className="min-w-[120px]">
+      <Cell>
         <span className="text-xs text-muted-foreground">
           {task.recurrencePattern}
         </span>
@@ -147,30 +147,30 @@ export const DetailForecastMatrixRow: React.FC<DetailForecastMatrixRowProps> = (
       {months.map((month) => {
         const hours = getMonthlyHours(month);
         return (
-          <Cell key={month} className="font-mono min-w-[80px]">
+          <Cell key={month} className="font-mono">
             {hours > 0 ? formatHours(hours, 1) : '-'}
           </Cell>
         );
       })}
       
       {/* Revenue Calculation Columns with Enhanced Error Handling */}
-      <Cell className="bg-slate-50 border-l-2 border-slate-300 font-semibold min-w-[100px]">
+      <Cell className="bg-slate-50 border-l-2 border-slate-300 font-semibold">
         {task.totalHours ? formatHoursValue(task.totalHours) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
-      <Cell className="bg-green-50 border-l-2 border-green-300 font-semibold min-w-[150px]">
+      <Cell className="bg-green-50 border-l-2 border-green-300 font-semibold">
         {revenueData ? formatRevenueValue(revenueData.totalExpectedRevenue, false, true) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
-      <Cell className="bg-purple-50 border-l-2 border-purple-300 font-semibold min-w-[130px]">
+      <Cell className="bg-purple-50 border-l-2 border-purple-300 font-semibold">
         {revenueData ? formatRevenueValue(revenueData.expectedHourlyRate, false, true) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
-      <Cell className="bg-emerald-50 border-l-2 border-emerald-300 font-semibold min-w-[150px]">
+      <Cell className="bg-emerald-50 border-l-2 border-emerald-300 font-semibold">
         {revenueData ? formatRevenueValue(revenueData.totalSuggestedRevenue, false, true) : <span className="text-muted-foreground">-</span>}
       </Cell>
       
-      <Cell className="bg-amber-50 border-l-2 border-amber-300 font-semibold min-w-[160px]">
+      <Cell className="bg-amber-50 border-l-2 border-amber-300 font-semibold">
         {revenueData ? formatRevenueValue(revenueData.expectedLessSuggested, true, false) : <span className="text-muted-foreground">-</span>}
       </Cell>
     </tr>

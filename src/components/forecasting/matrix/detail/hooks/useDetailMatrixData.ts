@@ -151,7 +151,7 @@ export const useDetailMatrixData = ({
   try {
     // Data processing logic here (no hooks!)
     if (demandData && !isLoading && demandData.dataPoints) {
-      // PHASE 1: Implement Task Aggregation Logic - FIXED with correct monthlyHours preservation
+      // PHASE 1: Implement Task Aggregation Logic
       
       // Create a map to aggregate tasks
       const taskMap = new Map<string, Task>();
@@ -190,26 +190,14 @@ export const useDetailMatrixData = ({
                 // Legacy fields for compatibility
                 month: '', // Not needed for aggregated view
                 monthLabel: '', // Not needed for aggregated view
-                // SURGICAL FIX: Preserve per-occurrence hours from original task
-                monthlyHours: task.monthlyHours // FIXED: Use actual value instead of 0
+                monthlyHours: 0 // Will use monthlyDistribution instead
               });
               
               console.log('[AGGREGATION] New task with staff:', {
                 taskName: task.taskName,
                 preferredStaffId: task.preferredStaffId,
-                preferredStaffName: task.preferredStaffName,
-                monthlyHours: task.monthlyHours // Log the preserved value
+                preferredStaffName: task.preferredStaffName
               });
-              
-              // PHASE 3: Add validation logging for Ana Florian
-              if (task.taskName.includes('Monthly Bookkeeping') && task.preferredStaffName?.includes('Ana Florian')) {
-                console.log('🎯 [FIX VALIDATION] Ana Florian task created:', {
-                  taskName: task.taskName,
-                  monthlyHours: task.monthlyHours, // Should be 1.0 for monthly tasks
-                  totalHours: 0, // Initial value
-                  monthlyDistribution: {}
-                });
-              }
             } else {
               // Update existing task - keep the most recent staff assignment
               const aggregatedTask = taskMap.get(taskKey)!;
@@ -219,32 +207,12 @@ export const useDetailMatrixData = ({
                 aggregatedTask.preferredStaffId = task.preferredStaffId;
                 aggregatedTask.preferredStaffName = task.preferredStaffName;
               }
-              
-              // PHASE 2: Ensure monthlyHours is preserved during aggregation
-              if (aggregatedTask.monthlyHours === 0 && task.monthlyHours > 0) {
-                aggregatedTask.monthlyHours = task.monthlyHours;
-                console.log('🔧 [AGGREGATION FIX] Updated monthlyHours for existing task:', {
-                  taskName: task.taskName,
-                  previousHours: 0,
-                  newHours: task.monthlyHours
-                });
-              }
             }
             
             // Add hours for this month to the aggregated task
             const aggregatedTask = taskMap.get(taskKey)!;
             aggregatedTask.monthlyDistribution[point.month] = task.monthlyHours;
             aggregatedTask.totalHours += task.monthlyHours;
-            
-            // PHASE 3: Add validation logging for Ana Florian after aggregation
-            if (task.taskName.includes('Monthly Bookkeeping') && task.preferredStaffName?.includes('Ana Florian')) {
-              console.log('🎯 [FIX VALIDATION] Ana Florian task aggregated:', {
-                taskName: aggregatedTask.taskName,
-                monthlyHours: aggregatedTask.monthlyHours, // Should be 1.0 for monthly tasks
-                totalHours: aggregatedTask.totalHours,     // Should be cumulative across months
-                monthlyDistribution: Object.keys(aggregatedTask.monthlyDistribution).length
-              });
-            }
           });
         }
       });
@@ -259,28 +227,11 @@ export const useDetailMatrixData = ({
           name: processedData[0].taskName,
           client: processedData[0].clientName,
           totalHours: processedData[0].totalHours,
-          monthlyHours: processedData[0].monthlyHours, // Log the preserved value
           monthlyDistribution: Object.keys(processedData[0].monthlyDistribution).length,
           preferredStaffId: processedData[0].preferredStaffId,
           preferredStaffName: processedData[0].preferredStaffName
         } : null
       });
-      
-      // PHASE 3: Final validation logging for Ana Florian
-      const anaTask = processedData.find(task => 
-        task.taskName.includes('Monthly Bookkeeping') && 
-        task.preferredStaffName?.includes('Ana Florian')
-      );
-      
-      if (anaTask) {
-        console.log('✅ [FINAL VALIDATION] Ana Florian aggregated task:', {
-          taskName: anaTask.taskName,
-          monthlyHours: anaTask.monthlyHours, // Should be 1.0 for monthly tasks
-          totalHours: anaTask.totalHours,     // Should be cumulative across months
-          monthlyDistribution: anaTask.monthlyDistribution,
-          preferredStaffName: anaTask.preferredStaffName
-        });
-      }
       
       console.log('[AGGREGATION] Sample aggregated task with staff:', 
         processedData.find(task => task.preferredStaffId) || 'No tasks with preferred staff found'

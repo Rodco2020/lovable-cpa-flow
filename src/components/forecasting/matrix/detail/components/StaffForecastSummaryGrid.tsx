@@ -3,6 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { StaffForecastSummaryHeader } from './StaffForecastSummaryHeader';
 import { StaffForecastSummaryRow } from './StaffForecastSummaryRow';
+import { StaffSummaryTotalsRow } from './StaffSummaryTotalsRow';
+import { StaffForecastSummaryService } from '@/services/forecasting/detail/staffForecastSummaryService';
 
 type SortField = 'name' | 'utilization' | 'totalHours' | 'totalExpectedRevenue';
 type SortDirection = 'asc' | 'desc';
@@ -63,6 +65,11 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
     return sorted;
   }, [utilizationData, sortField, sortDirection]);
 
+  // Calculate firm-wide totals
+  const firmTotals = useMemo(() => {
+    return StaffForecastSummaryService.calculateFirmWideTotals(utilizationData);
+  }, [utilizationData]);
+
   // Handle column sorting
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -106,7 +113,7 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
           onSort={handleSort}
         />
 
-        {/* Body - Individual Staff Rows Only */}
+        {/* Body */}
         <div className="divide-y">
           {sortedData.map((staff, index) => (
             <StaffForecastSummaryRow
@@ -116,6 +123,11 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
               index={index}
             />
           ))}
+          <StaffSummaryTotalsRow 
+            totals={firmTotals}
+            months={months}
+            totalStaffCount={sortedData.length}
+          />
         </div>
       </div>
     </div>

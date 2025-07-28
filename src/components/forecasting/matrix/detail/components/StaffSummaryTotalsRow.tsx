@@ -31,7 +31,7 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
     return 'text-gray-600 bg-gray-100'; // Under-utilized
   };
 
-  
+  const utilizationClass = getUtilizationColor(totals.overallUtilization);
 
   const Cell = ({ 
     children, 
@@ -70,7 +70,7 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
     <div 
       className="grid gap-1 border-t-2 border-primary"
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, minmax(90px, 120px)) 120px 100px 120px 120px 120px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 100px 120px 120px`
       }}
     >
       {/* Firm Totals Label */}
@@ -102,19 +102,16 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
       {/* Summary Totals */}
       <Cell 
         className="border-l-2 border-slate-400 bg-slate-100 font-bold"
-        tooltip={`Total demand/capacity: ${formatHours(totals.totalDemand, 1)}h / ${formatHours(totals.totalCapacity, 1)}h with gap of ${totals.totalGap > 0 ? '+' : ''}${formatHours(totals.totalGap, 1)}h and overall utilization of ${formatNumber(totals.overallUtilization, 1)}%`}
+        tooltip={`Total demand hours across all staff: ${formatHours(totals.totalDemand, 1)}`}
       >
-        <div className="text-center space-y-1 py-2 bg-gray-50">
-          <div className="text-xs font-bold">
-            {totals.totalDemand.toFixed(1)} / {totals.totalCapacity.toFixed(1)}
-          </div>
-          <div className={`text-xs font-bold ${totals.totalGap > 0 ? 'text-green-600' : totals.totalGap < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-            {totals.totalGap > 0 ? '+' : ''}{totals.totalGap.toFixed(1)}
-          </div>
-          <div className={`text-xs font-bold ${getUtilizationColor(totals.overallUtilization)}`}>
-            {totals.overallUtilization.toFixed(0)}%
-          </div>
-        </div>
+        {formatHours(totals.totalDemand, 1)}
+      </Cell>
+      
+      <Cell 
+        className={`bg-slate-100 font-bold ${utilizationClass} rounded-sm`}
+        tooltip={`Overall firm utilization: ${formatNumber(totals.overallUtilization, 1)}%`}
+      >
+        {formatNumber(totals.overallUtilization, 1)}%
       </Cell>
       
       <Cell 

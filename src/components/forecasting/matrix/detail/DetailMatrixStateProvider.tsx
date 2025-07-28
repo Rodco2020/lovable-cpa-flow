@@ -1,15 +1,14 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface DetailMatrixState {
-  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary';
+  viewMode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix';
   expandedSkills: Set<string>;
   sortConfig: { field: string; direction: 'asc' | 'desc' };
   selectedTasks: Set<string>;
 }
 
 interface DetailMatrixContextType extends DetailMatrixState {
-  setViewMode: (mode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary') => void;
+  setViewMode: (mode: 'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix') => void;
   toggleSkillExpansion: (skill: string) => void;
   setSortConfig: (config: { field: string; direction: 'asc' | 'desc' }) => void;
   toggleTaskSelection: (taskId: string) => void;
@@ -28,12 +27,11 @@ interface DetailMatrixStateProviderProps {
  * 
  * Independent state management for Detail Matrix view modes and UI state.
  * Does not interfere with existing Demand Matrix state.
- * Updated to support all view modes including 'staff-forecast-summary'.
  */
 export const DetailMatrixStateProvider: React.FC<DetailMatrixStateProviderProps> = ({
   children
 }) => {
-  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary'>('all-tasks');
+  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix'>('all-tasks');
   const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' }>({
     field: 'taskName',

@@ -1,4 +1,3 @@
-
 /**
  * Detail Forecast Matrix Components
  * 
@@ -14,4 +13,3 @@ export { StaffForecastSummaryGrid } from './StaffForecastSummaryGrid';
 export { StaffForecastSummaryHeader } from './StaffForecastSummaryHeader';
 export { StaffForecastSummaryRow } from './StaffForecastSummaryRow';
 export { StaffSummaryTotalsRow } from './StaffSummaryTotalsRow';
-export { StaffTotalSummaryCell } from './StaffTotalSummaryCell';

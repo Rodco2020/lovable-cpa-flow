@@ -4,7 +4,6 @@ import { DetailForecastMatrixHeader } from './DetailForecastMatrixHeader';
 import { DetailForecastMatrixRow } from './DetailForecastMatrixRow';
 import { DetailMatrixTotalsCalculator } from '@/services/forecasting/detail/detailMatrixTotalsCalculator';
 import { DetailMatrixTotalsRow } from './DetailMatrixTotalsRow';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 // Use the aggregated Task interface from Detail Matrix
 interface Task {
@@ -117,30 +116,25 @@ export const DetailForecastMatrixGrid: React.FC<DetailForecastMatrixGridProps> =
   }
 
   return (
-    <div className="w-full">
-      <ScrollArea className="border rounded-lg">
-        <div className="min-w-max">
-          <table className="w-full border-collapse table-auto">
-            <DetailForecastMatrixHeader months={months} monthLabels={monthLabels} />
-            <tbody>
-              {tasks.map((task, index) => (
-                <DetailForecastMatrixRow
-                  key={task.id}
-                  task={task}
-                  months={months}
-                  monthLabels={monthLabels}
-                  revenueData={revenueData.get(task.id)}
-                  isEvenRow={index % 2 === 0}
-                />
-              ))}
-              {totals && tasks.length > 0 && (
-                <DetailMatrixTotalsRow totals={totals} months={monthsData} />
-              )}
-            </tbody>
-          </table>
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+    <div className="overflow-x-auto border rounded-lg">
+      <table className="w-full border-collapse">
+        <DetailForecastMatrixHeader months={months} monthLabels={monthLabels} />
+        <tbody>
+          {tasks.map((task, index) => (
+            <DetailForecastMatrixRow
+              key={task.id}
+              task={task}
+              months={months}
+              monthLabels={monthLabels}
+              revenueData={revenueData.get(task.id)}
+              isEvenRow={index % 2 === 0}
+            />
+          ))}
+          {totals && tasks.length > 0 && (
+            <DetailMatrixTotalsRow totals={totals} months={monthsData} />
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };

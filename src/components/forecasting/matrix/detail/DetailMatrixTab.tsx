@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, FileText } from 'lucide-react';
 import { DetailMatrixContainer } from './DetailMatrixContainer';
 import { DetailMatrixErrorBoundary } from './DetailMatrixErrorBoundary';
-import { DetailMatrixStateProvider, useDetailMatrixState } from './DetailMatrixStateProvider';
 
 interface DetailMatrixTabProps {
   className?: string;
@@ -18,11 +17,11 @@ interface DetailMatrixTabProps {
  * New tab for the forecasting dashboard that displays task-level detail data.
  * Phase 3 complete: Full filter integration with existing controls.
  */
-const DetailMatrixTabContent: React.FC<{ className?: string }> = ({ 
+export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({ 
   className 
 }) => {
   const [groupingMode, setGroupingMode] = useState<'skill' | 'client'>('client');
-  const { viewMode, setViewMode } = useDetailMatrixState();
+  const [viewMode, setViewMode] = useState<'all-tasks' | 'group-by-skill' | 'detail-forecast-matrix' | 'staff-forecast-summary'>('all-tasks');
 
   return (
     <div className={className}>
@@ -99,16 +98,6 @@ const DetailMatrixTabContent: React.FC<{ className?: string }> = ({
         </DetailMatrixErrorBoundary>
       </div>
     </div>
-  );
-};
-
-export const DetailMatrixTab: React.FC<DetailMatrixTabProps> = ({ 
-  className 
-}) => {
-  return (
-    <DetailMatrixStateProvider>
-      <DetailMatrixTabContent className={className} />
-    </DetailMatrixStateProvider>
   );
 };
 

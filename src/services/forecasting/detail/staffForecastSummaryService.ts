@@ -2,19 +2,18 @@ import { supabase } from '@/lib/supabase';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
 import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
-import { EnhancedAvailabilityService } from '@/services/availability/enhancedAvailabilityService';
+import { AvailabilityService } from '@/services/availability/availabilityService';
 import { PeriodProcessingService } from '../demand/matrixTransformer/periodProcessingService';
-import { MonthlyDemandCalculationService } from '../demand/matrixTransformer/monthlyDemandCalculationService';
 import { staffQueries } from '@/utils/staffQueries';
 
 /**
  * Staff Forecast Summary Service
  * 
  * Handles calculation of staff utilization data for forecast summary views
- * FIXED: Now properly isolates monthly demand values instead of showing cumulative totals
+ * FIXED: Now uses centralized staff queries to avoid schema mismatch
  */
 export class StaffForecastSummaryService {
-  private static enhancedAvailabilityService = new EnhancedAvailabilityService();
+  private static availabilityService = new AvailabilityService();
 
   /**
    * Calculate staff utilization across forecast periods
@@ -69,7 +68,6 @@ export class StaffForecastSummaryService {
 
   /**
    * Calculate utilization for a single staff member
-   * FIXED: Properly isolates monthly demand and calculates totals correctly
    */
   private static async calculateStaffMemberUtilization(
     staff: any,
@@ -89,33 +87,32 @@ export class StaffForecastSummaryService {
 
       console.log(`📝 [STAFF FORECAST SUMMARY] Processing ${assignedTasks.length} tasks for ${staff.full_name}`);
 
-      // FIXED: Calculate monthly data with proper isolation
+      // Calculate monthly data
       const monthlyData: Record<string, any> = {};
       let totalHours = 0;
       let totalCapacityHours = 0;
 
       for (const month of months) {
         const monthlyCapacity = await this.getStaffCapacityForMonth(staff.id, month);
-        
-        // FIXED: Calculate ONLY this month's demand, not cumulative
-        const monthlyDemand = this.calculateMonthlyDemandForStaff(assignedTasks, month, staff.full_name);
+        const monthlyDemand = this.calculateMonthlyDemand(assignedTasks, month);
 
-        // CRITICAL FIX: Store ONLY this month's data
+        console.log(`Staff capacity calculated for ${staff.full_name}:`, {
+          staffId: staff.id,
+          month: month.key,
+          monthlyCapacity,
+          monthlyDemand,
+          hasValidDates: !!(month.startDate && month.endDate)
+        });
+
         monthlyData[month.key] = {
-          demandHours: monthlyDemand,  // This should be ~22.33 for Ana in July, not 1345.8
+          demandHours: monthlyDemand,
           capacityHours: monthlyCapacity,
           gap: monthlyCapacity - monthlyDemand,
           utilizationPercentage: monthlyCapacity > 0 ? (monthlyDemand / monthlyCapacity) * 100 : 0
         };
 
-        // FIXED: Add to running total (sum of individual months, not multiplication)
         totalHours += monthlyDemand;
         totalCapacityHours += monthlyCapacity;
-
-        // Debug logging for Ana Florian specifically
-        if (staff.full_name === 'Ana Florian') {
-          console.log(`🔍 Ana Florian - Month ${month.key}: ${monthlyDemand} hours demand (should be ~22-48, not 1345.8)`);
-        }
       }
 
       const overallUtilization = totalCapacityHours > 0 ? (totalHours / totalCapacityHours) * 100 : 0;
@@ -125,12 +122,6 @@ export class StaffForecastSummaryService {
       const totalExpectedRevenue = totalHours * expectedHourlyRate;
       const totalSuggestedRevenue = totalHours * (staff.cost_per_hour || 0) * 1.5; // Example markup
       const expectedLessSuggested = totalExpectedRevenue - totalSuggestedRevenue;
-
-      // VALIDATION: Log final totals for Ana Florian
-      if (staff.full_name === 'Ana Florian') {
-        console.log('🔍 Ana Florian monthly breakdown (FIXED):', monthlyData);
-        console.log(`🔍 Ana Florian total hours: ${totalHours} (should be sum of monthly, not 1345.8)`);
-      }
 
       return {
         staffId: staff.id,
@@ -152,25 +143,22 @@ export class StaffForecastSummaryService {
   }
 
   /**
-   * Get staff capacity for a specific month using EnhancedAvailabilityService
-   * FIXED: Replaced legacy service with enhanced service that parses time slots
+   * Get staff capacity for a specific month with fallback date generation
+   * PHASE 2 FIX: Add fallback to generate dates from month key
    */
   private static async getStaffCapacityForMonth(
     staffId: string,
     month: MonthInfo
   ): Promise<number> {
     try {
-      // Use enhanced service to get weekly capacity with proper time slot parsing
-      const weeklyCapacitySummary = await this.enhancedAvailabilityService.calculateWeeklyCapacitySummary(staffId);
-      
-      if (!weeklyCapacitySummary || weeklyCapacitySummary.weeklyHours === 0) {
-        console.warn(`No availability found for staff ${staffId}`);
+      // Get weekly capacity
+      const availability = await this.availabilityService.getAvailabilityForStaff(staffId);
+      if (!availability || availability.length === 0) {
         return 0;
       }
 
-      // Log for debugging
-      console.log(`Staff ${staffId} weekly capacity: ${weeklyCapacitySummary.weeklyHours} hours`);
-
+      const weeklyCapacityHours = this.availabilityService.calculateWeeklyCapacity(availability);
+      
       // Ensure we have valid dates, with fallback to period processing service
       let startDate = month.startDate;
       let endDate = month.endDate;
@@ -186,17 +174,13 @@ export class StaffForecastSummaryService {
           endDate: endDate.toISOString()
         });
       }
-
-      // Convert weekly to monthly using enhanced service method
-      const monthlyCapacity = this.enhancedAvailabilityService.calculateMonthlyCapacity(
-        weeklyCapacitySummary.weeklyHours,
+      
+      // Convert to monthly with valid dates
+      return this.availabilityService.convertWeeklyToMonthlyCapacity(
+        weeklyCapacityHours,
         startDate,
         endDate
       );
-
-      console.log(`Staff ${staffId} monthly capacity for ${month.key}: ${monthlyCapacity} hours`);
-      
-      return monthlyCapacity;
     } catch (error) {
       console.error(`Error calculating capacity for staff ${staffId} in month ${month.key}:`, error);
       return 0;
@@ -204,76 +188,20 @@ export class StaffForecastSummaryService {
   }
 
   /**
-   * Calculate monthly demand for assigned tasks with detailed logging
-   * FIXED: Enhanced version with staff-specific logging for validation
-   */
-  private static calculateMonthlyDemandForStaff(
-    tasks: RecurringTaskDB[],
-    month: MonthInfo,
-    staffName: string
-  ): number {
-    let monthlyTotal = 0;
-    let includedTasks = 0;
-    
-    // Add validation for month date boundaries
-    if (!month.startDate || !month.endDate) {
-      console.warn(`Month ${month.key} missing date boundaries, using month key for calculations`);
-    }
-
-    for (const task of tasks) {
-      // Check if task should appear in this specific month based on recurrence
-      const shouldAppear = MonthlyDemandCalculationService.shouldTaskAppearInMonth(task, month.key);
-      
-      if (shouldAppear) {
-        // Calculate actual monthly demand based on recurrence pattern
-        const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
-        const taskHours = monthlyDemand.monthlyHours || 0;
-        
-        monthlyTotal += taskHours;
-        includedTasks++;
-        
-        // Debug logging for Ana Florian specifically
-        if (staffName === 'Ana Florian') {
-          console.log(`🔍 Ana task in ${month.key}: ${task.name}, hours: ${taskHours}, recurrence: ${task.recurrence_type}`);
-        }
-      }
-    }
-    
-    console.log(`📊 Month ${month.key} for ${staffName}: ${includedTasks} tasks, ${monthlyTotal} hours total`);
-    return monthlyTotal;
-  }
-
-  /**
-   * Calculate monthly demand for assigned tasks using recurrence-aware logic
-   * FIXED: Now uses proper recurrence calculations matching Detail Matrix
+   * Calculate monthly demand for assigned tasks
    */
   private static calculateMonthlyDemand(
     tasks: RecurringTaskDB[],
     month: MonthInfo
   ): number {
-    // Add validation for month date boundaries
-    if (!month.startDate || !month.endDate) {
-      console.warn(`Month ${month.key} missing date boundaries, using month key for calculations`);
-    }
-
     return tasks.reduce((total, task) => {
-      // Check if task should appear in this specific month based on recurrence
-      const shouldAppear = MonthlyDemandCalculationService.shouldTaskAppearInMonth(task, month.key);
-      
-      if (!shouldAppear) {
-        return total; // Skip tasks not due in this month
-      }
-      
-      // Calculate actual monthly demand based on recurrence pattern
-      const monthlyDemand = MonthlyDemandCalculationService.calculateTaskDemandForMonth(task, month.key);
-      
-      return total + (monthlyDemand.monthlyHours || 0);
+      // Simple monthly calculation - could be enhanced with recurrence logic
+      return total + (task.estimated_hours || 0);
     }, 0);
   }
 
   /**
    * Calculate utilization for unassigned tasks
-   * FIXED: Now uses proper recurrence calculations
    */
   private static calculateUnassignedTasksUtilization(
     recurringTasks: RecurringTaskDB[],
@@ -289,7 +217,6 @@ export class StaffForecastSummaryService {
     let totalHours = 0;
 
     for (const month of months) {
-      // Use the fixed calculateMonthlyDemand method for unassigned tasks too
       const monthlyDemand = this.calculateMonthlyDemand(unassignedTasks, month);
       
       monthlyData[month.key] = {

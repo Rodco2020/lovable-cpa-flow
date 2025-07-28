@@ -32,7 +32,7 @@ describe('MatrixServiceCore', () => {
     it('should clear cache successfully', () => {
       MatrixServiceCore.clearCache();
       const stats = MatrixServiceCore.getCacheStats();
-      expect(stats.size).toBe(0);
+      expect(stats.totalEntries).toBe(0);
     });
   });
 });

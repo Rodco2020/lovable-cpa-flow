@@ -7,7 +7,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { RecurringTask } from '@/types/task';
-import { mapDatabaseToRecurringTask, mapRecurringTaskToDatabase, mapPartialRecurringTaskToDatabase } from './mappers';
+import { mapDatabaseToRecurringTask, mapRecurringTaskToDatabase } from './mappers';
 
 /**
  * Get a recurring task by ID
@@ -68,7 +68,7 @@ export const updateRecurringTask = async (
   updates: Partial<RecurringTask>
 ): Promise<RecurringTask | null> => {
   try {
-    const dbUpdates = mapPartialRecurringTaskToDatabase(updates);
+    const dbUpdates = mapRecurringTaskToDatabase(updates);
     
     const { data, error } = await supabase
       .from('recurring_tasks')
@@ -96,14 +96,12 @@ export const createRecurringTask = async (
   taskData: Omit<RecurringTask, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<RecurringTask | null> => {
   try {
-    // Create the database object with timestamps
-    const now = new Date();
-    const dbTask = {
-      ...mapPartialRecurringTaskToDatabase(taskData),
-      id: crypto.randomUUID(),
-      created_at: now.toISOString(),
-      updated_at: now.toISOString()
-    };
+    const dbTask = mapRecurringTaskToDatabase(taskData);
+    
+    // Set required fields for creation
+    dbTask.template_id = taskData.templateId;
+    dbTask.client_id = taskData.clientId;
+    dbTask.created_at = new Date().toISOString();
     
     const { data, error } = await supabase
       .from('recurring_tasks')

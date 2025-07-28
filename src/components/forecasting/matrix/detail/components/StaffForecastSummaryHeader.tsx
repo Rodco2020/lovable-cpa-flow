@@ -69,58 +69,6 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
     return header;
   };
 
-  const MultiLineSortableHeader = ({ 
-    lines,
-    field,
-    className = "",
-    tooltip
-  }: { 
-    lines: string[];
-    field: SortField;
-    className?: string;
-    tooltip?: string;
-  }) => {
-    const isActive = sortField === field;
-    const SortIcon = sortDirection === 'asc' ? ChevronUp : ChevronDown;
-
-    const header = (
-      <div className={`text-center ${className}`}>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => onSort(field)}
-          className="h-auto p-1 font-semibold text-sm hover:bg-muted/70 flex flex-col items-center"
-        >
-          <div className="flex flex-col items-center leading-tight">
-            {lines.map((line, index) => (
-              <div key={index} className="flex items-center gap-1">
-                <span>{line}</span>
-                {index === lines.length - 1 && isActive && <SortIcon className="h-3 w-3" />}
-              </div>
-            ))}
-          </div>
-        </Button>
-      </div>
-    );
-
-    if (tooltip) {
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {header}
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs max-w-xs">{tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    }
-
-    return header;
-  };
-
   const RegularHeader = ({ 
     children, 
     className = "",
@@ -161,7 +109,7 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
     <div 
       className="grid gap-1 p-2 bg-muted/50 border-b font-semibold text-sm"
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, minmax(90px, 120px)) 120px 100px 120px 120px 120px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 100px 120px 120px`
       }}
     >
       {/* Staff Information Column */}
@@ -181,19 +129,27 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
       
       {/* Summary Columns */}
       <SortableHeader 
-        field="utilization"
+        field="totalHours"
         className="border-l-2 border-slate-300"
-        tooltip="Total demand/capacity with gap and overall utilization across all months"
+        tooltip="Total demand hours across all months"
       >
-        Total Summary
+        Total Hours
       </SortableHeader>
       
-      <MultiLineSortableHeader 
-        lines={["Total Expected", "Revenue"]}
+      <SortableHeader 
+        field="utilization"
+        tooltip="Overall utilization percentage across all months"
+      >
+        Overall Util %
+      </SortableHeader>
+      
+      <SortableHeader 
         field="totalExpectedRevenue"
         className="border-l-2 border-green-300"
         tooltip="Expected revenue based on client assignments"
-      />
+      >
+        Total Expected Revenue
+      </SortableHeader>
       
       <RegularHeader 
         className="border-l-2 border-purple-300"
