@@ -97,7 +97,9 @@ export const useStaffForecastSummary = ({
       required_skills: [task.skillRequired],
       priority: task.priority || 'medium',
       category: task.category || 'general',
-      status: 'Unscheduled' as const
+      status: 'Unscheduled' as const,
+      // Add monthlyDistribution for month-aware calculations
+      monthlyDistribution: task.monthlyDistribution || {}
     })) as unknown as RecurringTaskDB[];
   }, [JSON.stringify(filteredTasks?.map(t => t.id))]);
 
