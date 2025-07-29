@@ -6,7 +6,7 @@ import { StaffForecastSummaryRow } from './StaffForecastSummaryRow';
 import { StaffSummaryTotalsRow } from './StaffSummaryTotalsRow';
 import { StaffForecastSummaryService } from '@/services/forecasting/detail/staffForecastSummaryService';
 
-type SortField = 'name' | 'utilization' | 'totalHours' | 'totalExpectedRevenue';
+type SortField = 'staffName' | 'utilizationPercentage' | 'totalHours' | 'totalExpectedRevenue';
 type SortDirection = 'asc' | 'desc';
 
 interface StaffForecastSummaryGridProps {
@@ -20,7 +20,7 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
   months,
   isLoading = false
 }) => {
-  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortField, setSortField] = useState<SortField>('staffName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Sort staff utilization data
@@ -32,11 +32,11 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
       let bValue: string | number;
 
       switch (sortField) {
-        case 'name':
+        case 'staffName':
           aValue = a.staffName.toLowerCase();
           bValue = b.staffName.toLowerCase();
           break;
-        case 'utilization':
+        case 'utilizationPercentage':
           aValue = a.utilizationPercentage;
           bValue = b.utilizationPercentage;
           break;
@@ -127,6 +127,7 @@ export const StaffForecastSummaryGrid: React.FC<StaffForecastSummaryGridProps> =
             totals={firmTotals}
             months={months}
             totalStaffCount={sortedData.length}
+            utilizationData={utilizationData}
           />
         </div>
       </div>

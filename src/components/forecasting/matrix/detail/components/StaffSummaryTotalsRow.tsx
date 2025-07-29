@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { MonthInfo } from '@/types/demand';
-import { formatHours, formatCurrency, formatNumber } from '@/lib/numberUtils';
+import { MonthInfo, StaffUtilizationData } from '@/types/demand';
+import { formatCurrency, formatNumber } from '@/lib/numberUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { StaffSummaryCell } from './StaffSummaryCell';
 
 interface FirmTotals {
   totalDemand: number;
@@ -16,12 +17,14 @@ interface StaffSummaryTotalsRowProps {
   totals: FirmTotals;
   months: MonthInfo[];
   totalStaffCount: number;
+  utilizationData: StaffUtilizationData[];
 }
 
 export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
   totals,
   months,
-  totalStaffCount
+  totalStaffCount,
+  utilizationData
 }) => {
   // Get overall utilization color coding
   const getUtilizationColor = (percentage: number) => {
@@ -70,7 +73,7 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
     <div 
       className="grid gap-1 border-t-2 border-primary"
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 140px 120px 140px 160px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 180px 140px 120px 140px 160px`
       }}
     >
       {/* Firm Totals Label */}
@@ -86,32 +89,45 @@ export const StaffSummaryTotalsRow: React.FC<StaffSummaryTotalsRowProps> = ({
         </div>
       </Cell>
       
-      {/* Monthly Summary - Show aggregate placeholder cells */}
-      {months.map((month) => (
-        <Cell 
-          key={month.key}
-          className="bg-gray-100"
-          tooltip="Monthly firm totals calculated from individual staff metrics"
-        >
-          <div className="h-16 flex items-center justify-center">
-            <span className="text-muted-foreground text-xs">Aggregated</span>
+      {/* Monthly Summary - Show actual aggregated totals */}
+      {months.map((month) => {
+        // Calculate monthly totals across all staff
+        const monthlyTotals = utilizationData.reduce((acc, staff) => {
+          const monthData = staff.monthlyData?.[month.key];
+          if (monthData) {
+            acc.demand += monthData.demandHours || 0;
+            acc.capacity += monthData.capacityHours || 0;
+          }
+          return acc;
+        }, { demand: 0, capacity: 0 });
+
+        const monthlyUtilization = monthlyTotals.capacity > 0 
+          ? (monthlyTotals.demand / monthlyTotals.capacity) * 100 
+          : 0;
+
+        return (
+          <div key={month.key} className="text-center border-t-2 border-primary bg-primary/5 p-2">
+            <StaffSummaryCell
+              demandHours={monthlyTotals.demand}
+              capacityHours={monthlyTotals.capacity}
+              utilizationPercentage={monthlyUtilization}
+              className="border-l-0 bg-primary/10 font-semibold"
+            />
           </div>
-        </Cell>
-      ))}
+        );
+      })}
       
-      {/* Summary Totals */}
+      {/* Consolidated Summary Totals */}
       <Cell 
         className="border-l-2 border-slate-400 bg-slate-100 font-bold"
-        tooltip={`Total demand hours across all staff: ${formatHours(totals.totalDemand, 1)}`}
+        tooltip={`Firm-wide summary: ${formatNumber(totals.totalDemand, 1)}h demand / ${formatNumber(totals.totalCapacity, 1)}h capacity, ${formatNumber(totals.overallUtilization, 1)}% utilization`}
       >
-        {formatHours(totals.totalDemand, 1)}
-      </Cell>
-      
-      <Cell 
-        className={`bg-slate-100 font-bold ${utilizationClass} rounded-sm`}
-        tooltip={`Overall firm utilization: ${formatNumber(totals.overallUtilization, 1)}%`}
-      >
-        {formatNumber(totals.overallUtilization, 1)}%
+        <StaffSummaryCell
+          demandHours={totals.totalDemand}
+          capacityHours={totals.totalCapacity}
+          utilizationPercentage={totals.overallUtilization}
+          className="border-l-0 bg-slate-200 font-bold"
+        />
       </Cell>
       
       <Cell 

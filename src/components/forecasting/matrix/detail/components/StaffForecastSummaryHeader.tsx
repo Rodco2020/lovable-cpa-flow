@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-type SortField = 'name' | 'utilization' | 'totalHours' | 'totalExpectedRevenue';
+type SortField = 'staffName' | 'utilizationPercentage' | 'totalHours' | 'totalExpectedRevenue';
 type SortDirection = 'asc' | 'desc';
 
 interface StaffForecastSummaryHeaderProps {
@@ -109,44 +109,40 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
     <div 
       className="grid gap-1 p-2 bg-muted/50 border-b font-semibold text-sm"
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 140px 120px 140px 160px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 180px 140px 120px 140px 160px`
       }}
     >
       {/* Staff Information Column */}
-      <SortableHeader field="name">
+      <SortableHeader
+        field="staffName"
+        tooltip="Click to sort by staff member name"
+      >
         Staff Member
       </SortableHeader>
       
-      {/* Monthly Columns - Single consolidated header per month */}
+      {/* Monthly Headers - Consolidated View */}
       {months.map((month) => (
         <RegularHeader 
           key={month.key}
-          tooltip={`Consolidated view: demand/capacity with gap and utilization for ${month.label}`}
+          tooltip="Monthly demand/capacity breakdown with gap analysis and utilization"
         >
           {month.label}
         </RegularHeader>
       ))}
       
-      {/* Summary Columns */}
-      <SortableHeader 
-        field="totalHours"
+      {/* Consolidated Summary Header */}
+      <SortableHeader
+        field="utilizationPercentage"
         className="border-l-2 border-slate-300"
-        tooltip="Total demand hours across all months"
+        tooltip="Total summary: demand/capacity hours, gap, and utilization percentage"
       >
-        Total Hours
+        Total Summary
       </SortableHeader>
       
-      <SortableHeader 
-        field="utilization"
-        tooltip="Overall utilization percentage across all months"
-      >
-        Overall Util %
-      </SortableHeader>
-      
-      <SortableHeader 
+      <SortableHeader
         field="totalExpectedRevenue"
         className="border-l-2 border-green-300"
-        tooltip="Expected revenue based on client assignments"
+        tooltip="Total expected revenue based on assigned tasks and rates"
       >
         Total Expected Revenue
       </SortableHeader>
@@ -160,7 +156,7 @@ export const StaffForecastSummaryHeader: React.FC<StaffForecastSummaryHeaderProp
       
       <RegularHeader 
         className="border-l-2 border-emerald-300"
-        tooltip="Suggested revenue based on staff cost rates"
+        tooltip="Total suggested revenue based on cost plus markup"
       >
         Total Suggested Revenue
       </RegularHeader>

@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { StaffUtilizationData, MonthInfo } from '@/types/demand';
-import { formatHours, formatCurrency, formatNumber } from '@/lib/numberUtils';
+import { formatCurrency, formatNumber } from '@/lib/numberUtils';
 import { Badge } from '@/components/ui/badge';
 import { StaffMatrixCell } from './StaffMatrixCell';
+import { StaffSummaryCell } from './StaffSummaryCell';
 
 interface StaffForecastSummaryRowProps {
   staff: StaffUtilizationData;
@@ -35,7 +36,7 @@ export const StaffForecastSummaryRow: React.FC<StaffForecastSummaryRowProps> = (
     <div 
       className={`grid gap-1 p-2 hover:bg-muted/30 transition-colors ${bgColor}`}
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 140px 120px 140px 160px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 180px 140px 120px 140px 160px`
       }}
     >
       {/* Staff Name */}
@@ -58,18 +59,12 @@ export const StaffForecastSummaryRow: React.FC<StaffForecastSummaryRowProps> = (
         />
       ))}
       
-      {/* Summary Columns */}
-      <div className="text-center border-l-2 border-slate-300 bg-slate-50 rounded p-1 flex items-center justify-center">
-        <span className="font-semibold text-sm">
-          {staff.totalHours > 0 ? formatHours(staff.totalHours, 1) : '-'}
-        </span>
-      </div>
-      
-      <div className={`text-center bg-slate-50 rounded p-1 flex items-center justify-center ${utilizationClass}`}>
-        <span className="font-semibold text-sm">
-          {staff.utilizationPercentage > 0 ? `${formatNumber(staff.utilizationPercentage, 1)}%` : '-'}
-        </span>
-      </div>
+      {/* Consolidated Summary Column */}
+      <StaffSummaryCell
+        demandHours={staff.totalHours}
+        capacityHours={staff.totalCapacityHours}
+        utilizationPercentage={staff.utilizationPercentage}
+      />
       
       <div className="text-center bg-green-50 border-l-2 border-green-300 rounded p-1 flex items-center justify-center">
         <span className="font-semibold text-sm">
