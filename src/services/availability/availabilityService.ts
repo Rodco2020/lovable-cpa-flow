@@ -4,9 +4,8 @@ import { supabase } from '@/lib/supabase';
 export interface StaffAvailability {
   staff_id: string;
   day_of_week: number;
-  start_time: string;
-  end_time: string;
-  available_hours: number;
+  time_slot: string;
+  is_available: boolean;
 }
 
 /**
@@ -23,7 +22,7 @@ export class AvailabilityService {
     try {
       const { data, error } = await supabase
         .from('staff_availability')
-        .select('*')
+        .select('time_slot, is_available, day_of_week, staff_id')
         .eq('staff_id', staffId);
 
       if (error) {
@@ -39,11 +38,35 @@ export class AvailabilityService {
   }
 
   /**
+   * Parse time slot string to calculate hours
+   * Example: "09:00-12:00" returns 3.0 hours
+   */
+  private parseTimeSlot(timeSlot: string): number {
+    try {
+      const [start, end] = timeSlot.split('-');
+      const [startHour, startMin] = start.split(':').map(Number);
+      const [endHour, endMin] = end.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+      return (endMinutes - startMinutes) / 60;
+    } catch (error) {
+      console.error(`Error parsing time slot "${timeSlot}":`, error);
+      return 0;
+    }
+  }
+
+  /**
    * Calculate total weekly capacity hours for a staff member
+   * FIXED: Now uses actual database schema with time_slot and is_available
    */
   calculateWeeklyCapacity(availability: StaffAvailability[]): number {
     return availability.reduce((total, slot) => {
-      return total + (slot.available_hours || 0);
+      // Only count available slots
+      if (slot.is_available) {
+        const hours = this.parseTimeSlot(slot.time_slot);
+        return total + hours;
+      }
+      return total;
     }, 0);
   }
 
