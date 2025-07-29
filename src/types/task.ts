@@ -86,6 +86,8 @@ export interface RecurringTaskDB {
     full_name: string;
     role_title?: string;
   };
+  // Add monthlyDistribution for month-aware calculations
+  monthlyDistribution?: Record<string, number>;
 }
 
 // Client-assigned recurring task (application-level interface)

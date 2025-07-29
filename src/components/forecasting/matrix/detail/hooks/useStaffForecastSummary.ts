@@ -72,10 +72,15 @@ export const useStaffForecastSummary = ({
 
   // Stabilize dependencies to prevent re-render loops
   const stableRecurringTasks = useMemo(() => {
-    return filteredTasks.map(task => ({
+    const transformedTasks = filteredTasks.map(task => ({
       id: task.id,
       name: task.taskName,
       client_id: task.clientId,
+      // ADD THIS: Include client data for revenue calculations
+      clients: {
+        id: task.clientId,
+        legal_name: task.clientName  // This is the critical missing piece
+      },
       estimated_hours: task.monthlyHours || task.totalHours || 0,
       recurrence_type: task.recurrencePattern?.toLowerCase() || 'monthly',
       preferred_staff_id: task.preferredStaffId || null,
@@ -101,6 +106,20 @@ export const useStaffForecastSummary = ({
       // Add monthlyDistribution for month-aware calculations
       monthlyDistribution: task.monthlyDistribution || {}
     })) as unknown as RecurringTaskDB[];
+
+    // Add temporary debug logging (to verify the fix)
+    if (transformedTasks.length > 0) {
+      console.log('📊 [REVENUE FIX] Sample transformed task:', {
+        id: transformedTasks[0].id,
+        name: transformedTasks[0].name,
+        client_id: transformedTasks[0].client_id,
+        hasClients: !!transformedTasks[0].clients,
+        clientLegalName: transformedTasks[0].clients?.legal_name,
+        monthlyDistribution: transformedTasks[0].monthlyDistribution
+      });
+    }
+
+    return transformedTasks;
   }, [JSON.stringify(filteredTasks?.map(t => t.id))]);
 
   const stableForecastPeriods = useMemo(() => {
