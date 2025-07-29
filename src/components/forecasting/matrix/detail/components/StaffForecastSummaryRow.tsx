@@ -35,7 +35,7 @@ export const StaffForecastSummaryRow: React.FC<StaffForecastSummaryRowProps> = (
     <div 
       className={`grid gap-1 p-2 hover:bg-muted/30 transition-colors ${bgColor}`}
       style={{
-        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 100px 120px 120px`
+        gridTemplateColumns: `200px repeat(${months.length}, 1fr) 100px 120px 140px 120px 140px 160px`
       }}
     >
       {/* Staff Name */}
