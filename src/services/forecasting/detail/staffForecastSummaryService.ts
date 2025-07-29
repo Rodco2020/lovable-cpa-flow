@@ -4,6 +4,7 @@ import { ForecastData } from '@/types/forecasting';
 import { RecurringTaskDB } from '@/types/task';
 import { AvailabilityService } from '@/services/availability/availabilityService';
 import { PeriodProcessingService } from '../demand/matrixTransformer/periodProcessingService';
+import { MonthlyDemandCalculationService } from '../demand/matrixTransformer/monthlyDemandCalculationService';
 import { staffQueries } from '@/utils/staffQueries';
 
 /**
@@ -188,15 +189,35 @@ export class StaffForecastSummaryService {
   }
 
   /**
-   * Calculate monthly demand for assigned tasks
+   * Calculate monthly demand for assigned tasks using proper recurrence logic
+   * FIXED: Now uses MonthlyDemandCalculationService for accurate monthly calculations
    */
   private static calculateMonthlyDemand(
     tasks: RecurringTaskDB[],
     month: MonthInfo
   ): number {
+    console.log(`🔍 [MONTHLY DEMAND] Calculating demand for month ${month.key} with ${tasks.length} tasks`);
+    
     return tasks.reduce((total, task) => {
-      // Simple monthly calculation - could be enhanced with recurrence logic
-      return total + (task.estimated_hours || 0);
+      try {
+        // Use MonthlyDemandCalculationService for accurate recurrence-based calculation
+        const demandResult = MonthlyDemandCalculationService.calculateTaskDemandForMonth(
+          task,
+          month.key
+        );
+        
+        console.log(`📊 [MONTHLY DEMAND] Task ${task.id} (${task.name}) in ${month.key}:`, {
+          monthlyHours: demandResult.monthlyHours,
+          monthlyOccurrences: demandResult.monthlyOccurrences,
+          recurrenceType: task.recurrence_type,
+          estimatedHours: task.estimated_hours
+        });
+        
+        return total + demandResult.monthlyHours;
+      } catch (error) {
+        console.error(`❌ [MONTHLY DEMAND] Error calculating demand for task ${task.id}:`, error);
+        return total;
+      }
     }, 0);
   }
 
