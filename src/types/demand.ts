@@ -28,7 +28,7 @@ export interface StaffUtilizationData {
   totalCapacity?: number; // Add missing property for compatibility
   utilizationPercentage: number;
   expectedHourlyRate: number;
-  totalExpectedRevenue: number;
+  totalExpectedRevenue: number; // This should never be undefined in proper calculation
   totalSuggestedRevenue: number;
   expectedLessSuggested: number;
   monthlyData: Record<string, MonthlyStaffMetrics>;

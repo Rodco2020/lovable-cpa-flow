@@ -68,7 +68,7 @@ export const StaffForecastSummaryRow: React.FC<StaffForecastSummaryRowProps> = (
       
       <div className="text-center bg-green-50 border-l-2 border-green-300 rounded p-1 flex items-center justify-center">
         <span className="font-semibold text-sm">
-          {staff.totalExpectedRevenue > 0 ? formatCurrency(staff.totalExpectedRevenue) : '-'}
+          {staff.totalExpectedRevenue !== undefined && staff.totalExpectedRevenue !== null ? formatCurrency(staff.totalExpectedRevenue) : '-'}
         </span>
       </div>
       
