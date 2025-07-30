@@ -122,28 +122,28 @@ export class StaffForecastSummaryService {
 
       const overallUtilization = totalCapacityHours > 0 ? (totalHours / totalCapacityHours) * 100 : 0;
 
-      // FIXED: Calculate revenue metrics - corrected logic
-      let totalExpectedRevenue = 0;  // Will be skill-based rate calculation
-      let totalSuggestedRevenue = 0; // Will be client apportionment value
+      // FIXED: Calculate revenue metrics using correct methodology per user requirements
+      let totalExpectedRevenue = 0;  // Client apportionment methodology 
+      let totalSuggestedRevenue = 0; // Skill fee rates calculation
       let expectedHourlyRate = 0;
       
       try {
-        // Get skill fee rates for expected revenue calculation
+        // Get skill fee rates for suggested revenue calculation
         const skillFeeRatesMap = await getSkillFeeRatesMap();
         
-        // Calculate expected revenue using skill fee rates (totalHours × skill_fee_rate)
+        // Calculate suggested revenue using skill fee rates (totalHours × skill_fee_rate)
         const primarySkill = assignedTasks[0]?.required_skills?.[0];
         if (primarySkill && skillFeeRatesMap.has(primarySkill)) {
           const skillFeeRate = skillFeeRatesMap.get(primarySkill) || 0;
-          totalExpectedRevenue = totalHours * skillFeeRate;
+          totalSuggestedRevenue = totalHours * skillFeeRate;
           expectedHourlyRate = skillFeeRate;
         } else {
           // Fallback to staff cost_per_hour if no skill fee rate found
           expectedHourlyRate = staff.cost_per_hour || 0;
-          totalExpectedRevenue = totalHours * expectedHourlyRate;
+          totalSuggestedRevenue = totalHours * expectedHourlyRate;
         }
 
-        // Calculate suggested revenue using client apportionment methodology
+        // Calculate expected revenue using client apportionment methodology
         const clientsWithExpectedRevenue = await supabase
           .from('clients')
           .select('id, legal_name, expected_monthly_revenue')
@@ -173,7 +173,7 @@ export class StaffForecastSummaryService {
             months.length
           );
 
-          // Calculate revenue using client apportionment for suggested revenue
+          // Calculate revenue using client apportionment for expected revenue
           const tasksWithRevenue = await DetailTaskRevenueCalculator.calculateBulkTaskRevenue(
             tasksForRevenue,
             clientRevenueData
@@ -184,16 +184,16 @@ export class StaffForecastSummaryService {
             Array.from(tasksWithRevenue.entries()).map(([taskId, revenueResult]) => [taskId, revenueResult.totalExpectedRevenue || 0])
           );
 
-          // Calculate suggested revenue using client apportionment
-          totalSuggestedRevenue = assignedTasks.reduce((sum, task) => {
+          // Calculate expected revenue using client apportionment
+          totalExpectedRevenue = assignedTasks.reduce((sum, task) => {
             return sum + (taskRevenueMap.get(task.id) || 0);
           }, 0);
         }
       } catch (error) {
         console.error(`Error calculating revenue for staff ${staff.full_name}:`, error);
         expectedHourlyRate = staff.cost_per_hour || 0;
-        totalExpectedRevenue = totalHours * expectedHourlyRate;
-        totalSuggestedRevenue = 0;
+        totalSuggestedRevenue = totalHours * expectedHourlyRate;
+        totalExpectedRevenue = 0;
       }
 
       const expectedLessSuggested = totalExpectedRevenue - totalSuggestedRevenue;
@@ -323,29 +323,29 @@ export class StaffForecastSummaryService {
       totalHours += monthlyDemand;
     }
 
-    // FIXED: Calculate revenue using corrected methodology for unassigned tasks
-    let totalExpectedRevenue = 0;  // Will be skill-based rate calculation
-    let totalSuggestedRevenue = 0; // Will be client apportionment value
+    // FIXED: Calculate revenue using correct methodology per user requirements for unassigned tasks
+    let totalExpectedRevenue = 0;  // Client apportionment methodology
+    let totalSuggestedRevenue = 0; // Skill fee rates calculation
     let expectedHourlyRate = 0;
     
     try {
-      // Get skill fee rates for expected revenue calculation
+      // Get skill fee rates for suggested revenue calculation
       const skillFeeRatesMap = await getSkillFeeRatesMap();
       
-      // Calculate expected revenue using skill fee rates for unassigned tasks
+      // Calculate suggested revenue using skill fee rates for unassigned tasks
       if (totalHours > 0) {
         const primarySkill = unassignedTasks[0]?.required_skills?.[0];
         if (primarySkill && skillFeeRatesMap.has(primarySkill)) {
           const skillFeeRate = skillFeeRatesMap.get(primarySkill) || 0;
-          totalExpectedRevenue = totalHours * skillFeeRate;
+          totalSuggestedRevenue = totalHours * skillFeeRate;
           expectedHourlyRate = skillFeeRate;
         } else {
           // Fallback to default rate for unassigned tasks
           expectedHourlyRate = 100; // Default rate
-          totalExpectedRevenue = totalHours * expectedHourlyRate;
+          totalSuggestedRevenue = totalHours * expectedHourlyRate;
         }
 
-        // Calculate suggested revenue using client apportionment methodology
+        // Calculate expected revenue using client apportionment methodology
         const clientsWithExpectedRevenue = await supabase
           .from('clients')
           .select('id, legal_name, expected_monthly_revenue')
@@ -381,8 +381,8 @@ export class StaffForecastSummaryService {
             clientRevenueData
           );
 
-          // Calculate suggested revenue using client apportionment
-          totalSuggestedRevenue = unassignedTasks.reduce((sum, task) => {
+          // Calculate expected revenue using client apportionment
+          totalExpectedRevenue = unassignedTasks.reduce((sum, task) => {
             const revenueResult = tasksWithRevenue.get(task.id);
             return sum + (revenueResult?.totalExpectedRevenue || 0);
           }, 0);
@@ -391,8 +391,8 @@ export class StaffForecastSummaryService {
     } catch (error) {
       console.error('Error calculating revenue for unassigned tasks:', error);
       expectedHourlyRate = 100; // Default fallback
-      totalExpectedRevenue = totalHours * expectedHourlyRate;
-      totalSuggestedRevenue = 0;
+      totalSuggestedRevenue = totalHours * expectedHourlyRate;
+      totalExpectedRevenue = 0;
     }
 
     return {
