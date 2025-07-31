@@ -68,19 +68,7 @@ export const StaffForecastSummaryRow: React.FC<StaffForecastSummaryRowProps> = (
       
       <div className="text-center bg-green-50 border-l-2 border-green-300 rounded p-1 flex items-center justify-center">
         <span className="font-semibold text-sm">
-          {(() => {
-            // DIAGNOSTIC: Log Ana Florian's revenue data
-            if (staff.staffName === 'Ana Florian') {
-              console.log('🔍 [REVENUE DEBUG] Ana Florian totalExpectedRevenue:', {
-                value: staff.totalExpectedRevenue,
-                type: typeof staff.totalExpectedRevenue,
-                isNull: staff.totalExpectedRevenue === null,
-                isUndefined: staff.totalExpectedRevenue === undefined,
-                fullStaffObject: staff
-              });
-            }
-            return staff.totalExpectedRevenue !== undefined && staff.totalExpectedRevenue !== null ? formatCurrency(staff.totalExpectedRevenue) : '-';
-          })()}
+          {staff.totalExpectedRevenue !== undefined && staff.totalExpectedRevenue !== null ? formatCurrency(staff.totalExpectedRevenue) : '-'}
         </span>
       </div>
       

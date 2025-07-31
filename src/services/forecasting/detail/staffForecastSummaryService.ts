@@ -227,17 +227,24 @@ export class StaffForecastSummaryService {
             });
           }
 
-          // Build detailed task data for revenue calculation
+          // Build detailed task data for revenue calculation with CORRECT monthly distribution
           const tasksForRevenue = assignedTasks.map(task => {
-            const taskHours = this.calculateMonthlyDemand([task], months[0]) || 0; // Get actual monthly hours for this task
+            // FIXED: Calculate total hours across ALL months using monthlyDistribution
+            const totalTaskHours = months.reduce((sum, month) => {
+              const monthlyHours = (task as any).monthlyDistribution?.[month.key] || 0;
+              return sum + monthlyHours;
+            }, 0);
+            
+            console.log(`💰 [TASK HOURS CALC] Task ${task.name}: ${totalTaskHours}h total across ${months.length} months`);
+            
             return {
               id: task.id,
               taskName: task.name,
               clientName: task.clients?.legal_name || 'Unknown Client',
               clientId: task.client_id,
               skillRequired: task.required_skills?.[0] || 'General',
-              monthlyHours: taskHours,
-              totalHours: taskHours * months.length, // Scale by months
+              monthlyHours: totalTaskHours / months.length, // Average for compatibility
+              totalHours: totalTaskHours, // CORRECT: Use actual total across all months
               month: months[0]?.key || new Date().toISOString().slice(0, 7),
               monthLabel: months[0]?.label || 'Current Period',
               recurrencePattern: task.recurrence_type || 'Unknown',
@@ -491,17 +498,24 @@ export class StaffForecastSummaryService {
           
           console.log(`💰 [UNASSIGNED REVENUE] Processing ${relevantClients.length} relevant clients`);
 
-          // Build detailed task data for revenue calculation
+          // Build detailed task data for revenue calculation with CORRECT monthly distribution
           const tasksForRevenue = unassignedTasks.map(task => {
-            const taskHours = this.calculateMonthlyDemand([task], months[0]) || 0;
+            // FIXED: Calculate total hours across ALL months using monthlyDistribution
+            const totalTaskHours = months.reduce((sum, month) => {
+              const monthlyHours = (task as any).monthlyDistribution?.[month.key] || 0;
+              return sum + monthlyHours;
+            }, 0);
+            
+            console.log(`💰 [UNASSIGNED TASK HOURS] Task ${task.name}: ${totalTaskHours}h total across ${months.length} months`);
+            
             return {
               id: task.id,
               taskName: task.name,
               clientName: task.clients?.legal_name || 'Unknown Client',
               clientId: task.client_id,
               skillRequired: task.required_skills?.[0] || 'General',
-              monthlyHours: taskHours,
-              totalHours: taskHours * months.length,
+              monthlyHours: totalTaskHours / months.length, // Average for compatibility
+              totalHours: totalTaskHours, // CORRECT: Use actual total across all months
               month: months[0]?.key || new Date().toISOString().slice(0, 7),
               monthLabel: months[0]?.label || 'Current Period',
               recurrencePattern: task.recurrence_type || 'Unknown',
