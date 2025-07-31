@@ -144,8 +144,17 @@ export class StaffForecastSummaryService {
           // Fallback to staff cost_per_hour if no skill fee rate found
           expectedHourlyRate = staff.cost_per_hour || 0;
           totalSuggestedRevenue = totalHours * expectedHourlyRate;
-          console.log(`💰 [REVENUE CALC] Using staff cost_per_hour: $${expectedHourlyRate}/hr (skill ${primarySkill} not found)`);
+        console.log(`💰 [REVENUE CALC] Using staff cost_per_hour: $${expectedHourlyRate}/hr (skill ${primarySkill} not found)`);
         }
+
+        // DIAGNOSTIC LOG #1: Check what data we have before fetching clients
+        console.log(`🔍 [DIAGNOSTIC] Before fetching clients for ${staff.full_name}:`, {
+          staffName: staff.full_name,
+          totalHours,
+          assignedTasksCount: assignedTasks.length,
+          primarySkill,
+          totalSuggestedRevenue
+        });
 
         // Calculate expected revenue using client apportionment methodology
         const clientsWithExpectedRevenue = await supabase
@@ -156,6 +165,16 @@ export class StaffForecastSummaryService {
         if (clientsWithExpectedRevenue.data && clientsWithExpectedRevenue.data.length > 0) {
           console.log(`💰 [REVENUE CALC] Found ${clientsWithExpectedRevenue.data.length} active clients with revenue data`);
           
+          // DIAGNOSTIC LOG #2: Check client data quality
+          console.log(`🔍 [DIAGNOSTIC] Client data for ${staff.full_name}:`, {
+            totalClientsFound: clientsWithExpectedRevenue.data.length,
+            clientsWithRevenue: clientsWithExpectedRevenue.data.filter(c => c.expected_monthly_revenue > 0).length,
+            sampleClients: clientsWithExpectedRevenue.data.slice(0, 3).map(c => ({
+              name: c.legal_name,
+              revenue: c.expected_monthly_revenue
+            }))
+          });
+          
           // Get unique clients from assigned tasks for proper client revenue calculation
           const uniqueClientIds = [...new Set(assignedTasks.map(task => task.client_id))];
           const relevantClients = clientsWithExpectedRevenue.data.filter(client => 
@@ -163,6 +182,23 @@ export class StaffForecastSummaryService {
           );
           
           console.log(`💰 [REVENUE CALC] Processing ${relevantClients.length} relevant clients from ${uniqueClientIds.length} unique client IDs`);
+
+          // DIAGNOSTIC LOG #3: Check client matching for Ana Florian's tasks
+          if (staff.full_name === 'Ana Florian') {
+            console.log(`🔍 [DIAGNOSTIC ANA] Client matching for Ana Florian:`, {
+              uniqueClientIds,
+              relevantClients: relevantClients.map(c => ({
+                id: c.id,
+                name: c.legal_name,
+                revenue: c.expected_monthly_revenue
+              })),
+              assignedTasksWithClients: assignedTasks.map(t => ({
+                taskName: t.name,
+                clientId: t.client_id,
+                clientName: t.clients?.legal_name
+              }))
+            });
+          }
 
           // Build detailed task data for revenue calculation
           const tasksForRevenue = assignedTasks.map(task => {
@@ -192,6 +228,19 @@ export class StaffForecastSummaryService {
             tasksForRevenue,
             months.length
           );
+
+          // DIAGNOSTIC LOG #4: Check final client revenue data for Ana Florian
+          if (staff.full_name === 'Ana Florian') {
+            console.log(`🔍 [DIAGNOSTIC ANA] Client revenue data built for Ana Florian:`, {
+              clientRevenueDataSize: clientRevenueData.size,
+              clientRevenueEntries: Array.from(clientRevenueData.entries()).map(([name, data]) => ({
+                clientName: name,
+                totalHours: data.totalHours,
+                expectedMonthlyRevenue: data.expectedMonthlyRevenue,
+                totalExpectedRevenue: data.totalExpectedRevenue
+              }))
+            });
+          }
 
           console.log(`💰 [REVENUE CALC] Built client revenue data for ${clientRevenueData.size} clients:`, 
             Array.from(clientRevenueData.entries()).map(([name, data]) => 

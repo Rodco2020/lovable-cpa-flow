@@ -174,7 +174,22 @@ export class DetailTaskRevenueCalculator {
 
     for (const task of tasks) {
       try {
+        // DIAGNOSTIC LOG #5: Check client matching in task loop
         const clientData = clientRevenueData.get(task.clientName);
+        if (task.taskName.includes('Ana') || task.clientName.includes('Ana') || task.clientName.includes('Florian')) {
+          console.log(`🔍 [DIAGNOSTIC TASK] Ana Florian task processing:`, {
+            taskName: task.taskName,
+            taskClientName: task.clientName,
+            taskClientId: task.clientId,
+            clientDataFound: !!clientData,
+            availableClientNames: Array.from(clientRevenueData.keys()),
+            clientDataDetails: clientData ? {
+              totalHours: clientData.totalHours,
+              totalExpectedRevenue: clientData.totalExpectedRevenue
+            } : null
+          });
+        }
+        
         if (!clientData) {
           console.warn(`[BULK TASK REVENUE] No client data for ${task.clientName} - using zero revenue for task ${task.taskName}`);
           const fallbackSkillRate = feeRatesMap.get(task.skillRequired) || 75.00;
