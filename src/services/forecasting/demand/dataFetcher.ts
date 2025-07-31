@@ -171,6 +171,8 @@ export class DataFetcher {
 
   static async fetchClientsWithRevenue(): Promise<Array<{ id: string; legal_name: string; expected_monthly_revenue: number }>> {
     try {
+      console.log('🔍 [DATA FETCHER] Fetching clients with revenue data...');
+      
       const { data, error } = await supabase
         .from('clients')
         .select('id, legal_name, expected_monthly_revenue')
@@ -179,14 +181,34 @@ export class DataFetcher {
         .range(0, 999);
 
       if (error) {
-        console.error('Error fetching clients with revenue:', error);
+        console.error('❌ [DATA FETCHER] Error fetching clients with revenue:', error);
         return [];
       }
+
+      if (!data || data.length === 0) {
+        console.warn('⚠️ [DATA FETCHER] No active clients found with revenue data');
+        return [];
+      }
+
+      console.log(`✅ [DATA FETCHER] Found ${data.length} active clients with revenue data`);
+      
+      // Enhanced logging for client data quality
+      const clientsWithPositiveRevenue = data.filter(c => c.expected_monthly_revenue > 0);
+      const clientsWithZeroRevenue = data.filter(c => c.expected_monthly_revenue <= 0);
+      
+      console.log(`📊 [DATA FETCHER] Client revenue summary:`, {
+        totalClients: data.length,
+        clientsWithPositiveRevenue: clientsWithPositiveRevenue.length,
+        clientsWithZeroRevenue: clientsWithZeroRevenue.length,
+        totalRevenue: clientsWithPositiveRevenue.reduce((sum, c) => sum + c.expected_monthly_revenue, 0),
+        avgRevenue: clientsWithPositiveRevenue.length > 0 ? 
+          (clientsWithPositiveRevenue.reduce((sum, c) => sum + c.expected_monthly_revenue, 0) / clientsWithPositiveRevenue.length).toFixed(2) : 0
+      });
 
       return DataTransformationService.transformClientsWithRevenue(data);
 
     } catch (error) {
-      console.error('Error fetching clients with revenue:', error);
+      console.error('❌ [DATA FETCHER] Critical error fetching clients with revenue:', error);
       return [];
     }
   }

@@ -9,6 +9,7 @@ import { staffQueries } from '@/utils/staffQueries';
 import { DetailTaskRevenueCalculator } from '../demand/calculators/detailTaskRevenueCalculator';
 import { ClientRevenueCalculator } from '../demand/matrixTransformer/clientRevenueCalculator';
 import { getSkillFeeRatesMap } from '@/services/skills/feeRateService';
+import { ClientDataValidator } from '@/services/forecasting/validation/clientDataValidator';
 import type { Task } from '../demand/calculators/detailTaskRevenueCalculator';
 
 /**
@@ -156,23 +157,49 @@ export class StaffForecastSummaryService {
           totalSuggestedRevenue
         });
 
-        // Calculate expected revenue using client apportionment methodology
-        const clientsWithExpectedRevenue = await supabase
-          .from('clients')
-          .select('id, legal_name, expected_monthly_revenue')
-          .eq('status', 'active');
+        // ENHANCED: Use client validator for robust client data handling
+        console.log(`🔍 [DIAGNOSTIC] Using enhanced client validation for ${staff.full_name}...`);
         
+        const taskClientIds = assignedTasks.map(task => task.client_id);
+        const taskClientNames = assignedTasks.map(task => task.clients?.legal_name || 'Unknown Client');
+        
+        const { clientRevenueMap, validationReport } = await ClientDataValidator.validateAndEnrichClientData(
+          taskClientIds,
+          taskClientNames
+        );
+        
+        console.log(`🔍 [DIAGNOSTIC] Client validation report for ${staff.full_name}:`, validationReport);
+        
+        // Convert clientRevenueMap to array format for compatibility
+        const clientsWithExpectedRevenue = {
+          data: Array.from(clientRevenueMap.values()),
+          error: validationReport.dataQualityIssues.length > 0 ? 
+            new Error(`Data quality issues: ${validationReport.dataQualityIssues.join('; ')}`) : null
+        };
+        
+        if (clientsWithExpectedRevenue.error) {
+          console.error(`❌ [REVENUE CALC] Database error fetching clients: ${clientsWithExpectedRevenue.error.message}`);
+          throw new Error(`Failed to fetch client data: ${clientsWithExpectedRevenue.error.message}`);
+        }
+
         if (clientsWithExpectedRevenue.data && clientsWithExpectedRevenue.data.length > 0) {
           console.log(`💰 [REVENUE CALC] Found ${clientsWithExpectedRevenue.data.length} active clients with revenue data`);
           
-          // DIAGNOSTIC LOG #2: Check client data quality
-          console.log(`🔍 [DIAGNOSTIC] Client data for ${staff.full_name}:`, {
+          // DIAGNOSTIC LOG #2: Check client data quality and identify potential issues
+          const clientsWithPositiveRevenue = clientsWithExpectedRevenue.data.filter(c => c.expected_monthly_revenue > 0);
+          const clientsWithZeroRevenue = clientsWithExpectedRevenue.data.filter(c => c.expected_monthly_revenue <= 0);
+          
+          console.log(`🔍 [DIAGNOSTIC] Client data quality for ${staff.full_name}:`, {
             totalClientsFound: clientsWithExpectedRevenue.data.length,
-            clientsWithRevenue: clientsWithExpectedRevenue.data.filter(c => c.expected_monthly_revenue > 0).length,
-            sampleClients: clientsWithExpectedRevenue.data.slice(0, 3).map(c => ({
+            clientsWithPositiveRevenue: clientsWithPositiveRevenue.length,
+            clientsWithZeroRevenue: clientsWithZeroRevenue.length,
+            averageRevenue: clientsWithPositiveRevenue.length > 0 ? 
+              (clientsWithPositiveRevenue.reduce((sum, c) => sum + c.expected_monthly_revenue, 0) / clientsWithPositiveRevenue.length).toFixed(2) : 0,
+            sampleClientsWithRevenue: clientsWithPositiveRevenue.slice(0, 3).map(c => ({
               name: c.legal_name,
               revenue: c.expected_monthly_revenue
-            }))
+            })),
+            zeroRevenueClients: clientsWithZeroRevenue.slice(0, 3).map(c => c.legal_name)
           });
           
           // Get unique clients from assigned tasks for proper client revenue calculation
@@ -433,11 +460,25 @@ export class StaffForecastSummaryService {
           console.log(`💰 [UNASSIGNED REVENUE] Using default rate: $${expectedHourlyRate}/hr (skill ${primarySkill} not found)`);
         }
 
-        // Calculate expected revenue using client apportionment methodology
-        const clientsWithExpectedRevenue = await supabase
-          .from('clients')
-          .select('id, legal_name, expected_monthly_revenue')
-          .eq('status', 'active');
+        // ENHANCED: Use client validator for robust client data handling for unassigned tasks
+        console.log(`🔍 [UNASSIGNED DIAGNOSTIC] Using enhanced client validation for unassigned tasks...`);
+        
+        const taskClientIds = unassignedTasks.map(task => task.client_id);
+        const taskClientNames = unassignedTasks.map(task => task.clients?.legal_name || 'Unknown Client');
+        
+        const { clientRevenueMap, validationReport } = await ClientDataValidator.validateAndEnrichClientData(
+          taskClientIds,
+          taskClientNames
+        );
+        
+        console.log(`🔍 [UNASSIGNED DIAGNOSTIC] Client validation report for unassigned tasks:`, validationReport);
+        
+        // Convert clientRevenueMap to array format for compatibility
+        const clientsWithExpectedRevenue = {
+          data: Array.from(clientRevenueMap.values()),
+          error: validationReport.dataQualityIssues.length > 0 ? 
+            new Error(`Data quality issues: ${validationReport.dataQualityIssues.join('; ')}`) : null
+        };
         
         if (clientsWithExpectedRevenue.data && clientsWithExpectedRevenue.data.length > 0) {
           console.log(`💰 [UNASSIGNED REVENUE] Found ${clientsWithExpectedRevenue.data.length} active clients`);
